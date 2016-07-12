@@ -100,7 +100,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
     --packages neo4j-contrib:neo4j-spark-connector:1.0.0-RC1
 
-
+```scala
     import org.neo4j.spark._
     
     Neo4jTupleRDD(sc,"MATCH (n) return id(n)",Seq.empty).count
@@ -108,14 +108,14 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     
     Neo4jRowRDD(sc,"MATCH (n) where id(n) < {maxId} return id(n)",Seq(("maxId",100000))).count
     // res47: Long = 100000
-
+```
 
 ### Neo4jDataFrame
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
     --packages neo4j-contrib:neo4j-spark-connector:1.0.0-RC1
 
-
+```scala
     import org.neo4j.spark._
     import org.apache.spark.sql.types._
     import org.apache.spark.sql.functions._
@@ -147,14 +147,14 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     val df = Neo4jDataFrame(sqlContext, "MATCH (n) WHERE id(n) < {maxId} return n.name as name",Seq(("maxId",100000)),("name","string"))
     df.count
     // res0: Long = 100000
-
+```
 
 ### Neo4jGraph Operations
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
     --packages neo4j-contrib:neo4j-spark-connector:1.0.0-RC1
 
-
+```scala
     import org.neo4j.spark._
     
     val g = Neo4jGraph.loadGraph(sc, "Person", Seq("KNOWS"), "Person")
@@ -176,7 +176,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     
     Neo4jGraph.saveGraph(sc, g2, "rank")
     // res2: (Long, Long) = (999937,0)                                                 
-
+```
 
 ### Neo4jGraphFrame
 
@@ -198,6 +198,7 @@ Resources:
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
     --packages neo4j-contrib:neo4j-spark-connector:1.0.0-RC1,graphframes:graphframes:0.1.0-spark1.6
 
+```scala  
 
     import org.neo4j.spark._
     
@@ -234,7 +235,7 @@ Resources:
     val results = results.select("A", "C").take(3)
     
     gdf.labelPropagation.maxIter(3).run().take(3)
-
+```
 
 
 You can also [build it yourself](https://github.com/graphframes/graphframes) or pull the [Spark 1.6 jar from the Spark Packages page](http://spark-packages.org/package/graphframes/graphframes).
