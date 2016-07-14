@@ -27,6 +27,46 @@ Build `target/neo4j-spark-connector_2.11-full-1.0.0-RC1.jar` for Scala 2.11
     mvn clean install assembly:single
 
 
+## Integration with Spark Applications
+
+**spark-shell, pyspark, or spark-submit**
+
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:1.0.0-RC1`
+
+**sbt**
+
+If you use the [sbt-spark-package plugin](https://github.com/databricks/sbt-spark-package), in your sbt build file, add:
+
+```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:1.0.0-RC1"```
+
+Otherwise,
+
+```scala
+resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
+libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "1.0.0-RC1"
+```  
+
+**maven**  
+In your pom.xml, add:   
+
+```xml
+<dependencies>
+  <!-- list of dependencies -->
+  <dependency>
+    <groupId>neo4j-contrib</groupId>
+    <artifactId>neo4j-spark-connector</artifactId>
+    <version>1.0.0-RC1</version>
+  </dependency>
+</dependencies>
+<repositories>
+  <!-- list of other repositories -->
+  <repository>
+    <id>SparkPackagesRepo</id>
+    <url>http://dl.bintray.com/spark-packages/maven</url>
+  </repository>
+</repositories>
+```
+
 ## Config
 
 If you're running Neo4j on localhost with the default ports, you onl have to configure your password in `spark.neo4j.bolt.password=<password>`.
@@ -112,7 +152,6 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     // res47: Long = 100000
 <!-- end::example_rdd[] -->
 ```
-
 
 ### Neo4jDataFrame
 
