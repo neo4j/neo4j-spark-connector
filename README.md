@@ -101,7 +101,7 @@ There are a few different RDD's all named `Neo4jXxxRDD`
 
 ## Graph Frames
 
-[GraphFrames](http://graphframes.github.io/) ([Spark Packages](http://spark-packages.org/package/graphframes/graphframes)) are a new Spark API to process graph data.
+[GraphFrames](http://graphframes.github.io/) ([Spark Packages](http://spark-packages.org/package/graphframes/graphframes)) are a new Apache Spark API to process graph data.
 
 It is similar and based on DataFrames, you can create GraphFrames from DataFrames and also from GraphX graphs.
 
@@ -224,7 +224,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 
 ### Neo4jGraphFrame
 
-GraphFrames are a new Spark API to process graph data.
+GraphFrames are a new Apache Spark API to process graph data.
 
 It is similar and based on DataFrames, you can create GraphFrames from DataFrames and also from GraphX graphs.
 
