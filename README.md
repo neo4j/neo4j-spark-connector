@@ -1,6 +1,6 @@
 # Neo4j Connector to Apache Spark based on Neo4j 3.0's Bolt protocol
 
-These are the beginnings of a Connector from Neo4j to Apache Sparkusing the new binary protocol for Neo4j, Bolt.
+These are the beginnings of a Connector from Neo4j to Apache Spark using the new binary protocol for Neo4j, Bolt.
 
 Find [more information](http://neo4j.com/docs/developer-manual/current/#driver-manual-index) about the Bolt protocol, available drivers and documentation.
 
