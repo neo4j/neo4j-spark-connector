@@ -34,6 +34,7 @@ class Neo4jDataFrameScalaTest {
 
   @After def tearDown {
     server.close
+    sc.close
   }
 
   @Test def mergeEdgeList {

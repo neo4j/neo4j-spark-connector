@@ -48,6 +48,7 @@ public class Neo4jGraphTest {
     @AfterClass
     public static void tearDown() {
         server.close();
+        sc.close();
     }
 
     @Test public void runMatrixQuery() {

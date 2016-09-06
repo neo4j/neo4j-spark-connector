@@ -54,6 +54,7 @@ public class Neo4jRDDTest {
     @AfterClass
     public static void tearDown() {
         server.close();
+        sc.close();
     }
 
     @Test

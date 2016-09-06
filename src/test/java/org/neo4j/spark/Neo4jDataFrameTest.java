@@ -52,6 +52,7 @@ public class Neo4jDataFrameTest {
     @AfterClass
     public static void tearDown() {
         server.close();
+        sc.close();
     }
 
     @Test
