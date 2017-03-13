@@ -24,10 +24,19 @@ case class Neo4jConfig(val url: String, val user: String = "neo4j", val password
 
 object Neo4jConfig {
   val prefix = "spark.neo4j.bolt."
+
   def apply(sparkConf: SparkConf): Neo4jConfig = {
     val url = sparkConf.get(prefix + "url", "bolt://localhost")
     val user = sparkConf.get(prefix + "user", "neo4j")
     val password: Option[String] = sparkConf.getOption(prefix + "password")
-    Neo4jConfig(url, user, password)
+    new Neo4jConfig(url, user, password)
   }
+
+  def apply(sqlConf: org.apache.spark.sql.RuntimeConfig): Neo4jConfig = {
+    val url = sqlConf.get(prefix + "url", "bolt://localhost")
+    val user = sqlConf.get(prefix + "user", "neo4j")
+    val password: Option[String] = sqlConf.getOption(prefix + "password")
+    new Neo4jConfig(url, user, password)
+  }
+
 }

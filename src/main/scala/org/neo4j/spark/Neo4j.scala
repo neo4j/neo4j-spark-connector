@@ -6,8 +6,8 @@ import org.apache.spark.graphx.{Edge, Graph, VertexId}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{DataFrame, Row, SQLContext}
-import org.apache.spark.{Partition, SparkContext, TaskContext}
+import org.apache.spark.sql.{DataFrame, Row, SQLContext, SparkSession, types}
+import org.apache.spark.{Partition, SparkConf, SparkContext, TaskContext}
 import org.graphframes.GraphFrame
 import org.neo4j.driver.v1.{Driver, StatementResult}
 import org.neo4j.spark.Neo4j.{PartitionsDsl, QueriesDsl, ResultDsl}
@@ -16,12 +16,76 @@ import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
+import scala.util.{Try, Success, Failure}
 
+/**
+  *
+  */
 object Neo4j {
 
+  /**
+    * Case 1: Retrieves password from spark-shell/application context through Spark Config
+    * Case 2: Through SparkSession `spark` which uses RuntimeConfig for user neo4j password
+    *
+    * @example import org.neo4j.spark.Neo4j
+    *
+    *          //Case 1: Through Spark config
+    *          val neo4j = Neo4j.builder.getOrCreate()
+    *          or
+    *          //Case 2: Through SparkSession
+    *          val neo4j = Neo4j.builder.sparkSession(spark).boltPassword("neo4j").getOrCreate()
+    *
+    *          val rdd = neo4j.cypher("MATCH (n:Person) RETURN id(n) as id ").loadRowRdd
+    *          rdd.count
+    *
+    *@note Use SparkSession for dynamic password binding, i.e after the Spark application starts.
+    *
+    *       Can't modify existing spark configuration due to following limitation.
+    *          Once a SparkConf object is passed to Spark, it is cloned and can no longer be modified by the user.
+    *          Spark does not support modifying the configuration at runtime.
+    *          Reference: https://spark.apache.org/docs/latest/api/scala/#org.apache.spark.SparkConf
+    */
+  class Builder {
+
+    val neo4jSession: Option[Neo4j] = None
+
+    private[this] var userSpecifiedSparkSession: Option[SparkSession] = None
+    private[this] var userSpecifiedBoltPassword: Option[String] = None
+
+    private lazy val sparkSession = userSpecifiedSparkSession.getOrElse {
+      SparkSession.builder().
+        appName("Neo4J-Spark Connector").
+        getOrCreate()
+    }
+
+    def sparkSession(spark: SparkSession) = synchronized {
+      userSpecifiedSparkSession = Option(spark)
+      userSpecifiedBoltPassword = Try {
+        spark.sparkContext.getConf.get("spark.neo4j.bolt.password")
+      } match {
+        case Success(password: String) => Option(password)
+        case Failure(e) => None
+      }
+      this
+    }
+
+    def boltPassword(pw: String) = {
+      userSpecifiedBoltPassword = Option(pw)
+      sparkSession.conf.set("spark.neo4j.bolt.password", userSpecifiedBoltPassword.getOrElse(""))
+      this
+    }
+
+    def getOrCreate() = synchronized {
+      neo4jSession.getOrElse(new Neo4j(sparkSession))
+    }
+
+  }
+
+  def builder(): Builder = new Builder
+
   val UNDEFINED = Long.MaxValue
-  implicit def apply(sc : SparkContext) : Neo4j = {
-    new Neo4j(sc)
+  implicit def apply(spark : SparkSession) : Neo4j = {
+    new Neo4j(spark)
   }
 
   trait QueriesDsl {
@@ -94,10 +158,10 @@ case class Partitions(partitions : Long = 1, batchSize : Long = Neo4j.UNDEFINED,
   else batch
   */
 }
-class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with ResultDsl {
+class Neo4j(val spark : SparkSession) extends QueriesDsl with PartitionsDsl with ResultDsl {
 
   // todo
-  private def sqlContext: SQLContext = new SQLContext(sc)
+  private def sqlContext: SQLContext = new SQLContext(spark.sparkContext)
 
   var pattern : Pattern = null
   var nodes : Query = Query(null)
@@ -169,12 +233,12 @@ class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with Re
     if (pattern != null) {
       val queries: Seq[(String, List[String])] = pattern.relQueries
       val rdds: Seq[RDD[Row]] = queries.map(query => {
-//        val maxCountQuery: () => Long = () => { query._2.map(countQuery => new Neo4jRDD(sc, countQuery).first().getLong(0)).max }
-        new Neo4jRDD(sc, query._1, rels.params, partitions) // .copy(rowSource = Option(maxCountQuery)))
+        //        val maxCountQuery: () => Long = () => { query._2.map(countQuery => new Neo4jRDD(sc, countQuery).first().getLong(0)).max }
+        new Neo4jRDD(spark, query._1, rels.params, partitions) // .copy(rowSource = Option(maxCountQuery)))
       })
       rdds.reduce((a, b) => a.union(b)).distinct()
     } else {
-      new Neo4jRDD(sc, rels.query, rels.params, partitions)
+      new Neo4jRDD(spark, rels.query, rels.params, partitions)
     }
   }
 
@@ -182,7 +246,7 @@ class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with Re
     // todo use count queries
     val queries = pattern.nodeQuery(node)
 
-    new Neo4jRDD(sc, queries._1, params, partitions)
+    new Neo4jRDD(spark, queries._1, params, partitions)
   }
 
 
@@ -191,9 +255,9 @@ class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with Re
       loadNodeRdds(pattern.source,nodes.params,partitions)
         .union(loadNodeRdds(pattern.target,nodes.params,partitions)).distinct()
     } else if (!nodes.isEmpty) {
-       new Neo4jRDD(sc, nodes.query, nodes.params, partitions)
+      new Neo4jRDD(spark, nodes.query, nodes.params, partitions)
     } else {
-       null
+      null
     }
   }
 
@@ -222,22 +286,22 @@ class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with Re
       val nodes: RDD[(VertexId, VD)] = nodeRdds.map( row => (row.getLong(0),if (row.size==1) nodeDefault else row.getAs[VD](1)))
       Graph[VD,ED](nodes,rels)
     }
-/*
-    if (pattern != null) {
+    /*
+        if (pattern != null) {
 
-    }
-    if (rels.query != null) {
-      if (nodes != null)
-        Neo4jGraph.loadGraphFromRels(sc,nodes.query,nodes.paramsSeq,defaultRelValue)
-        // AND Neo4jGraph.loadGraphFromRels(sc,rels.query,rels.paramsSeq,defaultRelValue)
-      else
-      Neo4jGraph.loadGraphFromRels(sc,rels.query,rels.paramsSeq,defaultRelValue)
-    }
-    if (nodes.query != null) {
-      Neo4jGraph.loadGraphFromNodePairs(sc, nodes.query, nodes.paramsSeq)
-    }
-    throw new SparkException("no query or pattern configured to load graph")
-*/
+        }
+        if (rels.query != null) {
+          if (nodes != null)
+            Neo4jGraph.loadGraphFromRels(sc,nodes.query,nodes.paramsSeq,defaultRelValue)
+            // AND Neo4jGraph.loadGraphFromRels(sc,rels.query,rels.paramsSeq,defaultRelValue)
+          else
+          Neo4jGraph.loadGraphFromRels(sc,rels.query,rels.paramsSeq,defaultRelValue)
+        }
+        if (nodes.query != null) {
+          Neo4jGraph.loadGraphFromNodePairs(sc, nodes.query, nodes.paramsSeq)
+        }
+        throw new SparkException("no query or pattern configured to load graph")
+    */
   }
 
   override def loadGraphFrame[VD:ClassTag,ED:ClassTag] : GraphFrame = {
@@ -253,14 +317,14 @@ class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with Re
     val rels : DataFrame  = sqlContext.createDataFrame(relRdd, relRdd.first().schema)
     org.graphframes.GraphFrame(nodes, rels)
 
-/*
-    val vertices1 = Neo4jDataFrame(sqlContext, nodeStmt(src),Seq.empty,("id","integer"),("prop","string"))
-    val vertices2 = Neo4jDataFrame(sqlContext, nodeStmt(dst), Seq.empty, ("id", "integer"), ("prop", "string"))
-    val schema = Seq(("src","integer"),("dst","integer")) ++ (if (edge._2 != null) Some("prop", "string") else None)
-    val edges = Neo4jDataFrame(sqlContext, edgeStmt,Seq.empty,schema:_*)
+    /*
+        val vertices1 = Neo4jDataFrame(sqlContext, nodeStmt(src),Seq.empty,("id","integer"),("prop","string"))
+        val vertices2 = Neo4jDataFrame(sqlContext, nodeStmt(dst), Seq.empty, ("id", "integer"), ("prop", "string"))
+        val schema = Seq(("src","integer"),("dst","integer")) ++ (if (edge._2 != null) Some("prop", "string") else None)
+        val edges = Neo4jDataFrame(sqlContext, edgeStmt,Seq.empty,schema:_*)
 
-    org.graphframes.GraphFrame(vertices1.union(vertices2).distinct(), edges)
-*/
+        org.graphframes.GraphFrame(vertices1.union(vertices2).distinct(), edges)
+    */
 
     /*
     if (pattern.source.property == null || pattern.target.property == null)
@@ -349,6 +413,11 @@ object Executor {
   def execute(sc: SparkContext, query: String, parameters: Map[String, AnyRef]): CypherResult = {
     execute(Neo4jConfig(sc.getConf), query, parameters)
   }
+  
+  def execute(spark: SparkSession, query: String, parameters: Map[String, AnyRef]): CypherResult = {
+    execute(Neo4jConfig(spark.conf), query, parameters)
+  }
+
   private def rows(result : StatementResult) = {
     var i  = 0
     while (result.hasNext) i=i+1
@@ -381,10 +450,10 @@ object Executor {
 
     val it = result.asScala.map((record) => {
       val row = new Array[Any](keyCount)
-        var i = 0
-        while (i < keyCount) {
-          row.update(i, record.get(i).asObject())
-          i = i + 1
+      var i = 0
+      while (i < keyCount) {
+        row.update(i, record.get(i).asObject())
+        i = i + 1
       }
       if (!result.hasNext) {
         result.consume()
@@ -396,10 +465,10 @@ object Executor {
     new CypherResult(schema, it)
   }
 }
-class Neo4jRDD(@transient sc: SparkContext, val query: String, val parameters: Map[String,Any] = Map.empty, partitions : Partitions = Partitions() )
-  extends RDD[Row](sc, Nil) {
+class Neo4jRDD(@transient spark: SparkSession, val query: String, val parameters: Map[String,Any] = Map.empty, partitions : Partitions = Partitions() )
+  extends RDD[Row](spark.sparkContext, Nil) {
 
-  val neo4jConfig = Neo4jConfig(sc.getConf)
+  val neo4jConfig = Neo4jConfig(spark.conf)
 
   override def compute(partition: Partition, context: TaskContext): Iterator[Row] = {
 
