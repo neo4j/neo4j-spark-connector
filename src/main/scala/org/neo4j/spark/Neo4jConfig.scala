@@ -9,7 +9,7 @@ import org.neo4j.driver.v1.{Driver, AuthTokens, Config, GraphDatabase}
   */
 case class Neo4jConfig(val url: String, val user: String = "neo4j", val password: Option[String] = None) {
 
-  def boltConfig() = Config.build.withEncryptionLevel(Config.EncryptionLevel.NONE).toConfig
+  def boltConfig() = Config.build.withoutEncryption().toConfig
 
   def driver(config: Neo4jConfig) : Driver = config.password match {
     case Some(pwd) => GraphDatabase.driver(config.url, AuthTokens.basic(config.user, pwd), boltConfig())

@@ -25,8 +25,8 @@
     </licenses>
 
     <properties>
-        <neo4j.version>3.0.9</neo4j.version>
-        <driver.version>1.2.0</driver.version>
+        <neo4j.version>3.2.3</neo4j.version>
+        <driver.version>1.4.2</driver.version>
         <spark.version>2.0.2</spark.version>
         <graphframes.version>0.2.0-spark2.0-s_${scala.version.suffix}</graphframes.version>
     </properties>
@@ -141,7 +141,12 @@
     </profiles>
 
     <dependencies>
-        <dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-all</artifactId>
+        <version>4.1.8.Final</version>
+      </dependency>
+      <dependency>
             <groupId>org.neo4j.driver</groupId>
             <artifactId>neo4j-java-driver</artifactId>
             <version>${driver.version}</version>
