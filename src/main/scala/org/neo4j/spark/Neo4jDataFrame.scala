@@ -13,13 +13,6 @@ import org.neo4j.driver.v1.types.{Type, TypeSystem}
 
 import scala.collection.JavaConverters._
 
-case class RelationshipRow(label: String,
-                           properties: Seq[String],
-                           srcNodeLabel: String,
-                           srcNodeNameCol: String,
-                           dstNodeLabel: String,
-                           dstNodeNameCol: String)
-
 object Neo4jDataFrame {
 
   def mergeEdgeList(sc: SparkContext, dataFrame: DataFrame, source: (String,Seq[String]), relationship: (String,Seq[String]), target: (String,Seq[String])): Unit = {
@@ -63,31 +56,6 @@ object Neo4jDataFrame {
       val params: AnyRef = rows.map(r =>
         Map(
           "node_properties" -> nodes._2.map( c => (c, r.getAs[AnyRef](c))).toMap.asJava)
-          .asJava).asJava
-      Neo4jDataFrame.execute(config, createStatement, Map("rows" -> params).asJava, write = true)
-    })
-  }
-
-  def createRelationships(sc: SparkContext,
-                          dataFrame: DataFrame,
-                          relationships: RelationshipRow): Unit = {
-
-    val createStatement = s"""
-          UNWIND {rows} as row
-          MATCH (a:`${relationships.srcNodeLabel}`),(b:`${relationships.dstNodeLabel}`)
-          WHERE a.name = row.src_node_name AND b.name = row.dst_node_name
-          CREATE (a)-[r:`${relationships.label}`]->(b)
-          SET r = row.rel_properties
-          """
-
-    val partitions = Math.max(1,(dataFrame.count() / 10000).asInstanceOf[Int])
-    val config = Neo4jConfig( sc.getConf )
-    dataFrame.repartition(partitions).foreachPartition( rows => {
-      val params: AnyRef = rows.map(r =>
-        Map(
-          "rel_properties" -> relationships.properties.map( c => (c, r.getAs[AnyRef](c))).toMap.asJava,
-          "src_node_name" -> r.getAs[AnyRef](relationships.srcNodeNameCol),
-          "dst_node_name" -> r.getAs[AnyRef](relationships.dstNodeNameCol))
           .asJava).asJava
       Neo4jDataFrame.execute(config, createStatement, Map("rows" -> params).asJava, write = true)
     })
