@@ -47,4 +47,27 @@ class Neo4jDataFrameScalaTest {
     assertEquals(1L, it.next())
     it.close()
   }
+
+  @Test def mergeEdgeListWithRename {
+    val rows = sc.makeRDD(Seq(Row("Carrie-Anne", "Laurence")))
+    val schema = StructType(Seq(StructField("src_name", DataTypes.StringType), StructField("dst_name", DataTypes.StringType)))
+    val df = new SQLContext(sc).createDataFrame(rows, schema)
+    val rename = Map("src_name" -> "name", "dst_name" -> "name")
+    Neo4jDataFrame.mergeEdgeList(sc, df, ("Person",Seq("src_name")),("ACTED_WITH",Seq.empty),("Person",Seq("dst_name")), rename)
+
+    val it: ResourceIterator[Long] = server.graph().execute("MATCH p=(:Person {name:'Carrie-Anne'})-[:ACTED_WITH]->(:Person {name:'Laurence'}) RETURN count(*) as c").columnAs("c")
+    assertEquals(1L, it.next())
+    it.close()
+  }
+
+  @Test def createNodes {
+    val rows = sc.makeRDD(Seq(Row("Laurence", "Fishburne")))
+    val schema = StructType(Seq(StructField("name", DataTypes.StringType), StructField("lastname", DataTypes.StringType)))
+    val df = new SQLContext(sc).createDataFrame(rows, schema)
+    Neo4jDataFrame.createNodes(sc, df, ("Person",Seq("name","lastname")))
+
+    val it: ResourceIterator[Long] = server.graph().execute("MATCH (:Person {name:'Laurence', lastname: 'Fishburne'}) RETURN count(*) as c").columnAs("c")
+    assertEquals(1L, it.next())
+    it.close()
+  }
 }
