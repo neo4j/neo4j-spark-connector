@@ -261,12 +261,10 @@ There are a few different RDD's all named `Neo4jXxxRDD`
     * relationships are merged between the two nodes and all properties from sequence will be set on the relationship
     * property names from the sequence are used as column names for the data-frame, currently there is no name translation
     * the result are sent in batches of 10000 to the graph
- 2. `mergeEdgeList(sc: SparkContext, dataFrame: DataFrame, source: (String,Seq[String]), relationship: (String,Seq[String]), target: (String,Seq[String]), renameMap: Map[String,String])` to do the
- same as the first method except for `renameMap` parameter.<br/>
- This method can be used to create a relationship between nodes having the same properties.<br/>
+    * optional `renamedColums` parameter - can be used to create a relationship between nodes having the same properties.<br/>
  For example: `(keanu:Person {name: 'Keanu'})-[:ACTED_WITH]->(Laurence:Person {name: "Laurence"})` requires a DataFrame with 2 `name` columns which is not possible.
- To overcome this, one can create a DataFrame with `src_node_name` and `dst_node_name` and provide `renameMap = Map("src_node_name" -> "name", "dst_node_name" -> "name")`
- 3. `createNodes(sc: SparkContext, dataFrame: DataFrame, nodes: (String,Seq[String]))` to create nodes in Neo4j graph.
+ To overcome this, one can create a DataFrame with `src_node_name` and `dst_node_name` and provide `renamedColumns = Map("src_node_name" -> "name", "dst_node_name" -> "name")`
+ 2. `createNodes(sc: SparkContext, dataFrame: DataFrame, nodes: (String,Seq[String]))` to create nodes in Neo4j graph.
     * nodes are created by first property in sequence, all the others will be set on the node
     * the result are sent in batches of 10000 to the graph
 
