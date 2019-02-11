@@ -20,31 +20,31 @@ object Neo4jDataFrame {
                       target: (String,Seq[String]),
                       renamedColumns: Map[String,String] = Map.empty): Unit = {
 
-    val sourceLabel = renamedColumns.getOrElse(source._2.head, source._2.head)
-    val targetLabel = renamedColumns.getOrElse(target._2.head, target._2.head)
-    val mergeStatement = s"""
-      UNWIND {rows} as row
-      MERGE (source:`${source._1}` {`${source._2.head}` : row.source.`${sourceLabel}`}) ON CREATE SET source += row.source
-      MERGE (target:`${target._1}` {`${target._2.head}` : row.target.`${targetLabel}`}) ON CREATE SET target += row.target
-      MERGE (source)-[rel:`${relationship._1}`]->(target) ON CREATE SET rel += row.relationship
-      """
-    val partitions = Math.max(1,(dataFrame.count() / 10000).asInstanceOf[Int])
-    val config = Neo4jConfig(sc.getConf)
-    dataFrame.repartition(partitions).foreachPartition( rows => {
-      val params: AnyRef = rows.map(r =>
-        Map(
-          "source" -> source._2.map( c => (renamedColumns.getOrElse(c,c), r.getAs[AnyRef](c))).toMap.asJava,
-          "target" -> target._2.map( c => (renamedColumns.getOrElse(c,c), r.getAs[AnyRef](c))).toMap.asJava,
-          "relationship" -> relationship._2.map( c => (c, r.getAs[AnyRef](c))).toMap.asJava)
-          .asJava).asJava
-          execute(config, mergeStatement, Map("rows" -> params).asJava, write = true)
-    })
+      val sourceLabel: String = renamedColumns.getOrElse(source._2.head, source._2.head)
+      val targetLabel: String = renamedColumns.getOrElse(target._2.head, target._2.head)
+      val mergeStatement = s"""
+        UNWIND {rows} as row
+        MERGE (source:`${source._1}` {`${sourceLabel}` : row.source.`${sourceLabel}`}) ON CREATE SET source += row.source
+        MERGE (target:`${target._1}` {`${targetLabel}` : row.target.`${targetLabel}`}) ON CREATE SET target += row.target
+        MERGE (source)-[rel:`${relationship._1}`]->(target) ON CREATE SET rel += row.relationship
+        """
+      val partitions = Math.max(1,(dataFrame.count() / 10000).asInstanceOf[Int])
+      val config = Neo4jConfig(sc.getConf)
+      dataFrame.repartition(partitions).foreachPartition( rows => {
+        val params: AnyRef = rows.map(r =>
+          Map(
+            "source" -> source._2.map( c => (renamedColumns.getOrElse(c,c), r.getAs[AnyRef](c))).toMap.asJava,
+            "target" -> target._2.map( c => (renamedColumns.getOrElse(c,c), r.getAs[AnyRef](c))).toMap.asJava,
+            "relationship" -> relationship._2.map( c => (c, r.getAs[AnyRef](c))).toMap.asJava)
+            .asJava).asJava
+        execute(config, mergeStatement, Map("rows" -> params).asJava, write = true)
+      })
   }
 
 
-  def createNodes(sc: SparkContext, dataFrame: DataFrame, nodes: (String,Seq[String])): Unit = {
+  def createNodes(sc: SparkContext, dataFrame: DataFrame, nodes: (String,Seq[String]), renamedColumns: Map[String,String] = Map.empty): Unit = {
 
-    val nodeLabel = nodes._2.head
+    val nodeLabel: String = renamedColumns.getOrElse(nodes._2.head, nodes._2.head)
     val createStatement = s"""
         UNWIND {rows} as row
         CREATE (node:`${nodes._1}` {`${nodeLabel}` : row.source.`${nodeLabel}`})
@@ -55,7 +55,7 @@ object Neo4jDataFrame {
     dataFrame.repartition(partitions).foreachPartition( rows => {
       val params: AnyRef = rows.map(r =>
         Map(
-          "node_properties" -> nodes._2.map( c => (c, r.getAs[AnyRef](c))).toMap.asJava)
+          "node_properties" -> nodes._2.map( c => (renamedColumns.getOrElse(c,c), r.getAs[AnyRef](c))).toMap.asJava)
           .asJava).asJava
       Neo4jDataFrame.execute(config, createStatement, Map("rows" -> params).asJava, write = true)
     })

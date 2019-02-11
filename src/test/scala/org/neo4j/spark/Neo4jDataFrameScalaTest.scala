@@ -49,13 +49,13 @@ class Neo4jDataFrameScalaTest {
   }
 
   @Test def mergeEdgeListWithRename {
-    val rows = sc.makeRDD(Seq(Row("Carrie-Anne", "Laurence")))
+    val rows = sc.makeRDD(Seq(Row("Carrie-Anne", "Foster")))
     val schema = StructType(Seq(StructField("src_name", DataTypes.StringType), StructField("dst_name", DataTypes.StringType)))
     val df = new SQLContext(sc).createDataFrame(rows, schema)
     val rename = Map("src_name" -> "name", "dst_name" -> "name")
-    Neo4jDataFrame.mergeEdgeList(sc, df, ("Person",Seq("src_name")),("ACTED_WITH",Seq.empty),("Person",Seq("dst_name")), rename)
+    Neo4jDataFrame.mergeEdgeList(sc, df, ("Person",Seq("src_name")),("ACTED_WITH",Seq.empty),("Person",Seq("dst_name")),rename)
 
-    val it: ResourceIterator[Long] = server.graph().execute("MATCH p=(:Person {name:'Carrie-Anne'})-[:ACTED_WITH]->(:Person {name:'Laurence'}) RETURN count(*) as c").columnAs("c")
+    val it: ResourceIterator[Long] = server.graph().execute("MATCH p=(:Person {name:'Carrie-Anne'})-[:ACTED_WITH]->(:Person {name:'Foster'}) RETURN count(*) as c").columnAs("c")
     assertEquals(1L, it.next())
     it.close()
   }
@@ -67,6 +67,18 @@ class Neo4jDataFrameScalaTest {
     Neo4jDataFrame.createNodes(sc, df, ("Person",Seq("name","lastname")))
 
     val it: ResourceIterator[Long] = server.graph().execute("MATCH (:Person {name:'Laurence', lastname: 'Fishburne'}) RETURN count(*) as c").columnAs("c")
+    assertEquals(1L, it.next())
+    it.close()
+  }
+
+  @Test def createNodesWithRename {
+    val rows = sc.makeRDD(Seq(Row("Matt", "Doran")))
+    val schema = StructType(Seq(StructField("node_name", DataTypes.StringType), StructField("lastname", DataTypes.StringType)))
+    val df = new SQLContext(sc).createDataFrame(rows, schema)
+    val rename = Map("node_name" -> "name")
+    Neo4jDataFrame.createNodes(sc, df, ("Person",Seq("node_name","lastname")), rename)
+
+    val it: ResourceIterator[Long] = server.graph().execute("MATCH (:Person {name:'Matt', lastname: 'Doran'}) RETURN count(*) as c").columnAs("c")
     assertEquals(1L, it.next())
     it.close()
   }

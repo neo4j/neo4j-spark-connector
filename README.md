@@ -267,6 +267,7 @@ There are a few different RDD's all named `Neo4jXxxRDD`
  2. `createNodes(sc: SparkContext, dataFrame: DataFrame, nodes: (String,Seq[String]))` to create nodes in Neo4j graph.
     * nodes are created by first property in sequence, all the others will be set on the node
     * the result are sent in batches of 10000 to the graph
+    * optional `renamedColums` parameter - can be used to create a node with a label different from `DataFrame`'s column name.<br/>
 
 
 ## GraphX - Neo4jGraph
