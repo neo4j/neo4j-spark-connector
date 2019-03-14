@@ -258,11 +258,12 @@ There are a few different RDD's all named `Neo4jXxxRDD`
 * Neo4jDataFrame provides:
  1.`mergeEdgeList(sc: SparkContext, dataFrame: DataFrame, source: (label,Seq[prop]), relationship: (type,Seq[prop]), target: (label,Seq[prop]))` to merge a DataFrame back into a Neo4j graph
     * both nodes are merged by first property in sequence, all the others will be set on the entity
-    * relationships are merged between the two nodes and all properties from sequence will be set on the relationship
-    * property names from the sequence are used as column names for the data-frame, currently there is no name translation
+    * relationships are merged between the two nodes and all properties included in the sequence will be set on the relationship
+    * property names from the sequence are used as column names for the data-frame, currently there is no name translation.<br/>
+    *For example*: with a DataFrame containing a `screen` column describing the on-screen relationship between two actors, then to get a `screen` property on the relationship we'd need to supply a *relationship* tuple of `("ACTED_WITH",Seq("screen")`. If we had a `real` column in the DataFrame representing a real-life relationship as well, then we would need to add that property into the `Seq` too, e.g. `("ACTED_WITH",Seq("screen", "real"))` and so on.
     * the result are sent in batches of 10000 to the graph
-    * optional `renamedColums` parameter - can be used to create a relationship between nodes having the same properties.<br/>
- For example: `(keanu:Person {name: 'Keanu'})-[:ACTED_WITH]->(Laurence:Person {name: "Laurence"})` requires a DataFrame with 2 `name` columns which is not possible.
+    * optional `renamedColumns` parameter - can be used to create a relationship between nodes having the same properties.<br/>
+ *For example*: `(keanu:Person {name: 'Keanu'})-[:ACTED_WITH]->(Laurence:Person {name: "Laurence"})` requires a DataFrame with 2 `name` columns which is not possible.
  To overcome this, one can create a DataFrame with `src_node_name` and `dst_node_name` and provide `renamedColumns = Map("src_node_name" -> "name", "dst_node_name" -> "name")`
  2. `createNodes(sc: SparkContext, dataFrame: DataFrame, nodes: (String,Seq[String]))` to create nodes in Neo4j graph.
     * nodes are created by first property in sequence, all the others will be set on the node
