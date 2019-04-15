@@ -194,6 +194,7 @@ graph.edges.count
 //    => 1000
 
 // load graph via pattern
+// note ("Person","id") refers to Person.id and ("Person",null) refers to id(Person) in cypher
 val graph = neo.pattern(("Person","id"),("KNOWS","since"),("Person","id")).partitions(7).batch(200).loadGraph[Long,Long]
 
 val graph2 = PageRank.run(graph, 5)
