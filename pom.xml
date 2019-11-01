@@ -40,7 +40,7 @@
         <project.scala.version>2.11.8</project.scala.version>
         <project.scala.binary.version>2.11</project.scala.binary.version>
 
-        <netty.version>4.1.30.Final</netty.version>
+        <netty.version>4.1.42.Final</netty.version>
         <neo4j.version>3.5.1</neo4j.version>
         <driver.version>1.7.2</driver.version>
         <spark.version>2.4.0</spark.version>
