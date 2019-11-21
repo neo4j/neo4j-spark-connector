@@ -342,9 +342,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4
 
 ```scala
-    import org.neo4j.spark._
-    import org.apache.spark.sql.types._
-    import org.apache.spark.sql.functions._
+    
     
     val df = Neo4jDataFrame.withDataType(sqlContext, "MATCH (n) return id(n) as id",Seq.empty, "id" -> LongType)
     // df: org.apache.spark.sql.DataFrame = [id: bigint]

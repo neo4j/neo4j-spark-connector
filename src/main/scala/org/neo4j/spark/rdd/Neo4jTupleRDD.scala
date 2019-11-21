@@ -1,11 +1,9 @@
-package org.neo4j.spark
-
-import java.util
-import java.util.{Collections, NoSuchElementException}
+package org.neo4j.spark.rdd
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
-import org.neo4j.driver.v1.{Driver, Value, GraphDatabase, Values}
+import org.neo4j.driver.v1.Driver
+import org.neo4j.spark.Neo4jConfig
 
 import scala.collection.JavaConverters._
 
@@ -38,7 +36,7 @@ class Neo4jTupleRDD(@transient sc: SparkContext, val query: String, val paramete
 }
 
 object Neo4jTupleRDD {
-  def apply(sc: SparkContext, query: String, parameters: Seq[(String,AnyRef)] = Seq.empty) = new Neo4jTupleRDD(sc, query, parameters)
+  def apply(sc: SparkContext, query: String, parameters: Seq[(String, AnyRef)] = Seq.empty) = new Neo4jTupleRDD(sc, query, parameters)
 }
 
 

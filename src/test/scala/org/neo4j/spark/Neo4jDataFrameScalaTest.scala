@@ -10,6 +10,7 @@ import org.junit.Assert._
 import org.junit._
 import org.neo4j.graphdb.ResourceIterator
 import org.neo4j.harness.{ServerControls, TestServerBuilders}
+import org.neo4j.spark.dataframe.Neo4jDataFrame
 
 import scala.collection.JavaConverters._
 

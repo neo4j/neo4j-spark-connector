@@ -37,22 +37,20 @@
     </licenses>
 
     <properties>
-        <project.scala.version>2.11.8</project.scala.version>
+        <project.scala.version>2.11.12</project.scala.version>
         <project.scala.binary.version>2.11</project.scala.binary.version>
 
-        <netty.version>4.1.30.Final</netty.version>
         <neo4j.version>3.5.1</neo4j.version>
-        <driver.version>1.7.2</driver.version>
+        <driver.version>1.7.5</driver.version>
         <spark.version>2.4.0</spark.version>
         <graphframes.version>0.7.0-spark2.4-s_2.11</graphframes.version>
-        <bouncycastle.version>1.53</bouncycastle.version>
     </properties>
 
     <build>
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.5.1</version>
+                <version>3.8.1</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
@@ -62,7 +60,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>3.2.0</version>
+                <version>4.3.0</version>
                 <executions>
                     <execution>
                         <id>scala-compile</id>
@@ -216,26 +214,6 @@
             <version>${neo4j.version}</version>
             <scope>test</scope>
         </dependency>
-
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-all</artifactId>
-            <version>${netty.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.bouncycastle</groupId>
-          <artifactId>bcprov-jdk15on</artifactId>
-          <version>${bouncycastle.version}</version>
-          <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.bouncycastle</groupId>
-          <artifactId>bcpkix-jdk15on</artifactId>
-          <version>${bouncycastle.version}</version>
-          <scope>test</scope>
-       </dependency>
-
     </dependencies>
 
     <repositories>

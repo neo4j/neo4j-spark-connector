@@ -1,19 +1,20 @@
-package org.neo4j.spark
+package org.neo4j.spark.rdd
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import org.neo4j.driver.v1._
+import org.neo4j.spark.Neo4jConfig
 
 import scala.collection.JavaConverters._
 
-class Neo4jRowRDD(@transient sc: SparkContext, val query: String, val parameters: Seq[(String,Any)])
+class Neo4jRowRDD(@transient sc: SparkContext, val query: String, val parameters: Seq[(String, Any)])
   extends RDD[Row](sc, Nil) {
 
   private val config = Neo4jConfig(sc.getConf)
 
   def convert(value: AnyRef) = value match {
-    case m: java.util.Map[_,_] => m.asScala
+    case m: java.util.Map[_, _] => m.asScala
     case _ => value
   }
 
@@ -49,9 +50,10 @@ class Neo4jRowRDD(@transient sc: SparkContext, val query: String, val parameters
       driver.close()
     }
   }
+
   override protected def getPartitions: Array[Partition] = Array(new Neo4jPartition())
 }
 
 object Neo4jRowRDD {
-  def apply(sc: SparkContext, query: String, parameters:Seq[(String,Any)] = Seq.empty) = new Neo4jRowRDD(sc, query, parameters)
+  def apply(sc: SparkContext, query: String, parameters: Seq[(String, Any)] = Seq.empty) = new Neo4jRowRDD(sc, query, parameters)
 }

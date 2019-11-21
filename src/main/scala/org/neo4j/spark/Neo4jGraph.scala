@@ -5,11 +5,12 @@ import java.util
 import org.apache.spark._
 import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
-import org.neo4j.driver.v1._
 import org.neo4j.spark.Executor.execute
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
+
+import org.neo4j.spark.cypher.CypherHelpers._
 
 /**
   * @author mh
@@ -36,10 +37,7 @@ object Neo4jGraph {
   // label1, label2, relTypes are optional
   // MATCH (n:${name(label1}})-[via:${rels(relTypes)}]->(m:${name(label2)}) RETURN id(n) as from, id(m) as to
   def loadGraph(sc: SparkContext, label1: String, relTypes: Seq[String], label2: String) : Graph[Any,Int] = {
-    def label(l : String) = if (l == null) "" else ":`"+l+"`"
-    def rels(relTypes : Seq[String]) = relTypes.map(":`"+_+"`").mkString("|")
-
-    val relStmt = s"MATCH (n${label(label1)})-[via${rels(relTypes)}]->(m${label(label2)}) RETURN id(n) as from, id(m) as to"
+    val relStmt = s"MATCH (n:${label1.quote})-[via${relTypes.map(_.quote).mkString("|")}]->(m:${label2.quote}) RETURN id(n) as from, id(m) as to"
 
     loadGraphFromNodePairs[Any](sc,relStmt)
   }
@@ -77,7 +75,7 @@ object Neo4jGraph {
       ).sum().toLong
     }
     def nodesUpdateStatement(labelIdProp:(String,String)) =
-      s"UNWIND {data} as row $matchMerge (n:`${labelIdProp._1}` {`${labelIdProp._2}` : row.id}) SET n.`$nodeProp` = row.value return count(*)"
+      s"UNWIND $$data as row $matchMerge (n:${labelIdProp._1.quote} {${labelIdProp._2.quote} : row.id}) SET n.${nodeProp.quote} = row.value return count(*)"
 
     val nodesUpdated : Long = if (nodeProp == null) 0
     else {
@@ -87,7 +85,7 @@ object Neo4jGraph {
         } else if (mainLabelIdProp.isDefined) {
             updateNodes(nodesUpdateStatement(mainLabelIdProp.get),graph.vertices, Some(graph.numVertices))
         } else {
-          updateNodes(s"UNWIND {data} as row MATCH (n) WHERE id(n) = row.id SET n.`$nodeProp` = row.value return count(*)", graph.vertices, Some(graph.numVertices))
+          updateNodes(s"UNWIND $$data as row MATCH (n) WHERE id(n) = row.id SET n.${nodeProp.quote} = row.value return count(*)", graph.vertices, Some(graph.numVertices))
         }
     }
 
@@ -98,13 +96,13 @@ object Neo4jGraph {
           (mainLabelIdProp match {
             case Some((label, prop)) =>
               val (label2,prop2) = secondLabelIdProp.getOrElse(mainLabelIdProp.get)
-              s"""UNWIND {data} as row
-                 | MATCH (n:`$label` {`$prop`: row.from})
-                 | MATCH (m:`$label2` {`$prop2`: row.to})""".stripMargin
+              s"""UNWIND $$data as row
+                 | MATCH (n:${label.quote} {${prop.quote}: row.from})
+                 | MATCH (m:${label2.quote} {${prop2.quote}: row.to})""".stripMargin
             case None =>
-              s"UNWIND {data} as row MATCH (n), (m) WHERE id(n) = row.from AND id(m) = row.to "
+              s"UNWIND $$data as row MATCH (n), (m) WHERE id(n) = row.from AND id(m) = row.to "
           }) +
-            s" $matchMerge (n)-[rel:`$relType`]->(m) SET rel.`$relProp` = row.value return count(*)"
+            s" $matchMerge (n)-[rel:${relType.quote}]->(m) SET rel.${relProp.quote} = row.value return count(*)"
         val batchSize = ((graph.numEdges / 100) + 1).toInt
 
         graph.edges.repartition(batchSize).mapPartitions[Long](
