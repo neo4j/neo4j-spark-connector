@@ -327,6 +327,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 <!-- tag::example_rdd[] -->
 
     import org.neo4j.spark._
+    import org.neo4j.spark.rdd._
     
     Neo4jTupleRDD(sc,"MATCH (n) return id(n)",Seq.empty).count
     // res46: Long = 1000000
@@ -342,6 +343,10 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4
 
 ```scala
+    import org.neo4j.spark._
+    import org.apache.spark.sql.types._	
+    import org.apache.spark.sql.functions._
+    import org.neo4j.spark.dataframe._
     
     
     val df = Neo4jDataFrame.withDataType(sqlContext, "MATCH (n) return id(n) as id",Seq.empty, "id" -> LongType)
@@ -357,7 +362,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     df.agg(sum(df.col("age"))).collect()
     // res31: Array[org.apache.spark.sql.Row] = Array([49500000])
     
-    query: String = MATCH (n:Person) return n.age as age
+    query: String = "MATCH (n:Person) return n.age as age"
     
     // val query = "MATCH (n:Person)-[:KNOWS]->(m:Person) where n.id = {x} return m.age as age"
     val query = "MATCH (n:Person) where n.id = {x} return n.age as age"
@@ -431,6 +436,7 @@ Resources:
 <!-- tag::example_graphframes[] -->
 
     import org.neo4j.spark._
+    import org.neo4j.spark.dataframe._
     
     val gdf = Neo4jGraphFrame(sqlContext,"Person" -> "name",("KNOWS"),"Person" -> "name")
     // gdf: org.graphframes.GraphFrame = GraphFrame(v:[id: bigint, prop: string], 
@@ -477,7 +483,7 @@ Resources:
 ## Neo4j-Java-Driver
 
 The project uses the [java driver](http://github.com/neo4j/neo4j-java-driver) for Neo4j's Bolt protocol.
-We use its `org.neo4j.driver:neo4j-java-driver:1.0.4` version.
+We use its `org.neo4j.driver:neo4j-java-driver:1.7.5` version.
 
 ## Testing
 

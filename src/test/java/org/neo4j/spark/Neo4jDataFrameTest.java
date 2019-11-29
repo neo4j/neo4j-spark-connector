@@ -71,7 +71,7 @@ public class Neo4jDataFrameTest {
     }
 
     @Test
-    @Ignore("todo result & session not serializable for CypherResultRDD")
+    // @Ignore("todo result & session not serializable for CypherResultRDD")
     public void runMatrixQueryDF() {
         Dataset<Row> found = csc.queryDF(QUERY, PARAMS);
         assertEquals(1, found.count());

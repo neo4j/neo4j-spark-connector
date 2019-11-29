@@ -95,34 +95,92 @@ object Neo4jDataFrame {
     sqlContext.createDataFrame(rowRdd, CypherTypes.schemaFromNamedType(schema))
   }
 
-  def apply(sqlContext: SQLContext, query: String, parameters: java.util.Map[String, AnyRef], write: Boolean = false): DataFrame = {
+//  def apply(sqlContext: SQLContext, query: String, parameters: java.util.Map[String, AnyRef], write: Boolean = false): DataFrame = {
+//    val limitedQuery = s"$query"
+//    val config = Neo4jConfig(sqlContext.sparkContext.getConf)
+//    val driver = config.driver()
+//    val session = driver.session()
+//    try {
+//      val runTransaction = new TransactionWork[DataFrame]() {
+//        override def execute(tx: Transaction): DataFrame = {
+//          val result = tx.run(query, parameters)
+//          if (!result.hasNext) throw new RuntimeException("Can't determine schema from empty result")
+//          val peek: Record = result.peek()
+//          val fields = peek.keys().asScala.map(k => (k, peek.get(k).`type`())).map(keyType => CypherTypes.field(keyType))
+//          val schema = StructType(fields)
+//          val rowRdd = new Neo4jResultRdd(sqlContext.sparkContext, result.asScala, peek.size(), session, driver)
+//          sqlContext.createDataFrame(rowRdd, schema)
+//        }
+//      }
+//      if (write)
+//        session.writeTransaction(runTransaction)
+//      else
+//        session.readTransaction(runTransaction)
+//    } finally {
+//      if (session.isOpen) session.close()
+//      driver.close()
+//    }
+//  }
+//
+//  class Neo4jResultRdd(@transient sc: SparkContext, result: Iterator[Record], keyCount: Int, session: Session, driver: Driver)
+//    extends RDD[Row](sc, Nil) {
+//
+//    def convert(value: AnyRef) = value match {
+//      case m: java.util.Map[_, _] => m.asScala
+//      case _ => value
+//    }
+//
+//    override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
+//      result.map(record => {
+//        val res = keyCount match {
+//          case 0 => Row.empty
+//          case 1 => Row(convert(record.get(0).asObject()))
+//          case _ =>
+//            val builder = Seq.newBuilder[AnyRef]
+//            builder.sizeHint(keyCount)
+//            var i = 0
+//            while (i < keyCount) {
+//              builder += convert(record.get(i).asObject())
+//              i = i + 1
+//            }
+//            Row.fromSeq(builder.result())
+//        }
+//        if (!result.hasNext) {
+//          session.close()
+//          driver.close()
+//        }
+//        res
+//      })
+//    }
+//
+//    override protected def getPartitions: Array[Partition] = Array(new Neo4jPartition())
+//  }
+
+  def apply(sqlContext: SQLContext, query: String, parameters: java.util.Map[String, AnyRef]): DataFrame = {
+    val limitedQuery = s"$query LIMIT 1"
     val config = Neo4jConfig(sqlContext.sparkContext.getConf)
     val driver = config.driver()
     val session = driver.session()
     try {
-      val runTransaction = new TransactionWork[DataFrame]() {
-        override def execute(tx: Transaction): DataFrame = {
-          val result = tx.run(query, parameters)
+      val runTransaction = new TransactionWork[(Int, StructType)]() {
+        override def execute(tx: Transaction): (Int, StructType) = {
+          val result = tx.run(limitedQuery, parameters)
           if (!result.hasNext) throw new RuntimeException("Can't determine schema from empty result")
-          val peek: Record = result.peek()
+          val peek: Record = result.next()
           val fields = peek.keys().asScala.map(k => (k, peek.get(k).`type`())).map(keyType => CypherTypes.field(keyType))
-          val schema = StructType(fields)
-          val rowRdd = new Neo4jResultRdd(sqlContext.sparkContext, result.asScala, peek.size(), session, driver)
-          sqlContext.createDataFrame(rowRdd, schema)
+          (peek.size , StructType(fields))
         }
       }
-      if (write)
-        session.writeTransaction(runTransaction)
-      else
-        session.readTransaction(runTransaction)
+      val (peekSize, schema) = session.readTransaction(runTransaction)
+      val rowRdd = new Neo4jResultRdd(sqlContext.sparkContext, peekSize, config, query, parameters)
+      sqlContext.createDataFrame(rowRdd, schema)
     } finally {
       if (session.isOpen) session.close()
       driver.close()
     }
   }
 
-
-  class Neo4jResultRdd(@transient sc: SparkContext, result: Iterator[Record], keyCount: Int, session: Session, driver: Driver)
+  class Neo4jResultRdd(@transient sc: SparkContext, keyCount: Int, config: Neo4jConfig, query: String, params: java.util.Map[String, AnyRef])
     extends RDD[Row](sc, Nil) {
 
     def convert(value: AnyRef) = value match {
@@ -131,26 +189,40 @@ object Neo4jDataFrame {
     }
 
     override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
-      result.map(record => {
-        val res = keyCount match {
-          case 0 => Row.empty
-          case 1 => Row(convert(record.get(0).asObject()))
-          case _ =>
-            val builder = Seq.newBuilder[AnyRef]
-            builder.sizeHint(keyCount)
-            var i = 0
-            while (i < keyCount) {
-              builder += convert(record.get(i).asObject())
-              i = i + 1
-            }
-            Row.fromSeq(builder.result())
+      val driver = config.driver()
+      val session = driver.session()
+      try {
+        val runTransaction = new TransactionWork[Iterator[Row]]() {
+          override def execute(tx: Transaction): Iterator[Row] = {
+            val result = tx.run(query, params)
+            if (!result.hasNext) throw new RuntimeException("Can't determine schema from empty result")
+            result.asScala.map(record => {
+              val res = keyCount match {
+                case 0 => Row.empty
+                case 1 => Row(convert(record.get(0).asObject()))
+                case _ =>
+                  val builder = Seq.newBuilder[AnyRef]
+                  builder.sizeHint(keyCount)
+                  var i = 0
+                  while (i < keyCount) {
+                    builder += convert(record.get(i).asObject())
+                    i = i + 1
+                  }
+                  Row.fromSeq(builder.result())
+              }
+              if (!result.hasNext) {
+                session.close()
+                driver.close()
+              }
+              res
+            })
+          }
         }
-        if (!result.hasNext) {
-          session.close()
-          driver.close()
-        }
-        res
-      })
+        session.readTransaction(runTransaction)
+      } finally {
+        if (session.isOpen) session.close()
+        driver.close()
+      }
     }
 
     override protected def getPartitions: Array[Partition] = Array(new Neo4jPartition())
