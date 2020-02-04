@@ -1,9 +1,14 @@
 package org.neo4j.spark.rdd
 
+import java.util
+
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
-import org.neo4j.driver.v1.Driver
+import org.apache.spark.sql.types.StructType
+import org.neo4j.driver.{Driver, Result, Transaction, TransactionWork}
+import org.neo4j.spark.Executor.{CypherResult, EMPTY, rows, toJava}
 import org.neo4j.spark.Neo4jConfig
+import org.neo4j.spark.dataframe.CypherTypes
 
 import scala.collection.JavaConverters._
 
@@ -14,18 +19,17 @@ class Neo4jTupleRDD(@transient sc: SparkContext, val query: String, val paramete
 
   override def compute(split: Partition, context: TaskContext): Iterator[Seq[(String, AnyRef)]] = {
     val driver: Driver = config.driver()
-    val session = driver.session()
+    val session = driver.session(config.sessionConfig())
     try {
-      val result = session.run(query, parameters.toMap.asJava)
-
-      result.asScala.map((record) => {
-        val res = record.asMap().asScala.toSeq
-        if (!result.hasNext) {
-          if (session.isOpen) session.close()
-          driver.close()
-        }
-        res
-      })
+      val runner = new TransactionWork[Iterator[Seq[(String, AnyRef)]]]() {
+        override def execute(tx: Transaction): Iterator[Seq[(String, AnyRef)]] = {
+          val result: Result = tx.run(query, parameters.toMap.asJava)
+          result.list().asScala.map((record) => {
+            record.asMap().asScala.toSeq
+          })
+        }.iterator
+      }
+      session.readTransaction(runner)
     } finally {
       if (session.isOpen) session.close()
       driver.close()

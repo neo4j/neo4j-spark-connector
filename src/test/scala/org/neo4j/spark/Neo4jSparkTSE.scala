@@ -1,20 +1,17 @@
 package org.neo4j.spark
 
-import org.apache.spark.graphx.{Graph, VertexId}
 import org.apache.spark.graphx.lib.PageRank
+import org.apache.spark.graphx.{Graph, VertexId}
 import org.apache.spark.sql._
-import org.apache.spark.{SparkConf, SparkContext}
 import org.graphframes.GraphFrame
 import org.junit.Assert._
 import org.junit._
-import org.neo4j.harness.{ServerControls, TestServerBuilders}
-
 
 /**
   * @author mh
   * @since 17.07.16
   */
-class Neo4jSparkTest {
+class Neo4jSparkTSE extends SparkConnectorScalaBaseTSE {
   val FIXTURE: String =
       """
       UNWIND range(1,100) as id
@@ -24,25 +21,15 @@ class Neo4jSparkTest {
       WITH p1, people[(p1.id + friend) % size(people)] as p2
       CREATE (p1)-[:KNOWS]->(p2)
       """
-  private var conf: SparkConf = _
-  private var sc: SparkContext = _
-  private var server: ServerControls = _
 
   @Before
   @throws[Exception]
   def setUp() {
-    server = TestServerBuilders.newInProcessBuilder.withConfig("dbms.security.auth_enabled", "false").withFixture(FIXTURE).newServer
-    conf = new SparkConf().setAppName("neoTest").setMaster("local[*]").set("spark.driver.allowMultipleContexts", "true").set("spark.neo4j.bolt.url", server.boltURI.toString)
-    sc = SparkContext.getOrCreate(conf)
-  }
-
-  @After def tearDown() {
-    server.close()
-    sc.stop()
+    session().run(FIXTURE).consume()
   }
 
   @Test def runCypherQueryWithParams() {
-    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) WHERE n.id <= {maxId} RETURN id(n)").param("maxId", 10)
+    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) WHERE n.id <= $maxId RETURN id(n)").param("maxId", 10)
     assertEquals(10, neo4j.loadRowRdd.count())
   }
   @Test def runCypherQuery() {
@@ -80,17 +67,17 @@ class Neo4jSparkTest {
   
   @Test def runCypherQueryWithSchemaAndMap() {
     val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) RETURN id(n) as id, {id:n.id} as ids LIMIT 5")
-    val people: Long = neo4j.loadDataFrame("id" -> "long", "ids"->"{long}").count()
+    val people: Long = neo4j.loadDataFrame("id" -> "long", "ids"->"$long").count()
     assertEquals(5,people)
   }
 
   @Test def runCypherQueryWithPartition() {
-    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) RETURN id(n) SKIP {_skip} LIMIT {_limit}").partitions(4).batch(25)
+    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) RETURN id(n) SKIP $_skip LIMIT $_limit").partitions(4).batch(25)
     val people: Long = neo4j.loadRowRdd.count()
     assertEquals(100,people)
   }
   @Test def runCypherQueryDataFrameWithPartition() {
-    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) RETURN id(n) as id SKIP {_skip} LIMIT {_limit}").partitions(4).batch(25)
+    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) RETURN id(n) as id SKIP $_skip LIMIT $_limit").partitions(4).batch(25)
     val df: DataFrame = neo4j.loadDataFrame
     assertEquals(1, df.schema.fieldNames.length)
     assertEquals("id", df.schema.fieldNames(0))
@@ -110,12 +97,12 @@ class Neo4jSparkTest {
     assertEquals(1000,knows)
   }
   @Test def runCypherRelQueryWithPartition() {
-    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person)-[r:KNOWS]->(m:Person) RETURN id(n) as src,id(m) as dst,type(r) as value SKIP {_skip} LIMIT {_limit}").partitions(7).batch(200)
+    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person)-[r:KNOWS]->(m:Person) RETURN id(n) as src,id(m) as dst,type(r) as value SKIP $_skip LIMIT $_limit").partitions(7).batch(200)
     val knows: Long = neo4j.loadRowRdd.count()
     assertEquals(1000,knows)
   }
   @Test def runCypherRelQueryWithPartitionGraph() {
-    val neo4j: Neo4j = Neo4j(sc).rels("MATCH (n:Person)-[r:KNOWS]->(m:Person) RETURN id(n) as src, id(m) as dst, type(r) as value SKIP {_skip} LIMIT {_limit}").partitions(7).batch(200)
+    val neo4j: Neo4j = Neo4j(sc).rels("MATCH (n:Person)-[r:KNOWS]->(m:Person) RETURN id(n) as src, id(m) as dst, type(r) as value SKIP $_skip LIMIT $_limit").partitions(7).batch(200)
     val graph: Graph[Long, String] = neo4j.loadGraph[Long,String]
     assertEquals(100,graph.vertices.count())
     assertEquals(1000,graph.edges.count())

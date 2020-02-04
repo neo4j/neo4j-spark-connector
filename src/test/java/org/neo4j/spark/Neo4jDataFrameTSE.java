@@ -1,16 +1,10 @@
 package org.neo4j.spark;
 
-import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.StructType;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
+import org.junit.Before;
 import org.junit.Test;
-import org.neo4j.harness.ServerControls;
-import org.neo4j.harness.TestServerBuilders;
 
 import java.util.Collections;
 import java.util.Map;
@@ -22,37 +16,19 @@ import static org.junit.Assert.assertEquals;
  * @since 02.03.16
  */
 
-public class Neo4jDataFrameTest {
+public class Neo4jDataFrameTSE extends SparkConnectorScalaBaseTSE {
 
-    public static final String QUERY1 = "MATCH (m:Movie {title:{title}}) RETURN m.released as released";
-    public static final String QUERY = "MATCH (m:Movie {title:{title}}) RETURN m.released as released, m.tagline as tagline";
+    public static final String QUERY1 = "MATCH (m:Movie {title:$title}) RETURN m.released as released";
+    public static final String QUERY = "MATCH (m:Movie {title:$title}) RETURN m.released as released, m.tagline as tagline";
     public static final Map<String, Object> PARAMS = Collections.<String, Object>singletonMap("title", "The Matrix");
     public static final String FIXTURE = "CREATE (:Movie {title:'The Matrix', released:1999, tagline:'Welcome to the Real World'})";
 
-    private static SparkConf conf;
-    private static JavaSparkContext sc;
-    private static Neo4JavaSparkContext csc;
-    private static ServerControls server;
+    private Neo4JavaSparkContext csc;
 
-    @BeforeClass
-    public static void setUp() throws Exception {
-        server = TestServerBuilders.newInProcessBuilder()
-                .withConfig("dbms.security.auth_enabled","false")
-                .withFixture(FIXTURE)
-                .newServer();
-        conf = new SparkConf()
-                .setAppName("neoTest")
-                .setMaster("local[*]")
-                .set("spark.driver.allowMultipleContexts","true")
-                .set("spark.neo4j.bolt.url", server.boltURI().toString());
-        sc = new JavaSparkContext(conf);
-        csc = Neo4JavaSparkContext.neo4jContext(sc);
-    }
-
-    @AfterClass
-    public static void tearDown() {
-        server.close();
-        sc.close();
+    @Before
+    public void before() {
+        session().writeTransaction(tx -> tx.run(FIXTURE));
+        csc = Neo4JavaSparkContext.neo4jContext(this.sc());
     }
 
     @Test

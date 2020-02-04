@@ -107,7 +107,7 @@ object Neo4jGraph {
         graph.edges.repartition(batchSize).mapPartitions[Long](
           p => {
             val rows = p.map(e => Seq(("from", e.srcId), ("to", e.dstId), ("value", e.attr)).toMap.asJava).toList.asJava
-            val res1 = execute(config, updateRels, Map(("data", rows))).rows
+            val res1 = execute(config, updateRels, Map("data" -> rows)).rows
             val sum: Long = res1.map(x => x(0).asInstanceOf[Long]).sum
             Iterator.apply[Long](sum)
           }

@@ -1,31 +1,18 @@
 package org.neo4j.spark
 
-import java.sql.Timestamp
-import java.time._
 import java.util
 
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
-import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.types.StructType
-import org.neo4j.driver.v1.{Driver, Session, StatementResult, Transaction, TransactionWork}
+import org.neo4j.driver.{Driver, Session, Result, Transaction, TransactionWork}
 import org.neo4j.spark.dataframe.CypherTypes
 
 import scala.collection.JavaConverters._
 
 
 object Executor {
-
-  def convert(value: AnyRef): Any = value match {
-    case m: ZonedDateTime => new Timestamp(DateTimeUtils.fromUTCTime(m.toInstant.toEpochMilli, m.getZone.getId))
-    case m: LocalDateTime => new Timestamp(DateTimeUtils.fromUTCTime(m.toInstant(ZoneOffset.UTC).toEpochMilli,"UTC"))
-    case m: LocalDate => new java.sql.Date(m.getYear, m.getMonth.getValue-1, m.getDayOfMonth)
-    case m: OffsetTime => new Timestamp(m.atDate(LocalDate.ofEpochDay(0)).toInstant.toEpochMilli)
-    case it: util.Collection[_] => it.toArray()
-    case m: java.util.Map[_,_] => m.asScala
-    case _ => value
-  }
 
   def toJava(parameters: Map[String, Any]): java.util.Map[String, Object] = {
     parameters.mapValues(toJava).asJava
@@ -48,11 +35,7 @@ object Executor {
     execute(Neo4jConfig(sc.getConf), query, parameters)
   }
 
-  private def rows(result: StatementResult) = {
-    var i = 0
-    while (result.hasNext) i = i + 1
-    i
-  }
+  private def rows(result: Result) = result.list().size()
 
   def execute(config: Neo4jConfig, query: String, parameters: Map[String, Any], write: Boolean = false): CypherResult = {
 
@@ -68,45 +51,40 @@ object Executor {
     }
 
     val driver: Driver = config.driver()
-    val session = driver.session()
+    val session = driver.session(config.sessionConfig())
 
     try {
       val runner = new TransactionWork[CypherResult]() {
         override def execute(tx: Transaction): CypherResult = {
-          val result: StatementResult = tx.run(query, toJava(parameters))
+          val result: Result = tx.run(query, toJava(parameters))
           if (!result.hasNext) {
-            result.consume()
-            session.close()
-            driver.close()
             return new CypherResult(new StructType(), Iterator.empty)
           }
           val peek = result.peek()
           val keyCount = peek.size()
           if (keyCount == 0) {
             val res: CypherResult = new CypherResult(new StructType(), Array.fill[Array[Any]](rows(result))(EMPTY).toIterator)
-            result.consume()
-            close(driver, session)
             return res
           }
           val keys = peek.keys().asScala
           val fields = keys.map(k => (k, peek.get(k).`type`())).map(keyType => CypherTypes.field(keyType))
           val schema = StructType(fields)
 
-          val it = result.asScala.map(record => {
+          val it = result.list().asScala.map((record) => {
             val row = new Array[Any](keyCount)
             var i = 0
             while (i < keyCount) {
-              val value = convert(record.get(i).asObject())
+              val value = record.get(i).asObject() match {
+                case it: util.Map[_, _] => it.asScala.toString()
+                case it: util.Collection[_] => it.toArray()
+                case x => x
+              }
               row.update(i, value)
               i = i + 1
             }
-            if (!result.hasNext) {
-              result.consume()
-              close(driver, session)
-            }
             row
           })
-          new CypherResult(schema, it)
+          new CypherResult(schema, it.iterator)
         }
       }
 
