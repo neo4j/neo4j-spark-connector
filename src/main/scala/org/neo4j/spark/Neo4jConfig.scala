@@ -11,9 +11,9 @@ case class Neo4jConfig(val url: String,
                        val user: String = "neo4j",
                        val password: Option[String] = None,
                        val database: Option[String] = None,
-                       val encryptionStatus: Boolean) {
+                       val encryption: Boolean) {
 
-  private def boltConfig(): Config = if (encryptionStatus) Config.builder().withEncryption().build() else Config.builder().withoutEncryption().build()
+  private def boltConfig(): Config = if (encryption) Config.builder().withEncryption().build() else Config.builder().withoutEncryption().build()
 
   def driver(config: Neo4jConfig) : Driver = config.password match {
     case Some(pwd) => driver(config.url, AuthTokens.basic(config.user, pwd))
@@ -31,11 +31,11 @@ case class Neo4jConfig(val url: String,
 object Neo4jConfig {
   val prefix = "spark.neo4j"
   def apply(sparkConf: SparkConf): Neo4jConfig = {
-    val url = sparkConf.get(s"$prefix.bolt.url", "bolt://localhost")
-    val user = sparkConf.get(s"$prefix.bolt.user", "neo4j")
-    val password: Option[String] = sparkConf.getOption(s"$prefix.bolt.password")
+    val url = sparkConf.get(s"$prefix.url", "bolt://localhost")
+    val user = sparkConf.get(s"$prefix.user", "neo4j")
+    val password: Option[String] = sparkConf.getOption(s"$prefix.password")
     val database: Option[String] = sparkConf.getOption(s"$prefix.database")
-    val encryptionStatus : Boolean = sparkConf.getBoolean(s"$prefix.bolt.encryption.status", defaultValue = false)
-    Neo4jConfig(url, user, password, database, encryptionStatus)
+    val encryption: Boolean = sparkConf.getBoolean(s"$prefix.encryption", defaultValue = false)
+    Neo4jConfig(url, user, password, database, encryption)
   }
 }

@@ -67,7 +67,7 @@ class Neo4jSparkTSE extends SparkConnectorScalaBaseTSE {
   
   @Test def runCypherQueryWithSchemaAndMap() {
     val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) RETURN id(n) as id, {id:n.id} as ids LIMIT 5")
-    val people: Long = neo4j.loadDataFrame("id" -> "long", "ids"->"$long").count()
+    val people: Long = neo4j.loadDataFrame("id" -> "long", "ids"->"{long}").count()
     assertEquals(5,people)
   }
 

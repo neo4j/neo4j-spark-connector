@@ -8,7 +8,7 @@ import org.neo4j.Neo4jContainerExtension
 
 
 object SparkConnectorScalaSuiteIT {
-  val server: Neo4jContainerExtension = new Neo4jContainerExtension("neo4j:4.0.0-enterprise")
+  val server: Neo4jContainerExtension = new Neo4jContainerExtension("neo4j:enterprise")
     .withNeo4jConfig("dbms.security.auth_enabled", "false")
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
 
@@ -27,7 +27,7 @@ object SparkConnectorScalaSuiteIT {
       conf = new SparkConf().setAppName("neoTest")
         .setMaster("local[*]")
         .set("spark.driver.allowMultipleContexts", "true")
-        .set("spark.neo4j.bolt.url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .set("spark.neo4j.url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       sc = SparkContext.getOrCreate(conf)
     }
   }

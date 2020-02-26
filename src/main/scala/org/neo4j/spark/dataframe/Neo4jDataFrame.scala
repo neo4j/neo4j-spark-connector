@@ -4,15 +4,16 @@ import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
-import org.neo4j.driver.internal.types.InternalTypeSystem
 import org.neo4j.driver._
+import org.neo4j.driver.internal.types.InternalTypeSystem
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.types.{Type, TypeSystem}
 import org.neo4j.spark.Neo4jConfig
+import org.neo4j.spark.cypher.CypherHelpers._
 import org.neo4j.spark.rdd.{Neo4jPartition, Neo4jRowRDD}
+import org.neo4j.spark.utils.Neo4jUtils._
 
 import scala.collection.JavaConverters._
-import org.neo4j.spark.cypher.CypherHelpers._
 
 object Neo4jDataFrame {
 
@@ -21,67 +22,78 @@ object Neo4jDataFrame {
                     source: (String, Seq[String]),
                     relationship: (String, Seq[String]),
                     target: (String, Seq[String]),
-                    renamedColumns: Map[String, String] = Map.empty): Unit = {
-    dataFrame.cache()
-    val sourceLabel: String = renamedColumns.getOrElse(source._2.head, source._2.head)
-    val targetLabel: String = renamedColumns.getOrElse(target._2.head, target._2.head)
-    val mergeStatement =
-      s"""
-        UNWIND $$rows as row
-        MERGE (source:${source._1.quote} {${sourceLabel.quote} : row.source.${sourceLabel.quote}}) ON CREATE SET source += row.source
-        MERGE (target:${target._1.quote} {${targetLabel.quote} : row.target.${targetLabel.quote}}) ON CREATE SET target += row.target
-        MERGE (source)-[rel:${relationship._1.quote}]->(target) ON CREATE SET rel += row.relationship
-        """
-    val partitions = Math.max(1, (dataFrame.count() / 10000).asInstanceOf[Int])
+                    renamedColumns: Map[String, String] = Map.empty,
+                    partitions: Int = 1,
+                    unwindBatchSize: Int = 10000): Unit = {
+
+    createNodes(sc, dataFrame, source, renamedColumns, partitions, unwindBatchSize, true)
+    createNodes(sc, dataFrame, target, renamedColumns, partitions, unwindBatchSize, true)
+
+    val sourceKey: String = renamedColumns.getOrElse(source._2.head, source._2.head).quote
+    val targetKey: String = renamedColumns.getOrElse(target._2.head, target._2.head).quote
+    val relStatement = s"""|
+        |UNWIND $$rows as row
+        |MATCH (source:${source._1.quote} {$sourceKey: row.source.$sourceKey})
+        |MATCH (target:${target._1.quote} {$targetKey: row.target.$targetKey})
+        |MERGE (source)-[rel:${relationship._1.quote}]->(target) ON CREATE SET rel += row.relationship
+        |""".stripMargin
+
+    execute(sc, dataFrame, partitions, unwindBatchSize, relStatement, (r: Row) => Map(
+      "source" -> source._2.map(c => (renamedColumns.getOrElse(c, c), toJava(r.getAs(c)))).toMap.asJava,
+      "target" -> target._2.map(c => (renamedColumns.getOrElse(c, c), toJava(r.getAs(c)))).toMap.asJava,
+      "relationship" -> relationship._2.map(c => (c, toJava(r.getAs(c)))).toMap.asJava).asJava
+    )
+  }
+
+  private def execute(sc: SparkContext,
+                      dataFrame: DataFrame,
+                      partitions: Int,
+                      unwindBatchSize: Int,
+                      statement: String,
+                      mapFun: Row => Any) {
     val config = Neo4jConfig(sc.getConf)
     dataFrame.repartition(partitions).foreachPartition(rows => {
-      val params: AnyRef = rows.map(r =>
-        Map(
-          "source" -> source._2.map(c => (renamedColumns.getOrElse(c, c), toJava(r.getAs(c)))).toMap.asJava,
-          "target" -> target._2.map(c => (renamedColumns.getOrElse(c, c), toJava(r.getAs(c)))).toMap.asJava,
-          "relationship" -> relationship._2.map(c => (c, toJava(r.getAs(c)))).toMap.asJava)
-          .asJava).asJava
-      execute(config, mergeStatement, Map("rows" -> params).asJava, write = true)
+      val driver: Driver = config.driver()
+      val session = driver.session(config.sessionConfig())
+      try {
+        rows.grouped(unwindBatchSize)
+          .foreach(chunk => {
+            val params: AnyRef = chunk.map(mapFun).asJava
+            execute(session, statement, Map("rows" -> params).asJava, write = true)
+          })
+      } finally {
+        close(driver, session)
+      }
     })
   }
 
-
-  def createNodes(sc: SparkContext, dataFrame: DataFrame, nodes: (String, Seq[String]), renamedColumns: Map[String, String] = Map.empty): Unit = {
-    dataFrame.cache()
+  def createNodes(sc: SparkContext,
+                  dataFrame: DataFrame,
+                  nodes: (String, Seq[String]),
+                  renamedColumns: Map[String, String] = Map.empty,
+                  partitions: Int = 1,
+                  unwindBatchSize: Int = 10000,
+                  merge: Boolean = false): Unit = {
     val nodeLabel: String = renamedColumns.getOrElse(nodes._2.head, nodes._2.head)
-    val createStatement =
-      s"""
-        UNWIND $$rows as row
-        CREATE (node:${nodes._1.quote} {${nodeLabel.quote} : row.source.${nodeLabel.quote}})
-        SET node = row.node_properties
-        """
-    val partitions = Math.max(1, (dataFrame.count() / 10000).asInstanceOf[Int])
-    val config = Neo4jConfig(sc.getConf)
-    dataFrame.repartition(partitions).foreachPartition(rows => {
-      val params: AnyRef = rows.map(r =>
-        Map(
-          "node_properties" -> nodes._2.map(c => (renamedColumns.getOrElse(c, c), toJava(r.getAs(c)))).toMap.asJava)
-          .asJava).asJava
-      Neo4jDataFrame.execute(config, createStatement, Map("rows" -> params).asJava, write = true)
-    })
+    val createStatement = s"""|
+       |UNWIND $$rows as row
+       |${if (merge) "MERGE" else "CREATE"} (node:${nodes._1.quote} {${nodeLabel.quote} : row.node_properties.${nodeLabel.quote}})
+       |SET node += row.node_properties
+       |""".stripMargin
+    execute(sc, dataFrame, partitions, unwindBatchSize, createStatement, (r: Row) => Map(
+      "node_properties" -> nodes._2.map(c => (renamedColumns.getOrElse(c, c), toJava(r.getAs(c)))).toMap.asJava).asJava
+    )
   }
 
-  def execute(config: Neo4jConfig, query: String, parameters: java.util.Map[String, AnyRef], write: Boolean = false): ResultSummary = {
-    val driver: Driver = config.driver()
-    val session = driver.session(config.sessionConfig())
-    try {
-      val runner = new TransactionWork[ResultSummary]() {
-        override def execute(tx: Transaction): ResultSummary =
-          tx.run(query, parameters).consume()
-      }
-      if (write) {
-        session.writeTransaction(runner)
-      }
-      else
-        session.readTransaction(runner)
-    } finally {
-      if (session.isOpen) session.close()
-      driver.close()
+  private def execute(session: Session, query: String, parameters: java.util.Map[String, AnyRef], write: Boolean = false): ResultSummary = {
+    val runner = new TransactionWork[ResultSummary]() {
+      override def execute(tx: Transaction): ResultSummary =
+        tx.run(query, parameters).consume()
+    }
+    if (write) {
+      session.writeTransaction(runner)
+    } else {
+      session.readTransaction(runner)
     }
   }
 
@@ -98,15 +110,15 @@ object Neo4jDataFrame {
   def toJava(x: Any): Any = {
     import scala.collection.JavaConverters._
     x match {
-      case y: scala.collection.MapLike[_, _, _] => 
+      case y: scala.collection.MapLike[_, _, _] =>
         y.map { case (d, v) => toJava(d) -> toJava(v) } asJava
-      case y: scala.collection.SetLike[_,_] => 
+      case y: scala.collection.SetLike[_,_] =>
         y map { item: Any => toJava(item) } asJava
-      case y: Iterable[_] => 
+      case y: Iterable[_] =>
         y.map { item: Any => toJava(item) } asJava
-      case y: Iterator[_] => 
+      case y: Iterator[_] =>
         toJava(y.toIterable)
-      case _ => 
+      case _ =>
         x
     }
   }
@@ -130,8 +142,7 @@ object Neo4jDataFrame {
       val rowRdd = new Neo4jResultRdd(sqlContext.sparkContext, peekSize, config, query, parameters)
       sqlContext.createDataFrame(rowRdd, schema)
     } finally {
-      if (session.isOpen) session.close()
-      driver.close()
+      close(driver, session)
     }
   }
 
@@ -147,7 +158,7 @@ object Neo4jDataFrame {
       val driver = config.driver()
       val session = driver.session(config.sessionConfig())
       try {
-        val runTransaction = new TransactionWork[Iterator[Row]]() {
+        val txWork = new TransactionWork[Iterator[Row]] {
           override def execute(tx: Transaction): Iterator[Row] = {
             val result = tx.run(query, params)
             if (!result.hasNext) throw new RuntimeException("Can't determine schema from empty result")
@@ -169,10 +180,9 @@ object Neo4jDataFrame {
             }).iterator
           }
         }
-        session.readTransaction(runTransaction)
+        session.readTransaction(txWork)
       } finally {
-        if (session.isOpen) session.close()
-        driver.close()
+        close(driver, session)
       }
     }
 

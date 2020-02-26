@@ -14,7 +14,7 @@ This neo4j-spark-connector is Apache 2 Licensed
 ## Building
 
 
-Build `target/neo4j-spark-connector_2.11-full-2.4.1-M1.jar` for Scala 2.11
+Build `target/neo4j-spark-connector_2.11-full-2.6.0-M1.jar` for Scala 2.11
 
     mvn clean package
 
@@ -22,21 +22,21 @@ Build `target/neo4j-spark-connector_2.11-full-2.4.1-M1.jar` for Scala 2.11
 
 **spark-shell, pyspark, or spark-submit**
 
-`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.4.1-M1.jar`
+`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.6.0-M1.jar`
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1`
 
 **sbt**
 
 If you use the [sbt-spark-package plugin](https://github.com/databricks/sbt-spark-package), in your sbt build file, add:
 
-```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.4.1-M1"```
+```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.6.0-M1"```
 
 Otherwise,
 
 ```scala
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.4.1-M1"
+libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.6.0-M1"
 ```  
 
 **maven**  
@@ -48,7 +48,7 @@ In your pom.xml, add:
   <dependency>
     <groupId>neo4j-contrib</groupId>
     <artifactId>neo4j-spark-connector</artifactId>
-    <version>2.4.1-M1</version>
+    <version>2.6.0-M1</version>
   </dependency>
 </dependencies>
 <repositories>
@@ -62,17 +62,18 @@ In your pom.xml, add:
 
 ## Config
 
-If you're running Neo4j on localhost with the default ports, you only have to configure your password in `spark.neo4j.bolt.password=<password>`.
+If you're running Neo4j on localhost with the default ports, you only have to configure your password in `spark.neo4j.password=<password>`.
 	
-Otherwise set the `spark.neo4j.bolt.url` in your `SparkConf` pointing e.g. to `bolt://host:port`.
+Otherwise set the `spark.neo4j.url` in your `SparkConf` pointing e.g. to `bolt://host:port`.
 
-You can provide user and password as part of the URL `bolt://neo4j:<password>@localhost` or individually in `spark.neo4j.bolt.user` and `spark.neo4j.bolt.password`.
+You can provide user and password as part of the URL `bolt://neo4j:<password>@localhost` or individually in `spark.neo4j.user` and `spark.neo4j.password`.
 
-You can also provide the encryption configuration via `spark.neo4j.bolt.encryption`, it takes a boolean value and the default is `false`
+If you're running Neo4j with the Bolt connector and the option `dbms.connector.tls_level` in Neo4j is `REQUIRED`, you must set the `spark.neo4j.encryption.status` to `true` in your `SparkConf`.
+Otherwise, you can either ignore `spark.neo4j.encryption` or  set  `spark.neo4j.encryption` to `false` in your `SparkConf`.
 
 ## Builder API
 
-Starting with version 2.4.1-M1 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
+Starting with version 2.6.0-M1 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
 
 This library supports:
 
@@ -121,7 +122,7 @@ CREATE (p1)-[:KNOWS {years: abs(p2.id - p2.id)}]->(p2)
 
 Start the Spark-Shell with
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1`
 
 ### Loading RDDs
 
@@ -254,22 +255,26 @@ There are a few different RDD's all named `Neo4jXxxRDD`
 
 ## DataFrames
 
-* `Neo4jDataFrame`, a SparkSQL `DataFrame` that you construct either with explicit type information about result names and types
-* or inferred from the first result-row
-* Neo4jDataFrame provides:
- 1.`mergeEdgeList(sc: SparkContext, dataFrame: DataFrame, source: (label,Seq[prop]), relationship: (type,Seq[prop]), target: (label,Seq[prop]))` to merge a DataFrame back into a Neo4j graph
+The `Neo4jDataFrame` is a SparkSQL `DataFrame` that you construct either with explicit type information about result
+names and types or inferred from the first result-row; it provides:
+ * `mergeEdgeList(sc: SparkContext, dataFrame: DataFrame, source: (label,Seq[prop]), relationship: (type,Seq[prop]), target: (label,Seq[prop]), partitions: Int = 1, unwindBatchSize: Int = 10000)` to merge a DataFrame back into a Neo4j graph
     * both nodes are merged by first property in sequence, all the others will be set on the entity
     * relationships are merged between the two nodes and all properties included in the sequence will be set on the relationship
     * property names from the sequence are used as column names for the data-frame, currently there is no name translation.<br/>
     *For example*: with a DataFrame containing a `screen` column describing the on-screen relationship between two actors, then to get a `screen` property on the relationship we'd need to supply a *relationship* tuple of `("ACTED_WITH",Seq("screen")`. If we had a `real` column in the DataFrame representing a real-life relationship as well, then we would need to add that property into the `Seq` too, e.g. `("ACTED_WITH",Seq("screen", "real"))` and so on.
     * the result are sent in batches of 10000 to the graph
-    * optional `renamedColumns` parameter - can be used to create a relationship between nodes having the same properties.<br/>
- *For example*: `(keanu:Person {name: 'Keanu'})-[:ACTED_WITH]->(Laurence:Person {name: "Laurence"})` requires a DataFrame with 2 `name` columns which is not possible.
+    * the `partitions` parameter defines the number of partitions of the dataframe will be repartitioned into. It defines the level of the parallelism, so consider that it could lead to transaction locks if the same node gets managed concurrently;
+    * the `unwindBatchSize` parameter defines for each partition the batch size sent to Neo4j.<br/>
+    * optional `renamedColumns` parameter - can be used to create a relationship between nodes having the same properties.
+    *For example*: `(keanu:Person {name: 'Keanu'})-[:ACTED_WITH]->(Laurence:Person {name: "Laurence"})` requires a DataFrame with 2 `name` columns which is not possible.
  To overcome this, one can create a DataFrame with `src_node_name` and `dst_node_name` and provide `renamedColumns = Map("src_node_name" -> "name", "dst_node_name" -> "name")`
- 2. `createNodes(sc: SparkContext, dataFrame: DataFrame, nodes: (String,Seq[String]))` to create nodes in Neo4j graph.
+ * `createNodes(sc: SparkContext, dataFrame: DataFrame, nodes: (String,Seq[String]), partitions: Int = 1, unwindBatchSize: Int = 10000, merger: Boolean = false)` to create nodes in Neo4j graph.
     * nodes are created by first property in sequence, all the others will be set on the node
     * the result are sent in batches of 10000 to the graph
     * optional `renamedColums` parameter - can be used to create a node with a label different from `DataFrame`'s column name.<br/>
+    * the `partitions` parameter defines the number of partitions of the dataframe will be repartitioned into. It defines the level of the parallelism, so consider that it could lead to transaction locks if the same node gets managed concurrently;
+    * the `unwindBatchSize` parameter defines for each partition the batch size sent to Neo4j
+    * the `merge` parameter defines the ingestion strategy (MERGE/CREATE)
 
 
 ## GraphX - Neo4jGraph
@@ -316,13 +321,13 @@ For a simple dataset of connected people run the two following Cypher statements
 You can also provide the dependencies to spark-shell or spark-submit via `--packages` and optionally `--repositories`.
 
     $SPARK_HOME/bin/spark-shell \
-          --conf spark.neo4j.bolt.password=<neo4j-password> \
-          --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1
+          --conf spark.neo4j.password=<neo4j-password> \
+          --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1
 
 ### Neo4j(Row|Tuple)RDD
 
-    $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1
+    $SPARK_HOME/bin/spark-shell --conf spark.neo4j.password=<neo4j-password> \
+    --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1
 
 ```scala
 <!-- tag::example_rdd[] -->
@@ -340,8 +345,8 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 
 ### Neo4jDataFrame
 
-    $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1
+    $SPARK_HOME/bin/spark-shell --conf spark.neo4j.password=<neo4j-password> \
+    --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1
 
 ```scala
     import org.neo4j.spark._
@@ -382,8 +387,8 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 
 ### Neo4jGraph Operations
 
-    $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1
+    $SPARK_HOME/bin/spark-shell --conf spark.neo4j.password=<neo4j-password> \
+    --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1
 
 ```scala
     import org.neo4j.spark._
@@ -430,8 +435,8 @@ Resources:
 // * [SparkSummit Video](https://spark-summit.org/east-2016/speakers/ankur-dave/)
 
 
-    $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1
+    $SPARK_HOME/bin/spark-shell --conf spark.neo4j.password=<neo4j-password> \
+    --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1
 
 ```scala  
 <!-- tag::example_graphframes[] -->

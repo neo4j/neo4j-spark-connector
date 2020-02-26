@@ -6,8 +6,9 @@ import org.apache.spark.SparkContext
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.types.StructType
-import org.neo4j.driver.{Driver, Session, Result, Transaction, TransactionWork}
+import org.neo4j.driver.{Driver, Result, Transaction, TransactionWork}
 import org.neo4j.spark.dataframe.CypherTypes
+import org.neo4j.spark.utils.Neo4jUtils._
 
 import scala.collection.JavaConverters._
 
@@ -38,23 +39,10 @@ object Executor {
   private def rows(result: Result) = result.list().size()
 
   def execute(config: Neo4jConfig, query: String, parameters: Map[String, Any], write: Boolean = false): CypherResult = {
-
-    def close(driver: Driver, session: Session) = {
-      try {
-        if (session.isOpen) {
-          session.close()
-        }
-        driver.close()
-      } catch {
-        case _ => // ignore
-      }
-    }
-
     val driver: Driver = config.driver()
     val session = driver.session(config.sessionConfig())
-
     try {
-      val runner = new TransactionWork[CypherResult]() {
+      val txWork: TransactionWork[CypherResult] = new TransactionWork[CypherResult] {
         override def execute(tx: Transaction): CypherResult = {
           val result: Result = tx.run(query, toJava(parameters))
           if (!result.hasNext) {
@@ -63,19 +51,18 @@ object Executor {
           val peek = result.peek()
           val keyCount = peek.size()
           if (keyCount == 0) {
-            val res: CypherResult = new CypherResult(new StructType(), Array.fill[Array[Any]](rows(result))(EMPTY).toIterator)
-            return res
+            return new CypherResult(new StructType(), Array.fill[Array[Any]](rows(result))(EMPTY).toIterator)
           }
           val keys = peek.keys().asScala
           val fields = keys.map(k => (k, peek.get(k).`type`())).map(keyType => CypherTypes.field(keyType))
           val schema = StructType(fields)
 
-          val it = result.list().asScala.map((record) => {
+          val it = result.list().asScala.map(record => {
             val row = new Array[Any](keyCount)
             var i = 0
             while (i < keyCount) {
               val value = record.get(i).asObject() match {
-                case it: util.Map[_, _] => it.asScala.toString()
+                case it: util.Map[_, _] => it.asScala
                 case it: util.Collection[_] => it.toArray()
                 case x => x
               }
@@ -83,16 +70,15 @@ object Executor {
               i = i + 1
             }
             row
-          })
-          new CypherResult(schema, it.iterator)
+          }).iterator
+          new CypherResult(schema, it)
         }
       }
-
-      if (write)
-        session.writeTransaction(runner)
-      else
-        session.readTransaction(runner)
-
+      if (write) {
+        session.writeTransaction(txWork)
+      } else {
+        session.readTransaction(txWork)
+      }
     } finally {
       close(driver, session)
     }
