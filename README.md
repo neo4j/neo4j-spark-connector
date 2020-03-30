@@ -68,6 +68,7 @@ Otherwise set the `spark.neo4j.bolt.url` in your `SparkConf` pointing e.g. to `b
 
 You can provide user and password as part of the URL `bolt://neo4j:<password>@localhost` or individually in `spark.neo4j.bolt.user` and `spark.neo4j.bolt.password`.
 
+You can also provide the encryption configuration via `spark.neo4j.bolt.encryption`, it takes a boolean value and the default is `false`
 
 ## Builder API
 
