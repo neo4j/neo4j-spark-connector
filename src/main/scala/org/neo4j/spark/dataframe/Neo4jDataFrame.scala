@@ -11,6 +11,7 @@ import org.neo4j.driver.types.{Type, TypeSystem}
 import org.neo4j.spark.Neo4jConfig
 import org.neo4j.spark.cypher.CypherHelpers._
 import org.neo4j.spark.rdd.{Neo4jPartition, Neo4jRowRDD}
+import org.neo4j.spark.utils.Neo4jSessionAwareIterator
 import org.neo4j.spark.utils.Neo4jUtils._
 
 import scala.collection.JavaConverters._
@@ -128,7 +129,7 @@ object Neo4jDataFrame {
     val config = Neo4jConfig(sqlContext.sparkContext.getConf)
     val driver = config.driver()
     val session = driver.session(config.sessionConfig())
-    try {
+    val (peekSize, schema) = try {
       val runTransaction = new TransactionWork[(Int, StructType)]() {
         override def execute(tx: Transaction): (Int, StructType) = {
           val result = tx.run(limitedQuery, parameters)
@@ -138,12 +139,12 @@ object Neo4jDataFrame {
           (peek.size, StructType(fields))
         }
       }
-      val (peekSize, schema) = session.readTransaction(runTransaction)
-      val rowRdd = new Neo4jResultRdd(sqlContext.sparkContext, peekSize, config, query, parameters)
-      sqlContext.createDataFrame(rowRdd, schema)
+      session.readTransaction(runTransaction)
     } finally {
       close(driver, session)
     }
+    val rowRdd = new Neo4jResultRdd(sqlContext.sparkContext, peekSize, Neo4jConfig(sqlContext.sparkContext.getConf), query, parameters)
+    sqlContext.createDataFrame(rowRdd, schema)
   }
 
   class Neo4jResultRdd(@transient sc: SparkContext, keyCount: Int, config: Neo4jConfig, query: String, params: java.util.Map[String, AnyRef])
@@ -155,35 +156,22 @@ object Neo4jDataFrame {
     }
 
     override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
-      val driver = config.driver()
-      val session = driver.session(config.sessionConfig())
-      try {
-        val txWork = new TransactionWork[Iterator[Row]] {
-          override def execute(tx: Transaction): Iterator[Row] = {
-            val result = tx.run(query, params)
-            if (!result.hasNext) throw new RuntimeException("Can't determine schema from empty result")
-            result.list().asScala.map(record => {
-              val res = keyCount match {
-                case 0 => Row.empty
-                case 1 => Row(convert(record.get(0).asObject()))
-                case _ =>
-                  val builder = Seq.newBuilder[AnyRef]
-                  builder.sizeHint(keyCount)
-                  var i = 0
-                  while (i < keyCount) {
-                    builder += convert(record.get(i).asObject())
-                    i = i + 1
-                  }
-                  Row.fromSeq(builder.result())
-              }
-              res
-            }).iterator
-          }
+      new Neo4jSessionAwareIterator(config, query, params, false).map(record => {
+        val res = keyCount match {
+          case 0 => Row.empty
+          case 1 => Row(convert(record.get(0).asObject()))
+          case _ =>
+            val builder = Seq.newBuilder[AnyRef]
+            builder.sizeHint(keyCount)
+            var i = 0
+            while (i < keyCount) {
+              builder += convert(record.get(i).asObject())
+              i = i + 1
+            }
+            Row.fromSeq(builder.result())
         }
-        session.readTransaction(txWork)
-      } finally {
-        close(driver, session)
-      }
+        res
+      })
     }
 
     override protected def getPartitions: Array[Partition] = Array(new Neo4jPartition())

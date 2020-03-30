@@ -13,10 +13,10 @@ class Neo4jConfigTest {
     val pass = "pass"
     val url = "neo4j://localhost"
     val sparkConf = new SparkConf()
-      .set("spark.neo4j.bolt.encryption", encryption)
-      .set("spark.neo4j.bolt.user", user)
-      .set("spark.neo4j.bolt.password", pass)
-      .set("spark.neo4j.bolt.url", url)
+      .set("spark.neo4j.encryption", encryption)
+      .set("spark.neo4j.user", user)
+      .set("spark.neo4j.password", pass)
+      .set("spark.neo4j.url", url)
 
     // when
     val neo4jConf = Neo4jConfig(sparkConf)
@@ -29,3 +29,4 @@ class Neo4jConfigTest {
   }
 
 }
+

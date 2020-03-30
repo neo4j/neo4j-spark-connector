@@ -18,7 +18,7 @@ class Neo4jDataFrameScalaTSE extends SparkConnectorScalaBaseTSE {
   @Before
   @throws[Exception]
   def setUp {
-    session().run(FIXTURE).consume()
+    SparkConnectorScalaSuiteIT.session().run(FIXTURE).consume()
   }
 
   @Test def mergeEdgeList {
@@ -27,7 +27,7 @@ class Neo4jDataFrameScalaTSE extends SparkConnectorScalaBaseTSE {
     val df = new SQLContext(sc).createDataFrame(rows, schema)
     Neo4jDataFrame.mergeEdgeList(sc, df, ("Person",Seq("name")),("ACTED_IN",Seq.empty),("Movie",Seq("title")))
 
-    val count = session().run("MATCH (:Person {name:'Keanu'})-[:ACTED_IN]->(:Movie {title:'Matrix'}) RETURN count(*) as c").single().get("c").asLong()
+    val count = SparkConnectorScalaSuiteIT.session().run("MATCH (:Person {name:'Keanu'})-[:ACTED_IN]->(:Movie {title:'Matrix'}) RETURN count(*) as c").single().get("c").asLong()
     assertEquals(1L, count)
   }
 
@@ -38,7 +38,7 @@ class Neo4jDataFrameScalaTSE extends SparkConnectorScalaBaseTSE {
     val rename = Map("src_name" -> "name", "dst_name" -> "name")
     Neo4jDataFrame.mergeEdgeList(sc, df, ("Person",Seq("src_name")),("ACTED_WITH",Seq.empty),("Person",Seq("dst_name")),rename)
 
-    val count = session().run("MATCH p = (:Person {name:'Carrie-Anne'})-[:ACTED_WITH]->(:Person {name:'Foster'}) RETURN count(*) as c").single().get("c").asLong()
+    val count = SparkConnectorScalaSuiteIT.session().run("MATCH p = (:Person {name:'Carrie-Anne'})-[:ACTED_WITH]->(:Person {name:'Foster'}) RETURN count(*) as c").single().get("c").asLong()
     assertEquals(1L, count)
   }
 
@@ -56,7 +56,7 @@ class Neo4jDataFrameScalaTSE extends SparkConnectorScalaBaseTSE {
     val rename = Map("src_name" -> "name", "dst_name" -> "name")
     Neo4jDataFrame.mergeEdgeList(sc, df, ("Person", Seq("src_name")), ("ACTED_WITH", Seq("screen", "met")), ("Person", Seq("dst_name")), rename)
 
-    val count = session().run("MATCH p=(:Person {name: ['Laurence']})-[:ACTED_WITH {screen: 'Mentor', met: ['1980']}]->(:Person {name:['Keanu']}) RETURN count(*) as c").single().get("c").asLong()
+    val count = SparkConnectorScalaSuiteIT.session().run("MATCH p=(:Person {name: ['Laurence']})-[:ACTED_WITH {screen: 'Mentor', met: ['1980']}]->(:Person {name:['Keanu']}) RETURN count(*) as c").single().get("c").asLong()
     assertEquals(1L, count)
   }
 
@@ -66,7 +66,7 @@ class Neo4jDataFrameScalaTSE extends SparkConnectorScalaBaseTSE {
     val df = new SQLContext(sc).createDataFrame(rows, schema)
     Neo4jDataFrame.createNodes(sc, df, ("Person",Seq("name","lastname")))
 
-    val count = session().run("MATCH (:Person {name:'Laurence', lastname: 'Fishburne'}) RETURN count(*) as c").single().get("c").asLong()
+    val count = SparkConnectorScalaSuiteIT.session().run("MATCH (:Person {name:'Laurence', lastname: 'Fishburne'}) RETURN count(*) as c").single().get("c").asLong()
     assertEquals(1L, count)
   }
 
@@ -76,7 +76,7 @@ class Neo4jDataFrameScalaTSE extends SparkConnectorScalaBaseTSE {
     val df = new SQLContext(sc).createDataFrame(rows, schema)
     Neo4jDataFrame.createNodes(sc, df, ("Person",Seq("names")))
 
-    val count = session().run("MATCH (:Person {names: ['Laurence', 'Fishburne']}) RETURN count(*) as c").single().get("c").asLong()
+    val count = SparkConnectorScalaSuiteIT.session().run("MATCH (:Person {names: ['Laurence', 'Fishburne']}) RETURN count(*) as c").single().get("c").asLong()
     assertEquals(1L, count)
   }
 
@@ -87,7 +87,7 @@ class Neo4jDataFrameScalaTSE extends SparkConnectorScalaBaseTSE {
     val rename = Map("node_name" -> "name")
     Neo4jDataFrame.createNodes(sc, df, ("Person",Seq("node_name","lastname")), rename)
 
-    val count = session().run("MATCH (:Person {name:'Matt', lastname: 'Doran'}) RETURN count(*) as c").single().get("c").asLong()
-    assertEquals(1L, count)
+     val count = SparkConnectorScalaSuiteIT.session().run("MATCH (:Person {name:'Matt', lastname: 'Doran'}) RETURN count(*) as c").single().get("c").asLong()
+     assertEquals(1L, count)
   }
 }

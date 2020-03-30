@@ -19,7 +19,7 @@ public class Neo4jGraphTSE extends SparkConnectorScalaBaseTSE {
 
     @Before
     public void before() {
-        session().writeTransaction(tx -> tx.run(FIXTURE));
+        SparkConnectorScalaSuiteIT.session().writeTransaction(tx -> tx.run(FIXTURE));
     }
 
     @Test public void runMatrixQuery() {

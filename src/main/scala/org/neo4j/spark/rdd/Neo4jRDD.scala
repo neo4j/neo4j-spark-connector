@@ -1,8 +1,8 @@
 package org.neo4j.spark.rdd
 
-import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
+import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.neo4j.spark.{Executor, Neo4jConfig, Partitions}
 
 class Neo4jRDD(@transient sc: SparkContext, val query: String, val parameters: Map[String, Any] = Map.empty, partitions: Partitions = Partitions())
@@ -11,7 +11,6 @@ class Neo4jRDD(@transient sc: SparkContext, val query: String, val parameters: M
   val neo4jConfig = Neo4jConfig(sc.getConf)
 
   override def compute(partition: Partition, context: TaskContext): Iterator[Row] = {
-
     val neo4jPartition: Neo4jPartition = partition.asInstanceOf[Neo4jPartition]
 
     Executor.execute(neo4jConfig, query, parameters ++ neo4jPartition.window).sparkRows

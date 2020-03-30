@@ -1,7 +1,7 @@
 package org.neo4j.spark
 
 import org.apache.spark.SparkConf
-import org.neo4j.driver.{AuthToken, AuthTokens, Config, Driver, GraphDatabase, Session, SessionConfig}
+import org.neo4j.driver.{AccessMode, AuthToken, AuthTokens, Config, Driver, GraphDatabase, Session, SessionConfig}
 
 /**
  * @author mh
@@ -24,7 +24,10 @@ case class Neo4jConfig(val url: String,
 
   def driver(url: String, authToken: AuthToken): Driver = GraphDatabase.driver(url, authToken, boltConfig())
 
-  def sessionConfig(): SessionConfig = database.map { SessionConfig.forDatabase(_) }.getOrElse(SessionConfig.defaultConfig())
+  def sessionConfig(write: Boolean = false): SessionConfig = database.map { SessionConfig.builder().withDatabase(_) }
+    .getOrElse(SessionConfig.builder())
+    .withDefaultAccessMode(if (write) AccessMode.WRITE else AccessMode.READ)
+    .build()
 
 }
 

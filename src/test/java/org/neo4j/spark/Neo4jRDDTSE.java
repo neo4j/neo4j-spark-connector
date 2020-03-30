@@ -26,7 +26,8 @@ public class Neo4jRDDTSE extends SparkConnectorScalaBaseTSE {
 
     @Before
     public void before() {
-        session().writeTransaction(tx -> tx.run(FIXTURE));
+        super.before();
+        SparkConnectorScalaSuiteIT.session().writeTransaction(tx -> tx.run(FIXTURE));
         csc = Neo4JavaSparkContext.neo4jContext(this.sc());
     }
 

@@ -18,22 +18,22 @@ import static org.junit.Assert.assertEquals;
 
 public class Neo4jDataFrameTSE extends SparkConnectorScalaBaseTSE {
 
-    public static final String QUERY1 = "MATCH (m:Movie {title:$title}) RETURN m.released as released";
     public static final String QUERY = "MATCH (m:Movie {title:$title}) RETURN m.released as released, m.tagline as tagline";
-    public static final Map<String, Object> PARAMS = Collections.<String, Object>singletonMap("title", "The Matrix");
+    public static final Map<String, Object> PARAMS = Collections.singletonMap("title", "The Matrix");
     public static final String FIXTURE = "CREATE (:Movie {title:'The Matrix', released:1999, tagline:'Welcome to the Real World'})";
 
     private Neo4JavaSparkContext csc;
 
     @Before
     public void before() {
-        session().writeTransaction(tx -> tx.run(FIXTURE));
+        super.before();
+        SparkConnectorScalaSuiteIT.session().writeTransaction(tx -> tx.run(FIXTURE));
         csc = Neo4JavaSparkContext.neo4jContext(this.sc());
     }
 
     @Test
     public void runMatrixQueryDFSchema() {
-        Dataset<Row> found = csc.queryDF(QUERY, PARAMS,"released", "integer","tagline", "string");
+        Dataset<Row> found = csc.queryDF(QUERY, PARAMS,"released", "integer","tagline", "string").persist(); // we persist the dataset in order to create just one connection to the DB
         assertEquals(1, found.count());
         StructType schema = found.schema();
         assertEquals("long", schema.apply("released").dataType().typeName());
@@ -47,9 +47,8 @@ public class Neo4jDataFrameTSE extends SparkConnectorScalaBaseTSE {
     }
 
     @Test
-    // @Ignore("todo result & session not serializable for CypherResultRDD")
     public void runMatrixQueryDF() {
-        Dataset<Row> found = csc.queryDF(QUERY, PARAMS);
+        Dataset<Row> found = csc.queryDF(QUERY, PARAMS).persist(); // we persist the dataset in order to create just one connection to the DB
         assertEquals(1, found.count());
         StructType schema = found.schema();
         assertEquals("long", schema.apply("released").dataType().typeName());
