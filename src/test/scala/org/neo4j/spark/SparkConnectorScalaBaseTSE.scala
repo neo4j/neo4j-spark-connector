@@ -1,10 +1,15 @@
 package org.neo4j.spark
 
+import java.util.concurrent.TimeUnit
+
 import org.apache.spark.{SparkConf, SparkContext}
+import org.hamcrest.Matchers
 import org.junit._
 import org.junit.rules.TestName
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
+import org.neo4j.function.ThrowingSupplier
+import org.neo4j.test.assertion
 
 object SparkConnectorScalaBaseTSE {
 
@@ -47,9 +52,13 @@ class SparkConnectorScalaBaseTSE {
 
   @After
   def after() {
-    val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
-    println(s"Connections before: ${SparkConnectorScalaSuiteIT.connections}, after: $afterConnections")
-    Assert.assertEquals(SparkConnectorScalaSuiteIT.connections, afterConnections) // we use it to track the connection handling
+    assertion.Assert.assertEventually(new ThrowingSupplier[Boolean, Exception] {
+      override def get(): Boolean = {
+        val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
+        println(s"For test ${testName.getMethodName} => connections before: ${SparkConnectorScalaSuiteIT.connections}, after: $afterConnections")
+        SparkConnectorScalaSuiteIT.connections == afterConnections
+      }
+    }, Matchers.equalTo(true), 30, TimeUnit.SECONDS)
   }
 
 }

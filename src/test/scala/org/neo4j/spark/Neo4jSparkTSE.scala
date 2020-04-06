@@ -53,21 +53,18 @@ class Neo4jSparkTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(5,people)
   }
 
-  @Test @Ignore("java.time.ZonedDateTime is not a valid external type for schema of timestamp")
+  @Test
   def runCypherQueryWithDateTimeSchema() {
     val neo4j: Neo4j = Neo4j(sc).cypher("RETURN 0 as id, datetime() as datetime, date() as date, time() as time")
     val people: Long = neo4j.loadDataFrame("id" -> "long", "datetime"->"datetime", "date"->"date", "time"->"time").count()
     assertEquals(1,people)
-    val rows = neo4j.loadDataFrame("id" -> "long", "datetime"->"datetime", "date"->"date", "time"->"time").collect()
-    rows.foreach(println)
   }
-  @Test @Ignore("java.time.ZonedDateTime is not a valid external type for schema of timestamp")
+
+  @Test
   def runCypherQueryWithDateTime() {
     val neo4j: Neo4j = Neo4j(sc).cypher("RETURN 0 as id, datetime() as datetime, date() as date, time() as time")
     val people: Long = neo4j.loadDataFrame().count()
     assertEquals(1,people)
-    val rows = neo4j.loadDataFrame().collect()
-    rows.foreach(println)
   }
   
   @Test def runCypherQueryWithSchemaAndMap() {

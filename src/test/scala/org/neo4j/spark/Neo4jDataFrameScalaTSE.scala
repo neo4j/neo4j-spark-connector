@@ -4,6 +4,7 @@ import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.apache.spark.sql.{Row, SQLContext}
 import org.junit.Assert._
 import org.junit._
+import org.junit.runners.MethodSorters
 import org.neo4j.spark.dataframe.Neo4jDataFrame
 
 

@@ -2,7 +2,9 @@ package org.neo4j.spark;
 
 import org.apache.spark.graphx.Graph;
 import org.junit.Before;
+import org.junit.FixMethodOrder;
 import org.junit.Test;
+import org.junit.runners.MethodSorters;
 import scala.collection.Seq;
 import scala.collection.Seq$;
 

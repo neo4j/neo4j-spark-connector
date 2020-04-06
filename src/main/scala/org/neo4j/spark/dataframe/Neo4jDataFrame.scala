@@ -199,6 +199,7 @@ object CypherTypes {
     case "BOOLEAN" => BOOLEAN
     case "BOOL" => BOOLEAN
     case "DATETIME" => DATETIME
+    case "TIME" => DATETIME
     case "DATE" => DATE
     case "NULL" => NULL
     case _ => STRING
@@ -220,6 +221,10 @@ object CypherTypes {
     if (typ == typeSystem.BOOLEAN()) CypherTypes.BOOLEAN
     else if (typ == typeSystem.STRING()) CypherTypes.STRING
     else if (typ == typeSystem.INTEGER()) CypherTypes.INTEGER
+    else if (typ == typeSystem.DATE()) CypherTypes.DATE
+    else if (typ == typeSystem.DATE_TIME()) CypherTypes.DATETIME
+    else if (typ == typeSystem.LOCAL_DATE_TIME()) CypherTypes.DATETIME
+    else if (typ == typeSystem.TIME()) CypherTypes.DATETIME
     else if (typ == typeSystem.FLOAT()) CypherTypes.FlOAT
     else if (typ == typeSystem.NULL()) CypherTypes.NULL
     else CypherTypes.STRING

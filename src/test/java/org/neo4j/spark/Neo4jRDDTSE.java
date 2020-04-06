@@ -2,7 +2,9 @@ package org.neo4j.spark;
 
 import org.apache.spark.sql.Row;
 import org.junit.Before;
+import org.junit.FixMethodOrder;
 import org.junit.Test;
+import org.junit.runners.MethodSorters;
 
 import java.util.Collections;
 import java.util.List;

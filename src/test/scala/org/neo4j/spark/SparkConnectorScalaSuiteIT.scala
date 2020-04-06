@@ -2,8 +2,8 @@ package org.neo4j.spark
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.junit.runner.RunWith
-import org.junit.runners.Suite
-import org.junit.{AfterClass, Assume, BeforeClass}
+import org.junit.runners.{MethodSorters, Suite}
+import org.junit.{AfterClass, Assume, BeforeClass, FixMethodOrder}
 import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{AuthTokens, Driver, GraphDatabase, Session, Transaction, TransactionWork}

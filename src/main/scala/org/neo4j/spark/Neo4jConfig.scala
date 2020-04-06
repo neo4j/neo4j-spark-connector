@@ -33,12 +33,19 @@ case class Neo4jConfig(val url: String,
 
 object Neo4jConfig {
   val prefix = "spark.neo4j"
+  val oldPrefix = "spark.neo4j.bolt"
   def apply(sparkConf: SparkConf): Neo4jConfig = {
-    val url = sparkConf.get(s"$prefix.url", "bolt://localhost")
-    val user = sparkConf.get(s"$prefix.user", "neo4j")
+    val url = sparkConf.getOption(s"$prefix.url")
+      .getOrElse(sparkConf.get(s"$oldPrefix.url", "bolt://localhost"))
+    val user = sparkConf.getOption(s"$prefix.user")
+      .getOrElse(sparkConf.get(s"$oldPrefix.user", "neo4j"))
     val password: Option[String] = sparkConf.getOption(s"$prefix.password")
+      .orElse(sparkConf.getOption(s"$oldPrefix.password"))
     val database: Option[String] = sparkConf.getOption(s"$prefix.database")
-    val encryption: Boolean = sparkConf.getBoolean(s"$prefix.encryption", defaultValue = false)
+      .orElse(sparkConf.getOption(s"$oldPrefix.password"))
+    val encryption: Boolean = sparkConf.getOption(s"$prefix.encryption")
+        .map(bool => bool.toBoolean)
+        .getOrElse(sparkConf.getBoolean(s"$oldPrefix.encryption", defaultValue = false))
     Neo4jConfig(url, user, password, database, encryption)
   }
 }

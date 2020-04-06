@@ -71,6 +71,8 @@ You can provide user and password as part of the URL `bolt://neo4j:<password>@lo
 If you're running Neo4j with the Bolt connector and the option `dbms.connector.tls_level` in Neo4j is `REQUIRED`, you must set the `spark.neo4j.encryption.status` to `true` in your `SparkConf`.
 Otherwise, you can either ignore `spark.neo4j.encryption` or  set  `spark.neo4j.encryption` to `false` in your `SparkConf`.
 
+**Nb.**  The old spark config prefix `spark.neo4j.bolt` is deprecated and will be removed in the next release.
+
 ## Builder API
 
 Starting with version 2.6.0-M1 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
