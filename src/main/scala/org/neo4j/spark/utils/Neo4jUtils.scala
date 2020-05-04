@@ -1,9 +1,13 @@
 package org.neo4j.spark.utils
+import java.sql.Timestamp
+import java.time.{LocalDate, LocalDateTime, OffsetTime, ZoneOffset, ZonedDateTime}
+import java.util
 import java.util.concurrent.Callable
 import java.util.function
 
 import org.neo4j.driver.{Driver, Result, Session, Transaction}
 import io.github.resilience4j.retry.{Retry, RetryConfig}
+import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.neo4j.driver.exceptions.{ServiceUnavailableException, SessionExpiredException, TransientException}
 import org.neo4j.spark.Neo4jConfig
 
@@ -26,11 +30,12 @@ object Neo4jUtils {
       classOf[SessionExpiredException], classOf[ServiceUnavailableException] // retry on the same exceptions the driver does [1]
     )
     .retryOnException(new function.Predicate[Throwable] {
-      override def test(exception: Throwable): Boolean = if (exception.isInstanceOf[TransientException]) {
-        val code = exception.asInstanceOf[TransientException].code
-        !("Neo.TransientError.Transaction.Terminated" == code) && !("Neo.TransientError.Transaction.LockClientStopped" == code)
-      } else {
-        false
+      override def test(exception: Throwable): Boolean = exception match {
+        case t: TransientException => {
+          val code = t.code()
+          !("Neo.TransientError.Transaction.Terminated" == code) && !("Neo.TransientError.Transaction.LockClientStopped" == code)
+        }
+        case _ => false
       }
     })
     .maxAttempts(3)
@@ -53,6 +58,14 @@ object Neo4jUtils {
         }
       )
       .call()
+  }
+
+  def convert(value: AnyRef): AnyRef = value match {
+    case m: ZonedDateTime => new Timestamp(DateTimeUtils.fromUTCTime(m.toInstant.toEpochMilli, m.getZone.getId))
+    case m: LocalDateTime => new Timestamp(DateTimeUtils.fromUTCTime(m.toInstant(ZoneOffset.UTC).toEpochMilli,"UTC"))
+    case m: LocalDate => java.sql.Date.valueOf(m)
+    case m: OffsetTime => new Timestamp(m.atDate(LocalDate.ofEpochDay(0)).toInstant.toEpochMilli)
+    case _ => value
   }
 
 }

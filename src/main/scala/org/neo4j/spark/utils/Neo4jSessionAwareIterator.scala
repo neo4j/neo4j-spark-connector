@@ -1,14 +1,17 @@
 package org.neo4j.spark.utils
 
+import org.neo4j.driver.Record
 import org.neo4j.driver.exceptions.NoSuchRecordException
-import org.neo4j.driver.{Driver, Record, Result, Session, Transaction}
 import org.neo4j.spark.Neo4jConfig
+import org.slf4j.{Logger, LoggerFactory}
 
 class Neo4jSessionAwareIterator(neo4jConfig: Neo4jConfig,
                                 query: String,
                                 params: java.util.Map[String, AnyRef],
                                 write: Boolean)
     extends Iterator[Record] {
+
+  private val logger = LoggerFactory.getLogger(classOf[Neo4jSessionAwareIterator])
 
   lazy val (driver, session, transaction, result) = Neo4jUtils.executeTxWithRetries(neo4jConfig, query, params, write)
 
@@ -24,7 +27,10 @@ class Neo4jSessionAwareIterator(neo4jConfig: Neo4jConfig,
       }
       hasNext
     } catch {
-      case _ => {
+      case e: Throwable => {
+        if (!e.isInstanceOf[NoSuchRecordException]) {
+          logger.error("Error while executing hasNext method because of the following exception:", e)
+        }
         close()
         false
       }
@@ -54,6 +60,8 @@ class Neo4jSessionAwareIterator(neo4jConfig: Neo4jConfig,
       if (result != null) {
         result.consume()
       }
+    } catch {
+      case _ => // ignore
     } finally {
       Neo4jUtils.close(driver, session)
     }

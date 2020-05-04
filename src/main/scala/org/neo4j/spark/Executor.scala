@@ -10,7 +10,7 @@ import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.dataframe.CypherTypes
-import org.neo4j.spark.utils.Neo4jSessionAwareIterator
+import org.neo4j.spark.utils.{Neo4jSessionAwareIterator, Neo4jUtils}
 
 import scala.collection.JavaConverters._
 
@@ -18,13 +18,9 @@ import scala.collection.JavaConverters._
 object Executor {
 
   def convert(value: AnyRef): Any = value match {
-    case m: ZonedDateTime => new Timestamp(DateTimeUtils.fromUTCTime(m.toInstant.toEpochMilli, m.getZone.getId))
-    case m: LocalDateTime => new Timestamp(DateTimeUtils.fromUTCTime(m.toInstant(ZoneOffset.UTC).toEpochMilli,"UTC"))
-    case m: LocalDate => java.sql.Date.valueOf(m)
-    case m: OffsetTime => new Timestamp(m.atDate(LocalDate.ofEpochDay(0)).toInstant.toEpochMilli)
     case it: util.Collection[_] => it.toArray()
     case m: java.util.Map[_,_] => m.asScala
-    case _ => value
+    case _ => Neo4jUtils.convert(value)
   }
 
   def toJava(parameters: Map[String, Any]): java.util.Map[String, Object] = {
