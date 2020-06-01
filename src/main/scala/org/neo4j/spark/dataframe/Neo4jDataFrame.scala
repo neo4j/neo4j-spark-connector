@@ -60,7 +60,10 @@ object Neo4jDataFrame {
         rows.grouped(unwindBatchSize)
           .foreach(chunk => {
             val params: AnyRef = chunk.map(mapFun).asJava
-            execute(session, statement, Map("rows" -> params).asJava, write = true)
+            session.writeTransaction(new TransactionWork[ResultSummary]() {
+              override def execute(tx: Transaction): ResultSummary =
+                tx.run(statement, Map("rows" -> params).asJava).consume()
+            })
           })
       } finally {
         close(driver, session)
@@ -84,18 +87,6 @@ object Neo4jDataFrame {
     execute(sc, dataFrame, partitions, unwindBatchSize, createStatement, (r: Row) => Map(
       "node_properties" -> nodes._2.map(c => (renamedColumns.getOrElse(c, c), toJava(r.getAs(c)))).toMap.asJava).asJava
     )
-  }
-
-  private def execute(session: Session, query: String, parameters: java.util.Map[String, AnyRef], write: Boolean = false): ResultSummary = {
-    val runner = new TransactionWork[ResultSummary]() {
-      override def execute(tx: Transaction): ResultSummary =
-        tx.run(query, parameters).consume()
-    }
-    if (write) {
-      session.writeTransaction(runner)
-    } else {
-      session.readTransaction(runner)
-    }
   }
 
   def withDataType(sqlContext: SQLContext, query: String, parameters: Seq[(String, Any)], schema: (String, DataType)*) = {
@@ -224,6 +215,7 @@ object CypherTypes {
     else if (typ == typeSystem.DATE()) CypherTypes.DATE
     else if (typ == typeSystem.DATE_TIME()) CypherTypes.DATETIME
     else if (typ == typeSystem.LOCAL_DATE_TIME()) CypherTypes.DATETIME
+    else if (typ == typeSystem.LOCAL_TIME()) CypherTypes.DATETIME
     else if (typ == typeSystem.TIME()) CypherTypes.DATETIME
     else if (typ == typeSystem.FLOAT()) CypherTypes.FlOAT
     else if (typ == typeSystem.NULL()) CypherTypes.NULL

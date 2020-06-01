@@ -99,7 +99,7 @@ class Neo4j(val sc: SparkContext) extends QueriesDsl with PartitionsDsl with Loa
     this
   }
 
-  // todo for partitions > 1, generate a batched query SKIP {_skip} LIMIT {_limit}
+  // todo for partitions > 1, generate a batched query SKIP $_skip LIMIT $_limit
   // batch could be hard-coded in query, so we only have to pass skip
   override def partitions(partitions: Long): Neo4j = {
     assert(partitions > 0)

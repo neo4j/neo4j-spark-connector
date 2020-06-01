@@ -1,7 +1,7 @@
 package org.neo4j.spark.utils
 
 import org.neo4j.driver.Record
-import org.neo4j.driver.exceptions.NoSuchRecordException
+import org.neo4j.driver.exceptions.{NoSuchRecordException, ResultConsumedException}
 import org.neo4j.spark.Neo4jConfig
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -28,7 +28,7 @@ class Neo4jSessionAwareIterator(neo4jConfig: Neo4jConfig,
       hasNext
     } catch {
       case e: Throwable => {
-        if (!e.isInstanceOf[NoSuchRecordException]) {
+        if (!e.isInstanceOf[NoSuchRecordException] && !e.isInstanceOf[ResultConsumedException]) {
           logger.error("Error while executing hasNext method because of the following exception:", e)
         }
         close()
@@ -42,7 +42,7 @@ class Neo4jSessionAwareIterator(neo4jConfig: Neo4jConfig,
       result.next()
     } catch {
       case e: Throwable => {
-        close(!e.isInstanceOf[NoSuchRecordException])
+        close(!e.isInstanceOf[NoSuchRecordException] && !e.isInstanceOf[ResultConsumedException])
         throw e
       }
     }
@@ -50,15 +50,15 @@ class Neo4jSessionAwareIterator(neo4jConfig: Neo4jConfig,
 
   private def close(rollback: Boolean = false) = {
     try {
+      if (result != null) {
+        result.consume()
+      }
       if (transaction != null && transaction.isOpen) {
         if (rollback && write) {
           transaction.rollback()
         } else {
           transaction.commit()
         }
-      }
-      if (result != null) {
-        result.consume()
       }
     } catch {
       case _ => // ignore

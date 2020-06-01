@@ -8,8 +8,6 @@ import org.junit._
 import org.junit.rules.TestName
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
-import org.neo4j.function.ThrowingSupplier
-import org.neo4j.test.assertion
 
 object SparkConnectorScalaBaseTSE {
 
@@ -52,13 +50,19 @@ class SparkConnectorScalaBaseTSE {
 
   @After
   def after() {
-    assertion.Assert.assertEventually(new ThrowingSupplier[Boolean, Exception] {
-      override def get(): Boolean = {
-        val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
+    try {
+      utils.Assert.assertEventually(new utils.Assert.ThrowingSupplier[Boolean, Exception] {
+        override def get(): Boolean = {
+          val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
+          SparkConnectorScalaSuiteIT.connections == afterConnections
+        }
+      }, Matchers.equalTo(true), 60, TimeUnit.SECONDS)
+    } finally {
+      val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
+      if (SparkConnectorScalaSuiteIT.connections != afterConnections) { // just for debug purposes
         println(s"For test ${testName.getMethodName} => connections before: ${SparkConnectorScalaSuiteIT.connections}, after: $afterConnections")
-        SparkConnectorScalaSuiteIT.connections == afterConnections
       }
-    }, Matchers.equalTo(true), 30, TimeUnit.SECONDS)
+    }
   }
 
 }

@@ -1,4 +1,4 @@
-package org.neo4j.cypher
+package org.neo4j.spark.cypher
 
 import org.junit.Test
 

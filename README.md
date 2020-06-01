@@ -14,7 +14,7 @@ This neo4j-spark-connector is Apache 2 Licensed
 ## Building
 
 
-Build `target/neo4j-spark-connector_2.11-full-2.6.0-M1.jar` for Scala 2.11
+Build `target/neo4j-spark-connector_2.11-full-2.4.5-M1.jar` for Scala 2.11
 
     mvn clean package
 
@@ -22,21 +22,21 @@ Build `target/neo4j-spark-connector_2.11-full-2.6.0-M1.jar` for Scala 2.11
 
 **spark-shell, pyspark, or spark-submit**
 
-`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.6.0-M1.jar`
+`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.4.5-M1.jar`
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1`
 
 **sbt**
 
 If you use the [sbt-spark-package plugin](https://github.com/databricks/sbt-spark-package), in your sbt build file, add:
 
-```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.6.0-M1"```
+```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.4.5-M1"```
 
 Otherwise,
 
 ```scala
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.6.0-M1"
+libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.4.5-M1"
 ```  
 
 **maven**  
@@ -48,7 +48,7 @@ In your pom.xml, add:
   <dependency>
     <groupId>neo4j-contrib</groupId>
     <artifactId>neo4j-spark-connector</artifactId>
-    <version>2.6.0-M1</version>
+    <version>2.4.5-M1</version>
   </dependency>
 </dependencies>
 <repositories>
@@ -75,7 +75,7 @@ Otherwise, you can either ignore `spark.neo4j.encryption` or  set  `spark.neo4j.
 
 ## Builder API
 
-Starting with version 2.6.0-M1 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
+Starting with version 2.4.5-M1 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
 
 This library supports:
 
@@ -124,7 +124,7 @@ CREATE (p1)-[:KNOWS {years: abs(p2.id - p2.id)}]->(p2)
 
 Start the Spark-Shell with
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1`
 
 ### Loading RDDs
 
@@ -145,11 +145,11 @@ rdd.first.schema("id")
 neo.cypher("MATCH (n:Person) RETURN id(n)").loadRdd[Long].mean
 //   => res30: Double = 236696.5
 
-neo.cypher("MATCH (n:Person) WHERE n.id <= {maxId} RETURN n.id").param("maxId", 10).loadRowRdd.count
+neo.cypher("MATCH (n:Person) WHERE n.id <= $maxId RETURN n.id").param("maxId", 10).loadRowRdd.count
 //   => res34: Long = 10
 
 // provide partitions and batch-size
-neo.nodes("MATCH (n:Person) RETURN id(n) SKIP {_skip} LIMIT {_limit}").partitions(4).batch(25).loadRowRdd.count
+neo.nodes("MATCH (n:Person) RETURN id(n) SKIP $_skip LIMIT $_limit").partitions(4).batch(25).loadRowRdd.count
 //   => 100 == 4 * 25
 
 // load via pattern
@@ -169,7 +169,7 @@ import org.neo4j.spark._
 val neo = Neo4j(sc)
 
 // load via Cypher query
-neo.cypher("MATCH (n:Person) RETURN id(n) as id SKIP {_skip} LIMIT {_limit}").partitions(4).batch(25).loadDataFrame.count
+neo.cypher("MATCH (n:Person) RETURN id(n) as id SKIP $_skip LIMIT $_limit").partitions(4).batch(25).loadDataFrame.count
 //   => res36: Long = 100
 
 val df = neo.pattern("Person",Seq("KNOWS"),"Person").partitions(12).batch(100).loadDataFrame
@@ -189,7 +189,7 @@ import org.apache.spark.graphx._
 import org.apache.spark.graphx.lib._
     
 // load graph via Cypher query
-val graphQuery = "MATCH (n:Person)-[r:KNOWS]->(m:Person) RETURN id(n) as source, id(m) as target, type(r) as value SKIP {_skip} LIMIT {_limit}"
+val graphQuery = "MATCH (n:Person)-[r:KNOWS]->(m:Person) RETURN id(n) as source, id(m) as target, type(r) as value SKIP $_skip LIMIT $_limit"
 val graph: Graph[Long, String] = neo.rels(graphQuery).partitions(7).batch(200).loadGraph
 
 graph.vertices.count
@@ -324,12 +324,12 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 
     $SPARK_HOME/bin/spark-shell \
           --conf spark.neo4j.password=<neo4j-password> \
-          --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1
+          --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1
 
 ### Neo4j(Row|Tuple)RDD
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1
+    --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1
 
 ```scala
 <!-- tag::example_rdd[] -->
@@ -340,7 +340,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     Neo4jTupleRDD(sc,"MATCH (n) return id(n)",Seq.empty).count
     // res46: Long = 1000000
     
-    Neo4jRowRDD(sc,"MATCH (n) where id(n) < {maxId} return id(n)",Seq("maxId" -> 100000)).count
+    Neo4jRowRDD(sc,"MATCH (n) where id(n) < $maxId return id(n)",Seq("maxId" -> 100000)).count
     // res47: Long = 100000
 <!-- end::example_rdd[] -->
 ```
@@ -348,7 +348,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 ### Neo4jDataFrame
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1
+    --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1
 
 ```scala
     import org.neo4j.spark._
@@ -372,8 +372,8 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     
     query: String = "MATCH (n:Person) return n.age as age"
     
-    // val query = "MATCH (n:Person)-[:KNOWS]->(m:Person) where n.id = {x} return m.age as age"
-    val query = "MATCH (n:Person) where n.id = {x} return n.age as age"
+    // val query = "MATCH (n:Person)-[:KNOWS]->(m:Person) where n.id = $x return m.age as age"
+    val query = "MATCH (n:Person) where n.id = $x return n.age as age"
     val rdd = sc.makeRDD(1.to(1000000))
     val ages = rdd.map( i => {
         val df = Neo4jDataFrame.withDataType(sqlContext,query, Seq("x"->i.asInstanceOf[AnyRef]), "age" -> LongType)
@@ -382,7 +382,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     // TODO
     val ages.reduce( _ + _ )
     
-    val df = Neo4jDataFrame(sqlContext, "MATCH (n) WHERE id(n) < {maxId} return n.name as name",Seq("maxId" -> 100000),"name" -> "string")
+    val df = Neo4jDataFrame(sqlContext, "MATCH (n) WHERE id(n) < $maxId return n.name as name",Seq("maxId" -> 100000),"name" -> "string")
     df.count
     // res0: Long = 100000
 ```
@@ -390,7 +390,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 ### Neo4jGraph Operations
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1
+    --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1
 
 ```scala
     import org.neo4j.spark._
@@ -438,7 +438,7 @@ Resources:
 
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.6.0-M1
+    --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1
 
 ```scala  
 <!-- tag::example_graphframes[] -->

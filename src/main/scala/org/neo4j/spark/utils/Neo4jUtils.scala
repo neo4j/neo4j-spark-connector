@@ -1,27 +1,40 @@
 package org.neo4j.spark.utils
 import java.sql.Timestamp
-import java.time.{LocalDate, LocalDateTime, OffsetTime, ZoneOffset, ZonedDateTime}
-import java.util
+import java.time._
 import java.util.concurrent.Callable
 import java.util.function
 
-import org.neo4j.driver.{Driver, Result, Session, Transaction}
 import io.github.resilience4j.retry.{Retry, RetryConfig}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.neo4j.driver.exceptions.{ServiceUnavailableException, SessionExpiredException, TransientException}
+import org.neo4j.driver.{Driver, Result, Session, Transaction}
 import org.neo4j.spark.Neo4jConfig
+import org.slf4j.LoggerFactory
 
+class Neo4jUtils
 
 object Neo4jUtils {
+
+  private val logger = LoggerFactory.getLogger(classOf[Neo4jUtils])
 
   def close(driver: Driver, session: Session): Unit = {
     try {
       if (session != null && session.isOpen) {
-        session.close()
+        closeSafety(session)
       }
     } finally {
       if (driver != null) {
-        driver.close()
+        closeSafety(driver)
+      }
+    }
+  }
+
+  private def closeSafety(closable: AutoCloseable): Unit = {
+    try {
+      closable.close()
+    } catch {
+      case e: Throwable => {
+        logger.error("Exception while trying to close an AutoCloseable, because of the following exception", e)
       }
     }
   }
