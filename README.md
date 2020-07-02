@@ -270,6 +270,7 @@ names and types or inferred from the first result-row; it provides:
     * the `unwindBatchSize` parameter defines for each partition the batch size sent to Neo4j.<br/>
     * optional `renamedColumns` parameter - can be used to create a relationship between nodes having the same properties.
     *For example*: `(keanu:Person {name: 'Keanu'})-[:ACTED_WITH]->(Laurence:Person {name: "Laurence"})` requires a DataFrame with 2 `name` columns which is not possible.
+    * optional `ingestNodes` which can have three values: `merge` (the default) merges the nodes, `create` creates the nodes, `skip` skip the creation
  To overcome this, one can create a DataFrame with `src_node_name` and `dst_node_name` and provide `renamedColumns = Map("src_node_name" -> "name", "dst_node_name" -> "name")`
  * `createNodes(sc: SparkContext, dataFrame: DataFrame, nodes: (String,Seq[String]), partitions: Int = 1, unwindBatchSize: Int = 10000, merger: Boolean = false)` to create nodes in Neo4j graph.
     * nodes are created by first property in sequence, all the others will be set on the node

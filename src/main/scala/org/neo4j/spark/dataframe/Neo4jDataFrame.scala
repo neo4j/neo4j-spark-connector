@@ -25,10 +25,21 @@ object Neo4jDataFrame {
                     target: (String, Seq[String]),
                     renamedColumns: Map[String, String] = Map.empty,
                     partitions: Int = 1,
-                    unwindBatchSize: Int = 10000): Unit = {
+                    unwindBatchSize: Int = 10000,
+                    ingestNodes: String = "merge"): Unit = {
 
-    createNodes(sc, dataFrame, source, renamedColumns, partitions, unwindBatchSize, true)
-    createNodes(sc, dataFrame, target, renamedColumns, partitions, unwindBatchSize, true)
+    ingestNodes match {
+      case "merge" => {
+        createNodes(sc, dataFrame, source, renamedColumns, partitions, unwindBatchSize, true)
+        createNodes(sc, dataFrame, target, renamedColumns, partitions, unwindBatchSize, true)
+      }
+      case "create" => {
+        createNodes(sc, dataFrame, source, renamedColumns, partitions, unwindBatchSize)
+        createNodes(sc, dataFrame, target, renamedColumns, partitions, unwindBatchSize)
+      }
+      case "skip" => // ignore
+      case _ => throw new UnsupportedOperationException(s"Admitted values for ingestionNodes are `merge`, `create`, `skip`; you provided $ingestNodes")
+    }
 
     val sourceKey: String = renamedColumns.getOrElse(source._2.head, source._2.head).quote
     val targetKey: String = renamedColumns.getOrElse(target._2.head, target._2.head).quote

@@ -104,17 +104,34 @@ class Neo4jDataFrameScalaTSE extends SparkConnectorScalaBaseTSE {
       StructField("timestamp", DataTypes.TimestampType),
       StructField("date", DataTypes.DateType)))
     val df = new SQLContext(sc).createDataFrame(rows, schema)
-    Neo4jDataFrame.createNodes(sc, df, ("Person",Seq("name","lastname", "timestamp", "date")))
+    Neo4jDataFrame.createNodes(sc, df, ("Person", Seq("name", "lastname", "timestamp", "date")))
     val nodeMap = SparkConnectorScalaSuiteIT.session()
-        .run("MATCH (n:Person {name:'Matt', lastname: 'Doran'}) RETURN n")
-        .single()
-        .get("n")
-        .asNode()
-        .asMap()
+      .run("MATCH (n:Person {name:'Matt', lastname: 'Doran'}) RETURN n")
+      .single()
+      .get("n")
+      .asNode()
+      .asMap()
     val actualTimestamp = nodeMap.get("timestamp")
     val actualDate = nodeMap.get("date")
 
     assertEquals(timestamp.toInstant.atZone(ZoneOffset.UTC), actualTimestamp)
     assertEquals(date.toLocalDate, actualDate)
+  }
+
+  @Test
+  def shouldFailBecauseTheNodesNotExist {
+    val rows = sc.makeRDD(Seq(Row(Seq("Laurence"), Seq("Keanu"), "Mentor", Seq("1980"))))
+    val schema = StructType(Seq(
+      StructField("src_name", DataTypes.createArrayType(DataTypes.StringType, false)),
+      StructField("dst_name", DataTypes.createArrayType(DataTypes.StringType, false))
+    ))
+    val df = new SQLContext(sc)
+      .createDataFrame(rows, schema)
+    Neo4jDataFrame.mergeEdgeList(sc,
+      df, ("Person", Seq("src_name")), ("ACTED_WITH", Seq.empty), ("Person", Seq("dst_name")),
+      Map.empty, 1, 10000, "skip")
+    val count = SparkConnectorScalaSuiteIT.session()
+      .run("MATCH p=(:Person {name: 'Laurence'})-[:ACTED_WITH]->(:Person {name:'Keanu'}) RETURN count(*) as c").single().get("c").asLong()
+    assertEquals(0L, count)
   }
 }
