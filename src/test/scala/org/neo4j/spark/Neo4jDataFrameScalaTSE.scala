@@ -1,10 +1,12 @@
 package org.neo4j.spark
 
+import java.sql.{Date, Timestamp}
+import java.time.ZoneOffset
+
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.apache.spark.sql.{Row, SQLContext}
 import org.junit.Assert._
 import org.junit._
-import org.junit.runners.MethodSorters
 import org.neo4j.spark.dataframe.Neo4jDataFrame
 
 
@@ -90,5 +92,29 @@ class Neo4jDataFrameScalaTSE extends SparkConnectorScalaBaseTSE {
 
      val count = SparkConnectorScalaSuiteIT.session().run("MATCH (:Person {name:'Matt', lastname: 'Doran'}) RETURN count(*) as c").single().get("c").asLong()
      assertEquals(1L, count)
+  }
+
+  @Test def createNodesWithDate {
+    val currentTimeMillis = System.currentTimeMillis()
+    val timestamp = new Timestamp(currentTimeMillis)
+    val date = new Date(currentTimeMillis)
+    val rows = sc.makeRDD(Seq(Row("Matt", "Doran", timestamp, date)))
+    val schema = StructType(Seq(StructField("name", DataTypes.StringType),
+      StructField("lastname", DataTypes.StringType),
+      StructField("timestamp", DataTypes.TimestampType),
+      StructField("date", DataTypes.DateType)))
+    val df = new SQLContext(sc).createDataFrame(rows, schema)
+    Neo4jDataFrame.createNodes(sc, df, ("Person",Seq("name","lastname", "timestamp", "date")))
+    val nodeMap = SparkConnectorScalaSuiteIT.session()
+        .run("MATCH (n:Person {name:'Matt', lastname: 'Doran'}) RETURN n")
+        .single()
+        .get("n")
+        .asNode()
+        .asMap()
+    val actualTimestamp = nodeMap.get("timestamp")
+    val actualDate = nodeMap.get("date")
+
+    assertEquals(timestamp.toInstant.atZone(ZoneOffset.UTC), actualTimestamp)
+    assertEquals(date.toLocalDate, actualDate)
   }
 }

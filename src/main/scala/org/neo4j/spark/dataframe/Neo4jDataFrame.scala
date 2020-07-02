@@ -11,7 +11,7 @@ import org.neo4j.driver.types.{Type, TypeSystem}
 import org.neo4j.spark.Neo4jConfig
 import org.neo4j.spark.cypher.CypherHelpers._
 import org.neo4j.spark.rdd.{Neo4jPartition, Neo4jRowRDD}
-import org.neo4j.spark.utils.Neo4jSessionAwareIterator
+import org.neo4j.spark.utils.{Neo4jSessionAwareIterator, Neo4jUtils}
 import org.neo4j.spark.utils.Neo4jUtils._
 
 import scala.collection.JavaConverters._
@@ -111,7 +111,7 @@ object Neo4jDataFrame {
       case y: Iterator[_] =>
         toJava(y.toIterable)
       case _ =>
-        x
+        Neo4jUtils.convertFromSpark(x)
     }
   }
 

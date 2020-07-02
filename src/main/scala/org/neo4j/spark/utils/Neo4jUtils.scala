@@ -81,4 +81,11 @@ object Neo4jUtils {
     case _ => value
   }
 
+
+  def convertFromSpark(value: Any): Any = value match {
+    case m: java.sql.Date => m.toLocalDate
+    case m: java.sql.Timestamp => m.toInstant.atZone(ZoneOffset.UTC)
+    case _ => value
+  }
+
 }
