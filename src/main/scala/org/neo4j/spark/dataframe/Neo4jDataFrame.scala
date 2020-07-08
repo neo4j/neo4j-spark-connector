@@ -53,7 +53,7 @@ object Neo4jDataFrame {
                       statement: String,
                       mapFun: Row => Any) {
     val config = Neo4jConfig(sc.getConf)
-    dataFrame.repartition(partitions).foreachPartition(rows => {
+    dataFrame.repartition(partitions).foreachPartition((rows: Iterator[Row]) => {
       val driver: Driver = config.driver()
       val session = driver.session(config.sessionConfig())
       try {

@@ -50,17 +50,19 @@ class SparkConnectorScalaBaseTSE {
 
   @After
   def after() {
-    try {
-      utils.Assert.assertEventually(new utils.Assert.ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
-          val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
-          SparkConnectorScalaSuiteIT.connections == afterConnections
+    if (!Option(System.getenv("TRAVIS")).getOrElse("false").toBoolean) {
+      try {
+        utils.Assert.assertEventually(new utils.Assert.ThrowingSupplier[Boolean, Exception] {
+          override def get(): Boolean = {
+            val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
+            SparkConnectorScalaSuiteIT.connections == afterConnections
+          }
+        }, Matchers.equalTo(true), 60, TimeUnit.SECONDS)
+      } finally {
+        val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
+        if (SparkConnectorScalaSuiteIT.connections != afterConnections) { // just for debug purposes
+          println(s"For test ${testName.getMethodName} => connections before: ${SparkConnectorScalaSuiteIT.connections}, after: $afterConnections")
         }
-      }, Matchers.equalTo(true), 60, TimeUnit.SECONDS)
-    } finally {
-      val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
-      if (SparkConnectorScalaSuiteIT.connections != afterConnections) { // just for debug purposes
-        println(s"For test ${testName.getMethodName} => connections before: ${SparkConnectorScalaSuiteIT.connections}, after: $afterConnections")
       }
     }
   }

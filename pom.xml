@@ -37,12 +37,12 @@
     </licenses>
 
     <properties>
-        <project.scala.version>2.11.12</project.scala.version>
-        <project.scala.binary.version>2.11</project.scala.binary.version>
+        <project.scala.version>2.12.11</project.scala.version>
+        <project.scala.binary.version>2.12</project.scala.binary.version>
         <neo4j.version>4.0.4</neo4j.version>
         <driver.version>4.0.1</driver.version>
         <spark.version>2.4.5</spark.version>
-        <graphframes.version>0.7.0-spark2.4-s_2.11</graphframes.version>
+        <graphframes.version>0.8.0-spark3.0-s_2.12</graphframes.version>
         <testcontainers.version>1.12.5</testcontainers.version>
         <xbean.version>4.10</xbean.version>
         <resilience4j.version>1.2.0</resilience4j.version>
