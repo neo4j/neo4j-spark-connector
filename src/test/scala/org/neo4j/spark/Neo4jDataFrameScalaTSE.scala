@@ -129,7 +129,7 @@ class Neo4jDataFrameScalaTSE extends SparkConnectorScalaBaseTSE {
       .createDataFrame(rows, schema)
     Neo4jDataFrame.mergeEdgeList(sc,
       df, ("Person", Seq("src_name")), ("ACTED_WITH", Seq.empty), ("Person", Seq("dst_name")),
-      Map.empty, 1, 10000, "skip")
+      Map.empty, 1, 10000, "match")
     val count = SparkConnectorScalaSuiteIT.session()
       .run("MATCH p=(:Person {name: 'Laurence'})-[:ACTED_WITH]->(:Person {name:'Keanu'}) RETURN count(*) as c").single().get("c").asLong()
     assertEquals(0L, count)
