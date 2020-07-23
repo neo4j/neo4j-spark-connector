@@ -45,11 +45,9 @@
         <graphframes.version>0.8.0-spark3.0-s_2.12</graphframes.version>
         <testcontainers.version>1.12.5</testcontainers.version>
         <xbean.version>4.10</xbean.version>
-        <resilience4j.version>1.2.0</resilience4j.version>
         <cypherdsl.version>2020.0.0</cypherdsl.version>
         <node.version>v12.16.0</node.version>
         <npm.version>6.13.7</npm.version>
-
     </properties>
 
     <build>

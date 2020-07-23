@@ -9,6 +9,7 @@ import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver._
 import org.neo4j.spark.service.SchemaServiceWithApocTSE
+import org.neo4j.spark.util.Neo4jUtil
 
 
 object SparkConnectorScalaSuiteWithApocIT {
@@ -51,7 +52,8 @@ object SparkConnectorScalaSuiteWithApocIT {
   @AfterClass
   def tearDownContainer() = {
     if (server.isRunning) {
-      // Neo4jUtils.close(driver, session)
+      Neo4jUtil.closeSafety(session())
+      Neo4jUtil.closeSafety(driver)
       server.stop()
       ss.stop()
     }
