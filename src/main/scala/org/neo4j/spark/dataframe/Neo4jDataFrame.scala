@@ -114,10 +114,8 @@ object Neo4jDataFrame {
   def toJava(x: Any): Any = {
     import scala.collection.JavaConverters._
     x match {
-        // error: No implicit arguments of type: CanBuildFrom[_$3, (Any, Any), That_]
       case y: scala.collection.MapLike[_, _, _] =>
         y.map { case (d, v) => toJava(d) -> toJava(v) } asJava
-      // error: No implicit arguments of type: CanBuildFrom[_$2, Any, That_]
       case y: scala.collection.SetLike[_,_] =>
         y map { item: Any => toJava(item) } asJava
       case y: Iterable[_] =>
