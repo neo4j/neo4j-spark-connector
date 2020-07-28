@@ -18,6 +18,12 @@ import scala.collection.JavaConverters._
 
 object Neo4jDataFrame {
 
+  object CQLMode extends Enumeration {
+    type CQLMode = Value
+    val MERGE, CREATE, MATCH = Value
+  }
+
+  import CQLMode._
   def mergeEdgeList(sc: SparkContext,
                     dataFrame: DataFrame,
                     source: (String, Seq[String]),
@@ -26,18 +32,18 @@ object Neo4jDataFrame {
                     renamedColumns: Map[String, String] = Map.empty,
                     partitions: Int = 1,
                     unwindBatchSize: Int = 10000,
-                    nodeOperation: String = "merge"): Unit = {
+                    nodeOperation: CQLMode = MERGE): Unit = {
 
     nodeOperation match {
-      case "merge" => {
+      case MERGE => {
         createNodes(sc, dataFrame, source, renamedColumns, partitions, unwindBatchSize, true)
         createNodes(sc, dataFrame, target, renamedColumns, partitions, unwindBatchSize, true)
       }
-      case "create" => {
+      case CREATE => {
         createNodes(sc, dataFrame, source, renamedColumns, partitions, unwindBatchSize)
         createNodes(sc, dataFrame, target, renamedColumns, partitions, unwindBatchSize)
       }
-      case "match" => // ignore
+      case MATCH => // ignore
       case _ => throw new UnsupportedOperationException(s"Admitted values for ingestionNodes are `merge`, `create`, `match`; you provided $nodeOperation")
     }
 
@@ -113,8 +119,10 @@ object Neo4jDataFrame {
   def toJava(x: Any): Any = {
     import scala.collection.JavaConverters._
     x match {
+        // error: No implicit arguments of type: CanBuildFrom[_$3, (Any, Any), That_]
       case y: scala.collection.MapLike[_, _, _] =>
         y.map { case (d, v) => toJava(d) -> toJava(v) } asJava
+      // error: No implicit arguments of type: CanBuildFrom[_$2, Any, That_]
       case y: scala.collection.SetLike[_,_] =>
         y map { item: Any => toJava(item) } asJava
       case y: Iterable[_] =>
