@@ -8,7 +8,7 @@ import org.apache.spark.sql.{Row, SQLContext}
 import org.junit.Assert._
 import org.junit._
 import org.neo4j.spark.dataframe.Neo4jDataFrame
-import org.neo4j.spark.dataframe.Neo4jDataFrame.CQLMode
+import org.neo4j.spark.dataframe.CQLMode
 
 
 /**

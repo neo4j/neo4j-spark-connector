@@ -18,11 +18,6 @@ import scala.collection.JavaConverters._
 
 object Neo4jDataFrame {
 
-  object CQLMode extends Enumeration {
-    type CQLMode = Value
-    val MERGE, CREATE, MATCH = Value
-  }
-
   import CQLMode._
   def mergeEdgeList(sc: SparkContext,
                     dataFrame: DataFrame,
@@ -265,4 +260,9 @@ object CypherTypes {
     StructType(fields)
   }
 
+}
+
+object CQLMode extends Enumeration {
+  type CQLMode = Value
+  val MERGE, CREATE, MATCH = Value
 }
