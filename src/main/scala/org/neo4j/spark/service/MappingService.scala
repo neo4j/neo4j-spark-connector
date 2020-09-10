@@ -139,10 +139,16 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
 class Neo4jReadMappingStrategy(private val options: Neo4jOptions) extends Neo4jMappingStrategy[Record, InternalRow] {
 
   override def node(record: Record, schema: StructType): InternalRow = {
-    val node = record.get(Neo4jUtil.NODE_ALIAS).asNode()
-    val nodeMap = new util.HashMap[String, Any](node.asMap())
-    nodeMap.put(Neo4jUtil.INTERNAL_ID_FIELD, node.id())
-    nodeMap.put(Neo4jUtil.INTERNAL_LABELS_FIELD, node.labels())
+    val nodeMap = if(record.get(Neo4jUtil.NODE_ALIAS) == null) {
+      val node = record.get(Neo4jUtil.NODE_ALIAS).asNode()
+      val tempMap = new util.HashMap[String, Any](node.asMap())
+      tempMap.put(Neo4jUtil.INTERNAL_ID_FIELD, node.id())
+      tempMap.put(Neo4jUtil.INTERNAL_LABELS_FIELD, node.labels())
+      tempMap
+    }
+    else {
+      new util.HashMap[String, Any](record.asMap())
+    }
 
     mapToInternalRow(nodeMap, schema)
   }

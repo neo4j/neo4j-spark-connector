@@ -14,16 +14,21 @@ import org.neo4j.spark.util.Validations
 import scala.collection.JavaConverters._
 
 class Neo4jDataSourceReader(private val options: DataSourceOptions, private val jobId: String) extends DataSourceReader
-  with SupportsPushDownFilters {
+  with SupportsPushDownFilters
+  with SupportsPushDownRequiredColumns {
 
   private var filters: Array[Filter] = Array[Filter]()
+
+  private var requiredColumns: StructType = _
 
   private val neo4jOptions: Neo4jOptions = new Neo4jOptions(options.asMap())
     .validate(options => Validations.read(options, jobId))
 
 
-  override def readSchema(): StructType = callSchemaService { schemaService => schemaService
-    .struct() }
+  override def readSchema(): StructType = callSchemaService { schemaService =>
+    schemaService
+      .struct()
+  }
 
   private def callSchemaService[T](function: SchemaService => T): T = {
     val driverCache = new DriverCache(neo4jOptions.connection, jobId)
@@ -53,12 +58,20 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
 
   private def createPartitions(schema: StructType) = {
     // we get the skip/limit for each partition
-    val partitionSkipLimitList = callSchemaService { schemaService => schemaService
-      .skipLimitFromPartition() }
+    val partitionSkipLimitList = callSchemaService { schemaService =>
+      schemaService
+        .skipLimitFromPartition()
+    }
     // we generate a partition for each element
     partitionSkipLimitList
-      .map(partitionSkipLimit => new Neo4jInputPartitionReader(neo4jOptions, filters, schema, jobId,
-        partitionSkipLimit))
+      .map(partitionSkipLimit => new Neo4jInputPartitionReader(
+        neo4jOptions,
+        filters,
+        schema,
+        jobId,
+        partitionSkipLimit,
+        requiredColumns)
+      )
   }
 
   override def pushFilters(filtersArray: Array[Filter]): Array[Filter] = {
@@ -70,4 +83,8 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
   }
 
   override def pushedFilters(): Array[Filter] = filters
+
+  override def pruneColumns(requiredSchema: StructType): Unit = {
+    requiredColumns = requiredSchema
+  }
 }

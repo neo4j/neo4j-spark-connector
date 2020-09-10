@@ -11,12 +11,14 @@ import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.{DriverCache, Neo4jOptions}
 
 import scala.collection.JavaConverters._
+import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
 
 class Neo4jInputPartitionReader(private val options: Neo4jOptions,
                                 private val filters: Array[Filter],
                                 private val schema: StructType,
                                 private val jobId: String,
-                                private val partitionSkipLimit: PartitionSkipLimit) extends InputPartition[InternalRow]
+                                private val partitionSkipLimit: PartitionSkipLimit,
+                                private val requiredColumns: StructType) extends InputPartition[InternalRow]
   with InputPartitionReader[InternalRow]
   with Logging {
 
@@ -26,20 +28,30 @@ class Neo4jInputPartitionReader(private val options: Neo4jOptions,
   private val driverCache: DriverCache = new DriverCache(options.connection,
     if (partitionSkipLimit.partitionNumber > 0) s"$jobId-${partitionSkipLimit.partitionNumber}" else jobId)
 
-  private val query: String = new Neo4jQueryService(options, new Neo4jQueryReadStrategy(filters, partitionSkipLimit))
+  private val query: String = new Neo4jQueryService(options, new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.getFieldsName))
     .createQuery()
 
   private val mappingService = new MappingService(new Neo4jReadMappingStrategy(options), options)
 
-  override def createPartitionReader(): InputPartitionReader[InternalRow] = new Neo4jInputPartitionReader(options, filters, schema,
-    jobId, partitionSkipLimit)
+  override def createPartitionReader(): InputPartitionReader[InternalRow] = new Neo4jInputPartitionReader(
+    options,
+    filters,
+    schema,
+    jobId,
+    partitionSkipLimit,
+    requiredColumns
+  )
 
   def next: Boolean = {
     if (result == null) {
       session = driverCache.getOrCreate().session(options.session.toNeo4jSession)
       transaction = session.beginTransaction()
       log.info(s"Running the following query on Neo4j: $query")
-      result = transaction.run(query).asScala
+      val skipLimitParams: java.util.Map[String, AnyRef] = Map[String, AnyRef](
+        "skip" -> partitionSkipLimit.skip.asInstanceOf[AnyRef],
+        "limit" -> partitionSkipLimit.limit.asInstanceOf[AnyRef])
+        .asJava
+      result = transaction.run(query, skipLimitParams).asScala
     }
 
     result.hasNext

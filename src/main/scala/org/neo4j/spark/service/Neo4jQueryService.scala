@@ -94,7 +94,8 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
 }
 
 class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
-                             partitionSkipLimit: PartitionSkipLimit = PartitionSkipLimit(0, -1, -1)) extends Neo4jQueryStrategy {
+                             partitionSkipLimit: PartitionSkipLimit = PartitionSkipLimit(0, -1, -1),
+                             requiredColumns: Seq[String] = Seq.empty) extends Neo4jQueryStrategy {
   private val renderer: Renderer = Renderer.getDefaultRenderer
 
   override def createStatementForQuery(options: Neo4jOptions): String =
@@ -162,11 +163,24 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     matchQuery
   }
 
+  private def returnRequiredColumns(entity: PropertyContainer, matchQuery: StatementBuilder.OngoingReading): StatementBuilder.OngoingReadingAndReturn = {
+    if (requiredColumns.isEmpty) {
+      matchQuery.returning(entity)
+    }
+    else {
+      matchQuery.returning(requiredColumns.map {
+        case Neo4jUtil.INTERNAL_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD.quote())
+        case Neo4jUtil.INTERNAL_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_LABELS_FIELD.quote())
+        case name => entity.property(name).as(name.quote())
+      } : _*)
+    }
+  }
+
   override def createStatementForNodes(options: Neo4jOptions): String = {
     val node = createNode(Neo4jUtil.NODE_ALIAS, options.nodeMetadata.labels)
     val matchQuery = filterNode(node)
     val returning = matchQuery.returning(node)
-    renderer.render(buildStatement(returning))
+    renderer.render(returnRequiredColumns(node, matchQuery).build())
   }
 
   private def filterNode(node: Node) = {
@@ -244,7 +258,8 @@ class Neo4jQueryService(private val options: Neo4jOptions,
     case QueryType.LABELS => strategy.createStatementForNodes(options)
     case QueryType.RELATIONSHIP => strategy.createStatementForRelationships(options)
     case QueryType.QUERY => strategy.createStatementForQuery(options)
-    case _ => throw new UnsupportedOperationException(s"""Query Type not supported.
+    case _ => throw new UnsupportedOperationException(
+      s"""Query Type not supported.
          |You provided ${options.query.queryType},
          |supported types: ${QueryType.values.mkString(",")}""".stripMargin)
   }
