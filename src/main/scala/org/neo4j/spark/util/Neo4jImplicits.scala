@@ -14,7 +14,7 @@ object Neo4jImplicits {
   implicit class CypherImplicits(str: String) {
     def quote(): String = if (!SourceVersion.isIdentifier(str) && !str.trim.startsWith("`") && !str.trim.endsWith("`")) s"`$str`" else str
 
-    def removeAlias(): String = {
+    def removeEntityName(): String = {
       val splatString = str.split('.')
 
       if (splatString.size > 1) {

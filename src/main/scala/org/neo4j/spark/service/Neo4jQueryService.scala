@@ -116,7 +116,28 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
 
     val matchQuery: StatementBuilder.OngoingReadingWithoutWhere = filterRelationship(sourceNode, targetNode, relationship)
 
-    val returning = matchQuery.returning(sourceNode, relationship, targetNode)
+    val returning: StatementBuilder.OngoingReadingAndReturn = (if (requiredColumns.isEmpty) {
+      matchQuery.returning(sourceNode, relationship, targetNode)
+    }
+    else {
+      matchQuery.returning(requiredColumns.map(column => {
+        val entityName = column.split('.').head
+        val entity: PropertyContainer = if(entityName.contains(Neo4jUtil.RELATIONSHIP_ALIAS)) {
+          relationship
+        }
+        else if(entityName.contains(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)) {
+          sourceNode
+        }
+        else if(entityName.contains(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)) {
+          targetNode
+        }
+        else {
+          throw new IllegalArgumentException(s"`${column}` is not a valid column.`")
+        }
+        getCorrectProperty(column, entity)
+      }): _*)
+    })
+
     renderer.render(buildStatement(returning))
   }
 
@@ -163,23 +184,17 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     matchQuery
   }
 
-  private def returnRequiredColumns(entity: PropertyContainer, matchQuery: StatementBuilder.OngoingReading): StatementBuilder.OngoingReadingAndReturn = {
-    if (requiredColumns.isEmpty) {
-      matchQuery.returning(entity)
-    }
-    else {
-      matchQuery.returning(requiredColumns.map {
-        case Neo4jUtil.INTERNAL_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD.quote())
-        case Neo4jUtil.INTERNAL_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_LABELS_FIELD.quote())
-        case name => entity.property(name).as(name.quote())
-      } : _*)
+  private def getCorrectProperty(column: String, entity: PropertyContainer): AliasedExpression = {
+    column match {
+      case Neo4jUtil.INTERNAL_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD.quote())
+      case Neo4jUtil.INTERNAL_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_LABELS_FIELD.quote())
+      case name => entity.property(name.removeEntityName()).as(name.quote())
     }
   }
 
   override def createStatementForNodes(options: Neo4jOptions): String = {
     val node = createNode(Neo4jUtil.NODE_ALIAS, options.nodeMetadata.labels)
     val matchQuery = filterNode(node)
-    val returning = matchQuery.returning(node)
     renderer.render(returnRequiredColumns(node, matchQuery).build())
   }
 

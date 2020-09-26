@@ -145,6 +145,48 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
+  def testRelationshipWithOneColumnSelected(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "false")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
+      Array[Filter](),
+      PartitionSkipLimit(0, -1, -1),
+      List("source.name")
+    )).createQuery()
+
+    assertEquals("MATCH (source:`Person`) " +
+      "MATCH (target:`Person`) " +
+      "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`", query)
+  }
+
+  @Test
+  def testRelationshipWithOneMoreColumnsSelected(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "false")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
+      Array[Filter](),
+      PartitionSkipLimit(0, -1, -1),
+      List("source.name", "source.id", "rel.someprops", "target.date")
+    )).createQuery()
+
+    assertEquals("MATCH (source:`Person`) " +
+      "MATCH (target:`Person`) " +
+      "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, source.id AS `source.id`, rel.someprops AS `rel.someprops`, target.date AS `target.date`", query)
+  }
+
+  @Test
   def testRelationshipFilterEqualTo(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")

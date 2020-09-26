@@ -44,22 +44,22 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   private def nativeStrategyConsumer(): MappingBiConsumer = new MappingBiConsumer {
     override def accept(key: String, value: AnyRef): Unit = {
       if (key.startsWith(Neo4jUtil.RELATIONSHIP_ALIAS.concat("."))) {
-        relMap.get(PROPERTIES).put(key.removeAlias(), value)
+        relMap.get(PROPERTIES).put(key.removeEntityName(), value)
       }
       else if (key.startsWith(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS.concat("."))) {
         if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
-          sourceNodeMap.get(KEYS).put(key.removeAlias(), value)
+          sourceNodeMap.get(KEYS).put(key.removeEntityName(), value)
         }
         else {
-          sourceNodeMap.get(PROPERTIES).put(key.removeAlias(), value)
+          sourceNodeMap.get(PROPERTIES).put(key.removeEntityName(), value)
         }
       }
       else if (key.startsWith(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS.concat("."))) {
         if (options.relationshipMetadata.target.nodeKeys.contains(key)) {
-          targetNodeMap.get(KEYS).put(key.removeAlias(), value)
+          targetNodeMap.get(KEYS).put(key.removeEntityName(), value)
         }
         else {
-          targetNodeMap.get(PROPERTIES).put(key.removeAlias(), value)
+          targetNodeMap.get(PROPERTIES).put(key.removeEntityName(), value)
         }
       }
     }
@@ -139,16 +139,10 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
 class Neo4jReadMappingStrategy(private val options: Neo4jOptions) extends Neo4jMappingStrategy[Record, InternalRow] {
 
   override def node(record: Record, schema: StructType): InternalRow = {
-    val nodeMap = if(record.get(Neo4jUtil.NODE_ALIAS) == null) {
-      val node = record.get(Neo4jUtil.NODE_ALIAS).asNode()
-      val tempMap = new util.HashMap[String, Any](node.asMap())
-      tempMap.put(Neo4jUtil.INTERNAL_ID_FIELD, node.id())
-      tempMap.put(Neo4jUtil.INTERNAL_LABELS_FIELD, node.labels())
-      tempMap
-    }
-    else {
-      new util.HashMap[String, Any](record.asMap())
-    }
+    val node = record.get(Neo4jUtil.NODE_ALIAS).asNode()
+    val nodeMap = new util.HashMap[String, Any](node.asMap())
+    nodeMap.put(Neo4jUtil.INTERNAL_ID_FIELD, node.id())
+    nodeMap.put(Neo4jUtil.INTERNAL_LABELS_FIELD, node.labels())
 
     mapToInternalRow(nodeMap, schema)
   }
@@ -224,10 +218,17 @@ abstract class Neo4jMappingStrategy[IN, OUT] extends Serializable {
 
 class MappingService[IN, OUT](private val strategy: Neo4jMappingStrategy[IN, OUT], private val options: Neo4jOptions) extends Serializable {
 
-  def convert(record: IN, schema: StructType): OUT = options.query.queryType match {
-    case QueryType.LABELS => strategy.node(record, schema)
-    case QueryType.RELATIONSHIP => strategy.relationship(record, schema)
-    case QueryType.QUERY => strategy.query(record, schema)
+  def convert(record: IN, schema: StructType, hasRequiredColumns: Boolean = false): OUT = {
+    if (hasRequiredColumns) {
+      strategy.query(record, schema)
+    }
+    else {
+      options.query.queryType match {
+        case QueryType.LABELS => strategy.node(record, schema)
+        case QueryType.RELATIONSHIP => strategy.relationship(record, schema)
+        case QueryType.QUERY => strategy.query(record, schema)
+      }
+    }
   }
 
 }
