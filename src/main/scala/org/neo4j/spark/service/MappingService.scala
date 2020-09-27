@@ -218,9 +218,9 @@ abstract class Neo4jMappingStrategy[IN, OUT] extends Serializable {
 
 class MappingService[IN, OUT](private val strategy: Neo4jMappingStrategy[IN, OUT], private val options: Neo4jOptions) extends Serializable {
 
-  def convert(record: IN, schema: StructType, hasRequiredColumns: Boolean = false): OUT = {
-    if (hasRequiredColumns) {
-      strategy.query(record, schema)
+  def convert(record: IN, schema: StructType, requiredColumns: StructType = null): OUT = {
+    if (requiredColumns != null && requiredColumns.nonEmpty) {
+      strategy.query(record, requiredColumns)
     }
     else {
       options.query.queryType match {

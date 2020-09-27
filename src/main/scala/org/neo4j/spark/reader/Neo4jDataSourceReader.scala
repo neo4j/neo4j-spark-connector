@@ -2,18 +2,20 @@ package org.neo4j.spark.reader
 
 import java.util
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.v2.DataSourceOptions
 import org.apache.spark.sql.sources.v2.reader.{DataSourceReader, InputPartition, SupportsPushDownFilters, SupportsPushDownRequiredColumns}
 import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.{DriverCache, Neo4jOptions}
-import org.neo4j.spark.service.{PartitionSkipLimit, SchemaService}
+import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util.Validations
 
 import scala.collection.JavaConverters._
 
 class Neo4jDataSourceReader(private val options: DataSourceOptions, private val jobId: String) extends DataSourceReader
+  with Logging
   with SupportsPushDownFilters
   with SupportsPushDownRequiredColumns {
 
@@ -85,6 +87,13 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
   override def pushedFilters(): Array[Filter] = filters
 
   override def pruneColumns(requiredSchema: StructType): Unit = {
+    if (requiredSchema.nonEmpty) {
+      log.info(s"Using requiredSchema: ${requiredSchema.toString()}")
+    }
+    else {
+      log.info(s"No pruned columns")
+    }
+
     requiredColumns = requiredSchema
   }
 }

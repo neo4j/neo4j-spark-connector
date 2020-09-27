@@ -57,7 +57,7 @@ class Neo4jInputPartitionReader(private val options: Neo4jOptions,
     result.hasNext
   }
 
-  def get: InternalRow = mappingService.convert(result.next(), schema, requiredColumns != null && requiredColumns.nonEmpty)
+  def get: InternalRow = mappingService.convert(result.next(), schema, requiredColumns)
 
   def close(): Unit = {
     Neo4jUtil.closeSafety(transaction, log)

@@ -229,6 +229,29 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
+  def testRelationshipAndFilterEqualTo(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "true")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val filters: Array[Filter] = Array[Filter](
+      EqualTo("source.id", "14"),
+      EqualTo("target.id", "16")
+    )
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(filters)).createQuery()
+
+    assertEquals(
+      "MATCH (source:`Person`) MATCH (target:`Person`) MATCH (source)-[rel:`KNOWS`]->(target) " +
+        "WHERE (source.id = '14' AND target.id = '16') " +
+        "RETURN source, rel, target", query)
+  }
+
+  @Test
   def testComplexNodeConditions(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")

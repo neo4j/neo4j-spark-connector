@@ -1,6 +1,7 @@
 package org.neo4j.spark.service
 
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.sources.{And, Filter, Or}
 import org.neo4j.cypherdsl.core.StatementBuilder.{BuildableStatement, TerminalExposesLimit}
 import org.neo4j.cypherdsl.core._
@@ -101,8 +102,8 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
   override def createStatementForQuery(options: Neo4jOptions): String =
     if (partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1) {
       s"""${options.query.value}
-        |SKIP ${partitionSkipLimit.skip} LIMIT ${partitionSkipLimit.limit}
-        |""".stripMargin
+         |SKIP ${partitionSkipLimit.skip} LIMIT ${partitionSkipLimit.limit}
+         |""".stripMargin
     } else {
       options.query.value
     }
@@ -116,29 +117,44 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
 
     val matchQuery: StatementBuilder.OngoingReadingWithoutWhere = filterRelationship(sourceNode, targetNode, relationship)
 
-    val returning: StatementBuilder.OngoingReadingAndReturn = if (requiredColumns.isEmpty) {
-      matchQuery.returning(sourceNode, relationship, targetNode)
+    val aliasedSourceNode = sourceNode.as(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)
+    val aliasedTargetNode = targetNode.as(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)
+    val aliasedRelationship = relationship.getRequiredSymbolicName
+
+    val returnExpressions: Seq[Expression] = if (requiredColumns.isEmpty) {
+      Seq(aliasedRelationship, aliasedSourceNode, aliasedTargetNode)
     }
     else {
-      matchQuery.returning(requiredColumns.map(column => {
-        val entityName = column.split('.').head
-        val entity: PropertyContainer = if(entityName.contains(Neo4jUtil.RELATIONSHIP_ALIAS)) {
+      requiredColumns.map(column => {
+        val splatColumn = column.split('.')
+        val entityName = splatColumn.head
+
+        val entity = if (entityName.contains(Neo4jUtil.RELATIONSHIP_ALIAS)) {
           relationship
         }
-        else if(entityName.contains(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)) {
+        else if (entityName.contains(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)) {
           sourceNode
         }
-        else if(entityName.contains(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)) {
+        else if (entityName.contains(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)) {
           targetNode
         }
         else {
           throw new IllegalArgumentException(s"`${column}` is not a valid column.`")
         }
-        getCorrectProperty(column, entity)
-      }): _*)
+
+        if (splatColumn.length.equals(1)) {
+          entity match {
+            case n: Node => n.as(entityName.quote())
+            case r: Relationship => r.getRequiredSymbolicName
+          }
+        }
+        else {
+          getCorrectProperty(column, entity)
+        }
+      })
     }
 
-    renderer.render(buildStatement(returning))
+    renderer.render(buildStatement(matchQuery.returning(returnExpressions : _*)))
   }
 
   private def buildStatement(returning: StatementBuilder.OngoingReadingAndReturn) =
@@ -193,11 +209,11 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
         case Neo4jUtil.INTERNAL_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD.quote())
         case Neo4jUtil.INTERNAL_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_LABELS_FIELD.quote())
         case name => entity.property(name).as(name.quote())
-      } : _*)
+      }: _*)
     }
   }
 
-  private def getCorrectProperty(column: String, entity: PropertyContainer): AliasedExpression = {
+  private def getCorrectProperty(column: String, entity: PropertyContainer): Expression = {
     column match {
       case Neo4jUtil.INTERNAL_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD.quote())
       case Neo4jUtil.INTERNAL_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_LABELS_FIELD.quote())
@@ -208,7 +224,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
   override def createStatementForNodes(options: Neo4jOptions): String = {
     val node = createNode(Neo4jUtil.NODE_ALIAS, options.nodeMetadata.labels)
     val matchQuery = filterNode(node)
-    renderer.render(returnRequiredColumns(node, matchQuery).build())
+    renderer.render(buildStatement(returnRequiredColumns(node, matchQuery)))
   }
 
   private def filterNode(node: Node) = {
