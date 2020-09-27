@@ -116,7 +116,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
 
     val matchQuery: StatementBuilder.OngoingReadingWithoutWhere = filterRelationship(sourceNode, targetNode, relationship)
 
-    val returning: StatementBuilder.OngoingReadingAndReturn = (if (requiredColumns.isEmpty) {
+    val returning: StatementBuilder.OngoingReadingAndReturn = if (requiredColumns.isEmpty) {
       matchQuery.returning(sourceNode, relationship, targetNode)
     }
     else {
@@ -136,7 +136,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
         }
         getCorrectProperty(column, entity)
       }): _*)
-    })
+    }
 
     renderer.render(buildStatement(returning))
   }
@@ -182,6 +182,19 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
       assembleConditionQuery(matchQuery, cypherFilters)
     }
     matchQuery
+  }
+
+  private def returnRequiredColumns(entity: PropertyContainer, matchQuery: StatementBuilder.OngoingReading): StatementBuilder.OngoingReadingAndReturn = {
+    if (requiredColumns.isEmpty) {
+      matchQuery.returning(entity)
+    }
+    else {
+      matchQuery.returning(requiredColumns.map {
+        case Neo4jUtil.INTERNAL_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD.quote())
+        case Neo4jUtil.INTERNAL_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_LABELS_FIELD.quote())
+        case name => entity.property(name).as(name.quote())
+      } : _*)
+    }
   }
 
   private def getCorrectProperty(column: String, entity: PropertyContainer): AliasedExpression = {

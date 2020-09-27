@@ -1046,6 +1046,8 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("partitions", "2")
       .load
 
+    df.show()
+
     assertEquals(2, df.count())
   }
 
