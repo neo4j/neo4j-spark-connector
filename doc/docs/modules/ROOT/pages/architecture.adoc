@@ -16,7 +16,86 @@ the two systems are based on completely different organizing data models:
 
 The use of this connector can be thought of as a "Transform" step and a "Load" step, regardless of
 which direction the data is moving.  The "Transform" step is concerned with how to move data between
-graphs and tables.  And the "Load" step is concerned with moving masses of data.
+graphs and tables; and the "Load" step is concerned with moving masses of data.
+
+=== Tables 4 Labels
+
+In order to move the data back and forth between Neo4j and Spark we use an approach called *Tables 4 Labels*, please
+consider the following path:
+
+[source,cypher]
+----
+(:Customer)-[:BOUGHT]->(:Product)
+----
+
+We can decompose it into:
+
+* 2 nodes: `Customer` and `Product`
+* 1 relationship between them: `BOUGHT`
+
+so in total we have 3 graph entities, and each one will be managed as a simple `table`.
+
+So given the following Cypher query:
+
+[source,cypher]
+----
+CREATE (c1:Customer{id:1, username: 'foo', city: 'Venezia'}),
+(p1:Product{id: 100, name: 'My Awesome Product'}),
+(c2:Customer{id:2, username: 'bar', city: 'Pescara'}),
+(p2:Product{id: 101, name: 'My Awesome Product 2'}),
+(c1)-[:BOUGHT{quantity: 10}]->(p1),
+(c2)-[:BOUGHT{quantity: 13}]->(p1),
+(c2)-[:BOUGHT{quantity: 4}]->(p2);
+----
+
+The graph structure will be decomposed into 3 tables:
+
+.Customer Table
+|===
+|id |username |city
+
+|1
+|foo
+|Venezia
+
+|2
+|bar
+|Pescara
+|===
+
+.Product Table
+|===
+|id |name
+
+|100
+|My Awesome Product
+
+|101
+|My Awesome Product 2
+|===
+
+.BOUGHT Table
+|===
+|source_id |target_id | quantity
+
+|1
+|100
+|10
+
+|2
+|100
+|13
+
+|2
+|101
+|4
+|===
+
+In order to have this decomposition we use, under-the-hood, two strategies that allows to extract
+metadata from your graph:
+
+* <<APOC>>
+* <<Automatic Sampling>>
 
 == Graph Transforms
 
@@ -226,8 +305,8 @@ while another partition is writing:
 (:Person { name: "Andrea" })-[:KNOWS]->(:Person { name: "Davide" })
 ```
 
-The relationship write will lock the "Andrea" node - and these writes cannot continue in parallel in any case.  As
-a result, you may not gain performance by parallelizing more, if threads have to wait for each other's locks.  In 
+The relationship write will lock the "Andrea" node - and these writes cannot continue in parallel in any case. As
+a result, you may not gain performance by parallelizing more, if threads have to wait for each other's locks. In
 extreme cases with too much parallelism, Neo4j may reject the writes with lock contention errors.
 
 ==== Dataset Partitioning
@@ -236,26 +315,26 @@ extreme cases with too much parallelism, Neo4j may reject the writes with lock c
 **You can use as many partitions as there are cores in the Neo4j server, if you have properly partitioned your data to avoid Neo4j locks**
 
 There is an exception to the "1 partition" rule above; if your data writes are partitioned ahead of time to avoid locks, you 
-can generally do as many write threads to Neo4j as there are cores in the server.   Suppose we want to write a long list of `:Person` nodes, and we know they are distinct by the person `id`.  We might stream those into Neo4j in 4 different partitions, as there will not be any lock contention.
+can generally do as many write threads to Neo4j as there are cores in the server. Suppose we want to write a long list of `:Person` nodes, and we know they are distinct by the person `id`.  We might stream those into Neo4j in 4 different partitions, as there will not be any lock contention.
 
 == Schema Considerations
 
 Neo4j does not have a fixed schema; individual properties can contain multiple differently-typed values.  Spark
-on the other hand will tend to expect a fixed schema.  For this reason, the connector contains a number of schema 
-inference techniques that help ease this mapping.  Paying close attention to how these features work can help 
+on the other hand will tend to expect a fixed schema. For this reason, the connector contains a number of schema
+inference techniques that help ease this mapping. Paying close attention to how these features work can help
 explain different scenarios.
 
 The two core techniques are:
 
-* APOC
-* Sampling
+* <<APOC>>
+* <<Automatic Sampling>>
 
 === APOC
 
-If your Neo4j installation has APOC installed, this approach will be used by default.  These stored procedures within APOC allow inspection of the
+If your Neo4j installation has APOC installed, this approach will be used by default. These stored procedures within APOC allow inspection of the
 metadata in your graph, and provide information such as the type of properties, and the universe of possible properties attached to a given node label.
 
-You may try these calls yourself on your Neo4j database if you wish: simply execute:
+You may try these calls yourself on your Neo4j database if you wish, simply execute:
 
 ```cypher
 CALL apoc.meta.nodeTypeProperties();
@@ -268,10 +347,53 @@ This approach uses a configurable sampling technique that looks through many (bu
 values that exist within properties.  If the schema that is produced is not what is expected, take care to inspect the underlying data to ensure it has a consistent
 property set across all nodes of a label, or investigate tuning the sampling approach.
 
+==== Tune parameters
+
+You can tune the configuration parameters of the https://neo4j.com/labs/apoc/4.1/database-introspection/meta/[two APOC procedures]
+via the `option` method as it follows:
+
+```scala
+ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Product")
+      .option("apoc.meta.nodeTypeProperties", """{"sample": 10}""")
+      .load
+```
+
+or
+
+```scala
+ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", "Product")
+      .option("relationship.target.labels", "Person")
+      .option("apoc.meta.relTypeProperties", """{"sample": 10}""")
+      .load
+```
+
+For both procedures you can pass all the supported parameters except for:
+
+* `includeLabels` for `apoc.meta.nodeTypeProperties`, because we use the labels defined into
+the `labels` option;
+* `includeRels` for `apoc.meta.relTypeProperties` because we use the one defined into
+the `relationship` option.
+
+===== Fine tuning
+
+As these two procedure sample the graph in oder to extract the metadata necessary for building the <<Tables 4 Labels>>
+in most of real-world scenario is important to tune properly the sampling parameters because the execution of these
+can be expensive and have and impact in the performances of your extraction job.
+
 === Automatic Sampling
 
-In some installations and environments, the key APOC calls above will not be available.  In these cases, the connector will automatically sample the first few
-records and infer the right data type from the examples that it sees.
+In some installations and environments, the key APOC calls above will not be available.
+In these cases, the connector will automatically sample the first few records and infer
+the right data type from the examples that it sees.
 
 [NOTE]
-**Automatic sampling may be error prone, and may produce incorrect results, particularly in cases where a single Neo4j property exists with several different data types.  Consistent typing of properties is strongly recommended**
+**Automatic sampling may be error prone, and may produce incorrect results,
+particularly in cases where a single Neo4j property exists with several different data types.
+Consistent typing of properties is strongly recommended**

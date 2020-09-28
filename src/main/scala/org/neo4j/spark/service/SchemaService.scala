@@ -36,15 +36,16 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
   private def structForNode(labels: Seq[String] = options.nodeMetadata.labels): StructType = {
     var structFields: mutable.Buffer[StructField] = (try {
       val query =
-        """CALL apoc.meta.nodeTypeProperties({ includeLabels: $labels })
+        """CALL apoc.meta.nodeTypeProperties($config)
           |YIELD propertyName, propertyTypes
           |WITH DISTINCT propertyName, propertyTypes
           |WITH propertyName, collect(propertyTypes) AS propertyTypes
           |RETURN propertyName, reduce(acc = [], elem IN propertyTypes | acc + elem) AS propertyTypes
           |""".stripMargin
-      val params = Map[String, AnyRef]("labels" -> labels.asJava)
-        .asJava
-      retrieveSchemaFromApoc(query, params)
+      val apocConfig = options.apocConfig.procedureConfigMap
+        .getOrElse("apoc.meta.nodeTypeProperties", Map.empty[String, AnyRef])
+        .asInstanceOf[Map[String, AnyRef]] ++ Map[String, AnyRef]("includeLabels" -> labels.asJava)
+      retrieveSchemaFromApoc(query, Collections.singletonMap("config", apocConfig.asJava))
     } catch {
       case e: ClientException =>
         logSchemaResolutionChange(e)
@@ -155,13 +156,17 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
 
     structFields ++= (try {
       val query =
-        """CALL apoc.meta.relTypeProperties({ includeRels: $rels }) YIELD sourceNodeLabels, targetNodeLabels,
+        """CALL apoc.meta.relTypeProperties($config) YIELD sourceNodeLabels, targetNodeLabels,
           | propertyName, propertyTypes
           |WITH *
           |WHERE sourceNodeLabels = $sourceLabels AND targetNodeLabels = $targetLabels
           |RETURN *
           |""".stripMargin
-      val params = Map[String, AnyRef]("rels" -> Seq(options.relationshipMetadata.relationshipType).asJava,
+      val apocConfig = options.apocConfig.procedureConfigMap
+        .getOrElse("apoc.meta.relTypeProperties", Map.empty[String, AnyRef])
+        .asInstanceOf[Map[String, AnyRef]]
+      val config = apocConfig ++ Map("includeRels" -> Seq(options.relationshipMetadata.relationshipType).asJava)
+      val params = Map[String, AnyRef]("config" -> config,
         "sourceLabels" -> options.relationshipMetadata.source.labels.asJava,
         "targetLabels" -> options.relationshipMetadata.target.labels.asJava)
         .asJava

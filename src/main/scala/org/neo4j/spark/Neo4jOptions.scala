@@ -4,10 +4,13 @@ import java.io.File
 import java.net.URI
 import java.util.concurrent.TimeUnit
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.spark.sql.SaveMode
 import org.neo4j.driver.Config.TrustStrategy
 import org.neo4j.driver._
 import org.neo4j.spark.util.{Neo4jUtil, Validations}
+
+import scala.collection.JavaConverters._
 
 
 class Neo4jOptions(private val parameters: java.util.Map[String, String]) extends Serializable {
@@ -158,11 +161,18 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
   val partitions = getParameter(PARTITIONS, DEFAULT_PARTITIONS.toString).toInt
 
+  val apocConfig = Neo4jApocConfig(parameters.asScala
+    .filterKeys(_.startsWith("apoc."))
+    .mapValues(Neo4jUtil.mapper.readValue(_, classOf[java.util.Map[String, AnyRef]]).asScala)
+    .toMap)
+
   def validate(validationFunction: Neo4jOptions => Unit): Neo4jOptions = {
     validationFunction(this)
     this
   }
 }
+
+case class Neo4jApocConfig(procedureConfigMap: Map[String, AnyRef])
 
 case class Neo4jSchemaMetadata(flattenLimit: Int, strategy: SchemaStrategy.Value, optimizationType: OptimizationType.Value)
 case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int)

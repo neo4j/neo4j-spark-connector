@@ -3,7 +3,8 @@ package org.neo4j.spark
 import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.AccessMode
-import org.neo4j.driver.Config.TrustStrategy
+
+import scala.collection.JavaConverters._
 
 class Neo4jOptionsTest {
 
@@ -137,5 +138,21 @@ class Neo4jOptionsTest {
     assertEquals(RelationshipSaveStrategy.NATIVE, neo4jOptions.relationshipMetadata.saveStrategy)
 
     assertTrue(neo4jOptions.pushdownFiltersEnabled)
+  }
+
+  @Test
+  def testApocConfiguration(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put("apoc.meta.nodeTypeProperties", """{"nodeLabels": ["Label"], "mandatory": false}""")
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val expected = Map("apoc.meta.nodeTypeProperties"-> Map(
+      "nodeLabels" -> Seq("Label").asJava,
+      "mandatory" -> false
+    ))
+
+    assertEquals(neo4jOptions.apocConfig.procedureConfigMap, expected)
   }
 }
