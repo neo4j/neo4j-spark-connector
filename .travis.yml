@@ -24,6 +24,8 @@ jobs:
         - ./mvnw verify -P neo4j-4.0 --no-transfer-progress
         - echo '*** Executing tests with Scala 2.11 and Neo4j 4.1'
         - ./mvnw verify -P neo4j-4.1 --no-transfer-progress
+        - echo '*** Executing tests with Scala 2.11 and Neo4j 4.2'
+        - ./mvnw verify -P neo4j-4.2 --no-transfer-progress
     - name: "Test for Scala 2.12"
       jdk: "openjdk8"
       dist: trusty
@@ -39,3 +41,5 @@ jobs:
         - ./mvnw verify -P neo4j-4.0 --no-transfer-progress
         - echo '*** Executing tests with Scala 2.12 and Neo4j 4.1'
         - ./mvnw verify -P neo4j-4.1 --no-transfer-progress
+        - echo '*** Executing tests with Scala 2.12 and Neo4j 4.2'
+        - ./mvnw verify -P neo4j-4.2 --no-transfer-progress

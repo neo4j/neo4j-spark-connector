@@ -4,6 +4,7 @@ import java.time.Duration
 import java.util.concurrent.{Callable, TimeUnit}
 
 import org.neo4j.driver.{AuthToken, AuthTokens, GraphDatabase, SessionConfig}
+import org.neo4j.spark.TestUtil
 import org.rnorth.ducttape.unreliables.Unreliables
 import org.testcontainers.containers.Neo4jContainer
 import org.testcontainers.containers.wait.strategy.{AbstractWaitStrategy, WaitAllStrategy}
@@ -62,7 +63,9 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
   }
 }
 
-class Neo4jContainerExtension(imageName: String) extends Neo4jContainer[Neo4jContainerExtension](imageName) {
+// docker pull neo4j/neo4j-experimental:4.0.0-rc01-enterprise
+class Neo4jContainerExtension(imageName: String = s"neo4j${if (TestUtil.experimental()) "/neo4j-experimental" else ""}:${TestUtil.neo4jVersion()}-enterprise")
+  extends Neo4jContainer[Neo4jContainerExtension](imageName) {
   private var databases = Seq.empty[String]
 
   def withDatabases(dbs: Seq[String]): Neo4jContainerExtension = {

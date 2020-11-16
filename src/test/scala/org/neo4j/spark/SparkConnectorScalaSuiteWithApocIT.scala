@@ -13,7 +13,7 @@ import org.neo4j.spark.util.Neo4jUtil
 
 
 object SparkConnectorScalaSuiteWithApocIT {
-  val server: Neo4jContainerExtension = new Neo4jContainerExtension(s"neo4j:${TestUtil.neo4jVersion()}-enterprise")
+  val server: Neo4jContainerExtension = new Neo4jContainerExtension()
     .withNeo4jConfig("dbms.security.auth_enabled", "false")
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     .withEnv("NEO4JLABS_PLUGINS", "[\"apoc\"]")
@@ -40,7 +40,8 @@ object SparkConnectorScalaSuiteWithApocIT {
         .setMaster("local[*]")
       ss = SparkSession.builder.config(conf).getOrCreate()
       if (TestUtil.isTravis()) {
-        ss.sparkContext.setLogLevel("ERROR")
+        org.apache.log4j.LogManager.getLogger("org")
+          .setLevel(org.apache.log4j.Level.OFF)
       }
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()

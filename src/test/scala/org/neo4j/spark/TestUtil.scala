@@ -11,4 +11,6 @@ object TestUtil {
 
   def neo4jVersion(): String = properties.getProperty("neo4j.version")
 
+  def experimental(): Boolean = properties.getProperty("neo4j.experimental", "false").toBoolean
+
 }
