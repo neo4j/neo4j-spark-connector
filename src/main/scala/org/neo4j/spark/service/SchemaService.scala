@@ -212,7 +212,11 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       // specified by the RETURN statement
       columns.map(StructField(_, DataTypes.StringType))
     } else {
-      columns.map(c => structFields.find(_.name.quote().equals(c.quote())).get)
+      try {
+        columns.map(c => structFields.find(_.name.quote().equals(c.quote())).get)
+      } catch {
+        case _: Throwable => structFields.toArray
+      }
     }
 
     StructType(sortedStructFields)

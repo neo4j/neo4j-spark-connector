@@ -910,6 +910,22 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("<rel.id>")).toSet.size)
   }
 
+  @Test
+  def testReturnProcedure(): Unit = {
+    val query =
+      """RETURN apoc.convert.toSet([1,1,3]) AS foo, 'bar' AS bar
+        |""".stripMargin
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+      .option("partitions", 1)
+      .option("query", query)
+      .load
+
+    assertEquals(Set("foo", "bar"), df.columns.toSet)
+    assertEquals(1, df.count())
+  }
+
   private def initTest(query: String): DataFrame = {
     SparkConnectorScalaSuiteWithApocIT.session()
       .writeTransaction(
