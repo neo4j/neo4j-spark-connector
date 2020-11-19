@@ -12,7 +12,9 @@ import scala.collection.JavaConverters._
 object Neo4jImplicits {
 
   implicit class CypherImplicits(str: String) {
-    def quote(): String = if (!SourceVersion.isIdentifier(str) && !str.trim.startsWith("`") && !str.trim.endsWith("`")) s"`$str`" else str
+    private def isValidCypherIdentifier() = SourceVersion.isIdentifier(str) && !str.trim.startsWith("$")
+
+    def quote(): String = if (!isValidCypherIdentifier() && !str.trim.startsWith("`") && !str.trim.endsWith("`")) s"`$str`" else str
 
     def removeAlias(): String = {
       val splatString = str.split('.')

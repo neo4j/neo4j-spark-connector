@@ -21,6 +21,18 @@ class Neo4jImplicitsTest {
   }
 
   @Test
+  def `should quote text that starts with $` {
+    // given
+    val value = "$tring"
+
+    // when
+    val actual = value.quote
+
+    // then
+    assertEquals(s"`$value`", actual)
+  }
+
+  @Test
   def `should not re-quote the string` {
     // given
     val value = "`Test with space`"
