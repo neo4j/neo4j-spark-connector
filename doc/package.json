@@ -15,7 +15,8 @@
     "server": "forever start server.js",
     "start": "npm run server && npm-watch",
     "stop": "forever stop server.js",
-    "build:docs": "antora --fetch --stacktrace docs.yml"
+    "build:docs": "antora --fetch --stacktrace docs.yml",
+    "lint:links": "node tasks/lint-links.js"
   },
   "license": "ISC",
   "dependencies": {
@@ -25,7 +26,8 @@
   },
   "devDependencies": {
     "express": "^4.17.1",
-    "npm-watch": "^0.7.0",
-    "forever": "^3.0.2"
+    "forever": "^3.0.2",
+    "hyperlink": "^4.6.0",
+    "npm-watch": "^0.7.0"
   }
 }

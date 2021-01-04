@@ -32,7 +32,7 @@ spark.read.format("org.neo4j.spark.DataSource")
 
 .List of available read options
 |===
-|Setting Name |Description |Default Value |Required 
+|Setting Name |Description |Default Value |Required
 
 |`query`
 |Cypher query to read the data
@@ -161,7 +161,7 @@ If your query returns a graph entity please use the `labels` or `relationship` m
 
 The struct of the Dataset returned by the query is influenced by the query itself,
 in this particular context it could happen that the connector won't be able to sample the Schema from the query,
-in these cases we suggest trying with the option `schema.strategy` set to `string` as described <<bookmark-string-strategy,here>>.
+in these cases we suggest trying with the option `schema.strategy` set to `string` as described xref:quickstart.adoc#bookmark-string-strategy[here].
 
 [NOTE]
 Read query *must always* return some data (read: *must always* have a return statement).

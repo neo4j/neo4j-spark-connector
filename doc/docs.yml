@@ -1,16 +1,27 @@
 site:
   title: Neo4j Connector for Apache Spark User Guide
-  url: /neo4j-spark-docs
+
 content:
   sources:
     - url: ../
       branches: HEAD
       start_path: doc/docs
+
+output:
+  dir: ./build/site/developer
+
 ui:
   bundle:
-    url: https://github.com/neo4j-documentation/docs-refresh/raw/master/ui/build/ui-bundle.zip
+    url: https://s3-eu-west-1.amazonaws.com/static-content.neo4j.com/build/ui-bundle.zip
     snapshot: true
+
+urls:
+  html_extension_style: indexify
+
 asciidoc:
   attributes:
-    page-theme: docs
-    page-cdn: /_/
+    experimental: ''
+    page-cdn: /static/assets
+    page-theme: developer
+    page-canonical-root: /developer
+    page-disabletracking: true

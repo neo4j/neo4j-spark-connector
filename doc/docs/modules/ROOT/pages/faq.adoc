@@ -3,9 +3,9 @@
 
 == How can I speed up writes to Neo4j?
 
-The Spark connector fundamentally writes data to Neo4j in batches.  Neo4j is a transactional 
+The Spark connector fundamentally writes data to Neo4j in batches.  Neo4j is a transactional
 database, and so all modifications are made within a transaction.  Those transactions in turn
-have overhead.  
+have overhead.
 
 The two simplest ways of increasing write performance are:
 * Increase the batch size (option `batch.size`). The larger the batch, the fewer transactions are executed to write all of your data, and the less transactional overhead is incurred.
@@ -35,7 +35,7 @@ environment operates in terms of DataFrames as it always did, and this connector
 
 == Can this connector be used for pre-processing of data and loading into Neo4j?
 
-Yes.  This connector enables spark to be used as a good method of loading data directly into Neo4j.  See link:architecture.adoc[the architecture section] for a detailed discussion of
+Yes.  This connector enables spark to be used as a good method of loading data directly into Neo4j.  See xref:architecture.adoc[the architecture section] for a detailed discussion of
 "Normalized Loading" vs. "Cypher Destructuring" and guidance on different approaches for how to do performant data loads into Neo4j.
 
 == My writes are failing due to Deadlock Exceptions
@@ -46,7 +46,7 @@ link:https://neo4j.com/developer/kb/explanation-of-error-deadlockdetectedexcepti
 
 Typically this is caused by too much parallelism in writing to Neo4j.  For example, when you
 write a relationship `(:A)-[:REL]->(:B)`, this creates a "lock" in the database on both nodes.
-If some simultaneous other thread is attempting to write to those nodes too often, deadlock 
+If some simultaneous other thread is attempting to write to those nodes too often, deadlock
 exceptions can result and a transaction will fail.
 
 In general, the solution is to repartition the dataframe prior to writing it to Neo4j, to avoid

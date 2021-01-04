@@ -168,7 +168,7 @@ MERGE (c)-[:BOUGHT { quantity: event.quantity }]->(p);
 ```
 
 Notice that in this case the entire job can be done by a single cypher statement.  As data frames get complex,
-these cypher statements too can get quite complex.  
+these cypher statements too can get quite complex.
 
 ==== Pros
 
@@ -248,7 +248,7 @@ available on the server**.
 It's impossible to pick a single batch size that works for everyone, because how much memory your transactions
 take up depends on the number of properties & relationships, and other factors.  A good general aggressive value
 to try is around 20,000 - but you can increase this number if your data is small, or if you have a lot of memory
-on the server.  Lower the number if it's a small database server, or the data your pushing has many large 
+on the server.  Lower the number if it's a small database server, or the data your pushing has many large
 properties.
 
 === Tune your Neo4j Memory Configuration
@@ -266,7 +266,7 @@ At the Neo4j Cypher level, it's very common to use the Spark connector in a way 
 In Neo4j, this looks up a node by some "key" and then creates it only if it does not already exist.
 
 [NOTE]
-**It is strongly recommended to assert indexes or constraints on any graph property that you use as part of 
+**It is strongly recommended to assert indexes or constraints on any graph property that you use as part of
 `node.keys`, `relationship.source.node.keys`, `relationship.target.node.keys` or other similar key options**
 
 A common source of poor performance is to write Spark code that generates `MERGE` cypher, or otherwise tries
@@ -314,7 +314,7 @@ extreme cases with too much parallelism, Neo4j may reject the writes with lock c
 [NOTE]
 **You can use as many partitions as there are cores in the Neo4j server, if you have properly partitioned your data to avoid Neo4j locks**
 
-There is an exception to the "1 partition" rule above; if your data writes are partitioned ahead of time to avoid locks, you 
+There is an exception to the "1 partition" rule above; if your data writes are partitioned ahead of time to avoid locks, you
 can generally do as many write threads to Neo4j as there are cores in the server. Suppose we want to write a long list of `:Person` nodes, and we know they are distinct by the person `id`.  We might stream those into Neo4j in 4 different partitions, as there will not be any lock contention.
 
 == Schema Considerations

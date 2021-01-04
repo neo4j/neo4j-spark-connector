@@ -10,3 +10,6 @@ asciidoc:
     theme: docs
     connector-version: 4.0.0
     copyright: Neo4j Inc.
+    url-neo4j-product-gds-lib: https://neo4j.com/product/graph-data-science-library/
+    url-gh-spark-notebooks: https://github.com/utnaf/neo4j-connector-apache-spark-notebooks
+    url-neo4j-gds-manual: https://neo4j.com/docs/graph-data-science/current/
