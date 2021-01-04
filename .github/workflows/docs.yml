@@ -3,7 +3,9 @@ name: Docs
 on:
   push:
     branches:
-      - master
+      # fixme: revert this change once the build is running fine on the fork repository
+      #- master
+      - '*'
   pull_request:
     branches:
       - '*'
