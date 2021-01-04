@@ -2,6 +2,8 @@ name: Trigger Publish
 
 on:
   push:
+    paths:
+      - 'doc/docs'
     branches:
       - '4.0'
 
