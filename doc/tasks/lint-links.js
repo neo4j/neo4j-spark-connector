@@ -53,6 +53,3 @@ console.log(root)
   const results = tapRender.close();
   process.exit(results.fail ? 1 : 0);
 })()
-
-
-//hyperlink --skip 'developer/data-modeling' --skip 'developer/cypher' --skip '/developer/graph-platform' --skip '/developer/get-started' --skip '/docs' --skip '/developer/guide-cloud-deployment' --skip '/developer/neo4j-apoc' --skip '/spark/try-neo4j' --skip '/spark/labs' --skip '/wp-content/themes/neo4jweb/favicon.ico' --skip '/spark/static/assets' --skip 'load build/site/labs/apoc/' --skip 'load https://uglfznxroe.execute-api.us-east-1.amazonaws.com/dev/Feedback' --skip 'fontawesome-webfont.eot' --skip 'load /guide-performance-tuning' --skip 'external-check https://twitter.com/neo4j' build/site/developer/spark/*.html
