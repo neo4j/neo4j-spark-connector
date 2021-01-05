@@ -3,7 +3,6 @@ const hyperlink = require('hyperlink')
 const TapRender = require('@munter/tap-render');
 
 const root = path.join(__dirname, '..')
-console.log(root)
 
 ;(async () => {
   const tapRender = new TapRender()
