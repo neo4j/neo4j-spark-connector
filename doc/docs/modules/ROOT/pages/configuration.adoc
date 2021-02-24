@@ -116,7 +116,7 @@ Available values are: `TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`, `TRUST_CUSTOM_CA_SI
 |Database name to connect to.
 As the driver allows to define the database in the URL,
 in case you set this option will have the priority compared to the one defined in the URL
-|_(Neo4j Driver default)
+|_(Neo4j Driver default)_
 |No
 
 |`access.mode`
