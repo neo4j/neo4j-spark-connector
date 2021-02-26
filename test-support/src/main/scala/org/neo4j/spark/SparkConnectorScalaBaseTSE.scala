@@ -1,14 +1,14 @@
 package org.neo4j.spark
 
-import java.util.concurrent.TimeUnit
-
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
 import org.hamcrest.Matchers
 import org.junit._
 import org.junit.rules.TestName
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
+
+import java.util.concurrent.TimeUnit
 
 object SparkConnectorScalaBaseTSE {
 
@@ -51,18 +51,18 @@ class SparkConnectorScalaBaseTSE {
 
   @After
   def after() {
-    if (!TestUtil.isTravis()) {
+    if (!TestUtil.isCI()) {
       try {
         Assert.assertEventually(new Assert.ThrowingSupplier[Boolean, Exception] {
           override def get(): Boolean = {
             val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
             SparkConnectorScalaSuiteIT.connections == afterConnections
           }
-        }, Matchers.equalTo(true), 30, TimeUnit.SECONDS)
+        }, Matchers.equalTo(true), 45, TimeUnit.SECONDS)
       } finally {
         val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
         if (SparkConnectorScalaSuiteIT.connections != afterConnections) { // just for debug purposes
-          println(s"For test ${testName.getMethodName} => connections before: ${SparkConnectorScalaSuiteIT.connections}, after: $afterConnections")
+          println(s"For test ${testName.getMethodName().replaceAll("$u0020", " ")} => connections before: ${SparkConnectorScalaSuiteIT.connections}, after: $afterConnections")
         }
       }
     }

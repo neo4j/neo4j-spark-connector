@@ -2,14 +2,10 @@ package org.neo4j.spark
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.junit.runner.RunWith
-import org.junit.runners.Suite
 import org.junit.{AfterClass, Assume, BeforeClass}
 import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver._
 import org.neo4j.driver.summary.ResultSummary
-import org.neo4j.spark.util.Neo4jUtil
-
 
 object SparkConnectorScalaSuiteWithApocIT {
   val server: Neo4jContainerExtension = new Neo4jContainerExtension()
@@ -38,7 +34,7 @@ object SparkConnectorScalaSuiteWithApocIT {
       conf = new SparkConf().setAppName("neoTest")
         .setMaster("local[*]")
       ss = SparkSession.builder.config(conf).getOrCreate()
-      if (TestUtil.isTravis()) {
+      if (TestUtil.isCI()) {
         org.apache.log4j.LogManager.getLogger("org")
           .setLevel(org.apache.log4j.Level.OFF)
       }
@@ -55,8 +51,8 @@ object SparkConnectorScalaSuiteWithApocIT {
   @AfterClass
   def tearDownContainer() = {
     if (server.isRunning) {
-      Neo4jUtil.closeSafety(session())
-      Neo4jUtil.closeSafety(driver)
+      TestUtil.closeSafety(session())
+      TestUtil.closeSafety(driver)
       server.stop()
       ss.stop()
     }
@@ -81,9 +77,4 @@ object SparkConnectorScalaSuiteWithApocIT {
     })
 }
 
-@RunWith(classOf[Suite])
-@Suite.SuiteClasses(Array(
-  classOf[DataSourceReaderWithApocTSE],
-  classOf[DataSourceReaderNeo4j4xWithApocTSE]
-))
 class SparkConnectorScalaSuiteWithApocIT {}

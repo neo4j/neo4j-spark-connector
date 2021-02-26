@@ -2,7 +2,8 @@ package org.neo4j.spark.service
 
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.junit.Assert._
-import org.junit.{Before, Test}
+import org.junit.runners.MethodSorters
+import org.junit.{Before, FixMethodOrder, Test}
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
 import org.neo4j.spark.{SparkConnectorScalaBaseWithApocTSE, SparkConnectorScalaSuiteWithApocIT}
@@ -11,6 +12,7 @@ import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, QueryType}
 import java.util
 import java.util.UUID
 
+@FixMethodOrder(MethodSorters.JVM)
 class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
   @Before

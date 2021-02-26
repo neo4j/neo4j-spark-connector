@@ -1246,6 +1246,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
         .option("query.count", 2)
         .load
         .show()
+      fail("no error thrown")
     }
     catch {
       case iae: IllegalArgumentException => {
@@ -1266,6 +1267,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
         .option("query.count", 2)
         .load
         .show()
+      fail("no error thrown")
     }
     catch {
       case iae: IllegalArgumentException => {
@@ -1286,6 +1288,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
         .option("query.count", 2)
         .load
         .show()
+      fail("no error thrown")
     }
     catch {
       case iae: IllegalArgumentException => {
@@ -1308,6 +1311,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
         .option("query.count", 2)
         .load
         .show()
+      fail("no error thrown")
     }
     catch {
       case iae: IllegalArgumentException => {

@@ -303,10 +303,10 @@
                     <artifactId>xbean-asm6-shaded</artifactId>
                 </exclusion>
                 <!-- uncomment for debug -->
-                <!--                <exclusion>-->
-                <!--                    <groupId>org.slf4j</groupId>-->
-                <!--                    <artifactId>slf4j-log4j12</artifactId>-->
-                <!--                </exclusion>-->
+<!--                <exclusion>-->
+<!--                    <groupId>org.slf4j</groupId>-->
+<!--                    <artifactId>slf4j-log4j12</artifactId>-->
+<!--                </exclusion>-->
             </exclusions>
         </dependency>
 
@@ -337,12 +337,12 @@
             <scope>test</scope>
         </dependency>
         <!-- uncomment for debug -->
-        <!--        <dependency>-->
-        <!--            <groupId>org.slf4j</groupId>-->
-        <!--            <artifactId>slf4j-simple</artifactId>-->
-        <!--            <version>1.7.30</version>-->
-        <!--            <scope>test</scope>-->
-        <!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.slf4j</groupId>-->
+<!--            <artifactId>slf4j-simple</artifactId>-->
+<!--            <version>1.7.30</version>-->
+<!--            <scope>test</scope>-->
+<!--        </dependency>-->
     </dependencies>
 
     <repositories>

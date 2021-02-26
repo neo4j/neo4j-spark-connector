@@ -859,10 +859,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         val source = r.get("source").asNode()
         val target = r.get("target").asNode()
         val rel = r.get("rel").asRelationship()
-        println(
+        /*println(
           s"${source.id()} | ${source.labels()} | ${source.asMap()} |" +
             s"${rel.id()} | ${rel.`type`()} | ${rel.asMap()} |" +
-            s"${target.id()} | ${target.labels()} | ${target.asMap()}")
+            s"${target.id()} | ${target.labels()} | ${target.asMap()}")*/
       })
 
     assertEquals(4, df2.count())

@@ -1,14 +1,14 @@
 package org.neo4j.spark
 
-import java.util.concurrent.TimeUnit
-
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
 import org.hamcrest.Matchers
 import org.junit._
 import org.junit.rules.TestName
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
+
+import java.util.concurrent.TimeUnit
 
 object SparkConnectorScalaBaseWithApocTSE {
 
@@ -51,7 +51,7 @@ class SparkConnectorScalaBaseWithApocTSE {
 
   @After
   def after() {
-    if (!TestUtil.isTravis()) {
+    if (!TestUtil.isCI()) {
       try {
         Assert.assertEventually(new Assert.ThrowingSupplier[Boolean, Exception] {
           override def get(): Boolean = {
@@ -62,7 +62,7 @@ class SparkConnectorScalaBaseWithApocTSE {
       } finally {
         val afterConnections = SparkConnectorScalaSuiteWithApocIT.getActiveConnections
         if (SparkConnectorScalaSuiteWithApocIT.connections != afterConnections) { // just for debug purposes
-          println(s"For test ${testName.getMethodName} => connections before: ${SparkConnectorScalaSuiteWithApocIT.connections}, after: $afterConnections")
+          println(s"For test ${testName.getMethodName().replaceAll("$u0020", " ")} => connections before: ${SparkConnectorScalaSuiteWithApocIT.connections}, after: $afterConnections")
         }
       }
     }
