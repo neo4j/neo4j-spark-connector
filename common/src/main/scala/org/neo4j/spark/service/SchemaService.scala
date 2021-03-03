@@ -565,28 +565,31 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       .values
       .flatten
       .toSeq
-    session
-      .writeTransaction(new TransactionWork[util.List[java.util.Map[String, AnyRef]]] {
-        override def execute(transaction: Transaction): util.List[util.Map[String, AnyRef]] = {
-          others.size match {
-            case 0 => Collections.emptyList()
-            case 1 => transaction.run(others(0)).list()
-              .asScala
-              .map(_.asMap())
-              .asJava
-            case _ => {
-              others
-                .slice(0, queries.size - 1)
-                .foreach(transaction.run(_))
-              val result = transaction.run(others.last).list()
+    if (others.isEmpty) {
+      Collections.emptyList()
+    } else {
+      session
+        .writeTransaction(new TransactionWork[util.List[java.util.Map[String, AnyRef]]] {
+          override def execute(transaction: Transaction): util.List[util.Map[String, AnyRef]] = {
+            others.size match {
+              case 1 => transaction.run(others(0)).list()
                 .asScala
                 .map(_.asMap())
                 .asJava
-              result
+              case _ => {
+                others
+                  .slice(0, queries.size - 1)
+                  .foreach(transaction.run(_))
+                val result = transaction.run(others.last).list()
+                  .asScala
+                  .map(_.asMap())
+                  .asJava
+                result
+              }
             }
           }
-        }
-      })
+        })
+    }
   }
 
   private def logSchemaResolutionChange(e: ClientException): Unit = {
