@@ -45,7 +45,7 @@ jobs:
         run: |
           ./mvnw clean package -DskipTests -P spark-${{ matrix.spark-version.short }} -P scala-${{ matrix.spark-version.scala }} --no-transfer-progress
       - name: Run tests for Spark ${{ matrix.spark-version.ext }} and Neo4j ${{ matrix.neo4j-version }}
-        if: ${{ ! (matrix.spark-version.short == "2.4" && matrix.python-version == "3.8") }}
+        if: ${{ ! (matrix.spark-version.short == 2.4 && matrix.python-version == 3.8) }}
         run: |
           cd ./scripts/python
           python test_spark.py "${{ matrix.spark-version.short }}" "${{ matrix.spark-version.scala }}" "${{ matrix.neo4j-version }}" "4.0.1"
