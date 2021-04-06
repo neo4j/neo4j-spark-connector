@@ -1,4 +1,4 @@
-if [[ $# -lt 2 ]] ; then
+if [[ $# -lt 3 ]] ; then
     echo "Usage ./spark-packages.sh <VERSION> <SCALA-VERSION> <SPARK-VERSION>"
     exit 1
 fi
@@ -13,7 +13,7 @@ fi
 ARTIFACT=neo4j-connector-apache-spark_$2
 SPARK_VERSION=$3
 VERSION=$1_for_spark_$SPARK_VERSION
-./mvnw clean install -Pscala-$2 -DskipTests
+./mvnw clean install -Pscala-$2 -Pspark-$3 -DskipTests
 cat << EOF > target/$ARTIFACT-$VERSION.pom
 <project>
 <modelVersion>4.0.0</modelVersion>
