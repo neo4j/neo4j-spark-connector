@@ -31,8 +31,10 @@ object SparkConnectorScalaSuiteIT {
         case _: Throwable => //
       }
       Assume.assumeTrue("Neo4j container is not started", server.isRunning)
-      conf = new SparkConf().setAppName("neoTest")
+      conf = new SparkConf()
+        .setAppName("neoTest")
         .setMaster("local[*]")
+        .set("spark.driver.host", "127.0.0.1")
       ss = SparkSession.builder.config(conf).getOrCreate()
       if (TestUtil.isCI()) {
         org.apache.log4j.LogManager.getLogger("org")
@@ -50,12 +52,10 @@ object SparkConnectorScalaSuiteIT {
 
   @AfterClass
   def tearDownContainer() = {
-    if (server.isRunning) {
-      TestUtil.closeSafety(session())
-      TestUtil.closeSafety(driver)
-      server.stop()
-      ss.stop()
-    }
+    TestUtil.closeSafety(session())
+    TestUtil.closeSafety(driver)
+    TestUtil.closeSafety(server)
+    TestUtil.closeSafety(ss)
   }
 
   def session(): Session = {
