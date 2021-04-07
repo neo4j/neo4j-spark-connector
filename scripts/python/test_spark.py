@@ -3,6 +3,7 @@ from pyspark.sql import SparkSession
 import datetime
 from testcontainers.neo4j import Neo4jContainer
 from pyspark.sql.types import TimestampType, DateType
+from builtins import classmethod
 
 import unittest
 import sys
@@ -11,33 +12,12 @@ import sys
 class SparkTest(unittest.TestCase):
     neo4j_session = None
     neo4j_container = None
-    spark_version = None
-    scala_version = None
-    connector_version = None
-
     spark = None
-
-    def get_spark(self):
-        if self.spark == None:
-            self.spark = SparkSession.builder \
-                .appName("Neo4jConnectorTests") \
-                .master('local[*]') \
-                .config(
-                    "spark.jars",
-                    "../../spark-%s/target/neo4j-connector-apache-spark_%s-%s_for_spark_%s.jar" \
-                    % (self.spark_version, self.scala_version, self.connector_version, self.spark_version)
-                ) \
-                .getOrCreate()
-
-        return self.spark
-
-    def __del__(self):
-        neo4j_session.close()
 
     def init_test(self, query, parameters=None):
         self.neo4_session.run("MATCH (n) DETACH DELETE n;")
         self.neo4_session.run(query, parameters)
-        return self.get_spark().read.format("org.neo4j.spark.DataSource") \
+        return self.spark.read.format("org.neo4j.spark.DataSource") \
             .option("url", self.neo4j_container.get_connection_url()) \
             .option("authentication.type", "basic") \
             .option("authentication.basic.username", "neo4j") \
@@ -307,9 +287,17 @@ if __name__ == "__main__":
     with Neo4jContainer('neo4j:' + neo4j_version) as neo4j_container:
         with neo4j_container.get_driver() as neo4j_driver:
             with neo4j_driver.session() as neo4j_session:
-                SparkTest.connector_version = connector_version
-                SparkTest.spark_version = spark_version
-                SparkTest.scala_version = scala_version
+                SparkTest.spark = SparkSession.builder \
+                    .appName("Neo4jConnectorTests") \
+                    .master('local[*]') \
+                    .config(
+                    "spark.jars",
+                    "../../spark-%s/target/neo4j-connector-apache-spark_%s-%s_for_spark_%s.jar" \
+                    % (spark_version, scala_version, connector_version, spark_version)
+                ) \
+                    .config("spark.driver.host", "127.0.0.1") \
+                    .getOrCreate()
                 SparkTest.neo4_session = neo4j_session
                 SparkTest.neo4j_container = neo4j_container
                 unittest.main()
+                SparkTest.spark.close()

@@ -23,7 +23,11 @@ object SparkConnectorAuraTest {
     assumeTrue(url.isDefined)
 
     sparkSession = SparkSession.builder()
-      .config(new SparkConf().setAppName("neoTest").setMaster("local[*]"))
+      .config(new SparkConf()
+        .setAppName("neoTest")
+        .setMaster("local[*]")
+        .set("spark.driver.host", "127.0.0.1")
+      )
       .getOrCreate()
 
     neo4j = GraphDatabase.driver(url.get, AuthTokens.basic(username.get, password.get))
@@ -31,13 +35,8 @@ object SparkConnectorAuraTest {
 
   @AfterClass
   def tearDown(): Unit = {
-    if(neo4j.isInstanceOf[Driver]) {
-      neo4j.close()
-    }
-
-    if(sparkSession.isInstanceOf[SparkSession]) {
-      sparkSession.close()
-    }
+    TestUtil.closeSafety(neo4j)
+    TestUtil.closeSafety(sparkSession)
   }
 }
 

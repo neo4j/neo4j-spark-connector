@@ -25,8 +25,10 @@ object TestUtil {
         case _ => autoCloseable.close()
       }
     } catch {
-      case t: Throwable => if (logger != null) logger
-        .warn(s"Cannot close ${autoCloseable.getClass.getSimpleName} because of the following exception:", t)
+      case t: Throwable => if (logger != null) {
+        t.printStackTrace()
+        logger.warn(s"Cannot close ${autoCloseable.getClass.getSimpleName} because of the following exception:", t)
+      }
     }
   }
 
