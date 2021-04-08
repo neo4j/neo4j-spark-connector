@@ -53,26 +53,26 @@ This will generate `spark-3/target/neo4j-connector-apache-spark_2.12-4.0.1_for_s
 
 `$SPARK_HOME/bin/spark-shell --jars neo4j-connector-apache-spark_2.12-4.0.1_for_spark_3.jar`
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-connector-apache-spark_2.12_3:4.0.0`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-connector-apache-spark_2.12:4.0.1_for_spark_3`
 
 **sbt**
 
 If you use the [sbt-spark-package plugin](https://github.com/databricks/sbt-spark-package), in your sbt build file, add:
 
-```scala spDependencies += "neo4j-contrib/neo4j-connector-apache-spark_2.11_3:4.0.0"```
+```scala spDependencies += "neo4j-contrib/neo4j-connector-apache-spark_2.12:4.0.1_for_spark_3"```
 
 Otherwise,
 
 ```scala
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "neo4j-contrib" % "neo4j-connector-apache-spark_2.11_2.4" % "4.0.0"
+libraryDependencies += "neo4j-contrib" % "neo4j-connector-apache-spark_2.12" % "4.0.1_for_spark_3"
 ```
 
 Or, for Spark 3
 
 ```scala
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "neo4j-contrib" % "neo4j-connector-apache-spark_2.12_3" % "4.0.0"
+libraryDependencies += "neo4j-contrib" % "neo4j-connector-apache-spark_2.12" % "4.0.1_for_spark_3"
 ```  
 
 **maven**  
@@ -82,7 +82,7 @@ In your pom.xml, add:
 <dependencies>
   <!-- list of dependencies -->
   <dependency>
-    <groupId>org.neo4j</groupId>
+    <groupId>neo4j-contrib</groupId>
     <artifactId>neo4j-connector-apache-spark_2.11_2.4</artifactId>
     <version>4.0.0</version>
   </dependency>
@@ -102,9 +102,9 @@ In case of Spark 3
 <dependencies>
   <!-- list of dependencies -->
   <dependency>
-    <groupId>org.neo4j</groupId>
-    <artifactId>neo4j-connector-apache-spark_2.12_3</artifactId>
-    <version>4.0.0</version>
+    <groupId>neo4j-contrib</groupId>
+    <artifactId>neo4j-connector-apache-spark_2.12</artifactId>
+    <version>4.0.1_for_spark_3</version>
   </dependency>
 </dependencies>
 <repositories>
