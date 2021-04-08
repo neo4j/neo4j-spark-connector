@@ -59,13 +59,13 @@ This will generate `spark-3/target/neo4j-connector-apache-spark_2.12-4.0.1_for_s
 
 If you use the [sbt-spark-package plugin](https://github.com/databricks/sbt-spark-package), in your sbt build file, add:
 
-```scala spDependencies += "neo4j-contrib/neo4j-connector-apache-spark_2.12:4.0.1_for_spark_3"```
+```scala spDependencies += "neo4j-contrib/neo4j-connector-apache-spark_2.11:4.0.1_for_spark_2.4"```
 
 Otherwise,
 
 ```scala
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "neo4j-contrib" % "neo4j-connector-apache-spark_2.12" % "4.0.1_for_spark_3"
+libraryDependencies += "neo4j-contrib" % "neo4j-connector-apache-spark_2.12" % "4.0.1_for_spark_2.4"
 ```
 
 Or, for Spark 3
@@ -83,8 +83,8 @@ In your pom.xml, add:
   <!-- list of dependencies -->
   <dependency>
     <groupId>neo4j-contrib</groupId>
-    <artifactId>neo4j-connector-apache-spark_2.11_2.4</artifactId>
-    <version>4.0.0</version>
+    <artifactId>neo4j-connector-apache-spark_2.11</artifactId>
+    <version>4.0.1_for_spark_2.4</version>
   </dependency>
 </dependencies>
 <repositories>
