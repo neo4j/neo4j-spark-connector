@@ -1,12 +1,10 @@
 package org.neo4j.spark
 
-import java.time.ZoneOffset
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.SparkException
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
-import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.driver.internal.types.InternalTypeSystem
 import org.neo4j.driver.internal.{InternalPoint2D, InternalPoint3D}
 import org.neo4j.driver.summary.ResultSummary
@@ -14,6 +12,7 @@ import org.neo4j.driver.types.{IsoDuration, Type}
 import org.neo4j.driver.{Result, Transaction, TransactionWork}
 import org.neo4j.spark.util.Neo4jOptions
 
+import java.time.ZoneOffset
 import scala.collection.JavaConverters._
 import scala.util.Random
 
@@ -330,7 +329,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def `should write nodes with map values into Neo4j`(): Unit = {
     val total = 10
     val ds = (1 to total)
-      .map(i => Map("field" + i -> i))
+      .map(i => Map("field" + i -> i.toString))
       .toDF("foo")
 
     ds.write

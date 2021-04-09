@@ -207,7 +207,7 @@ object Neo4jUtil {
       Values.value((0 to unsafeMapData.numElements() - 1)
         .map(i => (unsafeMapData.keyArray().getUTF8String(i).toString, unsafeMapData.valueArray().get(i, mapType.valueType)))
         .toMap[String, AnyRef]
-        .mapValues(value => convertFromNeo4j(value))
+        .mapValues(value => convertFromSpark(value))
         .asJava)
     }
     case string: UTF8String => convertFromSpark(string.toString)
