@@ -32,8 +32,8 @@ You can build for Spark 2.4 with both Scala 2.11 and Scala 2.12
 ```
 
 These commands will generate the corresponding targets
-* `spark-2.4/target/neo4j-connector-apache-spark_2.11_-4.0.1_for_spark_2.4.jar`
-* `spark-2.4/target/neo4j-connector-apache-spark_2.12_-4.0.1_for_spark_2.4.jar`
+* `spark-2.4/target/neo4j-connector-apache-spark_2.11-4.0.1_for_spark_2.4.jar`
+* `spark-2.4/target/neo4j-connector-apache-spark_2.12-4.0.1_for_spark_2.4.jar`
 
 
 ### Building for Spark 3
