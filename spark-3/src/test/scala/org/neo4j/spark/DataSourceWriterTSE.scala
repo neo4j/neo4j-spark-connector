@@ -1276,4 +1276,36 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (m:Musician) ASSERT (m.name) IS UNIQUE")
   }
+
+
+  @Test
+  def `test should use property of a map property as value of "node.keys"`(): Unit = {
+    val df = Seq(
+      (1, Map("name" -> "Bonham", "instrument" -> "Drums")),
+      (2, Map("name" -> "Mayer", "instrument" -> "Guitar")),
+      (3, Map("name" -> "Bon Jovi", "instrument" -> "Voice")),
+    ).toDF("id", "<props>")
+
+    df.write
+      .mode("Overwrite")
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Person")
+      .option("node.keys", "<props>.name:name,<props>.instrument:instrument_name")
+      .save()
+
+    val resultDf = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Person")
+      .load()
+
+    resultDf.show()
+
+    assertEquals(resultDf.columns(0), "<id>")
+    assertEquals(resultDf.columns(1), "<labels>")
+    assertEquals(resultDf.columns(2), "name")
+    assertEquals(resultDf.columns(3), "instrument_name")
+    assertEquals(resultDf.columns(4), "id")
+  }
 }

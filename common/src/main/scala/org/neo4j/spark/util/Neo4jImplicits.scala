@@ -15,6 +15,8 @@ object Neo4jImplicits {
 
     def quote(): String = if (!isValidCypherIdentifier() && !str.trim.startsWith("`") && !str.trim.endsWith("`")) s"`$str`" else str
 
+    def isQuoted: Boolean = str.startsWith("`") && str.endsWith("`")
+
     def unquote(): String = str.replaceAll("`", "");
 
     def removeAlias(): String = {
@@ -106,7 +108,9 @@ object Neo4jImplicits {
 
     def getMissingFields(fields: Set[String]): Set[String] = {
       val structFieldsNames = structType.getFieldsName
-      fields.filterNot(structFieldsNames.contains(_))
+      fields.filterNot(s => {
+        structFieldsNames.contains(if(s.isQuoted) s.unquote() else s.split('.')(0))
+      })
     }
   }
 

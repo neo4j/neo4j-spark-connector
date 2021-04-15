@@ -30,9 +30,9 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     query(row, schema)
       .forEach(new BiConsumer[String, AnyRef] {
         override def accept(key: String, value: AnyRef): Unit = if (options.nodeMetadata.nodeKeys.contains(key)) {
-          keys.put(key, value)
+          keys.put(options.nodeMetadata.nodeKeys.getOrElse(key, key), value)
         } else {
-          properties.put(key, value)
+          properties.put(options.nodeMetadata.nodeProps.getOrElse(key, key), value)
         }
       })
 
@@ -45,7 +45,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
         relMap.get(PROPERTIES).put(key.removeAlias(), value)
       }
       else if (key.startsWith(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS.concat("."))) {
-        if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
+        if (options.relationshipMetadata.source.nodeKeys.contains(key) || options.relationshipMetadata.source.nodeKeys.contains(key.quote())) {
           sourceNodeMap.get(KEYS).put(key.removeAlias(), value)
         }
         else {
@@ -53,7 +53,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
         }
       }
       else if (key.startsWith(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS.concat("."))) {
-        if (options.relationshipMetadata.target.nodeKeys.contains(key)) {
+        if (options.relationshipMetadata.target.nodeKeys.contains(key) || options.relationshipMetadata.target.nodeKeys.contains(key.quote())) {
           targetNodeMap.get(KEYS).put(key.removeAlias(), value)
         }
         else {
