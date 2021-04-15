@@ -1,9 +1,9 @@
 package org.neo4j.spark.util
 
-import org.apache.spark.sql.sources.{And, EqualTo, Not}
+import org.apache.spark.sql.sources.{And, EqualTo}
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
-import org.junit.Test
 import org.junit.Assert._
+import org.junit.Test
 import org.neo4j.spark.util.Neo4jImplicits._
 
 class Neo4jImplicitsTest {
@@ -100,9 +100,31 @@ class Neo4jImplicitsTest {
   }
 
   @Test
+  def `getMissingFields should handle maps`: Unit = {
+    val struct = StructType(Seq(
+      StructField("im", DataTypes.StringType),
+      StructField("im.a", DataTypes.StringType),
+      StructField("im.not.a.map", DataTypes.StringType),
+      StructField("fi``(╯°□°)╯︵ ┻━┻eld", DataTypes.StringType)
+    ))
+
+    val result = struct.getMissingFields(Set("im.aMap", "`im.a`.map", "`im.not.a.map`", "fi``(╯°□°)╯︵ ┻━┻eld"))
+
+    assertEquals(0, result.size)
+  }
+
+  @Test
   def `struct should return false if not contains fields`: Unit = {
     val struct = StructType(Seq(StructField("is_hero", DataTypes.BooleanType), StructField("name", DataTypes.StringType)))
 
     assertEquals(Set[String]("hero_name"), struct.getMissingFields(Set("is_hero", "hero_name")))
+  }
+
+  @Test
+  def `should check if a string is quoted`: Unit = {
+    assertTrue("`imquoted`".isQuoted)
+    assertFalse("imnotquoted".isQuoted)
+    assertFalse("`imnot`.`quoted`".isQuoted)
+    assertFalse("fi``(╯°□°)╯︵ ┻━┻eld".isQuoted)
   }
 }

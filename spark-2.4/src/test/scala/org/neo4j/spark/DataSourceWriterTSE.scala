@@ -662,7 +662,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.save.mode", "Overwrite")
       .option("relationship.source.node.keys", "name")
-      .option("relationship.source.node.properties", "fi``(╯°□°)╯︵ ┻━┻eld:field")
+      .option("relationship.source.node.properties", "`fi``(╯°□°)╯︵ ┻━┻eld`:field")
       .option("relationship.target.labels", ":Instrument")
       .option("relationship.target.node.keys", "instrument:name")
       .option("relationship.target.save.mode", "Overwrite")
