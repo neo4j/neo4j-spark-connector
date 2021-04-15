@@ -1273,7 +1273,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val df = Seq(
       (1, Map("name" -> "Bonham", "instrument" -> "Drums")),
       (2, Map("name" -> "Mayer", "instrument" -> "Guitar")),
-      (3, Map("name" -> "Bon Jovi", "instrument" -> "Voice")),
+      (3, Map("name" -> "Bon Jovi", "instrument" -> "Voice"))
     ).toDF("id", "<props>")
 
     df.write
