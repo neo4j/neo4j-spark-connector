@@ -1,7 +1,5 @@
 package org.neo4j.spark.service
 
-import java.util
-import java.util.Collections
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
@@ -10,8 +8,10 @@ import org.neo4j.driver.types.Entity
 import org.neo4j.driver.{Record, Session, Transaction, TransactionWork, Value, summary}
 import org.neo4j.spark.service.SchemaService.{cypherToSparkType, normalizedClassName, normalizedClassNameFromGraphEntity}
 import org.neo4j.spark.util.Neo4jImplicits.{CypherImplicits, EntityImplicits}
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, OptimizationType, QueryType, SchemaStrategy, ValidationUtil}
+import org.neo4j.spark.util._
 
+import java.util
+import java.util.Collections
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -164,7 +164,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         .getOrElse("apoc.meta.relTypeProperties", Map.empty[String, AnyRef])
         .asInstanceOf[Map[String, AnyRef]]
       val config = apocConfig ++ Map("includeRels" -> Seq(options.relationshipMetadata.relationshipType).asJava)
-      val params = Map[String, AnyRef]("config" -> config,
+      val params = Map[String, AnyRef]("config" -> config.asJava,
         "sourceLabels" -> options.relationshipMetadata.source.labels.asJava,
         "targetLabels" -> options.relationshipMetadata.target.labels.asJava)
         .asJava
