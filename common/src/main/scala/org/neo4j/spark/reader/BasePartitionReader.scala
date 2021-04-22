@@ -24,7 +24,7 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
   private val driverCache: DriverCache = new DriverCache(options.connection,
     if (partitionSkipLimit.partitionNumber > 0) s"$jobId-${partitionSkipLimit.partitionNumber}" else jobId)
 
-  private val query: String = new Neo4jQueryService(options, new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.getFieldsName))
+  private val query: String = new Neo4jQueryService(options, new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.fieldNames))
     .createQuery()
 
   private val mappingService = new MappingService(new Neo4jReadMappingStrategy(options, requiredColumns), options)

@@ -1,7 +1,7 @@
 package org.neo4j.spark.util
 
 import javax.lang.model.SourceVersion
-import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
+import org.apache.spark.sql.types.{DataTypes, MapType, StructField, StructType}
 import org.neo4j.driver.types.{Entity, Node, Relationship}
 import org.neo4j.spark.service.SchemaService
 import org.apache.spark.sql.sources.{EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, StringContains, StringEndsWith, StringStartsWith}
@@ -13,9 +13,11 @@ object Neo4jImplicits {
   implicit class CypherImplicits(str: String) {
     private def isValidCypherIdentifier() = SourceVersion.isIdentifier(str) && !str.trim.startsWith("$")
 
-    def quote(): String = if (!isValidCypherIdentifier() && !str.trim.startsWith("`") && !str.trim.endsWith("`")) s"`$str`" else str
+    def quote(): String = if (!isValidCypherIdentifier() && !str.isQuoted()) s"`$str`" else str
 
     def unquote(): String = str.replaceAll("`", "");
+
+    def isQuoted(): Boolean = str.startsWith("`");
 
     def removeAlias(): String = {
       val splatString = str.split('.')
@@ -98,16 +100,25 @@ object Neo4jImplicits {
   }
 
   implicit class StructTypeImplicit(structType: StructType) {
-    def getFieldsName: Seq[String] = if (structType == null) {
-      Seq.empty
-    } else {
-      structType.map(structField => structField.name)
+    private def isValidMapOrStructField(field: String, structFieldName: String) = {
+      val value: String = """(`.*`)|([^\.]*)""".r.findFirstIn(field).getOrElse("")
+      structFieldName == value.unquote() || structFieldName == value
     }
 
-    def getMissingFields(fields: Set[String]): Set[String] = {
-      val structFieldsNames = structType.getFieldsName
-      fields.filterNot(structFieldsNames.contains(_))
-    }
+    def getMissingFields(fields: Set[String]): Set[String] = fields
+      .map(field => {
+        val maybeField = structType
+          .find(structField => {
+            structField.dataType match {
+              case _: MapType => isValidMapOrStructField(field, structField.name)
+              case _: StructType => isValidMapOrStructField(field, structField.name)
+              case _ => structField.name == field.unquote() || structField.name == field
+            }
+          })
+        field -> maybeField.isDefined
+      })
+      .filterNot(e => e._2)
+      .map(e => e._1)
   }
 
 }

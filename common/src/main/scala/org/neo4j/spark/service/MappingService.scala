@@ -30,9 +30,9 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     query(row, schema)
       .forEach(new BiConsumer[String, AnyRef] {
         override def accept(key: String, value: AnyRef): Unit = if (options.nodeMetadata.nodeKeys.contains(key)) {
-          keys.put(key, value)
+          keys.put(options.nodeMetadata.nodeKeys.getOrElse(key, key), value)
         } else {
-          properties.put(key, value)
+          properties.put(options.nodeMetadata.nodeProps.getOrElse(key, key), value)
         }
       })
 

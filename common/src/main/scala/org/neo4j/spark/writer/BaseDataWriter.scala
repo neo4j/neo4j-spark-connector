@@ -4,7 +4,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types.StructType
-import org.neo4j.driver.exceptions.{ClientException, Neo4jException, ServiceUnavailableException, SessionExpiredException}
+import org.neo4j.driver.exceptions.{ClientException, Neo4jException, ServiceUnavailableException, SessionExpiredException, TransientException}
 import org.neo4j.driver.{Session, Transaction, Values}
 import org.neo4j.spark.service._
 import org.neo4j.spark.util.Neo4jUtil.closeSafety
@@ -78,7 +78,7 @@ abstract class BaseDataWriter(jobId: String,
     } catch {
       case neo4jTransientException: Neo4jException =>
         val code = neo4jTransientException.code()
-        if ((neo4jTransientException.isInstanceOf[SessionExpiredException] || neo4jTransientException.isInstanceOf[ServiceUnavailableException])
+        if (isRetryableException(neo4jTransientException)
           && !options.transactionMetadata.failOnTransactionCodes.contains(code)
           && retries.getCount > 0) {
           retries.countDown()
@@ -93,6 +93,10 @@ abstract class BaseDataWriter(jobId: String,
     }
     Unit
   }
+
+  private def isRetryableException(neo4jTransientException: Neo4jException) = (neo4jTransientException.isInstanceOf[SessionExpiredException]
+      || neo4jTransientException.isInstanceOf[TransientException]
+      || neo4jTransientException.isInstanceOf[ServiceUnavailableException])
 
   private def logAndThrowException(e: Exception): Unit = {
     if (e.isInstanceOf[ClientException]) {

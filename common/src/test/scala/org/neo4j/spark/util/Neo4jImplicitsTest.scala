@@ -94,9 +94,11 @@ class Neo4jImplicitsTest {
 
   @Test
   def `struct should return true if contains fields`: Unit = {
-    val struct = StructType(Seq(StructField("is_hero", DataTypes.BooleanType), StructField("name", DataTypes.StringType)))
+    val struct = StructType(Seq(StructField("is_hero", DataTypes.BooleanType),
+      StructField("name", DataTypes.StringType),
+      StructField("fi``(╯°□°)╯︵ ┻━┻eld", DataTypes.StringType)))
 
-    assertEquals(0, struct.getMissingFields(Set("is_hero", "name")).size)
+    assertEquals(0, struct.getMissingFields(Set("is_hero", "name", "fi``(╯°□°)╯︵ ┻━┻eld")).size)
   }
 
   @Test
@@ -104,5 +106,20 @@ class Neo4jImplicitsTest {
     val struct = StructType(Seq(StructField("is_hero", DataTypes.BooleanType), StructField("name", DataTypes.StringType)))
 
     assertEquals(Set[String]("hero_name"), struct.getMissingFields(Set("is_hero", "hero_name")))
+  }
+
+  @Test
+  def `getMissingFields should handle maps`: Unit = {
+    val struct = StructType(Seq(
+      StructField("im", DataTypes.StringType),
+      StructField("im.a", DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType)),
+      StructField("im.also.a", DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType)),
+      StructField("im.not.a.map", DataTypes.StringType),
+      StructField("fi``(╯°□°)╯︵ ┻━┻eld", DataTypes.StringType)
+    ))
+
+    val result = struct.getMissingFields(Set("im.aMap", "`im.also.a`.field", "`im.a`.map", "`im.not.a.map`", "fi``(╯°□°)╯︵ ┻━┻eld"))
+
+    assertEquals(Set("im.aMap"), result)
   }
 }

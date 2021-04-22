@@ -20,6 +20,7 @@ import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util.Neo4jImplicits.EntityImplicits
 import org.slf4j.Logger
 
+import org.neo4j.spark.util.Neo4jImplicits._
 import scala.collection.JavaConverters._
 
 object Neo4jUtil {
@@ -213,7 +214,7 @@ object Neo4jUtil {
 
   def flattenMap(map: java.util.Map[String, AnyRef],
                  prefix: String = ""): java.util.Map[String, AnyRef] = map.asScala.flatMap(t => {
-    val key = if (prefix != "") s"$prefix.${t._1}" else t._1
+    val key: String = if (prefix != "") s"${prefix.quote()}.${t._1.quote()}" else t._1.quote()
     t._2 match {
       case nestedMap: Map[String, AnyRef] => flattenMap(nestedMap.asJava, key).asScala.toSeq
       case _ => Seq((key, t._2))
