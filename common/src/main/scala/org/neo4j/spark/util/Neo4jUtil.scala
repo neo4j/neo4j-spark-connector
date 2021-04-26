@@ -38,9 +38,6 @@ object Neo4jUtil {
   private val properties = new Properties()
   properties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("neo4j-spark-connector.properties"))
 
-  val unsupportedTransientCodes = Set("Neo.TransientError.Transaction.Terminated",
-    "Neo.TransientError.Transaction.LockClientStopped") // use the same strategy for TransientException as in the driver
-
   def closeSafety(autoCloseable: AutoCloseable, logger: Logger = null): Unit = {
     try {
       autoCloseable match {
