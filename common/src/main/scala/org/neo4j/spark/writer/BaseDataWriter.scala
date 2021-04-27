@@ -10,8 +10,10 @@ import org.neo4j.spark.service._
 import org.neo4j.spark.util.Neo4jUtil.closeSafety
 import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil}
 
+import java.time.Duration
 import java.util
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.locks.LockSupport
 import scala.collection.JavaConverters._
 
 abstract class BaseDataWriter(jobId: String,
@@ -31,7 +33,7 @@ abstract class BaseDataWriter(jobId: String,
 
   private val retries = new CountDownLatch(options.transactionMetadata.retries)
 
-  val query: String = new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(saveMode)).createQuery()
+  private val query: String = new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(saveMode)).createQuery()
 
   def write(record: InternalRow): Unit = {
     batch.add(mappingService.convert(record, structType))
@@ -77,11 +79,12 @@ abstract class BaseDataWriter(jobId: String,
       case neo4jTransientException: Neo4jException =>
         val code = neo4jTransientException.code()
         if ((neo4jTransientException.isInstanceOf[SessionExpiredException] || neo4jTransientException.isInstanceOf[ServiceUnavailableException])
-          && !(Neo4jUtil.unsupportedTransientCodes ++ options.transactionMetadata.failOnTransactionCodes).contains(code)
+          && !options.transactionMetadata.failOnTransactionCodes.contains(code)
           && retries.getCount > 0) {
           retries.countDown()
           log.info(s"Matched Neo4j transient exception next retry is ${options.transactionMetadata.retries - retries.getCount}")
           close()
+          LockSupport.parkNanos(Duration.ofMillis(options.transactionMetadata.retryTimeout).toNanos)
           writeBatch()
         } else {
           logAndThrowException(neo4jTransientException)

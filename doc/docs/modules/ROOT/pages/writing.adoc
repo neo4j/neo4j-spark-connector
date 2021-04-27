@@ -104,6 +104,11 @@ The DataSource Writer has several options in order to connect and persist data i
 |3
 |No
 
+|`transaction.retry.timeout`
+|The time in ms that the Connector should wait before retry
+|0
+|No
+
 4+|*Node Specific Options*
 
 |`node.keys`

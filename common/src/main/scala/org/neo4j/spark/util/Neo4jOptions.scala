@@ -140,7 +140,8 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
         .filter(!_.isEmpty)
         .toSet
     val batchSize = getParameter(BATCH_SIZE, DEFAULT_BATCH_SIZE.toString).toInt
-    Neo4jTransactionMetadata(retries, failOnTransactionCodes, batchSize)
+    val retryTimeout = getParameter(TRANSACTION_RETRY_TIMEOUT, DEFAULT_TRANSACTION_RETRY_TIMEOUT.toString).toInt
+    Neo4jTransactionMetadata(retries, failOnTransactionCodes, batchSize, retryTimeout)
   }
 
   val relationshipMetadata = initNeo4jRelationshipMetadata()
@@ -195,7 +196,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 case class Neo4jApocConfig(procedureConfigMap: Map[String, AnyRef])
 
 case class Neo4jSchemaMetadata(flattenLimit: Int, strategy: SchemaStrategy.Value, optimizationType: OptimizationType.Value)
-case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int)
+case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int, retryTimeout: Long)
 
 case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String], nodeProps: Map[String, String])
 case class Neo4jRelationshipMetadata(
@@ -349,6 +350,7 @@ object Neo4jOptions {
 
   // Transaction Metadata
   val TRANSACTION_RETRIES = "transaction.retries"
+  val TRANSACTION_RETRY_TIMEOUT = "transaction.retry.timeout"
   val TRANSACTION_CODES_FAIL = "transaction.codes.fail"
 
   val SCRIPT = "script"
@@ -363,6 +365,7 @@ object Neo4jOptions {
   val DEFAULT_SCHEMA_FLATTEN_LIMIT = 10
   val DEFAULT_BATCH_SIZE = 5000
   val DEFAULT_TRANSACTION_RETRIES = 3
+  val DEFAULT_TRANSACTION_RETRY_TIMEOUT = 0
   val DEFAULT_RELATIONSHIP_NODES_MAP = false
   val DEFAULT_SCHEMA_STRATEGY = SchemaStrategy.SAMPLE
   val DEFAULT_RELATIONSHIP_SAVE_STRATEGY: RelationshipSaveStrategy.Value = RelationshipSaveStrategy.NATIVE
