@@ -50,7 +50,7 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
   override def planInputPartitions: util.ArrayList[InputPartition[InternalRow]] = {
     // we retrieve the schema in order to parse the data correctly
     val schema = readSchema()
-    val neo4jPartitions: Seq[Neo4jInputPartitionReader] = createPartitions(schema)
+    val neo4jPartitions: Seq[Neo4jInputPartition] = createPartitions(schema)
     new util.ArrayList[InputPartition[InternalRow]](neo4jPartitions.asJava)
   }
 
@@ -60,7 +60,7 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
       (schemaService.skipLimitFromPartition(), schemaService.execute(neo4jOptions.script)) }
     // we generate a partition for each element
     partitionSkipLimitList
-      .map(partitionSkipLimit => new Neo4jInputPartitionReader(neo4jOptions, filters, schema, jobId,
+      .map(partitionSkipLimit => new Neo4jInputPartition(neo4jOptions, filters, schema, jobId,
         partitionSkipLimit, scriptResult, requiredColumns))
   }
 
