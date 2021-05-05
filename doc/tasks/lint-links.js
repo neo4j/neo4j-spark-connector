@@ -32,6 +32,8 @@ const root = path.join(__dirname, '..')
       'load build/site/developer/spark/quickstart/writing',
       // aura kbase returns 403s for hyperlink
       'external-check https://aura.support.neo4j.com',
+      // graphgist
+      'load graphgist',
     ]
     const skipFilter = (report) => {
       return Object.values(report).some((value) => {
