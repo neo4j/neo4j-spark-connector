@@ -123,7 +123,7 @@ df.write.format("org.neo4j.spark.DataSource")
   .save()
 ----
 
-Visit the link:reading[Reading] and link:writing[Writing] sections for advanced usage.
+Visit the xref:reading.adoc[Reading] and xref:writing.adoc[Writing] sections for advanced usage.
 
 
 == General Considerations
