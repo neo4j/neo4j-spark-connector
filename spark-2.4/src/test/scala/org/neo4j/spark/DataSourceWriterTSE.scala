@@ -14,6 +14,7 @@ import org.neo4j.spark.util.Neo4jOptions
 
 import java.time.ZoneOffset
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.util.Random
 
 abstract class Neo4jType(`type`: String)
@@ -1264,5 +1265,54 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
           |MERGE (u:User {id: event.id, firstName: event.firstName, lastName: event.lastName, gender: event.gender, birthday: event.birthday, email: event.email, userProp: obj.objStringField1})
           |""".stripMargin)
       .save()
+  }
+
+  @Test
+  def `should use property of a map property with a weird naming as value of "node.keys"`(): Unit = {
+    val df = Seq(
+      (1, Map("name" -> "Bonham", "instrument" -> "Drums")),
+      (2, Map("name" -> "Mayer", "instrument" -> "Guitar")),
+      (3, Map("name" -> "Bon Jovi", "instrument" -> "Voice"))
+    ).toDF("id", "foo.bar")
+
+    df.write
+      .mode("Overwrite")
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Person")
+      .option("node.keys", "`foo.bar`.name:name,`foo.bar`.instrument:instrument_name")
+      .save()
+
+    val resultDf = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Person")
+      .load()
+
+    val expected = Set(
+      Map("name" -> "Bonham",
+        "instrument_name" -> "Drums",
+        "<labels>" -> mutable.WrappedArray.make(Array("Person")),
+        "id" -> 1L
+      ),
+      Map("name" -> "Mayer",
+        "instrument_name" -> "Guitar",
+        "<labels>" -> mutable.WrappedArray.make(Array("Person")),
+        "id" -> 2L
+      ),
+      Map("name" -> "Bon Jovi",
+        "instrument_name" -> "Voice",
+        "<labels>" -> mutable.WrappedArray.make(Array("Person")),
+        "id" -> 3L
+      )
+    )
+    val actual = resultDf.collect().map(row => {
+      Map("<labels>" -> row.getAs[Array[String]]("<labels>"),
+        "name" -> row.getAs[String]("name"),
+        "instrument_name" -> row.getAs[String]("instrument_name"),
+        "id" -> row.getAs[Long]("id")
+      )
+    }).toSet
+    assertEquals(expected, actual)
   }
 }
