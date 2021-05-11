@@ -12,7 +12,7 @@ import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Validations}
 
 import scala.collection.JavaConverters._
 
-class Neo4jDataSourceReader(private val options: DataSourceOptions, private val jobId: String) extends DataSourceReader
+class Neo4jDataSourceReader(private val options: DataSourceOptions, private val jobId: String, private val userDefinedSchema: StructType = null) extends DataSourceReader
   with SupportsPushDownFilters
   with SupportsPushDownRequiredColumns {
 
@@ -23,8 +23,12 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
   private val neo4jOptions: Neo4jOptions = new Neo4jOptions(options.asMap())
     .validate(options => Validations.read(options, jobId))
 
-  private val structType = callSchemaService { schemaService => schemaService
-    .struct() }
+  private val structType = if (userDefinedSchema != null) {
+    userDefinedSchema
+  } else {
+    callSchemaService { schemaService => schemaService
+      .struct() }
+  }
 
   override def readSchema(): StructType = structType
 

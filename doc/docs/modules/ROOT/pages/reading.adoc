@@ -123,11 +123,11 @@ every single node property as column prefixed by `source` or `target`
 
 Reading data from a Neo4j Database can be done in 3 ways:
 
- * <<bookmark-read-query,Custom Cypher Query>>
- * <<bookmark-read-node,Node>>
- * <<bookmark-read-rel,Relationship>>
+ * <<read-query,Custom Cypher Query>>
+ * <<read-node,Node>>
+ * <<read-rel,Relationship>>
 
-[[bookmark-read-query]]
+[[read-query]]
 === Custom Cypher Query
 
 You can specify a Cypher query in this way:
@@ -161,7 +161,7 @@ If your query returns a graph entity please use the `labels` or `relationship` m
 
 The struct of the Dataset returned by the query is influenced by the query itself,
 in this particular context it could happen that the connector won't be able to sample the Schema from the query,
-in these cases we suggest trying with the option `schema.strategy` set to `string` as described xref:quickstart.adoc#bookmark-string-strategy[here].
+in these cases we suggest trying with the option `schema.strategy` set to `string` as described xref:quickstart.adoc#string-strategy[here].
 
 [NOTE]
 Read query *must always* return some data (read: *must always* have a return statement).
@@ -225,7 +225,7 @@ The created schema will be
 The returned column order is not guarantee to match the RETURN statement for Neo4j 3.* and Neo4j 4.0.
 Starting from Neo4j 4.1 it the order will be the same.
 
-[[bookmark-limit-query]]
+[[limit-query]]
 ==== Limit the results
 
 This connector does not permit using SKIP or LIMIT at the end of a Cypher query.
@@ -260,9 +260,9 @@ RETURN p.name
 
 The queries return the exact same data, but only the second one is usable with the spark connector, and partition-able, because of the WITH clause, and the simple final RETURN clause. If you choose to reformulate queries to use "internal SKIP/LIMIT" take careful notice of ordering operations to guarantee the same result set.
 
-You may also use the `query.count` option rather than reformulating your query (more on it <<quickstart.adoc#bookmark-parallelize,here>>).
+You may also use the `query.count` option rather than reformulating your query (more on it <<quickstart.adoc#parallelize,here>>).
 
-[[bookmark-read-node]]
+[[read-node]]
 === Node
 
 You can read nodes by specifiying a single label, or multiple labels. Like so:
@@ -349,7 +349,7 @@ Will create this schema
 
 |===
 
-[[bookmark-read-rel]]
+[[read-rel]]
 === Relationship
 
 To read a relationship you must specify the relationship name, the source node labels, and the target node labels.
@@ -384,7 +384,7 @@ prefixed with `source.` or `target.` (ie: `source.name`, `target.price`)
 
 When set to `true` the source and target properties will be returned as Map[String, String] in two columns named `source`and `target`.
 
-[[bookmark-rel-schema-no-map]]
+[[rel-schema-no-map]]
 .Nodes map set to false
 [source,scala]
 ----
@@ -477,7 +477,7 @@ a|[.small]
 ----
 |===
 
-[[bookmark-rel-schema-columns]]
+[[rel-schema-columns]]
 ==== Columns
 When reading data with this method, the Dataframe will contain the following columns:
 

@@ -3,6 +3,7 @@ package org.neo4j.spark
 import java.util.{Optional, UUID}
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.sources.DataSourceRegister
+import org.apache.spark.sql.sources.v2.reader.DataSourceReader
 import org.apache.spark.sql.sources.v2.writer.DataSourceWriter
 import org.apache.spark.sql.sources.v2.{DataSourceOptions, DataSourceV2, ReadSupport, WriteSupport}
 import org.apache.spark.sql.types.StructType
@@ -17,6 +18,8 @@ class DataSource extends DataSourceV2 with ReadSupport with DataSourceRegister w
   private val jobId: String = UUID.randomUUID().toString
 
   def createReader(options: DataSourceOptions) = new Neo4jDataSourceReader(options, jobId)
+
+  override def createReader(schema: StructType, options: DataSourceOptions): DataSourceReader = new Neo4jDataSourceReader(options, jobId, schema)
 
   override def shortName: String = "neo4j"
 

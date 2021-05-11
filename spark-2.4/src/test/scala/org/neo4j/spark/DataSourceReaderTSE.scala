@@ -2,8 +2,8 @@ package org.neo4j.spark
 
 import java.sql.Timestamp
 import java.time.{LocalDateTime, OffsetDateTime, ZoneOffset}
-
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
+import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row}
 import org.junit.Assert._
 import org.junit.Test
@@ -1582,6 +1582,23 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     df.count()
 
     assertEquals(Set("target.name", "target.id"), df.columns.toSet)
+  }
+
+  @Test
+  def testShouldUseTheUserSpecifiedSchema(): Unit = {
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run("CREATE (p:Person {name: 'Foo Bar', age: 8})").consume()
+        })
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .schema(StructType(Seq(StructField("age", DataTypes.StringType))))
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query", "MATCH (n:Person) RETURN n.age AS age")
+      .load()
+
+    assertEquals("8", df.collect().head.get(0))
   }
 
   private def initTest(query: String): DataFrame = {

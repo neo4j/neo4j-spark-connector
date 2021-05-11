@@ -43,7 +43,7 @@ Will insert 10 nodes into Neo4j via Spark, and each of these will have:
 * 2 labels: `Person` and `Customer`
 * 4 properties: `name`, `surname`, `age` and `livesIn`
 
-[[bookmark-save-mode]]
+[[save-mode]]
 == Save Mode
 
 In order to persist data into Neo4j the Spark Connector supports two save modes that will
@@ -53,7 +53,7 @@ work only if `UNIQUE` or `NODE KEY` constraints are defined into Neo4j for the g
 These SaveMode examples apply to the Scala class `org.apache.spark.sql.SaveMode`.  For PySpark, simply
 use a static string with the name of the SaveMode.  So instead of `SaveMode.Overwrite`, use `"Overwrite"` for pyspark.
 
-For <<bookmark-write-node,Node>> type
+For <<write-node,Node>> type
 
 * `SaveMode.ErrorIfExists`: this will build a `CREATE` query
 * `SaveMode.Overwrite`: this will build a `MERGE` query
@@ -61,7 +61,7 @@ For <<bookmark-write-node,Node>> type
 [NOTE]
 For `SaveMode.Overwrite` mode you *need to have unique constrains on the keys*.
 
-For <<bookmark-write-rel,Relationship>> type
+For <<write-rel,Relationship>> type
 
 * `SaveMode.ErrorIfExists`: this will build a `CREATE` query
 * `SaveMode.Append`: this will build a `MERGE` query
@@ -125,7 +125,7 @@ The DataSource Writer has several options in order to connect and persist data i
 |No
 
 |`relationship.save.strategy`
-|<<bookmark-strategies,Save strategy>> to be used
+|<<strategies,Save strategy>> to be used
 |`native`
 |Yes
 
@@ -140,7 +140,7 @@ The DataSource Writer has several options in order to connect and persist data i
 |No
 
 |`relationship.source.save.mode`
-|Source <<bookmark-node-save-modes,node Save Mode>>
+|Source <<node-save-modes,node Save Mode>>
 |`Match`
 |No
 
@@ -160,7 +160,7 @@ The DataSource Writer has several options in order to connect and persist data i
 |No
 
 |`relationship.target.save.mode`
-|Target <<bookmark-node-save-modes,node Save Mode>>
+|Target <<node-save-modes,node Save Mode>>
 |`Match`
 |No
 
@@ -179,11 +179,11 @@ so if in the process at some point fails all the previous data is already persis
 
 Writing data to a Neo4j Database can be done in 3 ways:
 
-* <<bookmark-write-query,Custom Cypher Query>>
-* <<bookmark-write-node,Node>>
-* <<bookmark-write-rel,Relationship>>
+* <<write-query,Custom Cypher Query>>
+* <<write-node,Node>>
+* <<write-rel,Relationship>>
 
-[[bookmark-write-query]]
+[[write-query]]
 === Custom Cypher Query
 
 In case you use the option `query` the Spark Connector will persist the entire Dataset by using the provided query.
@@ -217,11 +217,11 @@ CREATE (n:Person {fullName: event.name + event.surname})
 
 Where `events` is the batch created from your dataset.
 
-[[bookmark-write-node]]
+[[write-node]]
 === Node
 
 In case you use the option `labels` the Spark Connector will persist the entire Dataset as nodes.
-Depending on the <<bookmark-save-mode,SaveMode>> it will `CREATE` or `MERGE` nodes (in the last case using the `node.keys`
+Depending on the <<save-mode,SaveMode>> it will `CREATE` or `MERGE` nodes (in the last case using the `node.keys`
 properties).
 
 The nodes will be sent to Neo4j in a batch of rows defined in the `batch.size` property and we will
@@ -346,7 +346,7 @@ Neo4j Connector for Apache Spark will flatten the maps and each map value will b
 
 |===
 
-[[bookmark-write-rel]]
+[[write-rel]]
 === Relationship
 
 You can write a dataframe to Neo4j by specifying source, target and relation.
@@ -372,33 +372,33 @@ SET rel += event.rel
 ----
 
 The `CREATE` keyword for the source and target nodes can be replaced by a `MERGE` or a `MATCH`.
-To control this you can use the <<bookmark-node-save-modes,node save modes>>.
+To control this you can use the <<node-save-modes,node save modes>>.
 
 You can set source and target independently by using `relationship.source.save.mode` or ``relationship.target.save.mode`.
 
 These options accept a case insensitive string as a value, that can be one of `ErrorIfExists`, `Overwrite`, `Append`;
-they work in the exact same way as the <<bookmark-write-node,Node Save Modes>>.
+they work in the exact same way as the <<write-node,Node Save Modes>>.
 
 When using `MATCH` or `MERGE` you will need to specify keys that identify the nodes.
 This is what the options `relationship.source.node.keys` and `relationship.target.node.keys`.
-More on this <<bookmark-rel-specify-keys,here>>.
+More on this <<rel-specify-keys,here>>.
 
 The `CREATE` keyword for the relationship can be replaced by a `MERGE`.
-You can control this with <<bookmark-save-mode,Save Mode>>.
+You can control this with <<save-mode,Save Mode>>.
 
-You are also required to specify one of the two <<bookmark-strategies,Save Strategies>>.
+You are also required to specify one of the two <<strategies,Save Strategies>>.
 This will identify which method will be used to create the Cypher query
 and can have additional options available.
 
-[[bookmark-strategies]]
+[[strategies]]
 ==== Save Strategies
 
-There are two strategies you can use to write relationships: <<bookmark-strategy-native,Native>> (default strategy) and <<bookmark-strategy-keys,Keys>>.
+There are two strategies you can use to write relationships: <<strategy-native,Native>> (default strategy) and <<strategy-keys,Keys>>.
 
-[[bookmark-strategy-native]]
+[[strategy-native]]
 ==== Native Strategy
 
-This strategy is useful when you have a schema that conforms with the <<reading.adoc#bookmark-rel-schema-no-map,Relationship Read Schema>>, with the `relationship.nodes.map` set to false.
+This strategy is useful when you have a schema that conforms with the <<reading.adoc#rel-schema-no-map,Relationship Read Schema>>, with the `relationship.nodes.map` set to false.
 
 Let's say we want to read relationship from a Database, filter them, and write the result to another Database:
 
@@ -443,12 +443,12 @@ CREATE (source)-[rel:BOUGHT]->(target)
 SET rel += event.rel
 ----
 
-`event.source`, `event.target`, and `event.rel` will contain the column described <<reading.adoc#bookmark-rel-schema-columns,here>>.
+`event.source`, `event.target`, and `event.rel` will contain the column described <<reading.adoc#rel-schema-columns,here>>.
 
 [NOTE]
 The default save mode for source and target nodes is `Match`.
 This means that the relationship will be created only if the nodes are already in your DB.
-Look at <<bookmark-node-save-modes,here>> for more info about node save modes.
+Look at <<node-save-modes,here>> for more info about node save modes.
 
 When using `Overwrite` or `Match` node save mode, you should specify which keys should be used to identify the nodes.
 
@@ -505,13 +505,13 @@ SET rel += event.rel
 ----
 
 [NOTE]
-Remember that you can choose to `CREATE` or `MERGE` the relationship with the <<bookmark-save-mode,save mode>>.
+Remember that you can choose to `CREATE` or `MERGE` the relationship with the <<save-mode,save mode>>.
 
 [NOTE]
 If the provided dataframe schema doesn't conform the required schema, meaning that none of the required column is present,
 the write will fail.
 
-[[bookmark-strategy-keys]]
+[[strategy-keys]]
 ==== Keys Strategy
 
 When you want more control on the relationship writing you can use the *KEYS* strategy.
@@ -519,7 +519,7 @@ When you want more control on the relationship writing you can use the *KEYS* st
 As the native strategy, you can specify node keys to identify nodes.
 In addition, you can also specify which columns should be written as nodes properties.
 
-[[bookmark-rel-specify-keys]]
+[[rel-specify-keys]]
 .Specify keys
 [source,scala]
 ----
@@ -596,7 +596,7 @@ musicDf.write
     .save()
 ----
 
-[[bookmark-node-save-modes]]
+[[node-save-modes]]
 ===== Node Save Modes
 
 You can specify 3 different modes to use for saving the nodes:

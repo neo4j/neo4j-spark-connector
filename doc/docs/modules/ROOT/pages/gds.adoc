@@ -53,6 +53,8 @@ df = spark.read.format("org.neo4j.spark.DataSource") \
     .load()
 ----
 
+[NOTE]
+If you get a "Graph Already Exists" error, take a look at this xref:faq.adoc#graph-already-exists[FAQ].
 
 [NOTE]
 **Ensure partitions is set to 1.  You do not want to execute this query in parallel, only once.**

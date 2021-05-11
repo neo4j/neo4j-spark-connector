@@ -67,7 +67,7 @@ You can solve it by adding APOC to your Neo4j installation; this will remove the
 all the values for that field will be casted to String. This because Spark is not schema free,
 and need each column to always have the same type.
 
-You can read more <<quickstart.adoc#bookmark-read-known-problem, here>>.
+You can read more <<quickstart.adoc#read-known-problem, here>>.
 
 == The returned columns are not in the same order as I specified in the query
 
@@ -95,3 +95,11 @@ Caused by: ClassNotFoundException: org.apache.spark.sql.sources.v2.ReadSupport
 
 This means that your Spark version doesn't match the Spark version on the connector.
 Please refer to xref:overview.adoc#_spark_compatibility[this page] to know which version you need.
+
+[[graph-already-exists]]
+== Getting "Failed to invoke procedure gds.graph.create.cypher: Caused by: java.lang.IllegalArgumentException: A graph with name [name] already exists."
+
+This might happen when creating a new graph using the GDS library.
+The issue here is that the query is run the first time to extract the DataFrame schema and then is run again to get the data.
+
+To avoid this issue we suggest using the xref:quickstart.adoc#user-defined-schema[user defined schema] approach.
