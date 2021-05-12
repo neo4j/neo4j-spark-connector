@@ -3,6 +3,7 @@
 * xref::configuration.adoc[Neo4j Driver Configuration]
 * xref::reading.adoc[Reading from Neo4j]
 * xref::writing.adoc[Writing to Neo4j]
+* xref::streaming.adoc[Structured Streaming API]
 * xref::python.adoc[Using with Pyspark / Python]
 * xref::gds.adoc[Using with Graph Data Science]
 * xref::neo4j-cluster.adoc[Using with Neo4j Causal Cluster]

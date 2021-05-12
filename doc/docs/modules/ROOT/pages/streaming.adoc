@@ -1,0 +1,42 @@
+
+= Using Spark Structured Streaming API
+
+Let's see how you can easily leverage the link:http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html[Spark Structured Streaming API] with the Neo4j Connector for Apache Spark.
+
+[NOTE]
+At the moment only the Sink mode is available.
+
+== Sink
+
+Writing a stream to Neo4j is pretty easy and can be done using any of the xref:writing.adoc#_write_data[3 write strategies].
+
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+/**
+ * Example is made with kafka, but can be any Spark Streaming Dataframe
+ */
+val df = spark
+  .readStream
+  .format("kafka")
+  .option("subscribe", "PeopleTopic")
+  .load()
+
+memStream.writeStream
+  .format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://localhost:7687")
+  .option("save.mode", "ErrorIfExists")
+  .option("checkpointLocation", "/tmp/checkpoint/myCheckPoint")
+  .option("labels", "Person")
+  .option("node.keys", "value")
+  .start()
+----
+
+As said, you can use any writing strategy: link:writing.adoc#write-node[Labels], link:writing.adoc#write-rel[Relationship], or link:writing.adoc#write-query[Query].
+
+The only difference is that you must set the `checkpointLocation` and `save.mode` options.
+
+With `save.mode` you can control how the data are written. More info link:writing.adoc#save-mode[here].

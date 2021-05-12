@@ -74,8 +74,6 @@ For `SaveMode.Append` mode you *need to have unique constrains on the keys*.
 
 In both cases the default SaveMode is `ErrorIfExists`.
 
-=== Using Save Mode with PySpark
-
 == Options
 
 The DataSource Writer has several options in order to connect and persist data into Neo4j.
@@ -165,7 +163,7 @@ The DataSource Writer has several options in order to connect and persist data i
 |No
 
 |`relationship.target.node.properties`
-|Map used as keys for specify the *target* properties. Only used if `relationship.save.strategy` is `keys`
+|Map used as keys for specify the *target* properties.Only used if `relationship.save.strategy` is `keys`
 |_(empty)_
 |No
 
@@ -175,6 +173,7 @@ The DataSource Writer has several options in order to connect and persist data i
 As the Neo4j Connector for Apache Spark provide batch writes in order to speed-up the ingestion process
 so if in the process at some point fails all the previous data is already persisted.
 
+[#_write_data]
 == Write Data
 
 Writing data to a Neo4j Database can be done in 3 ways:
