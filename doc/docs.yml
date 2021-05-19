@@ -12,7 +12,7 @@ output:
 
 ui:
   bundle:
-    url: https://s3-eu-west-1.amazonaws.com/static-content.neo4j.com/build/ui-bundle.zip
+    url: https://s3-eu-west-1.amazonaws.com/static-content.neo4j.com/build/ui-bundle-v0.11.2.zip
     snapshot: true
 
 urls:

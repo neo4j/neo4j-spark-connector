@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pypandoc
+          pip install pypandoc six
           pip install pyspark==${{ matrix.spark-version.ext }} "testcontainers[neo4j]"
       - name: Build artifact
         env:
