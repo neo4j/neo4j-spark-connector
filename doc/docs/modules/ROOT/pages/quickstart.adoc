@@ -27,7 +27,7 @@ The connector is also available from link:https://spark-packages.org/?q=neo4j-co
 
 [shell]
 ----
-$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-connector-apache-spark_2.12:4.0.1_for_spark_3
+$SPARK_HOME/bin/spark-shell --packages org.neo4j:neo4j-connector-apache-spark_2.12:4.0.1_for_spark_3
 ----
 
 === Using sbt
@@ -36,7 +36,7 @@ If you use the link:https://github.com/databricks/sbt-spark-package[sbt-spark-pa
 
 [shell]
 ----
-scala spDependencies += "neo4j-contrib/neo4j-connector-apache-spark_${scala.version}:4.0.1_for_spark_${spark.version}"
+scala spDependencies += "org.neo4j/neo4j-connector-apache-spark_${scala.version}:4.0.1_for_spark_${spark.version}"
 ----
 
 Otherwise:
@@ -44,7 +44,7 @@ Otherwise:
 [text]
 ----
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "neo4j-contrib" % "neo4j-connector-apache-spark_${scala.version}" % "4.0.1_for_spark_${spark.version}"
+libraryDependencies += "org.neo4j" % "neo4j-connector-apache-spark_${scala.version}" % "4.0.1_for_spark_${spark.version}"
 ----
 
 === Using Maven
@@ -76,7 +76,7 @@ libraryDependencies += "neo4j-contrib" % "neo4j-connector-apache-spark_${scala.v
 
 dependencies{
     // list of dependencies
-    compile "neo4j-contrib:neo4j-spark-connector:${connector.version}"
+    compile "org.neo4j:neo4j-spark-connector:${connector.version}"
 }
 
 repositories {
