@@ -19,7 +19,7 @@ PKG_TARGET_DIR=spark-$SPARK_VERSION/target
 cat << EOF > $PKG_TARGET_DIR/$ARTIFACT-$VERSION.pom
 <project>
 <modelVersion>4.0.0</modelVersion>
-<groupId>neo4j-contrib</groupId>
+<groupId>org.neo4j</groupId>
 <artifactId>$ARTIFACT</artifactId>
 <version>$VERSION</version>
 </project>

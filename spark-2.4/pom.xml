@@ -12,9 +12,9 @@
     <packaging>jar</packaging>
 
     <parent>
-        <groupId>neo4j-contrib</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>neo4j-connector-apache-spark</artifactId>
-        <version>4.0.1</version>
+        <version>4.0.2</version>
     </parent>
 
     <properties>
@@ -23,12 +23,12 @@
 
     <dependencies>
         <dependency>
-            <groupId>neo4j-contrib</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>neo4j-connector-apache-spark_${scala.binary.version}_common</artifactId>
             <version>${parent.version}</version>
         </dependency>
         <dependency>
-            <groupId>neo4j-contrib</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>neo4j-connector-apache-spark_${scala.binary.version}_test-support</artifactId>
             <version>${parent.version}</version>
             <scope>test</scope>

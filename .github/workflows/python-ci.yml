@@ -48,4 +48,4 @@ jobs:
         if: ${{ ! (matrix.spark-version.short == 2.4 && matrix.python-version == 3.8) }}
         run: |
           cd ./scripts/python
-          python test_spark.py "${{ matrix.spark-version.short }}" "${{ matrix.spark-version.scala }}" "${{ matrix.neo4j-version }}" "4.0.1"
+          python test_spark.py "${{ matrix.spark-version.short }}" "${{ matrix.spark-version.scala }}" "${{ matrix.neo4j-version }}" "4.0.2"
