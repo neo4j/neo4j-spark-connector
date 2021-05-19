@@ -55,7 +55,7 @@ libraryDependencies += "neo4j-contrib" % "neo4j-connector-apache-spark_${scala.v
 <dependencies>
   <!-- list of dependencies -->
   <dependency>
-    <groupId>neo4j-contrib</groupId>
+    <groupId>org.neo4j</groupId>
     <artifactId>neo4j-connector-apache-spark_${scala.version}</artifactId>
     <version>4.0.1_for_spark_${spark.version}</version>
   </dependency>

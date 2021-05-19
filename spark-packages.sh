@@ -17,7 +17,7 @@ VERSION=$1_for_spark_$SPARK_VERSION
 cat << EOF > target/$ARTIFACT-$VERSION.pom
 <project>
 <modelVersion>4.0.0</modelVersion>
-<groupId>neo4j-contrib</groupId>
+<groupId>org.neo4j</groupId>
 <artifactId>$ARTIFACT</artifactId>
 <version>$VERSION</version>
 </project>

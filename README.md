@@ -82,7 +82,7 @@ In your pom.xml, add:
 <dependencies>
   <!-- list of dependencies -->
   <dependency>
-    <groupId>neo4j-contrib</groupId>
+    <groupId>org.neo4j</groupId>
     <artifactId>neo4j-connector-apache-spark_2.11_2.4</artifactId>
     <version>4.0.0</version>
   </dependency>
@@ -102,7 +102,7 @@ In case of Spark 3
 <dependencies>
   <!-- list of dependencies -->
   <dependency>
-    <groupId>neo4j-contrib</groupId>
+    <groupId>org.neo4j</groupId>
     <artifactId>neo4j-connector-apache-spark_2.12_3</artifactId>
     <version>4.0.0</version>
   </dependency>
