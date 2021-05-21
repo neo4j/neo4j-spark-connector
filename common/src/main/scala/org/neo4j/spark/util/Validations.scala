@@ -36,7 +36,7 @@ object Validations extends Logging {
     val cache = new DriverCache(neo4jOptions.connection, jobId)
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
-      validateConnection(cache.getOrCreate().session(neo4jOptions.session.toNeo4jSession))
+      validateConnection(cache.getOrCreate().session(neo4jOptions.session.toNeo4jSession()))
 
       checkOptionsConsistency(neo4jOptions)
 
@@ -121,7 +121,7 @@ object Validations extends Logging {
     val cache = new DriverCache(neo4jOptions.connection, jobId)
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
-      validateConnection(cache.getOrCreate().session(neo4jOptions.session.toNeo4jSession))
+      validateConnection(cache.getOrCreate().session(neo4jOptions.session.toNeo4jSession()))
 
       checkOptionsConsistency(neo4jOptions)
 

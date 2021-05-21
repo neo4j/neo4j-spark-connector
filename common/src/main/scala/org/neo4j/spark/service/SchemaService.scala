@@ -29,7 +29,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
 
   private val queryReadStrategy = new Neo4jQueryReadStrategy(filters)
 
-  private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession)
+  private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
 
   private def structForNode(labels: Seq[String] = options.nodeMetadata.labels): StructType = {
     var structFields: mutable.Buffer[StructField] = (try {

@@ -5,10 +5,10 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.exceptions.{ClientException, Neo4jException, ServiceUnavailableException, SessionExpiredException, TransientException}
-import org.neo4j.driver.{Session, Transaction, Values}
+import org.neo4j.driver.{Bookmark, Session, Transaction, Values}
 import org.neo4j.spark.service._
 import org.neo4j.spark.util.Neo4jUtil.closeSafety
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil}
+import org.neo4j.spark.util.{DriverCache, Neo4jOptions}
 
 import java.time.Duration
 import java.util
@@ -37,6 +37,8 @@ abstract class BaseDataWriter(jobId: String,
 
   private val query: String = new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(saveMode)).createQuery()
 
+  private val bookmarks: scala.collection.mutable.Set[Bookmark] = new scala.collection.mutable.LinkedHashSet[Bookmark]()
+
   def write(record: InternalRow): Unit = {
     batch.add(mappingService.convert(record, structType))
     if (batch.size() == options.transactionMetadata.batchSize) {
@@ -47,7 +49,7 @@ abstract class BaseDataWriter(jobId: String,
   private def writeBatch(): Unit = {
     try {
       if (session == null || !session.isOpen) {
-        session = driverCache.getOrCreate().session(options.session.toNeo4jSession)
+        session = driverCache.getOrCreate().session(options.session.toNeo4jSession(bookmarks.toSeq))
       }
       if (transaction == null || !transaction.isOpen) {
         transaction = session.beginTransaction()
@@ -75,6 +77,7 @@ abstract class BaseDataWriter(jobId: String,
              |""".stripMargin)
       }
       transaction.commit()
+      bookmarks.add(session.lastBookmark())
       closeSafety(transaction)
       batch.clear()
     } catch {

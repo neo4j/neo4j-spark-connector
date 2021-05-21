@@ -227,12 +227,15 @@ case class Neo4jQueryMetadata(query: String, queryCount: String)
 case class Neo4jQueryOptions(queryType: QueryType.Value, value: String)
 
 case class Neo4jSessionOptions(database: String, accessMode: AccessMode = AccessMode.READ) {
-  def toNeo4jSession: SessionConfig = {
+  def toNeo4jSession(bookmarks: Seq[Bookmark] = Seq.empty): SessionConfig = {
     val builder = SessionConfig.builder()
       .withDefaultAccessMode(accessMode)
 
     if (database != null && database != "") {
       builder.withDatabase(database)
+    }
+    if (!bookmarks.isEmpty) {
+      builder.withBookmarks(bookmarks.asJava)
     }
 
     builder.build()

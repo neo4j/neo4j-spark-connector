@@ -34,7 +34,7 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
 
   def next: Boolean = {
     if (result == null) {
-      session = driverCache.getOrCreate().session(options.session.toNeo4jSession)
+      session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
       transaction = session.beginTransaction()
       log.info(s"Running the following query on Neo4j: $query")
       result = transaction.run(query, Values.value(getQueryParameters))
