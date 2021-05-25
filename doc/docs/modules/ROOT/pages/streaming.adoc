@@ -40,3 +40,11 @@ As said, you can use any writing strategy: link:writing.adoc#write-node[Labels],
 The only difference is that you must set the `checkpointLocation` and `save.mode` options.
 
 With `save.mode` you can control how the data are written. More info link:writing.adoc#save-mode[here].
+
+=== Checkpoint
+
+The **checkpoint** is a file that allows Spark Structured Streaming to recover from failures.
+Spark updates this file with the progress information and recover from that point in case of failure or query restart.
+**This checkpoint location has to be a path in an HDFS compatible file system.**
+
+Since the topic is wide and complex, we suggest you to read the link:https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#recovering-from-failures-with-checkpointing[official Spark documentation page].
