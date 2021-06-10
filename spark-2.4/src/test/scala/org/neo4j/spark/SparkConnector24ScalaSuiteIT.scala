@@ -12,6 +12,7 @@ import org.junit.runners.Suite
   classOf[DataSourceWriterNeo4j4xTSE],
   classOf[DataSourceReaderNeo4j35xTSE],
   classOf[DefaultConfigTSE],
-  classOf[DataSourceStreamingTSE]
+  classOf[DataSourceStreamingWriterTSE],
+  classOf[DataSourceStreamingReaderTSE]
 ))
 class SparkConnector24ScalaSuiteIT extends SparkConnectorScalaSuiteIT {}

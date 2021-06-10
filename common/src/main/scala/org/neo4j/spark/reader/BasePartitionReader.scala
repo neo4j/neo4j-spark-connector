@@ -7,8 +7,8 @@ import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.{Record, Session, Transaction, Values}
 import org.neo4j.spark.service.{MappingService, Neo4jQueryReadStrategy, Neo4jQueryService, Neo4jQueryStrategy, Neo4jReadMappingStrategy, PartitionSkipLimit}
 import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil}
-import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
 
+import java.util
 import scala.collection.JavaConverters._
 
 abstract class BasePartitionReader(private val options: Neo4jOptions,
@@ -29,17 +29,26 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
 
   private val mappingService = new MappingService(new Neo4jReadMappingStrategy(options, requiredColumns), options)
 
+  private lazy val values: util.Map[String, AnyRef] = Map(Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT -> scriptResult).asJava
+    .asInstanceOf[util.Map[String, AnyRef]]
+
   def next: Boolean = {
     if (result == null) {
       session = driverCache.getOrCreate().session(options.session.toNeo4jSession)
       transaction = session.beginTransaction()
       log.info(s"Running the following query on Neo4j: $query")
-      result = transaction.run(query, Values
-        .value(Map[String, AnyRef](Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT -> scriptResult).asJava))
+      result = transaction.run(query, Values.value(getQueryParameters))
         .asScala
     }
 
     result.hasNext
+  }
+
+  protected def getQueryParameters: util.Map[String, AnyRef] = {
+    if (log.isDebugEnabled) {
+      log.debug(s"Query Parameters are: $values")
+    }
+    values
   }
 
   def get: InternalRow = mappingService.convert(result.next(), schema)

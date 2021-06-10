@@ -4,7 +4,7 @@ import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionRead
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.service.{PartitionSkipLimit, SchemaService}
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions}
+import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil}
 
 import scala.collection.JavaConverters.seqAsJavaListConverter
 
@@ -22,29 +22,11 @@ class SimpleScan(
 
   var scriptResult: java.util.List[java.util.Map[String, AnyRef]] = _
 
-  private def callSchemaService[T](function: SchemaService => T): T = {
-    val driverCache = new DriverCache(neo4jOptions.connection, jobId)
-    val schemaService = new SchemaService(neo4jOptions, driverCache)
-    var hasError = false
-    try {
-      function(schemaService)
-    } catch {
-      case e: Throwable =>
-        hasError = true
-        throw e
-    } finally {
-      schemaService.close()
-      if (hasError) {
-        driverCache.close()
-      }
-    }
-  }
-
   private def createPartitions() = {
     // we get the skip/limit for each partition and execute the "script"
-    val (partitionSkipLimitList, scriptResult) = callSchemaService { schemaService =>
+    val (partitionSkipLimitList, scriptResult) = Neo4jUtil.callSchemaService(neo4jOptions, jobId, filters, { schemaService =>
       (schemaService.skipLimitFromPartition(), schemaService.execute(neo4jOptions.script))
-    }
+    })
     // we generate a partition for each element
     this.scriptResult = scriptResult
     partitionSkipLimitList

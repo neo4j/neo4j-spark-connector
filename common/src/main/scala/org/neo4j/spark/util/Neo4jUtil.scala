@@ -1,8 +1,5 @@
 package org.neo4j.spark.util
 
-import java.time._
-import java.time.format.DateTimeFormatter
-import java.util.Properties
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.{JsonSerializer, ObjectMapper, SerializerProvider}
@@ -17,10 +14,13 @@ import org.neo4j.driver.internal._
 import org.neo4j.driver.types.{Entity, Path}
 import org.neo4j.driver.{Session, Transaction, Value, Values}
 import org.neo4j.spark.service.SchemaService
-import org.neo4j.spark.util.Neo4jImplicits.EntityImplicits
+import org.neo4j.spark.util.Neo4jImplicits.{EntityImplicits, _}
+import org.neo4j.spark.util.Validations.validateConnection
 import org.slf4j.Logger
 
-import org.neo4j.spark.util.Neo4jImplicits._
+import java.time._
+import java.time.format.DateTimeFormatter
+import java.util.Properties
 import scala.collection.JavaConverters._
 
 object Neo4jUtil {
@@ -279,4 +279,32 @@ object Neo4jUtil {
       case not: Not => mapSparkFiltersToCypher(not.child, container, attributeAlias).not()
       case filter@(_: Filter) => throw new IllegalArgumentException(s"Filter of type `${filter}` is not supported.")
     }
+
+  def getStreamingPropertyName(options: Neo4jOptions) = options.query.queryType match {
+    case QueryType.RELATIONSHIP => s"rel.${options.streamingOptions.propertyName}"
+    case _ => options.streamingOptions.propertyName
+  }
+
+  def callSchemaService[T](neo4jOptions: Neo4jOptions,
+                           jobId: String,
+                           filters: Array[Filter],
+                           function: SchemaService => T): T = {
+    val driverCache = new DriverCache(neo4jOptions.connection, jobId)
+    val schemaService = new SchemaService(neo4jOptions, driverCache, filters)
+    var hasError = false
+    try {
+      function(schemaService)
+    } catch {
+      case e: Throwable => {
+        hasError = true
+        throw e
+      }
+    } finally {
+      schemaService.close()
+      if (hasError) {
+        driverCache.close()
+      }
+    }
+  }
+
 }

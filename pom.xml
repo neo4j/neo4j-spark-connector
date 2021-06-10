@@ -51,7 +51,7 @@
         <scala.binary.version>2.12</scala.binary.version>
         <neo4j.version>4.0.8</neo4j.version>
         <driver.version>4.2.5</driver.version>
-        <spark.version>2.4.5</spark.version>
+        <spark.version>2.4.7</spark.version>
         <neo4j.experimental>false</neo4j.experimental>
         <testcontainers.version>1.15.3</testcontainers.version>
         <xbean.version>4.10</xbean.version>

@@ -7,7 +7,7 @@ import org.apache.spark.sql.sources.v2.DataSourceOptions
 import org.apache.spark.sql.sources.v2.reader.{DataSourceReader, InputPartition, SupportsPushDownFilters, SupportsPushDownRequiredColumns}
 import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.service.SchemaService
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Validations}
+import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, Validations}
 
 import scala.collection.JavaConverters._
 
@@ -25,30 +25,11 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
   private val structType = if (userDefinedSchema != null) {
     userDefinedSchema
   } else {
-    callSchemaService { schemaService => schemaService
-      .struct() }
+    Neo4jUtil.callSchemaService(neo4jOptions, jobId, filters, { schemaService => schemaService
+      .struct() })
   }
 
   override def readSchema(): StructType = structType
-
-  private def callSchemaService[T](function: SchemaService => T): T = {
-    val driverCache = new DriverCache(neo4jOptions.connection, jobId)
-    val schemaService = new SchemaService(neo4jOptions, driverCache)
-    var hasError = false
-    try {
-      function(schemaService)
-    } catch {
-      case e: Throwable => {
-        hasError = true
-        throw e
-      }
-    } finally {
-      schemaService.close()
-      if (hasError) {
-        driverCache.close()
-      }
-    }
-  }
 
   override def planInputPartitions: util.ArrayList[InputPartition[InternalRow]] = {
     // we retrieve the schema in order to parse the data correctly
@@ -59,8 +40,8 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
 
   private def createPartitions(schema: StructType) = {
     // we get the skip/limit for each partition and execute the "script"
-    val (partitionSkipLimitList, scriptResult) = callSchemaService { schemaService =>
-      (schemaService.skipLimitFromPartition(), schemaService.execute(neo4jOptions.script)) }
+    val (partitionSkipLimitList, scriptResult) = Neo4jUtil.callSchemaService(neo4jOptions, jobId, filters, { schemaService =>
+      (schemaService.skipLimitFromPartition(), schemaService.execute(neo4jOptions.script)) })
     // we generate a partition for each element
     partitionSkipLimitList
       .map(partitionSkipLimit => new Neo4jInputPartition(neo4jOptions, filters, schema, jobId,

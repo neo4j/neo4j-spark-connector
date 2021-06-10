@@ -6,7 +6,7 @@ import org.apache.spark.sql.connector.write.{BatchWrite, SupportsOverwrite, Supp
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.AccessMode
-import org.neo4j.spark.stream.Neo4jStreamingWriter
+import org.neo4j.spark.streaming.Neo4jStreamingWriter
 import org.neo4j.spark.util.{Neo4jOptions, NodeSaveMode, ValidationUtil, Validations}
 
 class Neo4jWriterBuilder(queryId: String,

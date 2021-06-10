@@ -196,7 +196,9 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       return new StructType()
     }
 
-    val params = Collections.singletonMap[String, AnyRef](Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT, Collections.emptyList())
+    val params = Map[String, AnyRef](Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT -> Collections.emptyList(),
+      Neo4jQueryStrategy.VARIABLE_STREAM -> Collections.emptyMap())
+      .asJava
     val structFields = retrieveSchema(query, params, { record => record.asMap.asScala.toMap })
 
     val columns = getReturnedColumns(query)
@@ -224,37 +226,8 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     StructType(sortedStructFields)
   }
 
-  private def getReturnedColumns(query: String): Array[String] = {
-    val plan = session.run(s"EXPLAIN $query").consume().plan()
-
-    if (plan.arguments().containsKey("Details")) {
-      plan.arguments()
-        .get("Details")
-        .asString()
-        .replaceAll("\"", "")
-        .split(',')
-        .map(_.trim)
-    }
-    else {
-      val lastChild = plan.children().get(0)
-
-      lastChild.operatorType() match {
-        case "EagerAggregation" => lastChild.identifiers().asScala.toArray
-        case "ProcedureCall" => plan.identifiers().asScala.toArray
-        case _ =>
-          try {
-            val expressions = lastChild.arguments().get("Expressions").asString()
-            val firstLevelExpressions = "\\{(.*?)}".r.replaceAllIn(expressions.substring(1,expressions.length-1),"_")
-
-            "([^,:]*?):".r.findAllMatchIn(firstLevelExpressions).map(_.group(1).trim).toArray
-          } catch {
-            case e: Exception =>
-              log.warn(s"I was unable to understand the returned column using EXPLAIN due to '${e.getMessage}'")
-              Array.empty
-          }
-      }
-    }
-  }
+  private def getReturnedColumns(query: String): Array[String] = session.run("EXPLAIN " + query)
+    .keys().asScala.toArray
 
   def struct(): StructType = {
     val struct = options.query.queryType match {
@@ -394,7 +367,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   }
 
-  def count(filters: Array[Filter] = Array.empty[Filter]): Long = options.query.queryType match {
+  def count(filters: Array[Filter] = this.filters): Long = options.query.queryType match {
     case QueryType.LABELS => countForNode(filters)
     case QueryType.RELATIONSHIP => countForRelationship(filters)
     case QueryType.QUERY => countForQuery()
@@ -593,6 +566,40 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
           }
         })
     }
+  }
+
+  private def lastOffsetForNode(): Long = {
+    val label = options.nodeMetadata.labels.head
+    session.run(
+      s"""MATCH (n:$label)
+        |RETURN max(n.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin)
+      .single()
+      .get(options.streamingOptions.propertyName)
+      .asLong(-1)
+  }
+
+  private def lastOffsetForRelationship(): Long = {
+    val sourceLabel = options.relationshipMetadata.source.labels.head.quote()
+    val targetLabel = options.relationshipMetadata.target.labels.head.quote()
+    val relType = options.relationshipMetadata.relationshipType.quote()
+
+    session.run(
+      s"""MATCH (s:$sourceLabel)-[r:$relType]->(t:$targetLabel)
+         |RETURN max(r.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin)
+      .single()
+      .get(options.streamingOptions.propertyName)
+      .asLong(-1)
+  }
+
+  private def lastOffsetForQuery(): Long = session.run(options.streamingOptions.queryOffset)
+    .single()
+    .get(0)
+    .asLong(-1)
+
+  def lastOffset(): Long = options.query.queryType match {
+    case QueryType.LABELS => lastOffsetForNode()
+    case QueryType.RELATIONSHIP => lastOffsetForRelationship()
+    case QueryType.QUERY => lastOffsetForQuery()
   }
 
   private def logSchemaResolutionChange(e: ClientException): Unit = {

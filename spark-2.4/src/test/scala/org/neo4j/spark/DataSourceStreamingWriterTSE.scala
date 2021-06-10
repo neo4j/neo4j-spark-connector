@@ -10,7 +10,7 @@ import org.neo4j.spark.Assert.ThrowingSupplier
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
-class DataSourceStreamingTSE extends SparkConnectorScalaBaseTSE {
+class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
 
   private var query: StreamingQuery = null
 

@@ -1,4 +1,4 @@
-package org.neo4j.spark.stream
+package org.neo4j.spark.streaming
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SaveMode, SparkSession}

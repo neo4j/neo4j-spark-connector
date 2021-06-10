@@ -1,14 +1,14 @@
 package org.neo4j.spark
 
-import java.util.UUID
 import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.sources.DataSourceRegister
+import org.apache.spark.sql.sources.{DataSourceRegister, Filter}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util.Validations.validateConnection
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Validations}
+import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, Validations}
+
+import java.util.UUID
 
 class DataSource extends TableProvider
   with DataSourceRegister {
@@ -21,26 +21,13 @@ class DataSource extends TableProvider
 
   private var neo4jOptions: Neo4jOptions = null
 
-  private def callSchemaService[T](neo4jOptions: Neo4jOptions, function: SchemaService => T): T = {
-    val driverCache = new DriverCache(neo4jOptions.connection, jobId)
-    val schemaService = new SchemaService(neo4jOptions, driverCache)
-    try {
-      validateConnection(driverCache.getOrCreate().session(neo4jOptions.session.toNeo4jSession))
-      function(schemaService)
-    } catch {
-      case e: Throwable =>
-        throw e
-    } finally {
-      schemaService.close()
-      driverCache.close()
-    }
-  }
-
   override def supportsExternalMetadata(): Boolean = true
 
   override def inferSchema(caseInsensitiveStringMap: CaseInsensitiveStringMap): StructType = {
     if (schema == null) {
-      schema = callSchemaService(getNeo4jOptions(caseInsensitiveStringMap),  { schemaService => schemaService.struct() })
+      val neo4jOpts = getNeo4jOptions(caseInsensitiveStringMap)
+      validateConnection(new util.DriverCache(neo4jOpts.connection, jobId).getOrCreate().session(neo4jOptions.session.toNeo4jSession))
+      schema = Neo4jUtil.callSchemaService(neo4jOpts, jobId, Array.empty[Filter], { schemaService => schemaService.struct() })
     }
 
     schema

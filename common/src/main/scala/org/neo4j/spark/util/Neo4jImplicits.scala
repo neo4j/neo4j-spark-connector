@@ -1,7 +1,7 @@
 package org.neo4j.spark.util
 
 import javax.lang.model.SourceVersion
-import org.apache.spark.sql.types.{DataTypes, MapType, StructField, StructType}
+import org.apache.spark.sql.types.{DataType, DataTypes, MapType, StructField, StructType}
 import org.neo4j.driver.types.{Entity, Node, Relationship}
 import org.neo4j.spark.service.SchemaService
 import org.apache.spark.sql.sources.{EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, StringContains, StringEndsWith, StringStartsWith}
@@ -92,6 +92,21 @@ object Neo4jImplicits {
       case _ => null
     })
 
+    def getValue: Option[Any] = Option(filter match {
+      case eqns: EqualNullSafe => eqns.value
+      case eq: EqualTo => eq.value
+      case gt: GreaterThan => gt.value
+      case gte: GreaterThanOrEqual => gte.value
+      case lt: LessThan => lt.value
+      case lte: LessThanOrEqual => lte.value
+      case in: In => in.values
+      case startWith: StringStartsWith => startWith.value
+      case endsWith: StringEndsWith => endsWith.value
+      case contains: StringContains => contains.value
+      case not: Not => not.child.getValue.orNull
+      case _ => null
+    })
+
     def isAttribute(entityType: String): Boolean = {
       getAttribute.exists(_.contains(s"$entityType."))
     }
@@ -104,6 +119,13 @@ object Neo4jImplicits {
       val value: String = """(`.*`)|([^\.]*)""".r.findFirstIn(field).getOrElse("")
       structFieldName == value.unquote() || structFieldName == value
     }
+
+    def getByName(name: String): Option[StructField] = {
+      val index = structType.fieldIndex(name)
+      if (index > -1) Some(structType(index)) else None
+    }
+
+    def getFieldIndex(fieldName: String): Long = structType.fields.map(_.name).indexOf(fieldName)
 
     def getMissingFields(fields: Set[String]): Set[String] = fields
       .map(field => {

@@ -10,7 +10,7 @@ import org.apache.spark.sql.sources.v2.writer.streaming.StreamWriter
 import org.apache.spark.sql.streaming.OutputMode
 import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.reader.Neo4jDataSourceReader
-import org.neo4j.spark.stream.Neo4jDataSourceStreamWriter
+import org.neo4j.spark.streaming.{Neo4jMicroBatchReader, Neo4jDataSourceStreamWriter}
 import org.neo4j.spark.util.{Neo4jOptions, Validations}
 import org.neo4j.spark.writer.Neo4jDataSourceWriter
 
@@ -18,6 +18,7 @@ import java.util.{Optional, UUID}
 
 class DataSource extends DataSourceV2
   with StreamWriteSupport
+  with MicroBatchReadSupport
   with ReadSupport
   with DataSourceRegister
   with WriteSupport {
@@ -59,4 +60,8 @@ class DataSource extends DataSourceV2
     }
     streamWriter
   }
+
+  override def createMicroBatchReader(schema: Optional[StructType],
+                                      checkpointLocation: String,
+                                      options: DataSourceOptions): MicroBatchReader = new Neo4jMicroBatchReader(schema, options, jobId)
 }

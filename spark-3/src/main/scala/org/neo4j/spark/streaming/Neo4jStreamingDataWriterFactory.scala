@@ -1,4 +1,4 @@
-package org.neo4j.spark.stream
+package org.neo4j.spark.streaming
 
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.catalyst.InternalRow
