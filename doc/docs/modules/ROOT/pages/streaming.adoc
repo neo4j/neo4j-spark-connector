@@ -3,8 +3,37 @@
 
 Let's see how you can easily leverage the link:http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html[Spark Structured Streaming API] with the Neo4j Connector for Apache Spark.
 
-[NOTE]
-At the moment only the Sink mode is available.
+
+== Neo4j Streaming Options
+
+.List of available streaming options
+|===
+|Setting Name |Description |Default Value |Required
+
+4+|*Sink*
+
+|`checkpointLocation`
+|Checkpoint file location (xref:#_checkpoint[see more])
+|_(none)_
+|Yes^*^
+
+4+|*Source*
+
+|`streaming.property.name`
+|The timestamp property used for batch reading. Read more xref:#_streaming_property_name[here].
+|_(none)_
+|Yes^*^
+
+|`streaming.from`
+|This option is used to tell the connector from where to send data to the stream.
+
+**NOW**: start streaming from the moment the stream starts
+
+**ALL**: send all the data in the DB to the stream before reading new data
+|`ALL`
+|Yes^*^
+
+|===
 
 == Sink
 
@@ -48,3 +77,58 @@ Spark updates this file with the progress information and recover from that poin
 **This checkpoint location has to be a path in an HDFS compatible file system.**
 
 Since the topic is wide and complex, we suggest you to read the link:https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#recovering-from-failures-with-checkpointing[official Spark documentation page].
+
+== Source
+
+Reading a stream from Neo4j requires some additional configuration.
+
+Let's see the code first and then we can analyze all the options.
+
+
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+val stream = spark.readStream
+    .format("org.neo4j.spark.DataSource")
+    .option("url", "bolt://localhost:7687")
+    .option("labels", "Person")
+    .option("streaming.property.name", "timestamp")
+    .option("streaming.from", "NOW")
+    .load()
+
+// Memory streaming format writes the streamed data to a SparkSQL table
+query = stream.writeStream
+    .format("memory")
+    .queryName("testReadStream")
+    .start()
+
+spark
+  .sql("select * from testReadStream order by timestamp")
+  .show()
+----
+
+=== Streaming Property Name
+
+For the streaming to work, we need each record to have a property of type `timestamp`
+to leverage when reading new data from Neo4j to be sent to the stream.
+
+Behind the scenes the connector is building a query with a where clause that checks for the records that have
+`[timestampProperty] >= currentTimestamp()`.
+
+So it's required that each node that has the timestamp property.
+The property name can be anything, just remember to set the `streaming.property.name` accordingly.
+
+=== Streaming From
+
+You can decide to stream all the data in the db, or just the new ones.
+To achieve this you can set the `streaming.from` option to one of these two values:
+
+* `ALL`: will read all the data that matches they given options, once read those, will read the ones that has `[timestampProperty] >= currentTimestamp()`. This is the **default value for this option**.
+* `NOW`: will start reading the data that has the `[timestampProperty] >= currentTimestamp()`
+
+=== Reading mode
+
+As for Sink mode, you can use any of the reading strategies: link:reading.adoc#read-node[Labels], link:reading.adoc#read-rel[Relationship], or link:reading.adoc#read-query[Query].
