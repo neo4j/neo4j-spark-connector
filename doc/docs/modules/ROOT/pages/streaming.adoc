@@ -132,3 +132,8 @@ To achieve this you can set the `streaming.from` option to one of these two valu
 === Reading mode
 
 As for Sink mode, you can use any of the reading strategies: link:reading.adoc#read-node[Labels], link:reading.adoc#read-rel[Relationship], or link:reading.adoc#read-query[Query].
+
+[NOTE]
+The same xref:quickstart.adoc#_schema[schema concepts] also apply here.
+If you start a streaming read with an empty result set, you need to specify the schema using
+the xref:quickstart.adoc#user-defined-schema[user defined schema], or the batch read will fail.
