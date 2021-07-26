@@ -21,6 +21,7 @@ import java.time._
 import java.time.format.DateTimeFormatter
 import java.util.Properties
 import org.neo4j.spark.util.Neo4jImplicits._
+import org.neo4j.spark.util.Validations.validateConnection
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
@@ -335,6 +336,28 @@ object Neo4jUtil {
       schemaService.close()
       if (hasError) {
         driverCache.close()
+      }
+    }
+  }
+
+  def checkConnection(neo4jOptions: Neo4jOptions, jobId: String): Unit = {
+    var driverCache: DriverCache = null
+    var session: Session = null
+    var hasError = false
+    try {
+      driverCache = new DriverCache(neo4jOptions.connection, jobId)
+      session = driverCache.getOrCreate()
+        .session(neo4jOptions.session.toNeo4jSession())
+      validateConnection(session)
+    } catch {
+      case e: Throwable => {
+        hasError = true
+        throw e
+      }
+    } finally {
+      Neo4jUtil.closeSafety(session)
+      if (hasError) {
+        Neo4jUtil.closeSafety(driverCache)
       }
     }
   }

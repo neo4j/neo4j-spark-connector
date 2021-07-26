@@ -36,6 +36,18 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
+  def testNodeMultipleLabelsWithPartitions(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(partitionSkipLimit = PartitionSkipLimit(0, 0, 100))).createQuery()
+
+    assertEquals("MATCH (n:`Person`:`Player`:`Midfield`) RETURN n ORDER BY id(n) SKIP 0 LIMIT 100", query)
+  }
+
+  @Test
   def testNodeLabelWithNoSelectedColumns(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
@@ -221,6 +233,34 @@ class Neo4jQueryServiceTest {
     assertEquals("MATCH (source:`Person`) " +
       "MATCH (target:`Person`) " +
       "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, id(source) AS `<source.id>`", query)
+  }
+
+  @Test
+  def testRelationshipWithMoreColumnSelectedWithPartitions(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "false")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
+      Array[Filter](),
+      PartitionSkipLimit(0, 0, 100),
+      List("source.name", "<source.id>")
+    )).createQuery()
+
+    assertEquals("""MATCH (source:`Person`)
+                   |MATCH (target:`Person`)
+                   |MATCH (source)-[rel:`KNOWS`]->(target)
+                   |RETURN source.name AS `source.name`, id(source) AS `<source.id>`
+                   |ORDER BY id(rel)
+                   |SKIP 0
+                   |LIMIT 100"""
+                    .stripMargin
+                    .replace(System.lineSeparator(), " "),
+      query)
   }
 
   @Test

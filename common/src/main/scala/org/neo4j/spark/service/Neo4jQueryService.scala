@@ -125,7 +125,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
 
     val returnExpressions: Seq[Expression] = buildReturnExpression(sourceNode,targetNode, relationship)
 
-    renderer.render(buildStatement(matchQuery.returning(returnExpressions : _*)))
+    renderer.render(buildStatement(matchQuery.returning(returnExpressions : _*), relationship))
   }
 
   private def buildReturnExpression(sourceNode: Node, targetNode: Node, relationship: Relationship): Seq[Expression] = {
@@ -163,9 +163,21 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     }
   }
 
-  private def buildStatement(returning: StatementBuilder.OngoingReadingAndReturn) =
+  private def buildStatement(returning: StatementBuilder.OngoingReadingAndReturn,
+                             entity: PropertyContainer = null) =
     if (partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1) {
-      returning.skip[TerminalExposesLimit with BuildableStatement](partitionSkipLimit.skip)
+      val ret = if (entity != null) {
+        val id = if (entity.isInstanceOf[Node]) {
+          Functions.id(entity.asInstanceOf[Node])
+        } else {
+          Functions.id(entity.asInstanceOf[Relationship])
+        }
+        returning.orderBy(id)
+      } else {
+        returning
+      }
+      ret
+        .skip[TerminalExposesLimit with BuildableStatement](partitionSkipLimit.skip)
         .limit(partitionSkipLimit.limit)
         .build()
     } else {
@@ -231,7 +243,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     val node = createNode(Neo4jUtil.NODE_ALIAS, options.nodeMetadata.labels)
     val matchQuery = filterNode(node)
     val returning = returnRequiredColumns(node, matchQuery)
-    renderer.render(buildStatement(returning))
+    renderer.render(buildStatement(returning, node))
   }
 
   private def filterNode(node: Node) = {

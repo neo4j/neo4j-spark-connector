@@ -211,7 +211,7 @@ object Validations extends Logging {
       session.run("EXPLAIN RETURN 1").consume()
     }
     finally {
-      session.close()
+      Neo4jUtil.closeSafety(session)
     }
   }
 }
