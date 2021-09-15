@@ -26,11 +26,12 @@ Let's see how you can easily leverage the link:http://spark.apache.org/docs/late
 
 |`streaming.from`
 |This option is used to tell the connector from where to send data to the stream.
+Read more xref:#_streaming_from[here].
 
 **NOW**: start streaming from the moment the stream starts
 
 **ALL**: send all the data in the DB to the stream before reading new data
-|`ALL`
+|`NOW`
 |Yes^*^
 
 |===
@@ -98,8 +99,14 @@ val stream = spark.readStream
     .option("streaming.property.name", "timestamp")
     .option("streaming.from", "NOW")
     .load()
+----
 
+[source,scala]
+----
 // Memory streaming format writes the streamed data to a SparkSQL table
+// NOTE: make sure this code is executed in another block,
+// or at least seconds later the previous one to allow the full initialization of the stream.
+// The risk is that the query will return an empty result.
 query = stream.writeStream
     .format("memory")
     .queryName("testReadStream")
@@ -115,10 +122,15 @@ spark
 For the streaming to work, we need each record to have a property of type `timestamp`
 to leverage when reading new data from Neo4j to be sent to the stream.
 
-Behind the scenes the connector is building a query with a where clause that checks for the records that have
-`[timestampProperty] >= currentTimestamp()`.
+Behind the scenes the connector is building a query with a where clause that checks for the
+records that have`[timestampProperty] >= currentTimestamp() AND [timestampProperty] IS NOT NULL`.
 
-So it's required that each node that has the timestamp property.
+So it's required that each node that has the timestamp property of a Neo4j type (datetime or timestamps),
+and it *must* be not null.
+
+[NOTE]
+A property of type string like "2021-08-11" won't work. It needs to be a datetime or timestamp Neo4j type.
+
 The property name can be anything, just remember to set the `streaming.property.name` accordingly.
 
 === Streaming From
