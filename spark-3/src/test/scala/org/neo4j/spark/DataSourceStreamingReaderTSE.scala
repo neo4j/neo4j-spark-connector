@@ -502,7 +502,6 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       }
     })
 
-    val counter = new AtomicInteger(0)
     Assert.assertEventually(new Assert.ThrowingSupplier[Boolean, Exception] {
       override def get(): Boolean = {
         val df = ss.sql("select * from testReadStream ")

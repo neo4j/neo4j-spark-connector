@@ -5,9 +5,7 @@ import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.sources.{DataSourceRegister, Filter}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-import org.neo4j.driver.{Driver, Session}
-import org.neo4j.spark.util.Validations.validateConnection
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, Validations}
+import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, Validations}
 
 import java.util.UUID
 

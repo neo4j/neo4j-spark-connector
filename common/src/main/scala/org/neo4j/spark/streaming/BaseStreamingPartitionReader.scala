@@ -17,6 +17,7 @@ class BaseStreamingPartitionReader(private val options: Neo4jOptions,
                                    private val jobId: String,
                                    private val partitionSkipLimit: PartitionSkipLimit,
                                    private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
+                                   private val offsetAccumulator: OffsetAccumulator,
                                    private val requiredColumns: StructType) extends BasePartitionReader(options,
     filters,
     schema,
@@ -50,11 +51,13 @@ class BaseStreamingPartitionReader(private val options: Neo4jOptions,
   private def updateOffset(row: InternalRow) = {
     val fieldIndex = schema.fieldIndex(prop)
     val timestamp = schema(fieldIndex).dataType match {
-        case DataTypes.LongType => row.getLong(fieldIndex)
-        case _ => row.getUTF8String(fieldIndex).toString.toLong
-      }
-    OffsetStorage.setLastOffset(jobId, timestamp)
+      case DataTypes.LongType => row.getLong(fieldIndex)
+      case _ => row.getUTF8String(fieldIndex).toString.toLong
+    }
+    getAccumulator.add(timestamp)
   }
+
+  protected def getAccumulator(): OffsetAccumulator = offsetAccumulator
 
   override protected def getQueryParameters: util.Map[String, Any] = values
 

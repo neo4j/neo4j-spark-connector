@@ -1,10 +1,12 @@
 package org.neo4j.spark.streaming
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.read.streaming.{MicroBatchStream, Offset}
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory}
 import org.apache.spark.sql.sources.{Filter, GreaterThan}
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.util.LongAccumulator
 import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util._
 
@@ -16,6 +18,8 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
                             private val jobId: String)
   extends MicroBatchStream
     with Logging {
+
+  private lazy val offsetAccumulator = OffsetAccumulator.register(jobId)
 
   private val driverCache = new DriverCache(neo4jOptions.connection, jobId)
 
@@ -55,12 +59,12 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
   }
 
   override def stop(): Unit = {
-    OffsetStorage.clearForJobId(jobId)
+    offsetAccumulator.reset()
     new DriverCache(neo4jOptions.connection, jobId).close()
   }
 
   override def latestOffset(): Offset = {
-    val lastReadOffset: lang.Long = OffsetStorage.getLastOffset(jobId)
+    val lastReadOffset: lang.Long = offsetAccumulator.value
 
     // the current offset is build by the last read offset, if any, or from the last used offset
     var currentOffset: Neo4jOffset = if (lastReadOffset == null) {
@@ -70,8 +74,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
       }
 
       lastUsedOffset
-    }
-    else {
+    } else {
       Neo4jOffset(lastReadOffset)
     }
 
@@ -103,7 +106,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
 
   override def createReaderFactory(): PartitionReaderFactory = {
     new SimpleStreamingPartitionReaderFactory(
-      neo4jOptions, optionalSchema.orElse(new StructType()), jobId, scriptResult
+      neo4jOptions, optionalSchema.orElse(new StructType()), jobId, scriptResult, offsetAccumulator
     )
   }
 }

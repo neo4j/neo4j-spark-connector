@@ -24,6 +24,8 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
   private val neo4jOptions: Neo4jOptions = new Neo4jOptions(options.asMap())
     .validate(options => Validations.read(options, jobId))
 
+  private lazy val offsetAccumulator = OffsetAccumulator.register(jobId)
+
   private var filters: Array[Filter] = Array[Filter]()
 
   private var startOffset: Neo4jOffset24 = null
@@ -73,7 +75,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
   }
 
   private def setEndOffset(end: Optional[Offset]) = {
-    val lastOffset: lang.Long = OffsetStorage.getLastOffset(jobId)
+    val lastOffset: java.lang.Long = offsetAccumulator.value
     endOffset = end
       .map(new function.Function[Offset, Offset] {
         override def apply(o: Offset): Offset = if (lastOffset == null || o.asInstanceOf[Neo4jOffset24].offset > lastOffset) o else Neo4jOffset24(lastOffset)
@@ -112,14 +114,14 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
       { schemaService => schemaService.skipLimitFromPartition() })
     val partitions = numPartitions
       .map(partitionSkipLimit => new Neo4jStreamingInputPartition(neo4jOptions, filters, schema, jobId,
-        partitionSkipLimit, Collections.emptyList(), new StructType()))
+        partitionSkipLimit, Collections.emptyList(), offsetAccumulator, new StructType()))
       .toList
       .asJavaCollection
     new util.ArrayList[InputPartition[InternalRow]](partitions)
   }
 
   override def stop(): Unit = {
-    OffsetStorage.clearForJobId(jobId)
+    offsetAccumulator.reset()
     if (startedExecution) {
         StructTypeStreamingStorage.clearForJobId(jobId)
     }

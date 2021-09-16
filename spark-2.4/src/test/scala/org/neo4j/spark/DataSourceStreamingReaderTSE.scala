@@ -3,12 +3,11 @@ package org.neo4j.spark
 import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.hamcrest.Matchers
-import org.junit
 import org.junit.Assert.assertEquals
-import org.junit.{After, Before, Test}
+import org.junit.{After, Test}
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
-import org.neo4j.spark.streaming.{OffsetStorage, StructTypeStreamingStorage}
+import org.neo4j.spark.streaming.StructTypeStreamingStorage
 import org.neo4j.spark.util.Neo4jUtil
 
 import java.util.List
@@ -26,7 +25,6 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       query.stop()
     }
     assertEquals("struct storage should be empty", 0, StructTypeStreamingStorage.size())
-    assertEquals("offset storage should be empty", 0, OffsetStorage.size())
   }
 
   @Test
