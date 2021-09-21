@@ -10,7 +10,7 @@ import org.apache.spark.sql.streaming.StreamingQueryListener
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.AccessMode
 import org.neo4j.spark.service.SchemaService
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, Validations}
+import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, ValidateWrite, Validations}
 import org.neo4j.spark.writer.Neo4jDataWriterFactory
 
 class Neo4jDataSourceStreamWriter(val queryId: String,
@@ -42,7 +42,7 @@ class Neo4jDataSourceStreamWriter(val queryId: String,
     map
   }
   private val neo4jOptions = new Neo4jOptions(optionsMap)
-    .validate((neo4jOptions: Neo4jOptions) => Validations.writer(neo4jOptions, queryId, streamingSaveMode, _ => Unit))
+  Validations.validate(ValidateWrite(neo4jOptions, queryId, streamingSaveMode))
 
   private val driverCache = new DriverCache(neo4jOptions.connection, queryId)
 

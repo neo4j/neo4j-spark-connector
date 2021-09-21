@@ -1,15 +1,49 @@
 package org.neo4j.spark.util
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.sql.types.StructType
-import org.neo4j.driver.{AccessMode, Session}
+import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.neo4j.driver.{AccessMode, Session, summary}
 import org.neo4j.spark.service.{Neo4jQueryStrategy, SchemaService}
+import org.neo4j.spark.streaming.Neo4jAccumulator
 import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
 
-object Validations extends Logging {
+object Validations {
+  def validate(validations: Validation*): Unit = validations.toSet[Validation].foreach(_.validate())
+}
 
-  def version(supportedVersions: String*): Unit = {
+trait Validation extends Logging {
+  def validate(): Unit
+  def ignoreOption(ignoredOption: String, primaryOption: String): Unit =
+    logWarning(s"Option `$ignoredOption` is not compatible with `$primaryOption` and will be ignored")
+}
+
+case class ValidateSchemaOptions(neo4jOptions: Neo4jOptions, schema: StructType) extends Validation {
+  override def validate(): Unit = {
+    val missingFieldsMap = Map(
+      Neo4jOptions.NODE_KEYS -> schema.getMissingFields(neo4jOptions.nodeMetadata.nodeKeys.keySet),
+      Neo4jOptions.NODE_PROPS -> schema.getMissingFields(neo4jOptions.nodeMetadata.nodeProps.keySet),
+      Neo4jOptions.RELATIONSHIP_PROPERTIES -> schema.getMissingFields(neo4jOptions.relationshipMetadata.properties.keySet),
+      Neo4jOptions.RELATIONSHIP_SOURCE_NODE_PROPS -> schema.getMissingFields(neo4jOptions.relationshipMetadata.source.nodeProps.keySet),
+      Neo4jOptions.RELATIONSHIP_SOURCE_NODE_KEYS -> schema.getMissingFields(neo4jOptions.relationshipMetadata.source.nodeKeys.keySet),
+      Neo4jOptions.RELATIONSHIP_TARGET_NODE_PROPS -> schema.getMissingFields(neo4jOptions.relationshipMetadata.target.nodeProps.keySet),
+      Neo4jOptions.RELATIONSHIP_TARGET_NODE_KEYS -> schema.getMissingFields(neo4jOptions.relationshipMetadata.target.nodeKeys.keySet)
+    )
+
+    val optionsWithMissingFields = missingFieldsMap.filter(_._2.nonEmpty)
+
+    if (optionsWithMissingFields.nonEmpty) {
+      throw new IllegalArgumentException(
+        s"""Write failed due to the following errors:
+           |${optionsWithMissingFields.map(field => s" - Schema is missing ${field._2.mkString(", ")} from option `${field._1}`").mkString("\n")}
+           |
+           |The option key and value might be inverted.""".stripMargin)
+    }
+  }
+}
+
+case class ValidateSparkVersion(supportedVersions: String*) extends Validation {
+  override def validate(): Unit = {
     val sparkVersion = SparkSession.getActiveSession
       .map { _.version }
       .getOrElse("UNKNOWN")
@@ -17,28 +51,58 @@ object Validations extends Logging {
     ValidationUtil.isTrue(
       sparkVersion == "UNKNOWN" || supportedVersions.exists(sparkVersion.matches),
       s"""Your currentSpark version ${sparkVersion} is not supported by the current connector.
-       |Please visit https://neo4j.com/developer/spark/overview/#_spark_compatibility to know which connector version you need.
-       |""".stripMargin
+         |Please visit https://neo4j.com/developer/spark/overview/#_spark_compatibility to know which connector version you need.
+         |""".stripMargin
     )
   }
+}
 
-  def supportedSaveMode(saveMode: String): Unit = {
+case class ValidateConnection(neo4jOptions: Neo4jOptions,
+                              jobId: String) extends Validation {
+  override def validate(): Unit = {
+    var driverCache: DriverCache = null
+    var session: Session = null
+    var hasError = false
+    try {
+      driverCache = new DriverCache(neo4jOptions.connection, jobId)
+      session = driverCache.getOrCreate().session(neo4jOptions.session.toNeo4jSession())
+      session.run("EXPLAIN RETURN 1").consume()
+    } catch {
+      case e: Throwable => {
+        hasError = true
+        throw e
+      }
+    } finally {
+      Neo4jUtil.closeSafety(session)
+      if (hasError) {
+        Neo4jUtil.closeSafety(driverCache)
+      }
+    }
+  }
+}
+
+case class ValidateSaveMode(saveMode: String) extends Validation {
+  override def validate(): Unit = {
     ValidationUtil.isTrue(Neo4jOptions.SUPPORTED_SAVE_MODES.contains(SaveMode.valueOf(saveMode)),
       s"""Unsupported SaveMode.
          |You provided $saveMode, supported are:
          |${Neo4jOptions.SUPPORTED_SAVE_MODES.mkString(",")}
          |""".stripMargin)
   }
+}
 
-  val writer: (Neo4jOptions, String, SaveMode, Neo4jOptions => Unit) => Unit = { (neo4jOptions, jobId, saveMode, customValidation) =>
+case class ValidateWrite(neo4jOptions: Neo4jOptions,
+                         jobId: String,
+                         saveMode: SaveMode,
+                         customValidation: Neo4jOptions => Unit = _ => Unit) extends Validation {
+  override def validate(): Unit = {
     ValidationUtil.isFalse(neo4jOptions.session.accessMode == AccessMode.READ,
       s"Mode READ not supported for Data Source writer")
     val cache = new DriverCache(neo4jOptions.connection, jobId)
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
-      validateConnection(cache.getOrCreate().session(neo4jOptions.session.toNeo4jSession()))
-
-      checkOptionsConsistency(neo4jOptions)
+      ValidateConnection(neo4jOptions, jobId).validate()
+      ValidateNeo4jOptionsConsistency(neo4jOptions).validate()
 
       neo4jOptions.query.queryType match {
         case QueryType.QUERY => {
@@ -94,36 +158,15 @@ object Validations extends Logging {
       cache.close()
     }
   }
+}
 
-  val schemaOptions: (Neo4jOptions, StructType) => Unit = { (neo4jOptions, schema) =>
-    val missingFieldsMap = Map(
-      Neo4jOptions.NODE_KEYS -> schema.getMissingFields(neo4jOptions.nodeMetadata.nodeKeys.keySet),
-      Neo4jOptions.NODE_PROPS -> schema.getMissingFields(neo4jOptions.nodeMetadata.nodeProps.keySet),
-      Neo4jOptions.RELATIONSHIP_PROPERTIES -> schema.getMissingFields(neo4jOptions.relationshipMetadata.properties.keySet),
-      Neo4jOptions.RELATIONSHIP_SOURCE_NODE_PROPS -> schema.getMissingFields(neo4jOptions.relationshipMetadata.source.nodeProps.keySet),
-      Neo4jOptions.RELATIONSHIP_SOURCE_NODE_KEYS -> schema.getMissingFields(neo4jOptions.relationshipMetadata.source.nodeKeys.keySet),
-      Neo4jOptions.RELATIONSHIP_TARGET_NODE_PROPS -> schema.getMissingFields(neo4jOptions.relationshipMetadata.target.nodeProps.keySet),
-      Neo4jOptions.RELATIONSHIP_TARGET_NODE_KEYS -> schema.getMissingFields(neo4jOptions.relationshipMetadata.target.nodeKeys.keySet)
-    )
-
-    val optionsWithMissingFields = missingFieldsMap.filter(_._2.nonEmpty)
-
-    if (optionsWithMissingFields.nonEmpty) {
-      throw new IllegalArgumentException(
-        s"""Write failed due to the following errors:
-           |${optionsWithMissingFields.map(field => s" - Schema is missing ${field._2.mkString(", ")} from option `${field._1}`").mkString("\n")}
-           |
-           |The option key and value might be inverted.""".stripMargin)
-    }
-  }
-
-  val read: (Neo4jOptions, String) => Unit = { (neo4jOptions, jobId) =>
+case class ValidateRead(neo4jOptions: Neo4jOptions, jobId: String) extends Validation {
+  override def validate(): Unit = {
     val cache = new DriverCache(neo4jOptions.connection, jobId)
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
-      validateConnection(cache.getOrCreate().session(neo4jOptions.session.toNeo4jSession()))
-
-      checkOptionsConsistency(neo4jOptions)
+      ValidateConnection(neo4jOptions, jobId).validate()
+      ValidateNeo4jOptionsConsistency(neo4jOptions).validate()
 
       neo4jOptions.query.queryType match {
         case QueryType.LABELS => {
@@ -144,8 +187,8 @@ object Validations extends Logging {
           ValidationUtil.isFalse(neo4jOptions.query.value.matches("(?si).*(LIMIT \\d+|SKIP ?\\d+)\\s*\\z"),
             "SKIP/LIMIT are not allowed at the end of the query")
           ValidationUtil.isTrue(schemaService.isValidQuery(s"""WITH [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
-                  |${neo4jOptions.query.value}
-                  |""".stripMargin, org.neo4j.driver.summary.QueryType.READ_ONLY),
+                                                              |${neo4jOptions.query.value}
+                                                              |""".stripMargin, org.neo4j.driver.summary.QueryType.READ_ONLY),
             "Please provide a valid READ query")
           if (neo4jOptions.queryMetadata.queryCount.nonEmpty) {
             if (!Neo4jUtil.isLong(neo4jOptions.queryMetadata.queryCount)) {
@@ -162,14 +205,16 @@ object Validations extends Logging {
       cache.close()
     }
   }
+}
 
-  /**
-   * df: this method checks for inconsistencies between provided options.
-   * Ex: if we use the QueryType.LABELS, we will ignore any relationship options.
-   *
-   * Plus it throws an exception if no QueryType is provided.
-   */
-  def checkOptionsConsistency(neo4jOptions: Neo4jOptions): Unit = {
+/**
+ * df: this method checks for inconsistencies between provided options.
+ * Ex: if we use the QueryType.LABELS, we will ignore any relationship options.
+ *
+ * Plus it throws an exception if no QueryType is provided.
+ */
+case class ValidateNeo4jOptionsConsistency(neo4jOptions: Neo4jOptions) extends Validation {
+  override def validate(): Unit = {
     if (neo4jOptions.query.value.isEmpty) {
       throw new IllegalArgumentException("No valid option found. One of `query`, `labels`, `relationship` is required")
     }
@@ -202,16 +247,41 @@ object Validations extends Logging {
       }
     }
   }
+}
 
-  def ignoreOption(ignoredOption: String, primaryOption: String): Unit =
-    logWarning(s"Option `$ignoredOption` is not compatible with `$primaryOption` and will be ignored")
-
-  def validateConnection(session: Session): Unit = {
+case class ValidateReadStreaming(neo4jOptions: Neo4jOptions, jobId: String) extends Validation {
+  override def validate(): Unit = {
+    val cache = new DriverCache(neo4jOptions.connection, jobId)
+    val schemaService = new SchemaService(neo4jOptions, cache)
     try {
-      session.run("EXPLAIN RETURN 1").consume()
-    }
-    finally {
-      Neo4jUtil.closeSafety(session)
+      neo4jOptions.streamingOptions.storageType match {
+        case StorageType.NEO4J => {
+            ValidationUtil.isTrue(schemaService.checkIndex(OptimizationType.NODE_CONSTRAINTS, Neo4jAccumulator.LABEL, Seq(Neo4jAccumulator.KEY)),
+              s"""
+                |The connector need to store intermediate results
+                |for pushing the data into Streaming tables.
+                |Please define a constraint into your Neo4j instance in this way:
+                |`CREATE CONSTRAINT ON (n:${Neo4jAccumulator.LABEL}) ASSERT (n.${Neo4jAccumulator.KEY}) IS UNIQUE`
+                |""".stripMargin)
+        }
+        case _ =>
+      }
+      ValidationUtil.isTrue(neo4jOptions.partitions == 1, "For Spark Structured Streaming we support only one partition")
+      neo4jOptions.query.queryType match {
+        case QueryType.QUERY => {
+          ValidationUtil.isTrue(schemaService.isValidQuery(neo4jOptions.streamingOptions.queryOffset, summary.QueryType.READ_ONLY),
+          """
+              |Please set `streaming.query.offset` with a valid Cypher READ_ONLY query
+              |that returns a long value i.e.
+              |MATCH (p:MyLabel)
+              |RETURN max(p.timestamp)
+              |""".stripMargin)
+        }
+        case _ =>
+      }
+    } finally {
+      schemaService.close()
+      cache.close()
     }
   }
 }

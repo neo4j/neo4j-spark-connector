@@ -3,17 +3,31 @@ package org.neo4j.spark
 import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.hamcrest.Matchers
+import org.junit
 import org.junit.Assert.assertEquals
-import org.junit.{After, Test}
+import org.junit.{After, BeforeClass, Test}
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
-import org.neo4j.spark.streaming.StructTypeStreamingStorage
+import org.neo4j.spark.streaming.{Neo4jAccumulator, StructTypeStreamingStorage}
 import org.neo4j.spark.util.Neo4jUtil
 
 import java.util.List
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{Executors, TimeUnit}
 import scala.collection.mutable
+
+object DataSourceStreamingReaderTSE {
+  @BeforeClass
+  def beforeClass(): Unit = {
+    SparkConnectorScalaSuiteIT.driver.session()
+      .writeTransaction(
+        new TransactionWork[Unit] {
+          override def execute(tx: Transaction): Unit = {
+            tx.run(s"CREATE CONSTRAINT ON (p:${Neo4jAccumulator.LABEL}) ASSERT p.${Neo4jAccumulator.KEY} IS UNIQUE")
+          }
+        })
+  }
+}
 
 class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
@@ -25,6 +39,17 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       query.stop()
     }
     assertEquals("struct storage should be empty", 0, StructTypeStreamingStorage.size())
+    val count = SparkConnectorScalaSuiteIT.driver.session()
+      .writeTransaction(
+        new TransactionWork[Long] {
+          override def execute(tx: Transaction): Long = {
+            tx.run(s"MATCH (n:${Neo4jAccumulator.LABEL}) RETURN count(n)")
+              .single()
+              .get(0)
+              .asLong()
+          }
+        })
+    assertEquals(0, count)
   }
 
   @Test
@@ -58,7 +83,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
-        Thread.sleep(200)
+        Thread.sleep(1000)
         (1 to total).foreach(index => {
           Thread.sleep(200)
           SparkConnectorScalaSuiteIT.session()
@@ -86,13 +111,13 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
           ))
         }
         // we test the equality for three times just to be sure that there are no duplications
-        // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
+        // // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
         actual.toList == expected.toList && counter.incrementAndGet() == 3
       }
-    }, Matchers.equalTo(true), 30L, TimeUnit.SECONDS)
+    }, Matchers.equalTo(true), 120L, TimeUnit.SECONDS)
   }
 
-  @Test
+  @Test(expected = classOf[IllegalArgumentException])
   def testReadStreamWithLabelsWithPartitions(): Unit = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(
@@ -102,59 +127,21 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
           }
         })
 
-    val stream = ss.readStream.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", "Test1_Movie")
-      .option("streaming.property.name", "timestamp")
-      .option("streaming.from", "NOW")
-      .option("partitions", "5")
-      .load()
-
-    query = stream.writeStream
-      .format("memory")
-      .queryName("testReadStream")
-      .start()
-
-    val total = 500
-
-    val expected = (1 to total).map(index => Map(
-      "<labels>" -> mutable.WrappedArray.make(Array("Test1_Movie")),
-      "title" -> s"My movie $index"
-    ))
-
-    Executors.newSingleThreadExecutor().submit(new Runnable {
-      override def run(): Unit = {
-        Thread.sleep(5000)
-        SparkConnectorScalaSuiteIT.session()
-          .writeTransaction(new TransactionWork[ResultSummary] {
-            override def execute(tx: Transaction): ResultSummary = {
-              tx.run(
-                s"""UNWIND range(1, $total) AS index
-                   |CREATE (n:Test1_Movie {title: 'My movie ' + index, timestamp: timestamp()})""".stripMargin)
-                .consume()
-            }
-          })
+    try {
+      ss.readStream.format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("labels", "Test1_Movie")
+        .option("streaming.property.name", "timestamp")
+        .option("streaming.from", "NOW")
+        .option("partitions", "5")
+        .load()
+      junit.Assert.fail("Dataframe should not be loaded")
+    } catch {
+      case e: IllegalArgumentException => {
+        assertEquals("For Spark Structured Streaming we support only one partition", e.getMessage)
+        throw e
       }
-    })
-
-    val counter = new AtomicInteger();
-    Assert.assertEventually(new Assert.ThrowingSupplier[Boolean, Exception] {
-      override def get(): Boolean = {
-        val df = ss.sql("select * from testReadStream order by timestamp")
-        val collect = df.collect()
-        val actual = if (!df.columns.contains("title")) {
-          Array.empty
-        } else {
-          collect.map(row => Map(
-            "<labels>" -> row.getAs[java.util.List[String]]("<labels>"),
-            "title" -> row.getAs[String]("title")
-          ))
-        }
-        // we test the equality for three times just to be sure that there are no duplications
-        // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-        actual.toList == expected.toList && counter.incrementAndGet() == 3
-      }
-    }, Matchers.equalTo(true), 30L, TimeUnit.SECONDS)
+    }
   }
 
   @Test
@@ -171,7 +158,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("labels", "Test4_Movie")
       .option("streaming.property.name", "timestamp")
-      .option("streaming.get.all", "true")
+      .option("streaming.from", "ALL")
       .load()
 
     query = stream.writeStream
@@ -182,7 +169,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     val total = 60
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
-        Thread.sleep(200)
+        Thread.sleep(1000)
         (1 to total).foreach(index => {
           Thread.sleep(200)
           SparkConnectorScalaSuiteIT.session()
@@ -215,7 +202,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
             "title" -> row.getAs[String]("title")
           ))
         }
-        // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
+        // // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
         actual.toList == expected.toList && counter.incrementAndGet() == 3
       }
     }, Matchers.equalTo(true), 30L, TimeUnit.SECONDS)
@@ -261,7 +248,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
-        Thread.sleep(200)
+        Thread.sleep(1000)
         (1 to total).foreach(index => {
           Thread.sleep(200)
           SparkConnectorScalaSuiteIT.session()
@@ -320,7 +307,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship", "LIKES")
       .option("streaming.property.name", "timestamp")
-      .option("streaming.get.all", "true")
+      .option("streaming.from", "ALL")
       .option("relationship.source.labels", "Test5_Person")
       .option("relationship.target.labels", "Test5_Post")
       .load()
@@ -333,7 +320,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     val total = 60
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
-        Thread.sleep(200)
+        Thread.sleep(1000)
         (1 to total).foreach(index => {
           Thread.sleep(200)
           SparkConnectorScalaSuiteIT.session()
@@ -378,7 +365,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
             "rel.id" -> row.getAs[Long]("rel.id").toInt
           ))
         }
-        // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
+        // // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
         actual.toList == expected.toList && counter.incrementAndGet() == 3
       }
     }, Matchers.equalTo(true), 40L, TimeUnit.SECONDS)
@@ -422,7 +409,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
-        Thread.sleep(200)
+        Thread.sleep(1000)
         (1 to total).foreach(index => {
           Thread.sleep(200)
           SparkConnectorScalaSuiteIT.session()
@@ -492,7 +479,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
-        Thread.sleep(200)
+        Thread.sleep(1000)
         (1 to total).foreach(index => {
           Thread.sleep(200)
           SparkConnectorScalaSuiteIT.session()
@@ -519,10 +506,45 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
         }
         val actualList = actual.toList
         val expectedList = expected.toList
-        // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
+        // // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
         actualList == expectedList && counter.incrementAndGet() == 3
       }
     }, Matchers.equalTo(true), 40L, TimeUnit.SECONDS)
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testReadStreamWithQueryWithoutOffset(): Unit = {
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx
+            .run("CREATE (person:Test3_Person) SET person.age = 0, person.timestamp = timestamp()")
+            .consume()
+        })
+
+    try {
+      ss.readStream.format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("streaming.property.name", "timestamp")
+        .option("query",
+          """
+            |MATCH (p:Test3_Person)
+            |WHERE p.timestamp > $stream.offset
+            |RETURN p.age AS age, p.timestamp AS timestamp
+            |""".stripMargin)
+        .load()
+      junit.Assert.fail("Dataframe should not be loaded")
+    } catch {
+      case e: IllegalArgumentException => {
+        assertEquals("""
+                       |Please set `streaming.query.offset` with a valid Cypher READ_ONLY query
+                       |that returns a long value i.e.
+                       |MATCH (p:MyLabel)
+                       |RETURN max(p.timestamp)
+                       |""".stripMargin, e.getMessage)
+        throw e
+      }
+    }
   }
 
   @Test
@@ -548,7 +570,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     ))
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
-        Thread.sleep(200)
+        Thread.sleep(1000)
         (1 to total).foreach(index => {
           Thread.sleep(200)
           SparkConnectorScalaSuiteIT.session()

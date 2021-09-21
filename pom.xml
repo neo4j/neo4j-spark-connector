@@ -50,8 +50,8 @@
         <scala.version>2.12.13</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <neo4j.version>4.0.8</neo4j.version>
-        <driver.version>4.3.2</driver.version>
-        <spark.version>2.4.7</spark.version>
+        <driver.version>4.3.4</driver.version>
+        <spark.version>2.4.8</spark.version>
         <neo4j.experimental>false</neo4j.experimental>
         <testcontainers.version>1.15.3</testcontainers.version>
         <xbean.version>4.10</xbean.version>
@@ -89,7 +89,7 @@
         <profile>
             <id>spark-2.4</id>
             <properties>
-                <spark.version>2.4.7</spark.version>
+                <spark.version>2.4.8</spark.version>
             </properties>
             <activation>
                 <activeByDefault>true</activeByDefault>

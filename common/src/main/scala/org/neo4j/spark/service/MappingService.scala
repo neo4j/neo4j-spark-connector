@@ -9,7 +9,7 @@ import org.neo4j.driver.internal.value.MapValue
 import org.neo4j.driver.types.Node
 import org.neo4j.driver.{Record, Value, Values}
 import org.neo4j.spark.service.Neo4jWriteMappingStrategy.{KEYS, PROPERTIES}
-import org.neo4j.spark.util.{Neo4jNodeMetadata, Neo4jOptions, Neo4jUtil, QueryType, RelationshipSaveStrategy, Validations}
+import org.neo4j.spark.util.{Neo4jNodeMetadata, Neo4jOptions, Neo4jUtil, QueryType, RelationshipSaveStrategy, ValidateSchemaOptions, Validations}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -19,7 +19,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   extends Neo4jMappingStrategy[InternalRow, java.util.Map[String, AnyRef]] {
 
   override def node(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
-    Validations.schemaOptions(options, schema)
+    Validations.validate(ValidateSchemaOptions(options, schema))
 
     val rowMap: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
     val keys: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
@@ -89,7 +89,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   override def relationship(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     val rowMap: java.util.Map[String, AnyRef] = new java.util.HashMap[String, AnyRef]
 
-    Validations.schemaOptions(options, schema)
+    Validations.validate(ValidateSchemaOptions(options, schema))
 
     val consumer = options.relationshipMetadata.saveStrategy match {
       case RelationshipSaveStrategy.NATIVE => nativeStrategyConsumer()

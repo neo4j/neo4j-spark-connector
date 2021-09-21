@@ -15,7 +15,7 @@ class SimpleStreamingPartitionReaderFactory(private val neo4jOptions: Neo4jOptio
                                             private val schema: StructType,
                                             private val jobId: String,
                                             private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
-                                            private val offsetAccumulator: OffsetAccumulator) extends PartitionReaderFactory {
+                                            private val offsetAccumulator: OffsetStorage[java.lang.Long, java.lang.Long]) extends PartitionReaderFactory {
   override def createReader(partition: InputPartition): PartitionReader[InternalRow] = new Neo4jStreamingPartitionReader(
     neo4jOptions,
     partition.asInstanceOf[Neo4jStreamingPartition].filters,

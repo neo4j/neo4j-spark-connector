@@ -22,8 +22,8 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
   private var result: Iterator[Record] = _
   private var session: Session = _
   private var transaction: Transaction = _
-  private val driverCache: DriverCache = new DriverCache(options.connection,
-    if (partitionSkipLimit.partitionNumber > 0) s"$jobId-${partitionSkipLimit.partitionNumber}" else jobId)
+  protected val name: String = if (partitionSkipLimit.partitionNumber > 0) s"$jobId-${partitionSkipLimit.partitionNumber}" else jobId
+  protected val driverCache: DriverCache = new DriverCache(options.connection, name)
 
   private val query: String = new Neo4jQueryService(options, new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.fieldNames))
     .createQuery()

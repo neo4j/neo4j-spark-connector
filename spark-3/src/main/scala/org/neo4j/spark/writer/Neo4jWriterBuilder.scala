@@ -5,9 +5,8 @@ import org.apache.spark.sql.connector.write.streaming.StreamingWrite
 import org.apache.spark.sql.connector.write.{BatchWrite, SupportsOverwrite, SupportsTruncate, WriteBuilder}
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
-import org.neo4j.driver.AccessMode
 import org.neo4j.spark.streaming.Neo4jStreamingWriter
-import org.neo4j.spark.util.{Neo4jOptions, NodeSaveMode, ValidationUtil, Validations}
+import org.neo4j.spark.util.{Neo4jOptions, NodeSaveMode, ValidateSaveMode, ValidateWrite, ValidationUtil, Validations}
 
 class Neo4jWriterBuilder(queryId: String,
                          schema: StructType,
@@ -17,13 +16,13 @@ class Neo4jWriterBuilder(queryId: String,
   with SupportsTruncate {
 
   def validOptions(actualSaveMode: SaveMode): Neo4jOptions = {
-    neo4jOptions.validate(neo4jOptions =>
-      Validations.writer(neo4jOptions, queryId, actualSaveMode, (o: Neo4jOptions) => {
-        ValidationUtil.isFalse(
-          o.relationshipMetadata.sourceSaveMode.equals(NodeSaveMode.ErrorIfExists)
-            && o.relationshipMetadata.targetSaveMode.equals(NodeSaveMode.ErrorIfExists),
-          "Save mode 'ErrorIfExists' is not supported on Spark 3.0, use 'Append' instead.")
-      }))
+    Validations.validate(ValidateWrite(neo4jOptions, queryId, actualSaveMode, (o: Neo4jOptions) => {
+      ValidationUtil.isFalse(
+        o.relationshipMetadata.sourceSaveMode.equals(NodeSaveMode.ErrorIfExists)
+          && o.relationshipMetadata.targetSaveMode.equals(NodeSaveMode.ErrorIfExists),
+        "Save mode 'ErrorIfExists' is not supported on Spark 3.0, use 'Append' instead.")
+    }))
+    neo4jOptions
   }
 
   override def buildForBatch(): BatchWrite = new Neo4jBatchWriter(queryId,
@@ -46,7 +45,7 @@ class Neo4jWriterBuilder(queryId: String,
   override def buildForStreaming(): StreamingWrite = {
     if (isNewInstance(queryId, schema, neo4jOptions)) {
       val streamingSaveMode = neo4jOptions.saveMode
-      Validations.supportedSaveMode(streamingSaveMode)
+      Validations.validate(ValidateSaveMode(streamingSaveMode))
 
       val saveMode = SaveMode.valueOf(streamingSaveMode)
       streamWriter = new Neo4jStreamingWriter(

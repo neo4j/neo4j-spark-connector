@@ -3,7 +3,7 @@ package org.neo4j.spark
 import org.apache.spark.sql.SparkSession
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.Test
-import org.neo4j.spark.util.Validations
+import org.neo4j.spark.util.{ValidateSparkVersion, Validations}
 
 class VersionValidationTest extends SparkConnectorScalaBaseTSE {
 
@@ -13,7 +13,7 @@ class VersionValidationTest extends SparkConnectorScalaBaseTSE {
       .map { _.version }
       .getOrElse("UNKNOWN")
     try {
-      Validations.version("3.*")
+      Validations.validate(ValidateSparkVersion("3.*"))
     } catch {
       case e: IllegalArgumentException =>
         assertEquals(

@@ -14,7 +14,7 @@ class Neo4jStreamingPartitionReader(private val options: Neo4jOptions,
                                     private val jobId: String,
                                     private val partitionSkipLimit: PartitionSkipLimit,
                                     private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
-                                    private val offsetAccumulator: OffsetAccumulator,
+                                    private val offsetAccumulator: OffsetStorage[java.lang.Long, java.lang.Long],
                                     private val requiredColumns: StructType)
   extends BaseStreamingPartitionReader(options, filters, schema, jobId, partitionSkipLimit, scriptResult, offsetAccumulator, requiredColumns)
     with PartitionReader[InternalRow] {

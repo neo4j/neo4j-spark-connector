@@ -149,7 +149,6 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
           .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
           .option("labels", "MyNewNode")
           .load()
-          .orderBy("the_value")
 
         val collect = dataFrame.collect()
         val data = if (dataFrame.columns.contains("the_value")) {

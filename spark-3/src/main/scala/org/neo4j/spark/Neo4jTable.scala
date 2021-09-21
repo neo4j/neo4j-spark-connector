@@ -9,7 +9,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.neo4j.driver.AccessMode
 import org.neo4j.spark.reader.SimpleScanBuilder
-import org.neo4j.spark.util.{Neo4jOptions, Validations}
+import org.neo4j.spark.util.{Neo4jOptions, ValidateRead, ValidateWrite, Validations}
 import org.neo4j.spark.writer.Neo4jWriterBuilder
 
 import scala.collection.JavaConverters._
@@ -36,8 +36,8 @@ class Neo4jTable(schema: StructType, options: java.util.Map[String, String], job
   ).asJava
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): SimpleScanBuilder = {
-    val validOptions = neo4jOptions.validate(neo4jOptions => Validations.read(neo4jOptions, jobId))
-    new SimpleScanBuilder(validOptions, jobId, schema())
+    Validations.validate(ValidateRead(neo4jOptions, jobId))
+    new SimpleScanBuilder(neo4jOptions, jobId, schema())
   }
 
   override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {

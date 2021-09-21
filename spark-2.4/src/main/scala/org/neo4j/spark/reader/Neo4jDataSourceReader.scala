@@ -1,14 +1,13 @@
 package org.neo4j.spark.reader
 
-import java.util
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.v2.DataSourceOptions
 import org.apache.spark.sql.sources.v2.reader.{DataSourceReader, InputPartition, SupportsPushDownFilters, SupportsPushDownRequiredColumns}
 import org.apache.spark.sql.types.StructType
-import org.neo4j.spark.service.SchemaService
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, Validations}
+import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, ValidateRead, Validations}
 
+import java.util
 import scala.collection.JavaConverters._
 
 class Neo4jDataSourceReader(private val options: DataSourceOptions, private val jobId: String, private val userDefinedSchema: StructType = null) extends DataSourceReader
@@ -20,7 +19,7 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
   private var requiredColumns: StructType = new StructType()
 
   private val neo4jOptions: Neo4jOptions = new Neo4jOptions(options.asMap())
-    .validate(options => Validations.read(options, jobId))
+  Validations.validate(ValidateRead(neo4jOptions, jobId))
 
   private val structType = if (userDefinedSchema != null) {
     userDefinedSchema

@@ -3,6 +3,7 @@ package org.neo4j.spark.streaming
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{DataTypes, StructType}
+import org.apache.spark.util.AccumulatorV2
 import org.neo4j.spark.reader.BasePartitionReader
 import org.neo4j.spark.service.{Neo4jQueryStrategy, PartitionSkipLimit}
 import org.neo4j.spark.util.Neo4jImplicits._
@@ -17,7 +18,7 @@ class BaseStreamingPartitionReader(private val options: Neo4jOptions,
                                    private val jobId: String,
                                    private val partitionSkipLimit: PartitionSkipLimit,
                                    private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
-                                   private val offsetAccumulator: OffsetAccumulator,
+                                   private val offsetAccumulator: OffsetStorage[java.lang.Long, java.lang.Long],
                                    private val requiredColumns: StructType) extends BasePartitionReader(options,
     filters,
     schema,
@@ -54,10 +55,8 @@ class BaseStreamingPartitionReader(private val options: Neo4jOptions,
       case DataTypes.LongType => row.getLong(fieldIndex)
       case _ => row.getUTF8String(fieldIndex).toString.toLong
     }
-    getAccumulator.add(timestamp)
+    offsetAccumulator.add(timestamp)
   }
-
-  protected def getAccumulator(): OffsetAccumulator = offsetAccumulator
 
   override protected def getQueryParameters: util.Map[String, Any] = values
 

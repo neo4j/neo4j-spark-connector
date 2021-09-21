@@ -18,6 +18,7 @@ import scala.collection.mutable.ArrayBuffer
 
 object PartitionSkipLimit {
   val EMPTY = PartitionSkipLimit(0, -1, -1)
+  val EMPTY_FOR_QUERY = PartitionSkipLimit(0, 0, 0)
 }
 
 case class PartitionSkipLimit(partitionNumber: Int, skip: Long, limit: Long)
@@ -32,7 +33,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
   private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
 
   private def structForNode(labels: Seq[String] = options.nodeMetadata.labels): StructType = {
-    var structFields: mutable.Buffer[StructField] = (try {
+    val structFields: mutable.Buffer[StructField] = (try {
       val query =
         """CALL apoc.meta.nodeTypeProperties($config)
           |YIELD propertyName, propertyTypes
@@ -136,7 +137,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
   }
 
   def structForRelationship(): StructType = {
-    var structFields: mutable.Buffer[StructField] = ArrayBuffer(
+    val structFields: mutable.Buffer[StructField] = ArrayBuffer(
       StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.LongType, false),
       StructField(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, DataTypes.StringType, false))
 
@@ -495,6 +496,53 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       } catch {
         case e: Throwable => log.info("Cannot perform the optimization query because of the following exception:", e)
       }
+    }
+  }
+
+  def checkIndex(indexType: OptimizationType.Value, label: String, props: Seq[String]): Boolean = try {
+    val isNeo4j35 = neo4jVersion().versions(0).startsWith("3.5")
+    val quotedLabel = label.quote()
+    val quotedProps = props
+      .map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.quote()}")
+      .mkString(", ")
+    val dashSeparatedProps = props.mkString("-")
+    val uniqueness = indexType match {
+      case OptimizationType.INDEX => {
+        if (isNeo4j35) {
+          "node_label_property"
+        } else {
+          "NONUNIQUE"
+        }
+      }
+      case OptimizationType.NODE_CONSTRAINTS => {
+        if (isNeo4j35) {
+          "node_unique_property"
+        } else {
+          "UNIQUE"
+        }
+      }
+    }
+    val (labelIndexFieldName, uniqueFieldName) = if (isNeo4j35) {
+      ("tokenNames", "type")
+    } else {
+      ("labelsOrTypes", "uniqueness")
+    }
+    val queryCheck =
+      s"""CALL db.indexes() YIELD $labelIndexFieldName, properties, $uniqueFieldName
+         |WHERE $labelIndexFieldName = ${'$'}labels
+         |AND properties = ${'$'}properties
+         |AND $uniqueFieldName = ${'$'}uniqueness
+         |RETURN count(*) > 0 AS isPresent""".stripMargin
+    session.run(queryCheck, Map("labels" -> Seq(label).asJava,
+      "properties" -> props.asJava,
+      "uniqueness" -> uniqueness).asJava)
+      .single()
+      .get("isPresent")
+      .asBoolean()
+  } catch {
+    case e: Throwable => {
+      log.info("Cannot check the index because of the following exception:", e)
+      false
     }
   }
 

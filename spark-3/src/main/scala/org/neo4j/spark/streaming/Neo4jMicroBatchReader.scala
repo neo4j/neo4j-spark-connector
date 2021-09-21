@@ -19,7 +19,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
   extends MicroBatchStream
     with Logging {
 
-  private lazy val offsetAccumulator = OffsetAccumulator.register(jobId)
+  private lazy val offsetAccumulator = OffsetStorage.register(jobId, null, neo4jOptions)
 
   private val driverCache = new DriverCache(neo4jOptions.connection, jobId)
 
@@ -59,7 +59,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
   }
 
   override def stop(): Unit = {
-    offsetAccumulator.reset()
+    offsetAccumulator.flush()
     new DriverCache(neo4jOptions.connection, jobId).close()
   }
 

@@ -7,11 +7,11 @@ import org.apache.spark.sql.sources.v2.reader.streaming.{MicroBatchReader, Offse
 import org.apache.spark.sql.sources.v2.reader.{InputPartition, SupportsPushDownFilters}
 import org.apache.spark.sql.sources.{Filter, GreaterThan}
 import org.apache.spark.sql.types.StructType
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, StreamingFrom, Validations}
+import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, StreamingFrom, ValidateRead, ValidateReadStreaming, Validations}
 
+import java.util
 import java.util.function.Supplier
 import java.util.{Collections, Optional, function}
-import java.{lang, util}
 import scala.collection.JavaConverters._
 
 class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
@@ -22,9 +22,9 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
     with Logging {
 
   private val neo4jOptions: Neo4jOptions = new Neo4jOptions(options.asMap())
-    .validate(options => Validations.read(options, jobId))
+  Validations.validate(ValidateRead(neo4jOptions, jobId), ValidateReadStreaming(neo4jOptions, jobId))
 
-  private lazy val offsetAccumulator = OffsetAccumulator.register(jobId)
+  private val offsetAccumulator: OffsetStorage[java.lang.Long, java.lang.Long] = OffsetStorage.register(jobId, null, neo4jOptions)
 
   private var filters: Array[Filter] = Array[Filter]()
 
@@ -63,7 +63,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
           try {
             schemaService.lastOffset()
           } catch {
-            case _ => -1L
+            case _: Throwable => -1L
           }
       })
       // if a the last offset into the database is changed
@@ -100,7 +100,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
 
   override def deserializeOffset(json: String): Offset = Neo4jOffset24(json.toLong)
 
-  override def commit(end: Offset): Unit = {}
+  override def commit(end: Offset): Unit = Unit
 
   override def planInputPartitions: util.ArrayList[InputPartition[InternalRow]] = {
     startedExecution = true
@@ -112,6 +112,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
     }
     val numPartitions = Neo4jUtil.callSchemaService(neo4jOptions, jobId, filters,
       { schemaService => schemaService.skipLimitFromPartition() })
+
     val partitions = numPartitions
       .map(partitionSkipLimit => new Neo4jStreamingInputPartition(neo4jOptions, filters, schema, jobId,
         partitionSkipLimit, Collections.emptyList(), offsetAccumulator, new StructType()))
@@ -121,10 +122,10 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
   }
 
   override def stop(): Unit = {
-    offsetAccumulator.reset()
     if (startedExecution) {
-        StructTypeStreamingStorage.clearForJobId(jobId)
+      StructTypeStreamingStorage.clearForJobId(jobId)
     }
+    offsetAccumulator.flush()
     new DriverCache(neo4jOptions.connection, jobId).close()
   }
 
