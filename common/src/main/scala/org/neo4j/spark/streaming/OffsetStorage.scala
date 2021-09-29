@@ -1,7 +1,9 @@
 package org.neo4j.spark.streaming
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.util.AccumulatorV2
+import org.neo4j.driver.exceptions.NoSuchRecordException
 import org.neo4j.driver.{Session, Transaction, TransactionWork, Values}
 import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, StorageType}
 
@@ -16,7 +18,7 @@ object OffsetStorage {
                options: Neo4jOptions): OffsetStorage[lang.Long, lang.Long] = {
     val accumulator = options.streamingOptions.storageType match {
       case StorageType.SPARK => new SparkAccumulator(initialValue)
-      case StorageType.NEO4J => new Neo4jAccumulator(options, initialValue)
+      case StorageType.NEO4J => new Neo4jAccumulator(options, jobId, initialValue)
     }
     val sparkSession = SparkSession.getActiveSession
       .getOrElse(throw new RuntimeException(s"""
@@ -28,10 +30,9 @@ object OffsetStorage {
   }
 }
 
-abstract class OffsetStorage[IN, OUT] extends AccumulatorV2[IN, OUT] with AutoCloseable {
-  def store(value: IN)
-  def flush(): Unit
-}
+trait OffsetStorage[IN, OUT] extends AccumulatorV2[IN, OUT]
+  with AutoCloseable
+  with Logging {}
 
 
 // N.b. the Neo4jAccumulator has been created as Spark 2.4 doesn't support accumulators
@@ -41,28 +42,31 @@ object Neo4jAccumulator {
   val LABEL = "__Neo4jSparkStreamingMetadata"
   val KEY = "jobId"
   val LAST_TIMESTAMP = "lastTimestamp"
+  val GUARDED_BY_LAST_CHECK = "guardedByLastCheck"
 }
 class Neo4jAccumulator(private val neo4jOptions: Neo4jOptions,
+                       private val jobId: String,
                        private val initialValue: lang.Long = null)
-  extends SparkAccumulator(initialValue) {
-  private lazy val driverCache = new DriverCache(neo4jOptions.connection, this.name.get)
+  extends OffsetStorage[lang.Long, lang.Long] {
+
+  private lazy val driverCache = new DriverCache(neo4jOptions.connection, jobId)
+  add(initialValue)
 
   override def copy(): AccumulatorV2[lang.Long, lang.Long] = {
-    val copy = new Neo4jAccumulator(neo4jOptions, super.value)
+    val copy = new Neo4jAccumulator(neo4jOptions, jobId)
     copy
   }
 
   override def merge(other: AccumulatorV2[lang.Long, lang.Long]): Unit = add(other.value)
 
-  override def close(): Unit = {
-    val value = super.value
-    if (value == null) return Unit
-    var session: Session = null
-    try {
-      session = driverCache.getOrCreate().session(neo4jOptions.session.toNeo4jSession())
-      session.writeTransaction(new TransactionWork[Unit] {
-        override def execute(tx: Transaction): Unit = {
-          tx.run(
+  override def add(value: lang.Long): Unit = synchronized {
+    if (value != null) {
+      var session: Session = null
+      try {
+        session = driverCache.getOrCreate().session(neo4jOptions.session.toNeo4jSession())
+        val dbVal = session.writeTransaction(new TransactionWork[lang.Long] {
+          override def execute(tx: Transaction): lang.Long = {
+            tx.run(
               s"""
                  |MERGE (n:${Neo4jAccumulator.LABEL}{${Neo4jAccumulator.KEY}: ${'$'}jobId})
                  |ON CREATE SET n.${Neo4jAccumulator.LAST_TIMESTAMP} = ${'$'}value
@@ -70,19 +74,30 @@ class Neo4jAccumulator(private val neo4jOptions: Neo4jOptions,
                  | AND n.${Neo4jAccumulator.LAST_TIMESTAMP} < ${'$'}value THEN [1] ELSE []
                  | END | SET n.${Neo4jAccumulator.LAST_TIMESTAMP} = ${'$'}value
                  |)
+                 |SET n.${Neo4jAccumulator.GUARDED_BY_LAST_CHECK} = timestamp()
+                 |RETURN n.${Neo4jAccumulator.LAST_TIMESTAMP}
                  |""".stripMargin,
-              Map[String, AnyRef]("jobId" -> name.get, "value" -> value).asJava)
-            .consume()
+              Map[String, AnyRef]("jobId" -> jobId, "value" -> value).asJava)
+              .single()
+              .get(0)
+              .asLong()
+          }
+        })
+        if (dbVal == value) {
+          logDebug(s"Updated metadata state with value $value")
+        } else {
+          logDebug(s"Failed to updated metadata state with, provided value is $value, in the metadata state is $dbVal")
         }
-      })
-    } catch {
-      case _: Throwable => //
-    } finally {
-      Neo4jUtil.closeSafety(session)
+      } catch {
+        case e: Throwable =>
+          logDebug(s"Error while updating the metadata state with value $value because of the following exception:", e)
+      } finally {
+        Neo4jUtil.closeSafety(session)
+      }
     }
   }
 
-  override def flush(): Unit = {
+  override def close(): Unit = synchronized {
     var session: Session = null
     try {
       session = driverCache.getOrCreate().session(neo4jOptions.session.toNeo4jSession())
@@ -90,48 +105,62 @@ class Neo4jAccumulator(private val neo4jOptions: Neo4jOptions,
         override def execute(tx: Transaction): Unit = {
           tx.run(
             s"""
-              |MERGE (n:${Neo4jAccumulator.LABEL}{${Neo4jAccumulator.KEY}: ${'$'}jobId})
-              |DELETE n
-              |""".stripMargin,
-            Map[String, AnyRef]("jobId" -> name.get).asJava)
+               |MERGE (n:${Neo4jAccumulator.LABEL}{${Neo4jAccumulator.KEY}: ${'$'}jobId})
+               |DELETE n
+               |""".stripMargin,
+            Map[String, AnyRef]("jobId" -> jobId).asJava)
             .consume()
         }
       })
     } catch {
-      case _: Throwable => //
+      case e: Throwable =>
+        logDebug(s"Error while cleaning the metadata state because of the following exception:", e)
     } finally {
       Neo4jUtil.closeSafety(session)
       driverCache.close()
     }
   }
 
-  override def value(): lang.Long = {
+  override def value(): lang.Long = synchronized {
     var session: Session = null
     try {
       session = driverCache.getOrCreate().session(neo4jOptions.session.toNeo4jSession())
-      session.readTransaction(new TransactionWork[lang.Long] {
+      // we force the writeTransaction in order to be sure to reading
+      // from the LEADER and having so the real last value
+      session.writeTransaction(new TransactionWork[lang.Long] {
         override def execute(tx: Transaction): lang.Long = {
           val currentValue = tx.run(
-            s"""
-              |MATCH (n:${Neo4jAccumulator.LABEL}{${Neo4jAccumulator.KEY}: ${'$'}jobId})
-              |RETURN n.${Neo4jAccumulator.LAST_TIMESTAMP}
-              |""".stripMargin,
-            Map[String, AnyRef]("jobId" -> name.get).asJava)
+              s"""
+                |MATCH (n:${Neo4jAccumulator.LABEL}{${Neo4jAccumulator.KEY}: ${'$'}jobId})
+                |SET n.${Neo4jAccumulator.GUARDED_BY_LAST_CHECK} = timestamp()
+                |RETURN n.${Neo4jAccumulator.LAST_TIMESTAMP}
+                |""".stripMargin,
+              Map[String, AnyRef]("jobId" -> jobId).asJava)
             .single()
             .get(0)
+          logDebug(s"Retrieved value from metadata state is: ${currentValue.asObject()}")
           if (currentValue == Values.NULL) {
-            Neo4jAccumulator.super.value
+            null
           } else {
             currentValue.asLong()
           }
         }
       })
     } catch {
-      case _: Throwable => Neo4jAccumulator.super.value
+      case e: Throwable => {
+        if (!e.isInstanceOf[NoSuchRecordException]) {
+          logDebug("Error while reading the metadata state:", e)
+        }
+        null
+      }
     } finally {
       Neo4jUtil.closeSafety(session)
     }
   }
+
+  override def isZero: Boolean = true
+
+  override def reset(): Unit = Unit
 }
 
 class SparkAccumulator(private val initialValue: lang.Long = null)
@@ -158,12 +187,8 @@ class SparkAccumulator(private val initialValue: lang.Long = null)
 
   override def merge(other: AccumulatorV2[lang.Long, lang.Long]): Unit = add(other.value)
 
-  override def value: lang.Long = offset.get()
-
-  override def store(value: lang.Long): Unit = add(value)
+  override def value(): lang.Long = offset.get()
 
   override def close(): Unit = Unit
-
-  def flush(): Unit = Unit
 
 }

@@ -9,9 +9,9 @@ import org.apache.spark.sql.sources.{Filter, GreaterThan}
 import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, StreamingFrom, ValidateRead, ValidateReadStreaming, Validations}
 
-import java.util
 import java.util.function.Supplier
-import java.util.{Collections, Optional, function}
+import java.util.{Collections, Optional}
+import java.{lang, util}
 import scala.collection.JavaConverters._
 
 class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
@@ -49,41 +49,44 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
   override def setOffsetRange(start: Optional[Offset], end: Optional[Offset]): Unit = {
     setStartOffset(start)
     setEndOffset(end)
-    setForLastEmpty()
   }
 
-  private def setForLastEmpty() = {
+  private def setEndOffset(end: Optional[Offset]) = {
+    // if in the last cycle the partition returned
+    // an empty result this means that start will be set equal end,
+    // so we check if
+    val lastReadOffset: lang.Long = offsetAccumulator.value
+    endOffset = if (lastReadOffset == null) {
+      end
+        .orElseGet(new Supplier[Offset] {
+          override def get(): Offset = {
+            Neo4jOffset24(startOffset.offset)
+          }
+        })
+        .asInstanceOf[Neo4jOffset24]
+    } else {
+      Neo4jOffset24(lastReadOffset)
+    }
+
     // if in the last cycle the partition returned
     // an empty result this means that start will be set equal end,
     // so we check if
     if (startOffset.offset == endOffset.offset) {
       // there is a database change by invoking the last offset inserted
-      val lastOffset = Neo4jUtil.callSchemaService[Long](neo4jOptions, jobId, filters, {
+      val lastNeo4jOffset = Neo4jUtil.callSchemaService[Long](neo4jOptions, jobId, filters, {
         schemaService =>
           try {
             schemaService.lastOffset()
           } catch {
-            case _: Throwable => -1L
+            case _ => -1L
           }
       })
       // if a the last offset into the database is changed
-      if (lastOffset > endOffset.offset) {
+      if (lastNeo4jOffset > endOffset.offset) {
         // we just increment the end offset in order to push spark to do a new query over the database
         endOffset = Neo4jOffset24(endOffset.offset + 1)
       }
     }
-  }
-
-  private def setEndOffset(end: Optional[Offset]) = {
-    val lastOffset: java.lang.Long = offsetAccumulator.value
-    endOffset = end
-      .map(new function.Function[Offset, Offset] {
-        override def apply(o: Offset): Offset = if (lastOffset == null || o.asInstanceOf[Neo4jOffset24].offset > lastOffset) o else Neo4jOffset24(lastOffset)
-      })
-      .orElseGet(new Supplier[Offset] {
-        override def get(): Offset = if (lastOffset == null) Neo4jOffset24(startOffset.offset + 1) else Neo4jOffset24(lastOffset)
-      })
-      .asInstanceOf[Neo4jOffset24]
   }
 
   private def setStartOffset(start: Optional[Offset]) = {
@@ -106,7 +109,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
     startedExecution = true
     val filters = if (startOffset.offset != StreamingFrom.ALL.value()) {
       val prop = Neo4jUtil.getStreamingPropertyName(neo4jOptions)
-      this.filters :+ GreaterThan(prop, endOffset.offset)
+      this.filters :+ GreaterThan(prop, getEndOffset.asInstanceOf[Neo4jOffset24].offset)
     } else {
       this.filters
     }
@@ -125,7 +128,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
     if (startedExecution) {
       StructTypeStreamingStorage.clearForJobId(jobId)
     }
-    offsetAccumulator.flush()
+    offsetAccumulator.close()
     new DriverCache(neo4jOptions.connection, jobId).close()
   }
 

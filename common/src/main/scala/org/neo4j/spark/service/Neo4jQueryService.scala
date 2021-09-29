@@ -1,5 +1,6 @@
 package org.neo4j.spark.service
 
+import org.apache.commons.lang3.StringUtils
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.sources.{And, Filter, Or}
 import org.neo4j.cypherdsl.core.StatementBuilder.{BuildableStatement, TerminalExposesLimit}
@@ -123,9 +124,9 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
 
     val matchQuery: StatementBuilder.OngoingReadingWithoutWhere = filterRelationship(sourceNode, targetNode, relationship)
 
-    val returnExpressions: Seq[Expression] = buildReturnExpression(sourceNode,targetNode, relationship)
+    val returnExpressions: Seq[Expression] = buildReturnExpression(sourceNode, targetNode, relationship)
 
-    renderer.render(buildStatement(matchQuery.returning(returnExpressions : _*), relationship))
+    renderer.render(buildStatement(options, matchQuery.returning(returnExpressions : _*), relationship))
   }
 
   private def buildReturnExpression(sourceNode: Node, targetNode: Node, relationship: Relationship): Seq[Expression] = {
@@ -163,7 +164,8 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     }
   }
 
-  private def buildStatement(returning: StatementBuilder.OngoingReadingAndReturn,
+  private def buildStatement(options: Neo4jOptions,
+                             returning: StatementBuilder.OngoingReadingAndReturn,
                              entity: PropertyContainer = null) =
     if (partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1) {
       val ret = if (entity != null) {
@@ -181,7 +183,13 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
         .limit(partitionSkipLimit.limit)
         .build()
     } else {
-      returning.build()
+      val name = options.orderBy
+      val ret = if (StringUtils.isNotBlank(name) && entity != null) {
+        returning.orderBy(entity.property(name))
+      } else {
+        returning
+      }
+      ret.build()
     }
 
   private def filterRelationship(sourceNode: Node, targetNode: Node, relationship: Relationship) = {
@@ -243,7 +251,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     val node = createNode(Neo4jUtil.NODE_ALIAS, options.nodeMetadata.labels)
     val matchQuery = filterNode(node)
     val returning = returnRequiredColumns(node, matchQuery)
-    renderer.render(buildStatement(returning, node))
+    renderer.render(buildStatement(options, returning, node))
   }
 
   private def filterNode(node: Node) = {
@@ -267,7 +275,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
   def createStatementForNodeCount(options: Neo4jOptions): String = {
     val node = createNode(Neo4jUtil.NODE_ALIAS, options.nodeMetadata.labels)
     val matchQuery = filterNode(node)
-    renderer.render(buildStatement(matchQuery.returning(Functions.count(node).as("count"))))
+    renderer.render(buildStatement(options, matchQuery.returning(Functions.count(node).as("count"))))
   }
 
   def createStatementForRelationshipCount(options: Neo4jOptions): String = {
@@ -279,7 +287,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
 
     val matchQuery: StatementBuilder.OngoingReadingWithoutWhere = filterRelationship(sourceNode, targetNode, relationship)
 
-    renderer.render(buildStatement(matchQuery.returning(Functions.count(sourceNode).as("count"))))
+    renderer.render(buildStatement(options, matchQuery.returning(Functions.count(sourceNode).as("count"))))
   }
 
   private def assembleConditionQuery(matchQuery: StatementBuilder.OngoingReadingWithoutWhere, filters: Array[Condition]): StatementBuilder.OngoingReadingWithWhere = {

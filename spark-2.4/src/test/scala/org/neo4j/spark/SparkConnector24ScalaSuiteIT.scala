@@ -11,6 +11,7 @@ import org.junit.runners.Suite
   classOf[DataSourceWriterTSE],
   classOf[DataSourceWriterNeo4j4xTSE],
   classOf[DataSourceReaderNeo4j35xTSE],
+  classOf[DataSourceReaderNeo4j41xTSE],
   classOf[DefaultConfigTSE],
   classOf[DataSourceStreamingWriterTSE],
   classOf[DataSourceStreamingReaderTSE]

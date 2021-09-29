@@ -207,6 +207,13 @@ case class ValidateRead(neo4jOptions: Neo4jOptions, jobId: String) extends Valid
   }
 }
 
+case class ValidateReadNotStreaming(neo4jOptions: Neo4jOptions, jobId: String) extends Validation {
+  override def validate(): Unit = {
+    ValidationUtil.isBlank(neo4jOptions.streamingOptions.propertyName,
+      s"You don't need to set the `${Neo4jOptions.STREAMING_PROPERTY_NAME}` option")
+  }
+}
+
 /**
  * df: this method checks for inconsistencies between provided options.
  * Ex: if we use the QueryType.LABELS, we will ignore any relationship options.

@@ -155,10 +155,10 @@ class Neo4jOptionsTest {
     assertEquals("", neo4jOptions.connection.realm)
     assertEquals("", neo4jOptions.connection.schema)
 
-    assertEquals(-1, neo4jOptions.connection.lifetime)
+    assertEquals(Neo4jOptions.DEFAULT_CONNECTION_MAX_LIFETIME_MSECS, neo4jOptions.connection.lifetime)
     assertEquals(-1, neo4jOptions.connection.acquisitionTimeout)
     assertEquals(-1, neo4jOptions.connection.connectionTimeout)
-    assertEquals(-1, neo4jOptions.connection.livenessCheckTimeout)
+    assertEquals(Neo4jOptions.DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS, neo4jOptions.connection.livenessCheckTimeout)
     assertEquals(RelationshipSaveStrategy.NATIVE, neo4jOptions.relationshipMetadata.saveStrategy)
 
     assertTrue(neo4jOptions.pushdownFiltersEnabled)

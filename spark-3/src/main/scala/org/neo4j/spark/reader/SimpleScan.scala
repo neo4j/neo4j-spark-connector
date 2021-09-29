@@ -6,7 +6,7 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.service.PartitionSkipLimit
 import org.neo4j.spark.streaming.Neo4jMicroBatchReader
-import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, StorageType, ValidateRead, ValidateReadStreaming, Validations}
+import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, StorageType, ValidateRead, ValidateReadNotStreaming, ValidateReadStreaming, Validations}
 
 import java.util.Optional
 
@@ -25,6 +25,7 @@ class SimpleScan(
   var scriptResult: java.util.List[java.util.Map[String, AnyRef]] = _
 
   private def createPartitions() = {
+    Validations.validate(ValidateReadNotStreaming(neo4jOptions, jobId))
     // we get the skip/limit for each partition and execute the "script"
     val (partitionSkipLimitList, scriptResult) = Neo4jUtil.callSchemaService(neo4jOptions, jobId, filters, { schemaService =>
       (schemaService.skipLimitFromPartition(), schemaService.execute(neo4jOptions.script))

@@ -8,6 +8,7 @@ import org.neo4j.driver.{Record, Session, Transaction, Values}
 import org.neo4j.spark.service.{MappingService, Neo4jQueryReadStrategy, Neo4jQueryService, Neo4jQueryStrategy, Neo4jReadMappingStrategy, PartitionSkipLimit}
 import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil}
 
+import java.io.IOException
 import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -28,6 +29,8 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
   private val query: String = new Neo4jQueryService(options, new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.fieldNames))
     .createQuery()
 
+  private var nextRow: InternalRow = _
+
   private lazy val values = {
     val params = mutable.HashMap[String, Any]()
     params.put(Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT, scriptResult)
@@ -39,31 +42,47 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
 
   private val mappingService = new MappingService(new Neo4jReadMappingStrategy(options, requiredColumns), options)
 
-  def next: Boolean = {
+  @volatile
+  private var error: Boolean = false
+
+  @throws(classOf[IOException])
+  def next: Boolean = try {
     if (result == null) {
       session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
       transaction = session.beginTransaction()
-      log.info(s"Running the following query on Neo4j: $query")
 
       val queryParams = getQueryParameters
-      if (log.isDebugEnabled) {
-        log.debug(s"Query Parameters are: $queryParams")
-      }
+
+      logDebug(s"Running the following query on Neo4j: $query\nwith parameters $queryParams")
+      logInfo(s"Running the following query on Neo4j: $query")
 
       result = transaction.run(query, Values.value(queryParams))
         .asScala
     }
 
-    result.hasNext
+    if (result.hasNext) {
+      nextRow = mappingService.convert(result.next(), schema)
+      true
+    } else {
+      false
+    }
+  } catch {
+    case t: Throwable => {
+      error = true
+      logInfo("Error while invoking next:", t)
+      throw new IOException(t)
+    }
   }
 
-  def get: InternalRow = mappingService.convert(result.next(), schema)
+  def get: InternalRow = nextRow
 
   def close(): Unit = {
     Neo4jUtil.closeSafety(transaction, log)
     Neo4jUtil.closeSafety(session, log)
     driverCache.close()
   }
+
+  def hasError(): Boolean = error
 
   protected def getQueryParameters: util.Map[String, Any] = values
 }

@@ -7,7 +7,7 @@ import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.exceptions.{ClientException, Neo4jException, ServiceUnavailableException, SessionExpiredException, TransientException}
 import org.neo4j.driver.{Bookmark, Session, Transaction, Values}
 import org.neo4j.spark.service._
-import org.neo4j.spark.util.Neo4jUtil.closeSafety
+import org.neo4j.spark.util.Neo4jUtil.{closeSafety, isRetryableException}
 import org.neo4j.spark.util.{DriverCache, Neo4jOptions}
 
 import java.time.Duration
@@ -98,10 +98,6 @@ abstract class BaseDataWriter(jobId: String,
     }
     Unit
   }
-
-  private def isRetryableException(neo4jTransientException: Neo4jException) = (neo4jTransientException.isInstanceOf[SessionExpiredException]
-      || neo4jTransientException.isInstanceOf[TransientException]
-      || neo4jTransientException.isInstanceOf[ServiceUnavailableException])
 
   /**
    * df: we check if the thrown exception is STOPPED_THREAD_EXCEPTION. This is the

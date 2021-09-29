@@ -59,7 +59,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
   }
 
   override def stop(): Unit = {
-    offsetAccumulator.flush()
+    offsetAccumulator.close()
     new DriverCache(neo4jOptions.connection, jobId).close()
   }
 

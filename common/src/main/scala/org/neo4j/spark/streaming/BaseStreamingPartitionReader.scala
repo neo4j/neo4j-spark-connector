@@ -3,7 +3,6 @@ package org.neo4j.spark.streaming
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{DataTypes, StructType}
-import org.apache.spark.util.AccumulatorV2
 import org.neo4j.spark.reader.BasePartitionReader
 import org.neo4j.spark.service.{Neo4jQueryStrategy, PartitionSkipLimit}
 import org.neo4j.spark.util.Neo4jImplicits._
@@ -27,14 +26,19 @@ class BaseStreamingPartitionReader(private val options: Neo4jOptions,
     scriptResult,
     requiredColumns) {
 
-  private val prop = Neo4jUtil.getStreamingPropertyName(options)
+  private val streamingPropertyName = Neo4jUtil.getStreamingPropertyName(options)
 
-  private val field = filters.find(f => f.getAttribute
-      .map(name => name == prop).getOrElse(false))
+  private val streamingField = filters.find(f => f.getAttribute
+      .map(name => name == streamingPropertyName).getOrElse(false))
+
+  @volatile
+  private var lastTimestamp: java.lang.Long = _
+
+  logInfo(s"Creating Streaming Partition reader $name")
 
   private lazy val values = {
     val map = new util.HashMap[String, Any](super.getQueryParameters)
-    val value: Long = field
+    val value: Long = streamingField
       .flatMap(f => f.getValue)
       .getOrElse(StreamingFrom.ALL.value())
       .asInstanceOf[Long]
@@ -42,21 +46,42 @@ class BaseStreamingPartitionReader(private val options: Neo4jOptions,
     map
   }
 
-  override def get: InternalRow = {
-    val row = super.get
-    updateOffset(row)
-    row
-  }
-
-
-  private def updateOffset(row: InternalRow) = {
-    val fieldIndex = schema.fieldIndex(prop)
-    val timestamp = schema(fieldIndex).dataType match {
-      case DataTypes.LongType => row.getLong(fieldIndex)
-      case _ => row.getUTF8String(fieldIndex).toString.toLong
+  override def next: Boolean = {
+    val hasNext = super.next
+    if (hasNext) {
+      updateLastTimestamp(super.get)
     }
-    offsetAccumulator.add(timestamp)
+    hasNext
   }
+
+  override def close(): Unit = {
+    if (!hasError()) {
+      offsetAccumulator.add(getLastTimestamp())
+    }
+    logInfo(s"Closing Partition reader $name ${if (hasError()) "with error " else ""}")
+    super.close()
+  }
+
+  private def updateLastTimestamp(row: InternalRow) = synchronized {
+    try {
+      val fieldIndex = schema.fieldIndex(streamingPropertyName)
+      val currentTimestamp: java.lang.Long = schema(fieldIndex).dataType match {
+        case DataTypes.LongType => row.getLong(fieldIndex)
+        case _ => row.getUTF8String(fieldIndex).toString.toLong
+      }
+      if (lastTimestamp == null || lastTimestamp < currentTimestamp) {
+        lastTimestamp = currentTimestamp
+      }
+    } catch {
+      case t: Throwable => logInfo(
+        s"""
+           |Cannot extract the last timestamp for schema $schema and property $streamingPropertyName,
+           |because of the following exception:
+           |""".stripMargin, t)
+    }
+  }
+
+  def getLastTimestamp() = synchronized { lastTimestamp }
 
   override protected def getQueryParameters: util.Map[String, Any] = values
 

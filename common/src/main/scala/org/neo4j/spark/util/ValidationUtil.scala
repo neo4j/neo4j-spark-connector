@@ -10,6 +10,10 @@ object ValidationUtil {
     throw new IllegalArgumentException(message)
   }
 
+  def isBlank(str: String, message: String) = if (!str.trim.isEmpty) {
+    throw new IllegalArgumentException(message)
+  }
+
   def isNotEmpty(seq: Seq[_], message: String) = if (seq.isEmpty) {
     throw new IllegalArgumentException(message)
   }

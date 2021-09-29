@@ -61,11 +61,13 @@ object SparkConnectorScalaSuiteIT {
     TestUtil.closeSafety(ss)
   }
 
-  def session(): Session = {
+  def session(): Session = try {
     if (_session == null || !_session.isOpen) {
       _session = driver.session
     }
     _session
+  } catch {
+    case _: Throwable => null
   }
 
   def getActiveConnections = session()

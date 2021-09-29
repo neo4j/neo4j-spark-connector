@@ -10,6 +10,7 @@ import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 import org.neo4j.cypherdsl.core.{Condition, Cypher, Expression, Functions, Property, PropertyContainer}
+import org.neo4j.driver.exceptions.{Neo4jException, ServiceUnavailableException, SessionExpiredException, TransientException}
 import org.neo4j.driver.internal._
 import org.neo4j.driver.types.{Entity, Path}
 import org.neo4j.driver.{Session, Transaction, Value, Values}
@@ -337,4 +338,8 @@ object Neo4jUtil {
       }
     }
   }
+
+  def isRetryableException(neo4jTransientException: Neo4jException) = (neo4jTransientException.isInstanceOf[SessionExpiredException]
+    || neo4jTransientException.isInstanceOf[TransientException]
+    || neo4jTransientException.isInstanceOf[ServiceUnavailableException])
 }

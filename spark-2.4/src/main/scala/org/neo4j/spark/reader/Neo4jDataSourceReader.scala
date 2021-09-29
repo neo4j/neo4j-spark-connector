@@ -5,7 +5,7 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.v2.DataSourceOptions
 import org.apache.spark.sql.sources.v2.reader.{DataSourceReader, InputPartition, SupportsPushDownFilters, SupportsPushDownRequiredColumns}
 import org.apache.spark.sql.types.StructType
-import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, ValidateRead, Validations}
+import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, ValidateRead, ValidateReadNotStreaming, Validations}
 
 import java.util
 import scala.collection.JavaConverters._
@@ -19,7 +19,7 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
   private var requiredColumns: StructType = new StructType()
 
   private val neo4jOptions: Neo4jOptions = new Neo4jOptions(options.asMap())
-  Validations.validate(ValidateRead(neo4jOptions, jobId))
+  Validations.validate(ValidateRead(neo4jOptions, jobId), ValidateReadNotStreaming(neo4jOptions, jobId))
 
   private val structType = if (userDefinedSchema != null) {
     userDefinedSchema

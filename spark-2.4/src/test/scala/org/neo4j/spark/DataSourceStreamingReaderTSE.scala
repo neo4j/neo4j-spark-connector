@@ -111,7 +111,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
           ))
         }
         // we test the equality for three times just to be sure that there are no duplications
-        // // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
+        // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
         actual.toList == expected.toList && counter.incrementAndGet() == 3
       }
     }, Matchers.equalTo(true), 120L, TimeUnit.SECONDS)
@@ -202,7 +202,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
             "title" -> row.getAs[String]("title")
           ))
         }
-        // // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
+        println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
         actual.toList == expected.toList && counter.incrementAndGet() == 3
       }
     }, Matchers.equalTo(true), 30L, TimeUnit.SECONDS)
@@ -365,7 +365,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
             "rel.id" -> row.getAs[Long]("rel.id").toInt
           ))
         }
-        // // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
+        // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
         actual.toList == expected.toList && counter.incrementAndGet() == 3
       }
     }, Matchers.equalTo(true), 40L, TimeUnit.SECONDS)
@@ -506,7 +506,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
         }
         val actualList = actual.toList
         val expectedList = expected.toList
-        // // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
+        // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
         actualList == expectedList && counter.incrementAndGet() == 3
       }
     }, Matchers.equalTo(true), 40L, TimeUnit.SECONDS)
