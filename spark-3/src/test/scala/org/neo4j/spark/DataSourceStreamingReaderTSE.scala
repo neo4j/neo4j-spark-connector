@@ -101,6 +101,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("labels", "Test4_Movie")
       .option("streaming.property.name", "timestamp")
+      .option("streaming.from", "ALL")
       .option("streaming.get.all", "true")
       .load()
 
@@ -250,6 +251,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship", "LIKES")
       .option("streaming.property.name", "timestamp")
+      .option("streaming.from", "ALL")
       .option("streaming.get.all", "true")
       .option("relationship.source.labels", "Test5_Person")
       .option("relationship.target.labels", "Test5_Post")
@@ -398,6 +400,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     val stream = ss.readStream.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("streaming.property.name", "timestamp")
+      .option("streaming.from", "ALL")
       .option("query",
         """
           |MATCH (p:Test3_Person)
