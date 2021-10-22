@@ -52,10 +52,7 @@ class Neo4jAccumulator(private val neo4jOptions: Neo4jOptions,
   private lazy val driverCache = new DriverCache(neo4jOptions.connection, jobId)
   add(initialValue)
 
-  override def copy(): AccumulatorV2[lang.Long, lang.Long] = {
-    val copy = new Neo4jAccumulator(neo4jOptions, jobId)
-    copy
-  }
+  override def copy(): AccumulatorV2[lang.Long, lang.Long] = new Neo4jAccumulator(neo4jOptions, jobId)
 
   override def merge(other: AccumulatorV2[lang.Long, lang.Long]): Unit = add(other.value)
 
@@ -170,10 +167,7 @@ class SparkAccumulator(private val initialValue: lang.Long = null)
 
   override def isZero: Boolean = offset.get() == null
 
-  override def copy(): AccumulatorV2[lang.Long, lang.Long] = {
-    val copy = new SparkAccumulator(offset.get())
-    copy
-  }
+  override def copy(): AccumulatorV2[lang.Long, lang.Long] = new SparkAccumulator(offset.get())
 
   override def reset(): Unit =  offset.set(null)
 
