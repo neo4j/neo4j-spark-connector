@@ -3,6 +3,11 @@
 
 Let's see how you can easily leverage the link:http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html[Spark Structured Streaming API] with the Neo4j Connector for Apache Spark.
 
+Although the connector is the same, Spark streaming works very differently from Spark batching.
+Here are some link to learn more about the Spark streaming approach:
+
+* link:https://spark.apache.org/docs/latest/streaming-programming-guide.html#overview[Structured Streaming Programming Guide] from Spark website
+* link:https://databricks.com/blog/2015/07/30/diving-into-apache-spark-streamings-execution-model.html[Diving into Apache Spark Streaming’s Execution Model] by Databricks
 
 == Neo4j Streaming Options
 
@@ -15,14 +20,14 @@ Let's see how you can easily leverage the link:http://spark.apache.org/docs/late
 |`checkpointLocation`
 |Checkpoint file location (xref:#_checkpoint[see more])
 |_(none)_
-|Yes^*^
+|Yes
 
 4+|*Source*
 
 |`streaming.property.name`
 |The timestamp property used for batch reading. Read more xref:#_streaming_property_name[here].
 |_(none)_
-|Yes^*^
+|Yes
 
 |`streaming.from`
 |This option is used to tell the connector from where to send data to the stream.
@@ -32,7 +37,16 @@ Read more xref:#_streaming_from[here].
 
 **ALL**: send all the data in the DB to the stream before reading new data
 |`NOW`
-|Yes^*^
+|Yes
+
+|`streaming.query.offset`
+|A valid Cypher READ_ONLY query that returns a long value.
+
+(i.e. `MATCH (p:MyLabel) RETURN MAX(p.timestamp)`)
+
+This is used to get the last timestamp in the database for a given query. More on this xref:#_notes_on_query_mode[here]
+|_(none)_
+|Yes, only for `query` mode
 
 |===
 
@@ -40,29 +54,34 @@ Read more xref:#_streaming_from[here].
 
 Writing a stream to Neo4j is pretty easy and can be done using any of the xref:writing.adoc#_write_data[3 write strategies].
 
-[source,scala]
+[NOTE]
+The same xref:quickstart.adoc#_schema[schema concepts] also apply here.
+If you start a streaming read with an empty result set, you need to specify the schema using
+the xref:quickstart.adoc#user-defined-schema[user defined schema], or the batch read will fail.
+
+.Code example that reads from a Kafka topic and writes to Neo4j.
+[source,python]
 ----
-import org.apache.spark.sql.{SaveMode, SparkSession}
+from pyspark.sql import SparkSession
 
-val spark = SparkSession.builder().getOrCreate()
+spark = SparkSession \
+    .builder() \
+    .master('local[*]') \
+    .getOrCreate()
 
-/**
- * Example is made with kafka, but can be any Spark Streaming Dataframe
- */
-val df = spark
-  .readStream
-  .format("kafka")
-  .option("subscribe", "PeopleTopic")
-  .load()
+df = spark.readStream \
+    .format("kafka") \
+    .option("subscribe", "PeopleTopic") \
+    .load()
 
-memStream.writeStream
-  .format("org.neo4j.spark.DataSource")
-  .option("url", "bolt://localhost:7687")
-  .option("save.mode", "ErrorIfExists")
-  .option("checkpointLocation", "/tmp/checkpoint/myCheckPoint")
-  .option("labels", "Person")
-  .option("node.keys", "value")
-  .start()
+query = df.writeStream \
+    .format("org.neo4j.spark.DataSource") \
+    .option("url", "bolt://localhost:7687") \
+    .option("save.mode", "ErrorIfExists") \
+    .option("checkpointLocation", "/tmp/checkpoint/myCheckPoint") \
+    .option("labels", "Person") \
+    .option("node.keys", "value") \
+    .start()
 ----
 
 As said, you can use any writing strategy: link:writing.adoc#write-node[Labels], link:writing.adoc#write-rel[Relationship], or link:writing.adoc#write-query[Query].
@@ -86,34 +105,37 @@ Reading a stream from Neo4j requires some additional configuration.
 Let's see the code first and then we can analyze all the options.
 
 
-[source,scala]
+[source,python]
 ----
-import org.apache.spark.sql.{SaveMode, SparkSession}
+from pyspark.sql import SparkSession
 
-val spark = SparkSession.builder().getOrCreate()
+spark = SparkSession \
+    .builder() \
+    .master('local[*]') \
+    .getOrCreate()
 
-val stream = spark.readStream
-    .format("org.neo4j.spark.DataSource")
-    .option("url", "bolt://localhost:7687")
-    .option("labels", "Person")
-    .option("streaming.property.name", "timestamp")
-    .option("streaming.from", "NOW")
+df = spark.readStream \
+    .format("org.neo4j.spark.DataSource") \
+    .option("url", "bolt://localhost:7687") \
+    .option("labels", "Person") \
+    .option("streaming.property.name", "timestamp") \
+    .option("streaming.from", "NOW") \
     .load()
 ----
 
-[source,scala]
+[source,python]
 ----
-// Memory streaming format writes the streamed data to a SparkSQL table
-// NOTE: make sure this code is executed in another block,
-// or at least seconds later the previous one to allow the full initialization of the stream.
-// The risk is that the query will return an empty result.
-query = stream.writeStream
-    .format("memory")
-    .queryName("testReadStream")
+# Memory streaming format writes the streamed data to a SparkSQL table
+# NOTE: make sure this code is executed in another block,
+# or at least seconds later the previous one to allow the full initialization of the stream.
+# The risk is that the query will return an empty result.
+query = stream.writeStream \
+    .format("memory") \
+    .queryName("testReadStream") \
     .start()
 
-spark
-  .sql("select * from testReadStream order by timestamp")
+spark \
+  .sql("select * from testReadStream order by timestamp") \
   .show()
 ----
 
@@ -138,14 +160,50 @@ The property name can be anything, just remember to set the `streaming.property.
 You can decide to stream all the data in the db, or just the new ones.
 To achieve this you can set the `streaming.from` option to one of these two values:
 
-* `ALL`: will read all the data that matches they given options, once read those, will read the ones that has `[timestampProperty] >= currentTimestamp()`. This is the **default value for this option**.
-* `NOW`: will start reading the data that has the `[timestampProperty] >= currentTimestamp()`
+* `NOW`: will start reading from the current timestamp (This is the **default value for the `streaming.from` option**)
+* `ALL`: will read all the data in the database first, and then just the new ones
 
 === Reading mode
 
 As for Sink mode, you can use any of the reading strategies: link:reading.adoc#read-node[Labels], link:reading.adoc#read-rel[Relationship], or link:reading.adoc#read-query[Query].
 
-[NOTE]
-The same xref:quickstart.adoc#_schema[schema concepts] also apply here.
-If you start a streaming read with an empty result set, you need to specify the schema using
-the xref:quickstart.adoc#user-defined-schema[user defined schema], or the batch read will fail.
+==== Notes on `query` mode
+
+Handling the `streaming.from` and `streaming.property.name` is a bit less automatic when using the query mode.
+
+Let's see an example and then explain what's happening.
+
+[source,python]
+----
+from pyspark.sql import SparkSession
+
+spark = SparkSession \
+    .builder() \
+    .master('local[*]') \
+    .getOrCreate()
+
+df = spark.readStream \
+    .format("org.neo4j.spark.DataSource") \
+    .option("url", "bolt://localhost:7687") \
+    .option("streaming.from", "NOW") \
+    .option("streaming.property.name", "timestamp") \
+    .option("query", \
+        """MATCH (p:Test3_Person)
+           WHERE p.timestamp > $stream.offset
+           RETURN p.age AS age, p.timestamp AS timestamp""") \
+    .option("streaming.query.offset", \
+        "MATCH (p:Test3_Person) RETURN max(p.timestamp)") \
+    .load()
+----
+
+As you can see, the `streaming.from` and `streaming.property.name` must be specified anyway, but you need to take care of the where clause yourself.
+You are provided with a variable `$stream.offset` that contains the value of the timestamp that is being used.
+
+In this case the `streaming.query.offset` option is mandatory;
+this option is used by the connector to read the last timestamp in the database and the result will be set as value of the `$stream.offset` parameter.
+
+=== Additional examples
+
+You can find streaming code bits and many other examples on link:https://github.com/utnaf/neo4j-connector-apache-spark-notebooks[this repository] that contains Zeppelin notebooks.
+
+A complete example using Spark, Neo4j and AWS Kinesis is described in the article link:link:https://medium.com/neo4j/from-kinesis-via-spark-to-neo4j-97d564562b61[From Kinesis via Spark to Neo4j].
