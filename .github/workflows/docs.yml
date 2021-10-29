@@ -10,7 +10,7 @@ on:
     paths:
       - 'doc/*'
     branches:
-      - '*'
+      - '4.1'
 
 jobs:
   build:
