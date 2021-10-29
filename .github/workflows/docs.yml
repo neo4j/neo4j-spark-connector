@@ -5,8 +5,7 @@ on:
     paths:
       - 'doc/*'
     branches:
-      - '4.0'
-      - 'master'
+      - '4.1'
   pull_request:
     paths:
       - 'doc/*'

@@ -2,9 +2,11 @@ name: JVM CI with Maven
 
 on:
   push:
-    branches: [ '**' ]
+    branches:
+      - '4.1'
   pull_request:
-    branches: [ '**' ]
+    branches:
+      - '*'
 
 jobs:
   build:

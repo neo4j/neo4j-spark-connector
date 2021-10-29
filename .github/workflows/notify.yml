@@ -5,7 +5,7 @@ on:
     paths:
       - 'doc/docs'
     branches:
-      - '4.0'
+      - '4.1'
 
 jobs:
   trigger_publish:
