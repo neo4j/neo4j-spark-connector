@@ -27,7 +27,7 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
-      - uses: avides/actions-project-version-check
+      - uses: avides/actions-project-version-check@v1
         id: version
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
