@@ -27,11 +27,12 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
-      - uses: avides/actions-project-version-check@v1
+      - uses: avides/actions-project-version-check@v1.2.0
         id: version
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           file-to-check: pom.xml
+          only-return-version: true
       - name: Cache Maven packages
         uses: actions/cache@v1
         with:
