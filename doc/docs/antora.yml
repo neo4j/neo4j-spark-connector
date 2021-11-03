@@ -1,5 +1,5 @@
 name: spark
-version: master
+version: '4.0'
 title: Neo4j Spark Connector
 start_page: ROOT:index.adoc
 nav:
