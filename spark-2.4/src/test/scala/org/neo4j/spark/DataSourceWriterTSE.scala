@@ -479,7 +479,13 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     } catch {
       case sparkException: SparkException => {
         val clientException = ExceptionUtils.getRootCause(sparkException)
-        assertTrue(clientException.getMessage.endsWith("already exists with label `Person` and property `surname` = 'Santurbano'"))
+        if (TestUtil.neo4jVersion().startsWith("4.4")) {
+          assertTrue(clientException.getMessage.endsWith("share the property value ( String(\"Santurbano\") )"))
+        }
+        else {
+          assertTrue(clientException.getMessage.endsWith("already exists with label `Person` and property `surname` = 'Santurbano'"))
+        }
+
         throw sparkException
       }
       case e: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName} but is ${e.getClass.getSimpleName}")
