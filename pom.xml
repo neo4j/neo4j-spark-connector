@@ -145,6 +145,13 @@
                 <neo4j.experimental>false</neo4j.experimental>
             </properties>
         </profile>
+        <profile>
+            <id>neo4j-4.4</id>
+            <properties>
+                <neo4j.version>4.4.0-alpha01</neo4j.version>
+                <neo4j.experimental>true</neo4j.experimental>
+            </properties>
+        </profile>
     </profiles>
 
     <build>

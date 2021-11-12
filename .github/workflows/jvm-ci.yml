@@ -16,7 +16,7 @@ jobs:
       matrix:
         scala-version: [2.11, 2.12]
         spark-version: ["2.4", "3"]
-        neo4j-version: ["3.5", "4.0", "4.1", "4.2", "4.3"]
+        neo4j-version: ["3.5", "4.0", "4.1", "4.2", "4.3", "4.4"]
     name: Build with Scala ${{ matrix.scala-version }}, Spark ${{ matrix.spark-version }} and Neo4j ${{ matrix.neo4j-version }}
     steps:
       - uses: actions/checkout@v2
