@@ -1,27 +1,27 @@
 
 [#aura]
-= Using with Neo4j Aura
+= Using with Neo4j AuraDB
 
 [abstract]
 --
-This chapter describes considerations around using Neo4j Connector for Apache Spark with link:https://neo4j.com/cloud/aura/[Neo4j Aura].
+This chapter describes considerations around using Neo4j Connector for Apache Spark with link:https://neo4j.com/cloud/aura/[Neo4j AuraDB].
 --
 
 == Overview
 
-link:https://neo4j.com/cloud/aura/[Neo4j Aura] is a fully managed database as a service providing Neo4j.
+link:https://neo4j.com/cloud/aura/[Neo4j AuraDB] is a fully managed cloud graph database service.
 
-== Connecting to Aura
+== Connecting to AuraDB
 
-Connecting to Neo4j Aura is similar to connecting to on-premises Neo4j, but keep in mind:
+Connecting to Neo4j AuraDB is similar to connecting to on-premise Neo4j instances, but keep in mind:
 
 * Always use a `neo4j+s://` driver URI when communicating with the cluster in the client application.  The optimal
-driver URI will be provided by Aura itself when you create a database
-* In Aura Enterprise consider creating a separate username/password for Spark access; avoid running all processes through the default
+driver URI is provided by AuraDB itself when you create a database.
+* In AuraDB Enterprise consider creating a separate username/password for Spark access; avoid running all processes through the default
 `neo4j` account.
 
-== Connecting to Aura from Spark on Databricks
+== Connecting to AuraDB from Spark on Databricks
 
-Aura customers connecting from Databricks may encounter SSL handshake errors due to Databricks' custom Java security settings removing certain cipher support.
+AuraDB customers connecting from Databricks may encounter SSL handshake errors due to Databricks' custom Java security settings removing certain cipher support.
 
-See the Aura knowledge base article link:{url-aura-kbase-databricks}[Connecting to Aura with Databricks] for more information and for steps to configure your Databricks cluster to support connections to Aura.
+See the AuraDB support article link:{url-aura-kbase-databricks}[Connecting to Aura with Databricks] for more information and instructions on how to configure your Databricks cluster to support connections to AuraDB.
