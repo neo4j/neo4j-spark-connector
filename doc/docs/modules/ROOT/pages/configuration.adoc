@@ -20,7 +20,7 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
 ----
 
 Alternatively, you can specify a global configuration in the Spark Session, to avoid retyping connection options every time.
-You can set any Neo4j Connector option, just preped it with `neo4j.`.
+You can set any Neo4j Connector option, just prepend it with `neo4j.`.
 
 For example if you want to set the option `authentication.type` in the session, you have to type `neo4j.authentication.type`.
 Here's a full example:
