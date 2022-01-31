@@ -4,7 +4,7 @@
 Let's see how you can easily leverage the link:http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html[Spark Structured Streaming API] with the Neo4j Connector for Apache Spark.
 
 Although the connector is the same, Spark streaming works very differently from Spark batching.
-Here are some link to learn more about the Spark streaming approach:
+Here are some links to learn more about the Spark streaming approach:
 
 * link:https://spark.apache.org/docs/latest/streaming-programming-guide.html#overview[Structured Streaming Programming Guide] from Spark website
 * link:https://databricks.com/blog/2015/07/30/diving-into-apache-spark-streamings-execution-model.html[Diving into Apache Spark Streaming’s Execution Model] by Databricks
@@ -84,11 +84,11 @@ query = df.writeStream \
     .start()
 ----
 
-As said, you can use any writing strategy: link:writing.adoc#write-node[Labels], link:writing.adoc#write-rel[Relationship], or link:writing.adoc#write-query[Query].
+As said, you can use any writing strategy: xref:writing.adoc#write-node[Labels], xref:writing.adoc#write-rel[Relationship], or xref:writing.adoc#write-query[Query].
 
 The only difference is that you must set the `checkpointLocation` and `save.mode` options.
 
-With `save.mode` you can control how the data are written. More info link:writing.adoc#save-mode[here].
+With `save.mode` you can control how the data are written. More info xref:writing.adoc#save-mode[here].
 
 === Checkpoint
 
