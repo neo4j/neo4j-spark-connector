@@ -277,7 +277,7 @@ spark.read.format("org.neo4j.spark.DataSource")
 |===
 
 As you can see, the Struct returned by the query is made of strings
-that you can then be cast Spark's getters (i.e., `getLong`).
+that you can then cast by using Spark's getters (i.e., `getLong`).
 
 [[user-defined-schema]]
 ===== User defined schema
