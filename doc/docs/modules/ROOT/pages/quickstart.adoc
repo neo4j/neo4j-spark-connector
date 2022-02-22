@@ -180,7 +180,7 @@ Struct(Array(
 === Filters
 
 The Neo4j Connector for Apache Spark implements the `SupportPushdownFilters` interface, that allows you to push the Spark filters down to the Neo4j layer.
-In this way the data that Spark receives has been already filtered by Neo4j,
+In this way the data that Spark receives have been already filtered by Neo4j,
 decreasing the amount of data transferred from Neo4j to Spark.
 
 You can manually disable the PushdownFilters support using the `pushdown.filters.enabled` option and set it to `false` (default is `true`).
@@ -312,7 +312,7 @@ In this way you have total control over the schema.
 [[read-known-problem]]
 ===== Known problem
 
-Being Neo4j a schema less database, this scenario may occur:
+Because Neo4j is a schema free database, the following scenario may occur:
 
 [source,cypher]
 ----
@@ -321,8 +321,8 @@ CREATE (p1:Person {age: "32"}), (p2:Person {age: 23})
 
 The same field on the same node label has two different types.
 
-Spark doesn't like it since the dataframe requires a schema,
-meaning each column of the dataframe needs to have its own type.
+Spark doesn't like it since the DataFrame requires a schema,
+meaning each column of the DataFrame needs to have its own type.
 
 If you don't have APOC installed on your Neo4j instance, you're most likely to be exposed to errors like this:
 
@@ -341,7 +341,7 @@ uses link:https://neo4j.com/labs/apoc/4.1/overview/apoc.meta/apoc.meta.nodeTypeP
 and link:https://neo4j.com/labs/apoc/4.1/overview/apoc.meta/apoc.meta.relTypeProperties/[apoc.meta.relTypeProperties]
 to sample the data.
 
-When the casting operation happens, this warning appears in your log letting you know what has happened:
+When the casting operation happens, this warning appears in your log, letting you know what has happened:
 
 [source]
 ----
