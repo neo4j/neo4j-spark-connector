@@ -15,7 +15,7 @@ It's fairly easy to use, although it can be highly customized.
 
 You can download the connector JAR from the link:https://neo4j.com/product/connectors/apache-spark-connector/[Neo4j Connector Page] or from the link:https://github.com/neo4j-contrib/neo4j-spark-connector/releases[GitHub releases page].
 
-Choose the version carefully since the wrong combination of Scala version and Spark version break your code.
+Choose the version carefully since the wrong combination of Scala version and Spark version breaks your code.
 Check xref:overview.adoc#_spark_compatibility[this page] for more information about the proper JAR to use.
 
 === Using spark-submit, spark-shell, or pyspark
