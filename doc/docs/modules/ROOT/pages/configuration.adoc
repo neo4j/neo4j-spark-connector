@@ -1,5 +1,7 @@
 [#options]
-= Connector Options & Configuration
+= Neo4j Spark Connector options and configuration
+
+:description: The chapter describes configuration options of Neo4j Connector for Apache Spark.  
 
 When using the connector, any valid Neo4j driver option can be set using the `option` method in
 Spark, like so:
@@ -19,11 +21,11 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
         .load()
 ----
 
-Alternatively, you can specify a global configuration in the Spark Session, to avoid retyping connection options every time.
-You can set any Neo4j Connector option, just preped it with `neo4j.`.
+Alternatively, you can specify a global configuration in the Spark Session to avoid retyping connection options every time.
+You can set any Neo4j Connector option, just prepend it with `neo4j.`.
 
-For example if you want to set the option `authentication.type` in the session, you have to type `neo4j.authentication.type`.
-Here's a full example:
+For example, if you want to set the option `authentication.type` in the session, you have to type `neo4j.authentication.type`.
+Here is a full example:
 
 [source,scala]
 ----
@@ -47,7 +49,7 @@ val dfProduct = spark.read.format("org.neo4j.spark.DataSource")
 
 == Configuration on Databricks
 
-On Databricks you can't set Session configuration at runtime, but you can set Spark configuration on the Cluster you're running your notebooks on.
+On Databricks you can't set Session configuration at runtime, but you can set Spark configuration on the cluster you're running your notebooks on.
 To do this go on the cluster configuration page, click the _Advanced Options_ toggle and then the _Spark_ tab.
 
 Add the Neo4j Connector configuration in the text area like this:
@@ -61,18 +63,18 @@ neo4j.authentication.basic.username neo4j
 
 
 
-== Neo4j Driver Options
+== Neo4j driver options
 
-Under the covers, the spark connector uses the link:https://neo4j.com/docs/driver-manual/current/get-started/#driver-get-started-about[official Neo4j Java Driver].  As such, in many situations you'll want the control to set driver options to account for your production deployment of Neo4j, and how to communicate with it.   This is done using the `options` example above.
+Under the covers, the Spark connector uses the link:https://neo4j.com/docs/java-manual/current/get-started/#java-driver-get-started-about[official Neo4j Java Driver].  In many situations you want the control to set driver options to account for your production deployment of Neo4j, and how to communicate with it. This can be done using the `options` example above.
 
 The following table captures the most common configuration settings to use with the Neo4j driver.  For full
-documentation on all possible configuration options for Neo4j drivers, see the link:https://neo4j.com/docs/driver-manual/current/client-applications/#driver-configuration[Neo4j Drivers Manual].
+documentation on all possible configuration options for Neo4j Drivers, see the link:https://neo4j.com/docs/drivers-apis/#_neo4j_drivers[Neo4j Drivers Manuals].
 
-.List of available options
+.List of available configuration settings
 |===
-|Setting Name |Description |Default Value |Required
+|Setting name |Description |Default value |Required
 
-4+|*Driver Options*
+4+|*Driver options*
 
 |`url`
 |The url of the Neo4j instance to connect to
@@ -80,8 +82,8 @@ documentation on all possible configuration options for Neo4j drivers, see the l
 |Yes
 
 |`authentication.type`
-|The authentication method to be used: `none`, `basic`, `kerberos`, `custom`.
-More info link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#driver-authentication[here, window=_blank]
+|The authentication methods to be used: `none`, `basic`, `kerberos`, `custom`.
+More information link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#driver-authentication[here, window=_blank]
 |`basic`
 |No
 
@@ -101,7 +103,7 @@ More info link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#dri
 |No
 
 |`authentication.custom.principal`
-|This used to identify who this token represents
+|This is used to identify who this token represents
 |_(Neo4j Driver default)_
 |No
 
@@ -111,19 +113,19 @@ More info link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#dri
 |No
 
 |`authentication.custom.realm`
-|This is the "realm:" string, specifying the authentication provider
+|This is the "realm": string specifying the authentication provider
 |_(Neo4j Driver default)_
 |No
 
 |`encryption.enabled`
 |Specify if encryption should be enabled.
-This setting is ignored if you use a URI scheme with +s or +ssc
+This setting is ignored if you use a URI scheme with `+s` or `+ssc`
 |`false`
 |No
 
 |`encryption.trust.strategy`
-|Set certificate trust strategy, is ignored in case the connection URI uses `+s` or `+ssc` as suffix.
-Available values are: `TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`, `TRUST_CUSTOM_CA_SIGNED_CERTIFICATES`, `TRUST_ALL_CERTIFICATES`
+|Set certificate trust strategy, it is ignored if the connection URI uses `+s` or `+ssc` as suffix.
+Available values are: `TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`, `TRUST_CUSTOM_CA_SIGNED_CERTIFICATES`, `TRUST_ALL_CERTIFICATES`.
 |_(Neo4j Driver default)_
 |No
 
@@ -152,27 +154,27 @@ Available values are: `TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`, `TRUST_CUSTOM_CA_SI
 |_(Neo4j Driver default)_
 |No
 
-4+|*Session Options*
+4+|*Session options*
 
 |`database`
 |Database name to connect to.
-As the driver allows to define the database in the URL,
-in case you set this option will have the priority compared to the one defined in the URL
+The driver allows to define the database in the URL,
+yet in case you set this option, it has the priority compared to the one defined in the URL.
 |_(Neo4j Driver default)_
 |No
 
 |`access.mode`
 |Possible values are: `read`, `write`.
 Used only while you're pulling data from Neo4j.
-In case of `read` the connector, in a cluster environment,
-will route the requests to the followers, otherwise to the leader.
+In case of `read`, the connector in a cluster environment
+routes the requests to the followers, otherwise to the leader.
 |`read`
 |No
 |===
 
 == Multiple connections
 
-Neo4j Connector for Apache Spark allows you to use more connections in a single Spark Session.
+Neo4j Connector for Apache Spark allows you to use more than one connection in a single Spark Session.
 For example, you can read data from a database and write them in another database in the same session.
 
 .Reading from a database and writing to a different one
@@ -196,7 +198,7 @@ df.write.format("org.neo4j.spark.DataSource")
 
 Another case to use multiple connections is when you want to merge two datasources.
 
-.Merge data between two databases
+.Merge data from two databases
 [source,scala]
 ----
 import org.apache.spark.sql.{SaveMode, SparkSession}
