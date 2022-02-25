@@ -54,9 +54,9 @@ class Neo4jDataSourceStreamWriter(val queryId: String,
     scriptResult
   }
 
-  override def commit(epochId: Long, messages: Array[WriterCommitMessage]): Unit = Unit
+  override def commit(epochId: Long, messages: Array[WriterCommitMessage]): Unit = ()
 
-  override def abort(epochId: Long, messages: Array[WriterCommitMessage]): Unit = Unit
+  override def abort(epochId: Long, messages: Array[WriterCommitMessage]): Unit = ()
 
   override def createWriterFactory(): DataWriterFactory[InternalRow] = new Neo4jDataWriterFactory(queryId, schema, streamingSaveMode, neo4jOptions, scriptResult)
 

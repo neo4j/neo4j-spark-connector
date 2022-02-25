@@ -49,7 +49,7 @@ object SparkConnectorScalaSuiteIT {
           override def execute(tx: Transaction): ResultSummary = tx.run("RETURN 1").consume() // we init the session so the count is consistent
         })
       connections = getActiveConnections
-      Unit
+      ()
     }
   }
 
@@ -73,8 +73,8 @@ object SparkConnectorScalaSuiteIT {
   def getActiveConnections = session()
     .readTransaction(new TransactionWork[Long] {
       override def execute(tx: Transaction): Long = tx.run(
-        """|CALL dbms.listConnections() YIELD connectionId, connector
-           |WHERE connector = 'bolt'
+        """|CALL dbms.listConnections() YIELD connectionId, connector, userAgent
+           |WHERE connector = 'bolt' AND userAgent STARTS WITH 'neo4j-spark-connector'
            |RETURN count(*) AS connections""".stripMargin)
         .single()
         .get("connections")

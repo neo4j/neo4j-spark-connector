@@ -7,6 +7,7 @@ import org.junit._
 import org.junit.rules.TestName
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
+import org.neo4j.spark
 
 import java.util.concurrent.TimeUnit
 
@@ -53,7 +54,7 @@ class SparkConnectorScalaBaseWithApocTSE {
   def after() {
     if (!TestUtil.isCI()) {
       try {
-        Assert.assertEventually(new Assert.ThrowingSupplier[Boolean, Exception] {
+        spark.Assert.assertEventually(new spark.Assert.ThrowingSupplier[Boolean, Exception] {
           override def get(): Boolean = {
             val afterConnections = SparkConnectorScalaSuiteWithApocIT.getActiveConnections
             SparkConnectorScalaSuiteWithApocIT.connections == afterConnections

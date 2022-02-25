@@ -46,7 +46,7 @@ object Neo4jUtil {
       autoCloseable match {
         case s: Session => if (s.isOpen) s.close()
         case t: Transaction => if (t.isOpen) t.close()
-        case null => Unit
+        case null => ()
         case _ => autoCloseable.close()
       }
     } catch {
@@ -204,11 +204,12 @@ object Neo4jUtil {
     }
     case unsafeMapData: UnsafeMapData => { // Neo4j only supports Map[String, AnyRef]
       val mapType = schema.dataType.asInstanceOf[MapType]
-      Values.value((0 to unsafeMapData.numElements() - 1)
+      val map: Map[String, AnyRef] = (0 to unsafeMapData.numElements() - 1)
         .map(i => (unsafeMapData.keyArray().getUTF8String(i).toString, unsafeMapData.valueArray().get(i, mapType.valueType)))
         .toMap[String, AnyRef]
-        .mapValues(value => convertFromSpark(value))
-        .asJava)
+        .mapValues(innerValue => convertFromSpark(innerValue))
+        .toMap[String, AnyRef]
+      Values.value(map.asJava)
     }
     case string: UTF8String => convertFromSpark(string.toString)
     case _ => Values.value(value)

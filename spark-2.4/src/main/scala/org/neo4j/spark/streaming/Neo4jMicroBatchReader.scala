@@ -103,7 +103,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
 
   override def deserializeOffset(json: String): Offset = Neo4jOffset24(json.toLong)
 
-  override def commit(end: Offset): Unit = Unit
+  override def commit(end: Offset): Unit = ()
 
   override def planInputPartitions: util.ArrayList[InputPartition[InternalRow]] = {
     startedExecution = true

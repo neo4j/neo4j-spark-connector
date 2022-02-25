@@ -17,18 +17,18 @@ class Neo4jStreamingWriter(val queryId: String,
   private val self = this
 
   private val listener = new StreamingQueryListener {
-    override def onQueryStarted(event: StreamingQueryListener.QueryStartedEvent): Unit = {}
+    override def onQueryStarted(event: StreamingQueryListener.QueryStartedEvent): Unit = ()
 
-    override def onQueryProgress(event: StreamingQueryListener.QueryProgressEvent): Unit = {}
+    override def onQueryProgress(event: StreamingQueryListener.QueryProgressEvent): Unit = ()
 
     override def onQueryTerminated(event: StreamingQueryListener.QueryTerminatedEvent): Unit = {
       if (event.id.toString == queryId) {
         self.close()
-        SparkSession.active.streams.removeListener(this)
+        SparkSession.getDefaultSession.get.streams.removeListener(this)
       }
     }
   }
-  SparkSession.active.streams.addListener(listener)
+  SparkSession.getDefaultSession.get.streams.addListener(listener)
 
   private val driverCache = new DriverCache(neo4jOptions.connection, queryId)
 

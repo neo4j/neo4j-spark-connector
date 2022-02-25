@@ -267,7 +267,7 @@ case class Neo4jDriverOptions(
     if (livenessCheckTimeout > -1) builder.withConnectionLivenessCheckTimeout(livenessCheckTimeout, TimeUnit.MILLISECONDS)
     if (connectionTimeout > -1) builder.withConnectionTimeout(connectionTimeout, TimeUnit.MILLISECONDS)
     URI.create(url).getScheme match {
-      case "neo4j+s" | "neo4j+ssc" | "bolt+s" | "bolt+ssc" => Unit
+      case "neo4j+s" | "neo4j+ssc" | "bolt+s" | "bolt+ssc" => ()
       case _ => {
         if (!encryption) {
           builder.withoutEncryption()

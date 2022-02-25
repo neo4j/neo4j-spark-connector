@@ -94,7 +94,7 @@ case class ValidateSaveMode(saveMode: String) extends Validation {
 case class ValidateWrite(neo4jOptions: Neo4jOptions,
                          jobId: String,
                          saveMode: SaveMode,
-                         customValidation: Neo4jOptions => Unit = _ => Unit) extends Validation {
+                         customValidation: Neo4jOptions => Unit = _ => ()) extends Validation {
   override def validate(): Unit = {
     ValidationUtil.isFalse(neo4jOptions.session.accessMode == AccessMode.READ,
       s"Mode READ not supported for Data Source writer")
@@ -127,7 +127,7 @@ case class ValidateWrite(neo4jOptions: Neo4jOptions,
               ValidationUtil.isNotEmpty(neo4jOptions.nodeMetadata.nodeKeys,
                 s"${Neo4jOptions.NODE_KEYS} is required when Save Mode is Overwrite")
             }
-            case _ => Unit
+            case _ => ()
           }
         }
         case QueryType.RELATIONSHIP => {

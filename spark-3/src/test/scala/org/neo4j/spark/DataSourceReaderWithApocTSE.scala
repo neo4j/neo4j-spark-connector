@@ -11,7 +11,7 @@ import org.neo4j.driver.{Transaction, TransactionWork}
 
 import java.util.TimeZone
 import scala.collection.JavaConverters._
-import scala.collection.mutable
+import scala.collection.mutable.{Seq, ArraySeq}
 
 class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
@@ -682,11 +682,11 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
         && row.getAs[Long]("rel.quantity") != null
         && row.getAs[Long]("<source.id>") != null
         && row.getAs[Long]("source.id") != null
-        && !row.getAs[List[String]]("<source.labels>").isEmpty
+        && !row.getAs[Seq[String]]("<source.labels>").isEmpty
         && row.getAs[String]("source.fullName") != null
         && row.getAs[Long]("<target.id>") != null
         && row.getAs[Long]("target.id") != null
-        && !row.getAs[List[String]]("<target.labels>").isEmpty
+        && !row.getAs[Seq[String]]("<target.labels>").isEmpty
         && row.getAs[String]("target.name") != null)
       .size
     assertEquals(total, count)
@@ -807,9 +807,9 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
         }
       }))
     val expectedData = Seq(
-      Seq(mutable.WrappedArray.make(Array("Person", "Actor")), true, 1964, "Keanu Reeves", null, null),
-      Seq(mutable.WrappedArray.make(Array("Person", "Writer")), null, 1928, "Philip K. Dick", null, true),
-        Seq(mutable.WrappedArray.make(Array("Person", "SoccerPlayer")), null, 1981, "Zlatan Ibrahimović", true, null)
+      Seq(ArraySeq("Person", "Actor"), true, 1964, "Keanu Reeves", null, null),
+      Seq(ArraySeq("Person", "Writer"), null, 1928, "Philip K. Dick", null, true),
+      Seq(ArraySeq("Person", "SoccerPlayer"), null, 1981, "Zlatan Ibrahimović", true, null)
     ).toBuffer
     assertEquals(expectedData, data)
   }
@@ -848,10 +848,10 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
         }
       }))
     val expectedData = Seq(
-      Seq(mutable.WrappedArray.make(Array("Person")), "25"),
-      Seq(mutable.WrappedArray.make(Array("Person", "Player")), "hello"),
-      Seq(mutable.WrappedArray.make(Array("Person", "Player", "Weirdo")), "true")
-    ).toBuffer
+      Seq(ArraySeq("Person"), "25"),
+      Seq(ArraySeq("Person", "Player"), "hello"),
+      Seq(ArraySeq("Person", "Player", "Weirdo"), "true")
+    )
     assertEquals(expectedData, data)
   }
 

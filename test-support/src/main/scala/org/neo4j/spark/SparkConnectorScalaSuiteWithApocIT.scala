@@ -50,7 +50,7 @@ object SparkConnectorScalaSuiteWithApocIT {
           override def execute(tx: Transaction): ResultSummary = tx.run("RETURN 1").consume() // we init the session so the count is consistent
         })
       connections = getActiveConnections
-      Unit
+      ()
     }
   }
 

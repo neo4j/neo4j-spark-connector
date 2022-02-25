@@ -12,6 +12,7 @@ import org.neo4j.driver.{Transaction, TransactionWork}
 
 import java.util.TimeZone
 import scala.collection.JavaConverters._
+import scala.collection.mutable.Seq
 
 class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
@@ -980,11 +981,11 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
         && row.getAs[Long]("rel.quantity") != null
         && row.getAs[Long]("<source.id>") != null
         && row.getAs[Long]("source.id") != null
-        && !row.getAs[List[String]]("<source.labels>").isEmpty
+        && !row.getAs[Seq[String]]("<source.labels>").isEmpty
         && row.getAs[String]("source.fullName") != null
         && row.getAs[Long]("<target.id>") != null
         && row.getAs[Long]("target.id") != null
-        && !row.getAs[List[String]]("<target.labels>").isEmpty
+        && !row.getAs[Seq[String]]("<target.labels>").isEmpty
         && row.getAs[String]("target.name") != null)
       .size
     assertEquals(total, count)
@@ -1613,7 +1614,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
         })
 
     val df = ss.read.format(classOf[DataSource].getName)
-      .schema(StructType(Seq(StructField("age", DataTypes.StringType))))
+      .schema(StructType(Seq(StructField("age", DataTypes.StringType)).toSeq))
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("query", "MATCH (n:Person) RETURN n.age AS age")
       .load()

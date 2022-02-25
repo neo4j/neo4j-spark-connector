@@ -295,7 +295,7 @@ scala_version = str(sys.argv.pop())
 spark_version = str(sys.argv.pop())
 current_time_zone = get_localzone().zone
 
-print("Running tests for Connector %s,  Neo4j %s, Scala %s, Spark %s, TimeZone %s"
+print("Running tests for Connector %s, Neo4j %s, Scala %s, Spark %s, TimeZone %s"
       % (connector_version, neo4j_version, scala_version, spark_version, current_time_zone))
 
 

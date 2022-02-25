@@ -38,13 +38,17 @@ These commands will generate the corresponding targets
 
 ### Building for Spark 3
 
-You can build for Spark 3 by running
+You can build for Spark 2.4 with both Scala 2.12 and Scala 2.13
 
 ```
 ./maven-release.sh package 2.12 3
+./maven-release.sh package 2.13 3
 ```
 
-This will generate `spark-3/target/neo4j-connector-apache-spark_2.12-<version>_for_spark_3.jar`
+This will generate:
+These commands will generate the corresponding targets
+* `spark-3/target/neo4j-connector-apache-spark_2.12-<version>_for_spark_3.jar`
+* `spark-3/target/neo4j-connector-apache-spark_2.13-<version>_for_spark_3.jar`
 
 
 ## Integration with Apache Spark Applications

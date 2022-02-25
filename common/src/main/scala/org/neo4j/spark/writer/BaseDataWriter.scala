@@ -96,7 +96,7 @@ abstract class BaseDataWriter(jobId: String,
         }
       case e: Exception => logAndThrowException(e)
     }
-    Unit
+    ()
   }
 
   /**
@@ -135,7 +135,7 @@ abstract class BaseDataWriter(jobId: String,
       }
     }
     close()
-    Unit
+    ()
   }
 
   protected def close(): Unit = {

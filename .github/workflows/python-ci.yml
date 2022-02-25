@@ -14,8 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ "3.6", "3.7", "3.8" ]
-        neo4j-version: [ "3.5", "4.0", "4.1", "4.2", "4.3" ]
-        spark-version: [ {short: "2.4", ext: "2.4.5", scala: "2.11" }, {short: "3", ext: "3.0.1", scala: "2.12"}, {short: "3", ext: "3.1.1", scala: "2.12"} ]
+        neo4j-version: [ "3.5", "4.0", "4.1", "4.2", "4.3", "4.4" ]
+        spark-version: [ {short: "2.4", ext: "2.4.8", scala: "2.11" }, {short: "3", ext: "3.0.1", scala: "2.12"}, {short: "3", ext: "3.1.1", scala: "2.12"}, {short: "3", ext: "3.2.0", scala: "2.12"} ]
 
     steps:
       - uses: actions/checkout@v2
@@ -42,7 +42,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pypandoc six tzlocal==2.1
+          pip install six tzlocal==2.1
           pip install pyspark==${{ matrix.spark-version.ext }} "testcontainers[neo4j]"
       - name: Build artifact
         env:
@@ -50,7 +50,7 @@ jobs:
         run: |
           ./mvnw clean package -DskipTests -P spark-${{ matrix.spark-version.short }} -P scala-${{ matrix.spark-version.scala }} --no-transfer-progress
       - name: Run tests for Spark ${{ matrix.spark-version.ext }} and Neo4j ${{ matrix.neo4j-version }}
-        if: ${{ ! (matrix.spark-version.short == 2.4 && matrix.python-version == 3.8) }}
+        if: ${{ !(matrix.spark-version.short == 2.4 && matrix.python-version == 3.8) && !(matrix.spark-version.ext == '3.2.0' && matrix.python-version == 3.5) }}
         run: |
           cd ./scripts/python
           python test_spark.py "${{ matrix.spark-version.short }}" "${{ matrix.spark-version.scala }}" "${{ matrix.neo4j-version }}" "${{ steps.version.outputs.version }}"

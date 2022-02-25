@@ -62,7 +62,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
 
     structFields += StructField(Neo4jUtil.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true)
     structFields += StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.LongType, nullable = false)
-    StructType(structFields.reverse)
+    StructType(structFields.reverse.toSeq)
   }
 
   private def retrieveSchemaFromApoc(query: String, params: java.util.Map[String, AnyRef]): mutable.Buffer[StructField] = {
@@ -187,7 +187,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     })
       .map(field => StructField(s"rel.${field.name}", field.dataType, field.nullable, field.metadata))
       .sortBy(t => t.name)
-    StructType(structFields)
+    StructType(structFields.toSeq)
   }
 
   def structForQuery(): StructType = {
@@ -208,7 +208,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
 
     if (columns.isEmpty) {
-      return StructType(structFields)
+      return StructType(structFields.toSeq)
     }
 
     val sortedStructFields = if (structFields.isEmpty) {
@@ -429,7 +429,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     .asMap()
     .asScala
     .mapResult[Neo4jVersion](m => Neo4jVersion(m("name").asInstanceOf[String],
-      m("versions").asInstanceOf[util.List[String]].asScala,
+      m("versions").asInstanceOf[util.List[String]].asScala.toSeq,
       m("edition").asInstanceOf[String]))
     .result()
 

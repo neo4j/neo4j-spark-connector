@@ -56,8 +56,10 @@
         <node.version>v12.16.0</node.version>
         <npm.version>6.13.7</npm.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>1.8</java.version>
         <!-- This is empty because we use it for the deploy process -->
         <scala.binary.version />
+        <scala-maven-plugin.version>4.5.4</scala-maven-plugin.version>
     </properties>
 
     <profiles>
@@ -82,13 +84,44 @@
                 <scala.version>2.11.12</scala.version>
                 <scala.binary.version>2.11</scala.binary.version>
             </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>net.alchim31.maven</groupId>
+                        <artifactId>scala-maven-plugin</artifactId>
+                        <version>${scala-maven-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>scala-compile</id>
+                                <goals>
+                                    <goal>doc-jar</goal>
+                                </goals>
+                                <phase>process-resources</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <scalaVersion>${scala.version}</scalaVersion>
+                            <scalaCompatVersion>${scala.binary.version}</scalaCompatVersion>
+                            <args>
+                                <arg>-Xmax-classfile-name</arg>
+                                <arg>100</arg>
+                                <arg>-target:jvm-1.8</arg>
+                            </args>
+                            <jvmArgs>
+                                <jvmArg>-Xms64m</jvmArg>
+                                <jvmArg>-Xmx1024m</jvmArg>
+                            </jvmArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
         <!-- end scala profiles -->
         <!-- spark profiles -->
         <profile>
             <id>spark-3</id>
             <properties>
-                <spark.version>3.1.1</spark.version>
+                <spark.version>3.2.0</spark.version>
             </properties>
             <modules>
                 <module>spark-3</module>
@@ -146,8 +179,8 @@
         <profile>
             <id>neo4j-4.4</id>
             <properties>
-                <neo4j.version>4.4.0-alpha01</neo4j.version>
-                <neo4j.experimental>true</neo4j.experimental>
+                <neo4j.version>4.4.0</neo4j.version>
+                <neo4j.experimental>false</neo4j.experimental>
             </properties>
         </profile>
         <!-- end neo4j profiles -->
@@ -169,7 +202,7 @@
         <plugins>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.0.0-M4</version>
+                <version>3.0.0-M5</version>
                 <configuration>
                     <forkCount>1</forkCount>
                     <reuseForks>false</reuseForks>
@@ -184,15 +217,15 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
                     <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.3.0</version>
+                <version>${scala-maven-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>scala-compile</id>
@@ -216,8 +249,6 @@
                     <scalaVersion>${scala.version}</scalaVersion>
                     <scalaCompatVersion>${scala.binary.version}</scalaCompatVersion>
                     <args>
-                        <arg>-Xmax-classfile-name</arg>
-                        <arg>100</arg>
                         <arg>-target:jvm-1.8</arg>
                         <!-- arg>-deprecation</arg -->
                     </args>

@@ -157,7 +157,7 @@ class Neo4jAccumulator(private val neo4jOptions: Neo4jOptions,
 
   override def isZero: Boolean = true
 
-  override def reset(): Unit = Unit
+  override def reset(): Unit = ()
 }
 
 class SparkAccumulator(private val initialValue: lang.Long = null)
@@ -183,6 +183,6 @@ class SparkAccumulator(private val initialValue: lang.Long = null)
 
   override def value(): lang.Long = offset.get()
 
-  override def close(): Unit = Unit
+  override def close(): Unit = ()
 
 }

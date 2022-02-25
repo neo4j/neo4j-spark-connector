@@ -21,7 +21,7 @@ object TestUtil {
       autoCloseable match {
         case s: Session => if (s.isOpen) s.close()
         case t: Transaction => if (t.isOpen) t.close()
-        case null => Unit
+        case null => ()
         case _ => autoCloseable.close()
       }
     } catch {
