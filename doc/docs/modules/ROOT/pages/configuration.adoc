@@ -65,10 +65,10 @@ neo4j.authentication.basic.username neo4j
 
 == Neo4j driver options
 
-Under the covers, the Spark connector uses the link:https://neo4j.com/docs/java-manual/current/get-started/#java-driver-get-started-about[official Neo4j Java Driver].  In many situations you want the control to set driver options to account for your production deployment of Neo4j, and how to communicate with it. This can be done using the `options` example above.
+Under the covers, the Spark connector uses the link:https://neo4j.com/docs/java-manual/current/get-started/#java-driver-get-started-about[official Neo4j Java Driver].  In many situations, you want the control to set driver options to account for your production deployment of Neo4j and how to communicate with it. You can do this using the `options` example above.
 
 The following table captures the most common configuration settings to use with the Neo4j driver.  For full
-documentation on all possible configuration options for Neo4j Drivers, see the link:https://neo4j.com/docs/drivers-apis/#_neo4j_drivers[Neo4j Drivers Manuals].
+documentation on all possible configuration options for Neo4j Drivers, see the link:https://neo4j.com/docs/java-manual/current[Neo4j Java Driver manual].
 
 .List of available configuration settings
 |===
