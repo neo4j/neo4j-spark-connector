@@ -1,10 +1,12 @@
 = Writing to Neo4j
 
-The following section will cover the DataSource Writer, and how to transfer the Spark Dataset content into Neo4j.
+:description: The chapters describes writing methods to a Neo4j database using Neo4j Spark connector.
 
-== Getting Started
+The following section covers the DataSource Writer and how to transfer the Spark dataset content into Neo4j.
 
-Given the following Scala Program:
+== Getting started
+
+Let's look at the following code sample:
 
 [source,scala]
 ----
@@ -38,49 +40,49 @@ ds.write
   .save()
 ----
 
-Will insert 10 nodes into Neo4j via Spark, and each of these will have:
+The above code inserts 10 nodes into Neo4j via Spark, and each of them has:
 
-* 2 labels: `Person` and `Customer`
-* 4 properties: `name`, `surname`, `age` and `livesIn`
+* Two labels: `Person` and `Customer`.
+* Four properties: `name`, `surname`, `age`, and `livesIn`.
 
 [[save-mode]]
-== Save Mode
+== Save mode
 
-In order to persist data into Neo4j the Spark Connector supports two save modes that will
-work only if `UNIQUE` or `NODE KEY` constraints are defined into Neo4j for the given properties.
-
-[NOTE]
-These SaveMode examples apply to the Scala class `org.apache.spark.sql.SaveMode`.  For PySpark, simply
-use a static string with the name of the SaveMode.  So instead of `SaveMode.Overwrite`, use `"Overwrite"` for pyspark.
-
-For <<write-node,Node>> type
-
-* `SaveMode.ErrorIfExists`: this will build a `CREATE` query
-* `SaveMode.Overwrite`: this will build a `MERGE` query
+To persist data into Neo4j, the Spark Connector supports two save modes that
+work only if `UNIQUE` or `NODE KEY` constraints are defined in Neo4j for the given properties.
 
 [NOTE]
-For `SaveMode.Overwrite` mode you *need to have unique constrains on the keys*.
+The SaveMode examples apply to the Scala class `org.apache.spark.sql.SaveMode`.  For PySpark,
+use a static string with the name of the SaveMode. So instead of `SaveMode.Overwrite`, use `Overwrite` for PySpark.
 
-For <<write-rel,Relationship>> type
+For <<write-node,Node>> type:
 
-* `SaveMode.ErrorIfExists`: this will build a `CREATE` query
-* `SaveMode.Append`: this will build a `MERGE` query
-
-[NOTE]
-*ATTENTION*: If you are using *Spark 3* the default Save Mode *ErrorIfExists* won't work.
+* `SaveMode.ErrorIfExists` builds a `CREATE` query.
+* `SaveMode.Overwrite` builds a `MERGE` query.
 
 [NOTE]
-For `SaveMode.Append` mode you *need to have unique constrains on the keys*.
+For `SaveMode.Overwrite` mode, you *need to have unique constraints on the keys*.
 
-In both cases the default SaveMode is `ErrorIfExists`.
+For <<write-rel,Relationship>> type:
+
+* `SaveMode.ErrorIfExists` builds a `CREATE` query.
+* `SaveMode.Append` builds a `MERGE` query.
+
+[IMPORTANT]
+If you are using *Spark 3*, the default save mode *ErrorIfExists* does not work.
+
+[NOTE]
+For `SaveMode.Append` mode, you *need to have unique constraints on the keys*.
+
+In both cases, the default save mode is `ErrorIfExists`.
 
 == Options
 
-The DataSource Writer has several options in order to connect and persist data into Neo4j.
+The DataSource Writer has several options to connect and persist data into Neo4j.
 
 .List of available write options
 |===
-|Setting Name |Description |Default Value |Required
+|Setting name |Description |Default value |Required
 
 |`labels`
 |Colon separated list of the labels to attach to the node
@@ -93,7 +95,7 @@ The DataSource Writer has several options in order to connect and persist data i
 |No
 
 |`transaction.codes.fail`
-|Comma separated list of Neo4j codes that will cause the transaction to fail
+|Comma-separated list of Neo4j codes that cause the transaction to fail
 |_(none)_
 |No
 
@@ -103,22 +105,22 @@ The DataSource Writer has several options in order to connect and persist data i
 |No
 
 |`transaction.retry.timeout`
-|The time in ms that the Connector should wait before retry
+|The time in milliseconds that the connector should wait before retry
 |0
 |No
 
-4+|*Node Specific Options*
+4+|*Node specific options*
 
 |`node.keys`
-|Comma separated list of properties considered as node keys in case of you're using
+|Comma-separated list of properties considered as node keys if you are using
 `SaveMode.Overwrite`
 |_(none)_
 |No
 
-4+|*Relationship Specific Options*
+4+|*Relationship specific options*
 
 |`relationship.properties`
-|Map used as keys for specify the *relationship* properties. Only used if `relationship.save.strategy` is `keys`
+|Map used as keys for specifying the *relationship* properties. Used only if `relationship.save.strategy` is `keys`
 |_(empty)_
 |No
 
@@ -128,7 +130,7 @@ The DataSource Writer has several options in order to connect and persist data i
 |Yes
 
 |`relationship.source.labels`
-|Colon separated list of labels that identify the *source* node
+|Colon-separated list of labels that identify the *source* node
 |_(empty)_
 |Yes
 
@@ -138,17 +140,17 @@ The DataSource Writer has several options in order to connect and persist data i
 |No
 
 |`relationship.source.save.mode`
-|Source <<node-save-modes,node Save Mode>>
+|Source <<node-save-modes,Node save mode>>
 |`Match`
 |No
 
 |`relationship.source.node.properties`
-|Map used as keys for specify the *source* properties. Only used if `relationship.save.strategy` is `keys`
+|Map used as keys for specifying the *source* properties. Only used if `relationship.save.strategy` is `keys`
 |_(empty)_
 |No
 
 |`relationship.target.labels`
-|Colon separated list of labels that identify the *target* node
+|Colon-separated list of labels that identify the *target* node
 |_(empty)_
 |Yes
 
@@ -158,38 +160,37 @@ The DataSource Writer has several options in order to connect and persist data i
 |No
 
 |`relationship.target.save.mode`
-|Target <<node-save-modes,node Save Mode>>
+|Target <<node-save-modes,Node save mode>>
 |`Match`
 |No
 
 |`relationship.target.node.properties`
-|Map used as keys for specify the *target* properties.Only used if `relationship.save.strategy` is `keys`
+|Map used as keys for specifying the *target* properties. Only used if `relationship.save.strategy` is `keys`
 |_(empty)_
 |No
 
 |===
 
 [NOTE]
-As the Neo4j Connector for Apache Spark provide batch writes in order to speed-up the ingestion process
-so if in the process at some point fails all the previous data is already persisted.
+Neo4j Connector for Apache Spark provides batch writes to speed up the ingestion process,
+so if the process at some point fails, all the previous data are already persisted.
 
 [#_write_data]
-== Write Data
+== Write data
 
-Writing data to a Neo4j Database can be done in 3 ways:
+Writing data to a Neo4j database can be done in three ways:
 
-* <<write-query,Custom Cypher Query>>
+* <<write-query,Custom Cypher query>>
 * <<write-node,Node>>
 * <<write-rel,Relationship>>
 
 [[write-query]]
-=== Custom Cypher Query
+=== Custom Cypher query
 
-In case you use the option `query` the Spark Connector will persist the entire Dataset by using the provided query.
-The nodes will be sent to Neo4j in a batch of rows defined in the `batch.size` property and we will
-wrap your query in an `UNWIND $events AS event` statement.
+In case you use the option `query`, the Spark Connector persists the entire Dataset by using the provided query.
+The nodes are sent to Neo4j in a batch of rows defined in the `batch.size` property, and your query is wrapped up in an `UNWIND $events AS event` statement.
 
-So given the following simple Spark program:
+Let's look at the following simple Spark program:
 
 [source,scala]
 ----
@@ -206,7 +207,7 @@ df.write
   .save()
 ----
 
-This will be the generated query:
+This generates the following query:
 
 [source,cypher]
 ----
@@ -214,19 +215,18 @@ UNWIND $events AS event
 CREATE (n:Person {fullName: event.name + event.surname})
 ----
 
-Where `events` is the batch created from your dataset.
+Thus `events` is the batch created from your dataset.
 
 [[write-node]]
 === Node
 
-In case you use the option `labels` the Spark Connector will persist the entire Dataset as nodes.
-Depending on the <<save-mode,SaveMode>> it will `CREATE` or `MERGE` nodes (in the last case using the `node.keys`
-properties).
+In case you use the option `labels`, the Spark Connector persists the entire dataset as nodes.
+Depending on the <<save-mode,SaveMode>>, it is going to `CREATE` or `MERGE` nodes (in the last case the `node.keys`
+properties are being used).
 
-The nodes will be sent to Neo4j in a batch of rows defined in the `batch.size` property and we will
-perform an UNWIND operation under the hood.
+The nodes are sent to Neo4j in a batch of rows defined in the `batch.size` property, and an `UNWIND` operation is performed under the hood.
 
-Let's take our first example:
+Let's remember the first example in this chapter:
 
 .ErrorIfExists mode
 [source,scala]
@@ -261,7 +261,7 @@ df.write
   .save()
 ----
 
-This will be converted in a similar query:
+The above code is converted in a similar Cypher query:
 
 [source,cypher]
 ----
@@ -269,8 +269,9 @@ UNWIND $events AS event
 CREATE (n:`Person`:`Customer`) SET n += event.properties
 ----
 
-If we instead use the same DataFrame but we save it in `Overwrite` mode:
+The following example of how to use the same DataFrame and save it in `Overwrite` mode:
 
+.Overwrite mode
 [source,scala]
 ----
 import org.apache.spark.sql.{SaveMode, SparkSession}
@@ -289,7 +290,7 @@ df.write
   .save()
 ----
 
-The generated query will be
+The code above generates the following Cypher query:
 
 [source,cypher]
 ----
@@ -298,20 +299,20 @@ MERGE (n:`Person`:`Customer` {name: event.keys.name, surname: event.keys.surname
 SET n += event.properties
 ----
 
-Here you must specify which columns of your Dataframe will be used as keys to match the nodes.
+You must specify, which columns of your DataFrame are used as keys to match the nodes.
 You control this with the option `node.keys`, specifying a comma-separated list of `key:value` pairs,
-where the key is the dataframe column name, and the value is the node property name.
+where the key is the DataFrame column name and the value is the node property name.
 
 [NOTE]
-If `key` and `value` are the same field you can just specify one without the colon.
-For example, say you have `.option("node.keys", "name:name,email:email")`, you can also write
+If `key` and `value` are the same field, you can specify one without the colon.
+For example, if you have `.option("node.keys", "name:name,email:email")`, you can also write
 `.option("node.keys", "name,email")`.
 
 In case the column value is a Map<String, `Value`> (where `Value` can be any supported
-link:https://neo4j.com/docs/cypher-manual/current/syntax/values/[Neo4j Type]) the Connector will
-automatically try to flatten it.
+link:https://neo4j.com/docs/cypher-manual/current/syntax/values/[Neo4j Type]), the connector
+automatically tries to flatten it.
 
-Let's say you have the following Dataset:
+Let's consider the following dataset:
 
 |===
 |id |name |lives_in
@@ -326,7 +327,7 @@ Let's say you have the following Dataset:
 
 |===
 
-Neo4j Connector for Apache Spark will flatten the maps and each map value will be in it's own property.
+Neo4j Connector for Apache Spark flattens the maps, and each map value is in it's own property.
 
 |===
 |id |name |lives_in.address |lives_in.city |lives_in.state
@@ -348,17 +349,16 @@ Neo4j Connector for Apache Spark will flatten the maps and each map value will b
 [[write-rel]]
 === Relationship
 
-You can write a dataframe to Neo4j by specifying source, target and relation.
+You can write a DataFrame to Neo4j by specifying source, target nodes, and relationships.
 
 ==== Overview
 
-We need to spend a some words on this method since its a bit complex, and the combinations of options are quite a few.
-So we feel the need to clarify the vocabulary first, before diving into the actual process.
+Before diving into the actual process, let's clarify the vocabulary first. Since this method of writing data to Neo4j is more complex and few combinations of options can be used, let's spend more time on explaining it.
 
-Theory is simple, we take your Dataset and we move the columns around to create source and target nodes,
-eventually creating the specifid relationship between these two.
+In theory you should take your dataset and move the columns around to create source and target nodes,
+eventually creating the specified relationships between them.
 
-This is a basic example of what would happen.
+This is a basic example of what would happen:
 [source,cypher]
 ----
 UNWIND $events AS event
@@ -370,36 +370,36 @@ CREATE (source)-[rel:BOUGHT]->(target)
 SET rel += event.rel
 ----
 
-The `CREATE` keyword for the source and target nodes can be replaced by a `MERGE` or a `MATCH`.
-To control this you can use the <<node-save-modes,node save modes>>.
+The `CREATE` keyword for the source and target nodes can be replaced by `MERGE` or `MATCH`.
+To control this you can use the <<node-save-modes,Node save modes>>.
 
-You can set source and target independently by using `relationship.source.save.mode` or ``relationship.target.save.mode`.
+You can set source and target nodes independently by using `relationship.source.save.mode` or ``relationship.target.save.mode`.
 
 These options accept a case insensitive string as a value, that can be one of `ErrorIfExists`, `Overwrite`, `Append`;
-they work in the exact same way as the <<write-node,Node Save Modes>>.
+they work in the same same way as the <<write-node,Node save modes>>.
 
-When using `MATCH` or `MERGE` you will need to specify keys that identify the nodes.
+When using `MATCH` or `MERGE`, you need to specify keys that identify the nodes.
 This is what the options `relationship.source.node.keys` and `relationship.target.node.keys`.
 More on this <<rel-specify-keys,here>>.
 
 The `CREATE` keyword for the relationship can be replaced by a `MERGE`.
-You can control this with <<save-mode,Save Mode>>.
+You can control this with <<save-mode,Save mode>>.
 
 You are also required to specify one of the two <<strategies,Save Strategies>>.
-This will identify which method will be used to create the Cypher query
+This identifies which method is to be used to create the Cypher query
 and can have additional options available.
 
 [[strategies]]
-==== Save Strategies
+==== Save strategies
 
 There are two strategies you can use to write relationships: <<strategy-native,Native>> (default strategy) and <<strategy-keys,Keys>>.
 
 [[strategy-native]]
-==== Native Strategy
+===== Native strategy
 
-This strategy is useful when you have a schema that conforms with the <<reading.adoc#rel-schema-no-map,Relationship Read Schema>>, with the `relationship.nodes.map` set to false.
+The Native strategy is useful when you have a schema that conforms with the <<reading.adoc#rel-schema-no-map,Relationship read schema>>, and the `relationship.nodes.map` set to false.
 
-Let's say we want to read relationship from a Database, filter them, and write the result to another Database:
+If you want to read relationship from a database, filter data, and write the result to another database, you can refer to the following example:
 
 [source,scala]
 ----
@@ -430,7 +430,7 @@ originalDf
 
 You just need to specify the source node labels, the target node labels, and the relationship you want between them.
 
-The generated query will be:
+The generated query is the following:
 [source,cypher]
 ----
 UNWIND $events AS event
@@ -442,16 +442,16 @@ CREATE (source)-[rel:BOUGHT]->(target)
 SET rel += event.rel
 ----
 
-`event.source`, `event.target`, and `event.rel` will contain the column described <<reading.adoc#rel-schema-columns,here>>.
+`event.source`, `event.target`, and `event.rel` contain the column described <<reading.adoc#rel-schema-columns,here>>.
 
 [NOTE]
 The default save mode for source and target nodes is `Match`.
-This means that the relationship will be created only if the nodes are already in your DB.
-Look at <<node-save-modes,here>> for more info about node save modes.
+That means that the relationship can be created only if the nodes are already in your database.
+Look at <<node-save-modes,here>> for more information on node save modes.
 
 When using `Overwrite` or `Match` node save mode, you should specify which keys should be used to identify the nodes.
 
-.The Dataframe we are working with
+.The DataFrame we are working with
 |===
 |<rel.id>|<rel.type>|<source.id>|<source.labels>|source.id|source.fullName|<target.id>|<target.labels>|target.name|target.id|rel.quantity
 
@@ -487,11 +487,11 @@ df.write
   .save()
 ----
 
-Here you must specify which columns of your Dataframe will be used as keys to match the nodes.
-You control this with the option `relationship.source.node.keys` and `relationship.target.node.keys`, specifying a comma-separated list of `key:value` pairs,
-where the key is the dataframe column name, and the value is the node property name.
+You must specify which columns of your DataFrame are being used as keys to match the nodes.
+You control this with the options `relationship.source.node.keys` and `relationship.target.node.keys`, specifying a comma-separated list of `key:value` pairs,
+where the key is the DataFrame column name, and the value is the node property name.
 
-The generated query will be:
+The generated query is the following:
 [source,cypher]
 ----
 UNWIND $events AS event
@@ -504,18 +504,18 @@ SET rel += event.rel
 ----
 
 [NOTE]
-Remember that you can choose to `CREATE` or `MERGE` the relationship with the <<save-mode,save mode>>.
+Remember that you can choose to `CREATE` or `MERGE` the relationship with the <<save-mode,Save mode>>.
 
 [NOTE]
-If the provided dataframe schema doesn't conform the required schema, meaning that none of the required column is present,
-the write will fail.
+If the provided DataFrame schema doesn't conform to the required schema, meaning that none of the required columns is present,
+the write fails.
 
 [[strategy-keys]]
-==== Keys Strategy
+===== Keys strategy
 
-When you want more control on the relationship writing you can use the *KEYS* strategy.
+When you want more control over the relationship writing, you can use the *Keys* strategy.
 
-As the native strategy, you can specify node keys to identify nodes.
+As in the case of using the Native strategy, you can specify node keys to identify nodes.
 In addition, you can also specify which columns should be written as nodes properties.
 
 [[rel-specify-keys]]
@@ -548,20 +548,21 @@ musicDf.write
     .save()
 ----
 
-This will create a `MERGE` query using `name` property as key for `Musician` nodes.
-The value of `instrument` column will be used as value for `Instrument` property `name`, generating a statement like:
-`MERGE (target:Instrument {name: event.target.instrument})`
+This creates a `MERGE` query using `name` property as key for `Musician` nodes.
+The value of `instrument` column is used as a value for `Instrument` property `name`, generating a statement like:
 
-Here you must specify which columns of your Dataframe will be written in the source node and in the target node properties.
-You can do this with the option `relationship.source.node.properties` and `relationship.target.node.properties`,
-specifying a comma-separated list of `key:value` pairs, where the key is the dataframe column name,
+`MERGE (target:Instrument {name: event.target.instrument})`.
+
+Here you must specify which columns of your DataFrame will be written in the source node and in the target node properties.
+You can do this with the options `relationship.source.node.properties` and `relationship.target.node.properties`,
+specifying a comma-separated list of `key:value` pairs, where the key is the DataFrame column name,
 and the value is the node property name.
 
-Same applies to `relationship.properties` option, used to specify which dataframe columns will be written as relationship properties.
+Same applies to `relationship.properties` option, used to specify which DataFrame columns are written as relationship properties.
 
 [NOTE]
-If `key` and `value` are the same field you can just specify one without the colon.
-For example, say you have `.option("relationship.source.node.properties", "name:name,email:email")`, you can also write
+If `key` and `value` are the same field you can specify one without the colon.
+For example, if you have `.option("relationship.source.node.properties", "name:name,email:email")`, you can also write
 `.option("relationship.source.node.properties", "name,email")`.
 Same applies for `relationship.source.node.keys` and `relationship.target.node.keys`.
 
@@ -596,39 +597,38 @@ musicDf.write
 ----
 
 [[node-save-modes]]
-===== Node Save Modes
+===== Node save modes
 
-You can specify 3 different modes to use for saving the nodes:
+You can specify four different modes for saving the nodes:
 
-* `Overwrite`: will perform a `MERGE` on that node
-* `ErrorIfExists`: will perform a `CREATE` (not available for Spark 3)
-* `Append`: will perform a `CREATE` (not available for Spark 2.4)
-* `Match`: will perform a `MATCH`
+* `Overwrite` mode performs a `MERGE` on that node.
+* `ErrorIfExists` mode performs a `CREATE` (not available for Spark 3).
+* `Append` mode performs a `CREATE` (not available for Spark 2.4).
+* `Match` mode performs a `MATCH`.
 
 [NOTE]
-For `Overwrite` mode you *must to have unique constrains on the keys*.
+For `Overwrite` mode you *must have unique constraints on the keys*.
 
-=== Schema Optimization Operations
+=== Schema optimization operations
 
-The spark connector supports schema optimization operations via:
+The Spark Connector supports schema optimization operations via:
 
-* index
-* constraints
-* set of schema queries
+* index.
+* constraints.
+* set of schema queries.
 
-that will be executed *before* the import process will start in order to speed-up the import itself.
+To speed up the import itself that is executed *before* the import process starts.
 
-You can set the optimization via `schema.optimization.type` option that takes three values:
+You can set the optimization via `schema.optimization.type` option that works only if you are merging nodes and takes three values:
 
-* `INDEX`: it creates only indexes on provided nodes
-* `NODE_CONSTRAINTS`: it creates only indexes on provided nodes
-* `QUERY`: it perform a series of schema queries separated by `;`
+* `INDEX`: it creates only indexes on provided nodes.
+* `NODE_CONSTRAINTS`: it creates only indexes on provided nodes.
+* `QUERY`: it performs a series of schema queries separated by `;`.
 
-and it works only when you're merging nodes.
 
-==== Index Creation
+==== Index creation
 
-Following an example of how to create indexes while you're creating nodes
+The following example shows how to create indexes while you're creating nodes.
 
 ----
 ds.write
@@ -641,18 +641,18 @@ ds.write
       .save()
 ----
 
-This will create, before the import starts, the following schema query:
+Before the import starts, the following schema query is being created:
 
 ----
 CREATE INDEX ON :Person(surname)
 ----
 
-*So please into consideration that the first label is used for the index creation*
+*Take into consideration that the first label is used for the index creation.*
 
 
-==== Constraint Creation
+==== Constraint creation
 
-Following an example of how to create indexes while you're creating nodes
+Below you can see an example of how to create indexes while you're creating nodes.
 
 ----
 ds.write
@@ -665,19 +665,19 @@ ds.write
       .save()
 ----
 
-This will create, before the import starts, the following schema query:
+Before the import starts, the code above creates the following schema query:
 
 ----
 CREATE CONSTRAINT ON (p:Person) ASSERT (p.surname) IS UNIQUE
 ----
 
-*So please into consideration that the first label is used for the index creation*
+*Take into consideration that the first label is used for the index creation.*
 
-=== Script Option
+=== Script option
 
-The script option allow you to execute a series of preparation script before Spark
-Job execution, the result of the last query can be reused in combination with the
-`query` ingestion mode as it follows
+The script option allows you to execute a series of preparation script before Spark
+Job execution. The result of the last query can be reused in combination with the
+`query` ingestion mode as it follows:
 
 ----
 val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
@@ -697,9 +697,9 @@ ds.write
   .save()
 ----
 
-Before the import starts, the connector will run the content of the `script` option
-and the result of the last query will be injected into the `query`; in the end the full
-query executed by the connector while is ingesting the data will be
+Before the import starts, the connector runs the content of the `script` option,
+and the result of the last query is injected into the `query`. At the end the full
+query executed by the connector while the data is being ingested is the following:
 
 ----
 WITH $scriptResult AS scriptResult
@@ -707,5 +707,5 @@ UNWIND $events AS event
 CREATE (n:Person{fullName: event.name + ' ' + event.surname, age: scriptResult[0].age})
 ----
 
-where `scriptResult` is the result from the last query contained into the `script` options
+`scriptResult` is the result from the last query contained within the `script` options
 that is `RETURN 36 AS age;`
