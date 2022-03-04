@@ -1,19 +1,21 @@
 
 = Using Spark Structured Streaming API
 
-Let's see how you can easily leverage the link:http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html[Spark Structured Streaming API] with the Neo4j Connector for Apache Spark.
+:description: The chapter describes how to use Spark Structured Streaming API with the Neo4j Connector for Apache Spark.
 
-Although the connector is the same, Spark streaming works very differently from Spark batching.
+Let's see how you can leverage the link:http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html[Spark Structured Streaming API] with the Neo4j Connector for Apache Spark.
+
+Although the connector is the same, Spark streaming works differently from Spark batching.
 Here are some links to learn more about the Spark streaming approach:
 
-* link:https://spark.apache.org/docs/latest/streaming-programming-guide.html#overview[Structured Streaming Programming Guide] from Spark website
-* link:https://databricks.com/blog/2015/07/30/diving-into-apache-spark-streamings-execution-model.html[Diving into Apache Spark Streaming’s Execution Model] by Databricks
+* link:https://spark.apache.org/docs/latest/streaming-programming-guide.html#overview[Structured Streaming Programming Guide] from the Spark website.
+* link:https://databricks.com/blog/2015/07/30/diving-into-apache-spark-streamings-execution-model.html[Diving into Apache Spark Streaming’s Execution Model] by Databricks.
 
-== Neo4j Streaming Options
+== Neo4j streaming options
 
 .List of available streaming options
 |===
-|Setting Name |Description |Default Value |Required
+|Setting name |Description |Default value |Required
 
 4+|*Sink*
 
@@ -25,24 +27,24 @@ Here are some links to learn more about the Spark streaming approach:
 4+|*Source*
 
 |`streaming.property.name`
-|The timestamp property used for batch reading. Read more xref:#_streaming_property_name[here].
+|The timestamp property used for batch reading. Read more xref:#_streaming_property_name[here]
 |_(none)_
 |Yes
 
 |`streaming.from`
-|This option is used to tell the connector from where to send data to the stream.
+|This option is used to tell the connector from where to send data to the stream
 Read more xref:#_streaming_from[here].
 
-**NOW**: start streaming from the moment the stream starts
+`**NOW**` starts streaming from the moment the stream starts.
 
-**ALL**: send all the data in the DB to the stream before reading new data
+`**ALL**` sends all the data in the database to the stream before reading new data.
 |`NOW`
 |Yes
 
 |`streaming.query.offset`
 |A valid Cypher READ_ONLY query that returns a long value.
 
-(i.e. `MATCH (p:MyLabel) RETURN MAX(p.timestamp)`)
+(i.e., `MATCH (p:MyLabel) RETURN MAX(p.timestamp)`)
 
 This is used to get the last timestamp in the database for a given query. More on this xref:#_notes_on_query_mode[here]
 |_(none)_
@@ -52,12 +54,12 @@ This is used to get the last timestamp in the database for a given query. More o
 
 == Sink
 
-Writing a stream to Neo4j is pretty easy and can be done using any of the xref:writing.adoc#_write_data[3 write strategies].
+Writing a stream to a Neo4j instance is pretty easy and can be done using any of the xref:writing.adoc#_write_data[three writing strategies].
 
 [NOTE]
 The same xref:quickstart.adoc#_schema[schema concepts] also apply here.
 If you start a streaming read with an empty result set, you need to specify the schema using
-the xref:quickstart.adoc#user-defined-schema[user defined schema], or the batch read will fail.
+the xref:quickstart.adoc#user-defined-schema[user defined schema], or the batch read fails.
 
 .Code example that reads from a Kafka topic and writes to Neo4j.
 [source,python]
@@ -84,25 +86,25 @@ query = df.writeStream \
     .start()
 ----
 
-As said, you can use any writing strategy: xref:writing.adoc#write-node[Labels], xref:writing.adoc#write-rel[Relationship], or xref:writing.adoc#write-query[Query].
+As said, you can use any writing strategy: xref:writing.adoc#write-node[Node], xref:writing.adoc#write-rel[Relationship], or xref:writing.adoc#write-query[Query].
 
 The only difference is that you must set the `checkpointLocation` and `save.mode` options.
 
-With `save.mode` you can control how the data are written. More info xref:writing.adoc#save-mode[here].
+With `save.mode`, you can control how the data are written. More info xref:writing.adoc#save-mode[here].
 
 === Checkpoint
 
 The **checkpoint** is a file that allows Spark Structured Streaming to recover from failures.
-Spark updates this file with the progress information and recover from that point in case of failure or query restart.
+Spark updates this file with the progress information and recovers from that point in case of failure or query restart.
 **This checkpoint location has to be a path in an HDFS compatible file system.**
 
-Since the topic is wide and complex, we suggest you to read the link:https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#recovering-from-failures-with-checkpointing[official Spark documentation page].
+Since the topic is wide and complex, you can read the link:https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#recovering-from-failures-with-checkpointing[official Spark documentation].
 
 == Source
 
 Reading a stream from Neo4j requires some additional configuration.
 
-Let's see the code first and then we can analyze all the options.
+Let's see the code first and then analyze all the options.
 
 
 [source,python]
@@ -139,39 +141,39 @@ spark \
   .show()
 ----
 
-=== Streaming Property Name
+=== Streaming property name
 
-For the streaming to work, we need each record to have a property of type `timestamp`
+For the streaming to work, you need each record to have a property of type `timestamp`
 to leverage when reading new data from Neo4j to be sent to the stream.
 
-Behind the scenes the connector is building a query with a where clause that checks for the
-records that have`[timestampProperty] >= currentTimestamp() AND [timestampProperty] IS NOT NULL`.
+Behind the scenes the connector is building a query with a `WHERE` clause that checks for the
+records that have `[timestampProperty] >= currentTimestamp() AND [timestampProperty] IS NOT NULL`.
 
-So it's required that each node that has the timestamp property of a Neo4j type (datetime or timestamps),
-and it *must* be not null.
+So it's required that each node has the timestamp property of a Neo4j type (DateTime),
+and it *must* be not `null`.
 
 [NOTE]
-A property of type string like "2021-08-11" won't work. It needs to be a datetime or timestamp Neo4j type.
+A property of type string like "2021-08-11" does not work. It needs to be a DateTime of Neo4j type.
 
 The property name can be anything, just remember to set the `streaming.property.name` accordingly.
 
-=== Streaming From
+=== _Streaming from_ option
 
-You can decide to stream all the data in the db, or just the new ones.
+You can decide to stream all the data in the database, or just the new ones.
 To achieve this you can set the `streaming.from` option to one of these two values:
 
-* `NOW`: will start reading from the current timestamp (This is the **default value for the `streaming.from` option**)
-* `ALL`: will read all the data in the database first, and then just the new ones
+* `NOW`: that starts reading from the current timestamp. This is the **default value for the `streaming.from` option**.
+* `ALL`: that reads all the data in the database first, and then just the new ones.
 
 === Reading mode
 
-As for Sink mode, you can use any of the reading strategies: link:reading.adoc#read-node[Labels], link:reading.adoc#read-rel[Relationship], or link:reading.adoc#read-query[Query].
+As for Sink mode, you can use any of the reading strategies: xref:reading.adoc#read-node[Node], xref:reading.adoc#read-rel[Relationship], or xref:reading.adoc#read-query[Query].
 
 ==== Notes on `query` mode
 
 Handling the `streaming.from` and `streaming.property.name` is a bit less automatic when using the query mode.
 
-Let's see an example and then explain what's happening.
+Let's look at the example and then explain what's happening.
 
 [source,python]
 ----
@@ -196,11 +198,11 @@ df = spark.readStream \
     .load()
 ----
 
-As you can see, the `streaming.from` and `streaming.property.name` must be specified anyway, but you need to take care of the where clause yourself.
+As you can see, the `streaming.from` and `streaming.property.name` must be specified anyway, but you need to take care of the `WHERE` clause by yourself.
 You are provided with a variable `$stream.offset` that contains the value of the timestamp that is being used.
 
-In this case the `streaming.query.offset` option is mandatory;
-this option is used by the connector to read the last timestamp in the database and the result will be set as value of the `$stream.offset` parameter.
+In this case, the `streaming.query.offset` option is mandatory;
+this option is used by the connector to read the last timestamp in the database, and the result is set as a value of the `$stream.offset` parameter.
 
 === Additional examples
 
