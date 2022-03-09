@@ -1,20 +1,16 @@
-= Using with Pyspark / Python
+= Using with PySpark / Python
 
-[abstract]
---
-This chapter provides an information on using the Neo4j Connector for Apache Spark with Python
---
+:description: This chapter provides an information on using the Neo4j Connector for Apache Spark with Python.
 
 This connector uses the link:https://jaceklaskowski.gitbooks.io/mastering-spark-sql/content/spark-sql-data-source-api-v2.html[DataSource V2 API] in
 Spark.
 
-With a properly configured pyspark interpreter, you should be able to use python to call the connector and do any/all spark
+With a properly configured PySpark interpreter, you are able to use Python to call the connector and do all the Spark
 work.  
 
-Here, we present examples of what the API looks like in scala versus Python, to aid adaptation of any code examples you might have, and get
-started quickly.
+The following examples show what the API looks like in Scala versus Python to aid adaptation of any code examples you might have and to get started quickly.
 
-This first listing is a simple program that reads all "Person" nodes out of a Neo4j instance into a dataframe, in Scala.
+This first listing is a simple program that reads all `Person` nodes out of a Neo4j instance into a DataFrame, in Scala.
 
 [source,scala]
 ----
@@ -38,12 +34,11 @@ spark.read.format("org.neo4j.spark.DataSource") \
   .load()
 ----
 
-For the most part, the API is the same, and we are only adapting the syntax for Python, by adding backslashes to allow line continuance,
-and avoid running into Python's indentation rules.
+For the most part, the API is the same; you should only adopt the syntax for Python by adding backslashes to allow line continuance and avoid running into Python's indentation rules.
 
-== API Differences
+== API differences
 
-Some common API constants may need to be referred to as strings in the pyspark API.  Consider these two examples in Scala & Python,
+Some common API constants may need to be referred to as strings in the PySpark API. Consider the following two examples in Scala and Python,
 focusing on the `SaveMode`.
 
 [source,scala]
@@ -58,7 +53,7 @@ df.write
   .save()
 ----
 
-The same program in python is very similar, again just with language syntax differences, but note the "mode":
+The same program in Python is very similar. Note the language syntax differences and the `mode`:
 
 [source,python]
 ----
@@ -70,7 +65,7 @@ df.write \
   .save()
 ----
 
-In order to avoid the necessity for backslashes on each line, you can also use parentheses like so:
+To avoid the necessity for backslashes on each line, you can also use parentheses like so:
 
 [source,python]
 ----

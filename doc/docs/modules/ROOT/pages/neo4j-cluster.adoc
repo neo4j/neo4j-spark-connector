@@ -2,24 +2,21 @@
 [#neo4j_causal_cluster]
 = Using with Neo4j Causal Cluster
 
-[abstract]
---
-This chapter describes considerations around using Neo4j Connector for Apache Spark with Neo4j Enterprise Causal Cluster.
---
+:description: This chapter describes considerations around using Neo4j Connector for Apache Spark with Neo4j Enterprise Causal Cluster.
 
 == Overview
 
 link:https://neo4j.com/docs/operations-manual/current/clustering/[Neo4j Clustering] is a feature available in
-Enterprise Edition which allows high availability of the database through having multiple database members.
+Enterprise Edition, which allows high availability of the database through having multiple database members.
 
-Neo4j Enterprise uses a link:https://neo4j.com/docs/operations-manual/current/clustering/introduction/#causal-clustering-introduction-operational[LEADER/FOLLOWER]
-operational view, where writes are always processed by the leader, while reads can be serviced by either followers,
-or optionally be read replicas, which maintain a copy of the database and serve to scale out read operations
+Neo4j Enterprise uses a link:https://neo4j.com/docs/operations-manual/current/clustering/introduction/#causal-clustering-introduction-operational[Primary/Secondary servers]
+operational view. Write operations are always processed by the Primary servers only, while reads can be serviced by either Primary servers (link:https://neo4j.com/docs/operations-manual/current/clustering/internals/#causal-clustering-elections-and-leadership[Leaders or Followers]),
+or optionally by Read Replicas, which maintain a copy of the database and serve to scale out read operations
 horizontally.
 
-== Remote Clients
+== Remote clients
 
-Sometimes there will be remote applications that talk to Neo4j via official drivers, that want to use
-streams functionality.  Best practices in these cases are:
+Sometimes there are remote applications that talk to Neo4j via official drivers, that want to use
+streams functionality. Best practices in these cases are:
 
 * Always use a `neo4j+s://` driver URI when communicating with the cluster in the client application.

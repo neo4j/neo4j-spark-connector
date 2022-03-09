@@ -1,34 +1,31 @@
-= Using with Graph Data Science
+= Using with Neo4j Graph Data Science
 
-[abstract]
---
-This chapter provides an information on using the Neo4j Connector for Apache Spark with Neo4j's Graph Data Science Library.
---
+:description: This chapter provides an information on using the Neo4j Connector for Apache Spark with Neo4j Graph Data Science.
 
-link:{url-neo4j-product-gds-lib}[Neo4j's Graph Data Science (GDS) Library] lets data scientists benefit from powerful graph algorithms.  It provides unsupervised machine learning methods and heuristics that learn and describe the topology of your graph. The GDS Library includes hardened graph algorithms with enterprise features, like deterministic seeding for consistent results and reproducible machine learning workflows.
+link:{url-neo4j-product-gds-lib}[Neo4j Graph Data Science (GDS)] lets data scientists benefit from powerful graph algorithms. It provides unsupervised machine learning (ML) methods and heuristics that learn and describe the topology of your graph. GDS includes hardened graph algorithms with enterprise features, like deterministic seeding for consistent results and reproducible ML workflows.
 
-GDS Algorithms are bucketed into 5 "families":
+GDS algorithms are bucketed into five groups:
 
-* _Community detection_ which detects group clusters and partition options
-* _Centrality_ which helps compute the importance of a node in a graph
-* _Heuristic Link Prediction_ which estimates the liklihood of nodes forming a relationship
-* _Similarity_ which evaluates how alike 2 nodes are
-* _Pathfinding & Search_ which finds optimal paths, evalutes route availability, and so on.
+* _Community detection_ which detects group clusters and partition options.
+* _Centrality_ which helps to compute the importance of a node in a graph.
+* _Topological link prediction_ which estimates the likelihood of nodes forming a relationship.
+* _Similarity_ which evaluates the similarity of pairs of nodes.
+* _Path finding & search_ which finds optimal paths, evalutes route availability, and so on.
 
-== GDS Operates via Cypher
+== GDS operates via Cypher
 
-All of the link:{url-neo4j-gds-manual}[functionality of GDS] is used by issuing cypher queries.  As such, it is easily
+All of the link:{url-neo4j-gds-manual}[functionality of GDS] is used by issuing Cypher queries.  As such, it is easily
 accessible via Spark, because the Neo4j Connector for Apache Spark can issue Cypher queries and read their results back.  This combination means
-that you can use Neo4j & GDS as a graph co-processor in an existing ML workflow that you may implement in Apache Spark.
+that you can use Neo4j and GDS as a graph co-processor in an existing ML workflow that you may implement in Apache Spark.
 
 == Example
 
 In the link:{url-gh-spark-notebooks}[sample Zeppelin Notebook repository], there is a GDS example that can be run against
 a Neo4j Sandbox, showing how to use the two together.
 
-=== Create a Virtual Graph in GDS Using Spark
+=== Create a virtual graph in GDS using Spark
 
-This is very simple, straightforward code; it just constructs the right Cypher statement to link:https://neo4j.com/docs/graph-data-science/current/common-usage/creating-graphs/[create a virtual graph in GDS], and returns the results.
+This is very simple, straightforward code; it constructs the right Cypher statement to link:https://neo4j.com/docs/graph-data-science/current/common-usage/creating-graphs/[create a virtual graph in GDS] and returns the results.
 
 [source,python]
 ----
@@ -54,17 +51,17 @@ df = spark.read.format("org.neo4j.spark.DataSource") \
 ----
 
 [NOTE]
-If you get a "Graph Already Exists" error, take a look at this xref:faq.adoc#graph-already-exists[FAQ].
+If you get a `A graph with name [name] already exists` error, take a look at this xref:faq.adoc#graph-already-exists[FAQ].
 
 [NOTE]
-**Ensure partitions is set to 1.  You do not want to execute this query in parallel, only once.**
+**Ensure that option `partitions` is set to 1. You do not want to execute this query in parallel, it should be executed only once.**
 
 [NOTE]
-**When you use stored procedures, you must include a RETURN clause**
+**When you use stored procedures, you must include a `RETURN` clause.**
 
-=== Run a GDS Analysis and Stream the Results Back
+=== Run a GDS analysis and stream the results back
 
-To run an analysis, the result is just another Cypher query, executed as a spark read from Neo4j.
+The following example shows how to run an analysis and get the result as just another Cypher query, executed as a Spark read from Neo4j.
 
 [source,python]
 ----
@@ -89,16 +86,16 @@ df.show()
 ----
 
 [NOTE]
-**Ensure partitions is set to 1. The algorithm should only be executed once.**
+**Ensure that option `partitions` is set to 1. The algorithm should be executed only once.**
 
-=== Streaming versus Persisting GDS Results
+=== Streaming versus persisting GDS results
 
-When link:https://neo4j.com/docs/graph-data-science/current/common-usage/running-algos/[running GDS algorithms] the library gives you the choice
-of either streaming the results of the algorithm back the caller, or mutating the underlying graph. Using GDS together with spark provides an
-additional option of transforming or otherwise using a GDS result.   Ultimately, either modality will work with the Neo4j Connector for Apache
-Spark, and it is left up to your option what's best for your use case.
+When link:https://neo4j.com/docs/graph-data-science/current/common-usage/running-algos/[running GDS algorithms], the library gives you the choice
+of either streaming the algorithm results back to the caller, or mutating the underlying graph. Using GDS together with Spark provides an
+additional option of transforming or otherwise using a GDS result. Ultimately, either modality works with the Neo4j Connector for Apache
+Spark, and you choose what's best for your use case.
 
-If you have an architecture where the GDS algorithm is being run on a read replica or separate stand-alone instance, it may be convenient to stream
-the results back (as you cannot write them to a read replica), and then use the connector's write functionality to take that stream of results and
-write them back to a _different Neo4j connection_, i.e. to a regular causal cluster.
+If you have an architecture where the GDS algorithm is being run on a Read Replica or a separate standalone instance, it may be convenient to stream
+the results back (as you cannot write them to a Read Replica), and then use the connector's write functionality to take that stream of results, and
+write them back to a _different Neo4j connection_, i.e., to a regular Causal Cluster.
 
