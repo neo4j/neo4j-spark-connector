@@ -1,39 +1,35 @@
 [#architecture]
-= Architecture Guidance for Implementing
+= Architecture guidance
 
-[abstract]
---
-This chapter describes provides tips and tricks on how to get the best performance.
---
+:description: This chapter provides tips and tricks on how to get the best performance.
 
 == Overview
 
 No matter which direction you're going, whether sending data from Spark to Neo4j or pulling data out of Neo4j,
 the two systems are based on completely different organizing data models:
 
-* Spark is oriented around tabular *DataFrames*
-* Neo4j is oriented around *graphs* (nodes, relationships, paths)
+* Spark is oriented around tabular *DataFrames*.
+* Neo4j is oriented around *graphs* (nodes, relationships, paths).
 
 The use of this connector can be thought of as a "Transform" step and a "Load" step, regardless of
 which direction the data is moving.  The "Transform" step is concerned with how to move data between
 graphs and tables; and the "Load" step is concerned with moving masses of data.
 
-=== Tables 4 Labels
+=== Tables for labels
 
-In order to move the data back and forth between Neo4j and Spark we use an approach called *Tables 4 Labels*, please
-consider the following path:
+To move the data back and forth between Neo4j and Spark an approach called *Tables for Labels* is used. Consider the following path:
 
 [source,cypher]
 ----
 (:Customer)-[:BOUGHT]->(:Product)
 ----
 
-We can decompose it into:
+You can decompose it into:
 
-* 2 nodes: `Customer` and `Product`
-* 1 relationship between them: `BOUGHT`
+* two nodes: `Customer` and `Product`.
+* one relationship between them: `BOUGHT`.
 
-so in total we have 3 graph entities, and each one will be managed as a simple `table`.
+So in total, you have three graph entities, and each one is managed as a simple `table`.
 
 So given the following Cypher query:
 
@@ -48,9 +44,9 @@ CREATE (c1:Customer{id:1, username: 'foo', city: 'Venezia'}),
 (c2)-[:BOUGHT{quantity: 4}]->(p2);
 ----
 
-The graph structure will be decomposed into 3 tables:
+The graph structure is decomposed into three tables.
 
-.Customer Table
+.Customer table
 |===
 |id |username |city
 
@@ -63,7 +59,7 @@ The graph structure will be decomposed into 3 tables:
 |Pescara
 |===
 
-.Product Table
+.Product table
 |===
 |id |name
 
@@ -74,7 +70,7 @@ The graph structure will be decomposed into 3 tables:
 |My Awesome Product 2
 |===
 
-.BOUGHT Table
+.BOUGHT table
 |===
 |source_id |target_id | quantity
 
@@ -91,26 +87,35 @@ The graph structure will be decomposed into 3 tables:
 |4
 |===
 
-In order to have this decomposition we use, under-the-hood, two strategies that allows to extract
-metadata from your graph:
+To have this decomposition you can use two strategies that allow to extract metadata from your graph:
 
 * <<APOC>>
-* <<Automatic Sampling>>
+* <<Automatic Sampling>>.
 
-== Graph Transforms
+== Graph transforms
 
-When taking any complex set of dataframes and preparing it for load into Neo4j, you have basically two options:
-* Normalized Loading
-* Cypher Destructuring
+=== General principles
 
-This section will describe both, and provide information on pros and cons from a performance and complexity perspective.
+* Wherever possible, perform data quality fixes before loading into Neo4j; this includes dropping missing records, changing data types of properties, and so on.
+* Since Spark excels at parallel computation, any non-graph heavy computation should be done in the Spark layer, rather than in Cypher on Neo4j.
+* Size your Neo4j instance appropriately before using aggressive parallelism or large batch sizes.
+* Experiment with larger batch sizes (ensuring that batches stay within Neo4j configured heap memory). In general, the larger the batches, the faster the overall throughput to Neo4j.
+
+=== Converting data from DataFrames to graphs
+
+When taking any complex set of DataFrames and preparing it for load into Neo4j, you have two options:
+
+* Normalized loading
+* Cypher destructuring
+
+This section describes both and provides information on the benefits and potential drawbacks from a performance and complexity perspective.
 
 [NOTE]
-**Where possible, use the normalized loading approach for best performance & maintainability**
+**Where possible, use the normalized loading approach for best performance and maintainability.**
 
-=== Normalized Loading
+==== Normalized loading
 
-Suppose we want to load a single dataframe called `purchases` into Neo4j with the following contents:
+Suppose you want to load a single DataFrame called `purchases` into Neo4j with the following content:
 
 ```csv
 product_id,product,customer_id,customer,quantity
@@ -118,37 +123,36 @@ product_id,product,customer_id,customer,quantity
 2,Pants,11,Andrea,1
 ```
 
-This data represents as simple `(:Customer)-[:BOUGHT]->(:Product)` "graph shape".
+This data represents as simple `(:Customer)-[:BOUGHT]->(:Product)` graph model.
 
-The normalized loading approach requires that you create a number of different dataframes; one for each node type
-and relationship type in your desired graph.  For example, in this case, we might create 3 dataframes:
+The normalized loading approach requires that you create a number of different DatafFrames: one for each node label and relationship type in your desired graph. For example, in this case, you might create three DataFrames:
 
 * `val products = spark.sql("SELECT product_id, product FROM purchases")`
 * `val customers = spark.sql("SELECT customer_id, customer FROM purchases")`
 * `val bought = spark.sql("SELECT product_id, customer_id, quantity FROM purchases")`
 
-Once these simple data frames represent a normalized view of "tables for labels" (that is, one DataFrame/table per node label or relationship) - then the existing utilities provided by the connector for writing nodes & relationships can be used with
-no additional cypher needed.  Additionally -- if these frames are made unique by identifier, then the data is already
-prepared for maximum parallelism.  (See paralellism notes in sections below).
+Once these simple DataFrames represent a normalized view of 'tables for labels' (that is, one DataFrame/table per node label or relationship type) - then the existing utilities provided by the connector for writing nodes and relationships can be used with
+no additional Cypher needed.
+Additionally -- if these frames are made unique by identifier, then the data is already
+prepared for maximum parallelism. (See parallelism notes in sections below.)
 
-==== Pros
+===== Advantages
 
-* Shifts most of the data transform work to spark itself (in terms of splitting, uniquing, partitioning the data).  Any
-data transform/cleanup work should be done in spark if possible
-* Makes for easy to follow code; in the end, the write of each dataframe to Neo4j is quite simple, and requires mostly just
-a label and a key
-* Allows for parallelism (discussed in sections below)
+* Normalized loading approach shifts most of the data transform work to Spark itself (in terms of splitting, uniquing, partitioning the data).  Any data transform/cleanup work should be done in Spark if possible.
+* This approach makes for easy to follow code; eventually, the write of each DataFrame to Neo4j is quite simple and requires mostly just
+a label and a key.
+* This allows for parallelism (discussed in sections below).
 
-==== Cons
+===== Disadvantages
 
-* More SQL work before data is loaded into Neo4j
-* Requires identifying graph schema before beginning, as opposed to loading data into Neo4j and using cypher to manipulate it
-afterwards
+* You need to do more SQL work before data is loaded into Neo4j.
+* This approach requires identifying graph schema before beginning, as opposed to loading data into Neo4j and using Cypher to manipulate it
+afterwards.
 
-=== Cypher Destructuring
+==== Cypher destructuring
 
-Cypher destructuring is the process of using a single cypher statement to process a complex record into a finished graph
-pattern.  Let's look again at the data example:
+Cypher destructuring is the process of using a single Cypher statement to process a complex record into a finished graph
+pattern. Let's look again at the data example:
 
 ```csv
 product_id,product,customer_id,customer,quantity
@@ -156,7 +160,7 @@ product_id,product,customer_id,customer,quantity
 2,Pants,11,Andrea,1
 ```
 
-To store this in Neo4j, we might use a cypher query like this:
+To store this in Neo4j, you might use a Cypher query like this:
 
 ```cypher
 MERGE (p:Product { id: event.product_id })
@@ -167,83 +171,73 @@ MERGE (c:Customer { id: event.customer_id })
 MERGE (c)-[:BOUGHT { quantity: event.quantity }]->(p);
 ```
 
-Notice that in this case the entire job can be done by a single cypher statement.  As data frames get complex,
-these cypher statements too can get quite complex.
+In this case, the entire job can be done by a single Cypher statement. 
+As DataFrames get complex, the Cypher statements too can get quite complicated.
 
-==== Pros
+===== Advantages
 
-* Extremely flexible: you can do anything that Cypher provides for
-* Easy for Neo4j pros to get started with.
+* Extremely flexible: you can do anything that Cypher provides for.
+* If you are a Neo4j expert, it is easy for you to get started with.
 
-==== Cons
+===== Disadvantages
 
-* Tends to shift transform work to Neo4j, which is not a good idea as it does not have the same infrastructure to support that as Spark.
-* Tends to create heavy locking behavior, which will harm parallelism and possibly performance
-* Encourages you to embed schema information in a cypher query rather than use spark utilities
+* Cypher destructuring approach tends to shift transform work to Neo4j, which is not a good idea as it does not have the same infrastructure to support that as Spark.
+* This approach tends to create heavy locking behavior, which violates parallelism and possibly performance.
+* It encourages you to embed schema information in a Cypher query rather than use Spark utilities.
 
-== Graph Transforms:  General Principles
-
-* Wherever possible, perform data quality fixes prior to loading into Neo4j; this includes dropping missing records, changing datatypes of properties, and so on.
-* Because Spark excels at parallel computation, any non-graph heavy computation should be done in the spark layer, rather than
-in Cypher on Neo4j
-* Size your Neo4j instance appropriately before using aggressive parallelism or large batch sizes
-* Experiment with larger batch sizes (ensuring that batches stay within Neo4j's configured heap memory).  In general,
-the larger the batches, the faster the overall throughput to Neo4j.
-
-== Transforming from Graphs Back to DataFrames
+=== Converting data from graphs back to DataFrames
 
 [NOTE]
-**In general, always have an explicit RETURN statement and destructure your results**
+**In general, always have an explicit `RETURN` statement and destructure your results.**
 
-A common pattern will be to write a complex cypher statement, perhaps one that traverses many relationships, to return
-a dataset to spark. Because spark does not understand graph primitives, there are not many useful ways that a raw node,
-relationship, or path can be represented in spark.  As a result we recommend you do not return those types from Cypher
-to Spark, instead focusing on concrete property values and function results, which can be represented as simple types
-in spark.
+A common pattern is to write a complex Cypher statement, perhaps one that traverses many relationships, to return
+a dataset to Spark. Since Spark does not understand graph primitives, there are not many useful ways to represent a raw node,
+relationship, or a path in Spark. As a result, it is highly recommended not to return those types from Cypher to Spark, focusing instead on concrete property values and function results which you can represent as simple types
+in Spark.
 
-For example, this query would result in an awkward dataframe that would be hard to manipulate:
+For example, the following Cypher query results in an awkward DataFrame that would be hard to manipulate:
 
 ```cypher
 MATCH path=(p:Person { name: "Andrea" })-[r:KNOWS*]->(o:Person)
 RETURN path;
 ```
 
-A better query which will result in a cleaner DataFrame is as follows:
+A better Cypher query which results in a cleaner DataFrame is as follows:
 
 ```cypher
 MATCH path=(p:Person { name: "Andrea" })-[r:KNOWS*]->(o:Person)
 RETURN length(path) as pathLength, p.name as p1Name, o.name as p2Name
 ```
 
-== Improving Performance
+== Improving performance
 
 To get the best possible performance reading from (and particularly writing to) Neo4j, make sure you've gone
 through this checklist:
 
-1. Tune your Batch Size
-2. Tune your Neo4j Memory Configuration
-3. Have the right indexes
-4. Tune your parallelism
+1. Tune your batch size.
+2. Tune your Neo4j memory configuration.
+3. Have the correct indexes.
+4. Tune your parallelism.
 
 Each of the following sections describes these in detail.
 
-=== Tune your Batch Size
+=== Tune your batch size
 
-Writing data to Neo4j happens transactionally in batches; if we want to write 1 million nodes, we might break
+Writing data to Neo4j happens transactionally in batches; if you want to write 1 million nodes, you might break
 that into 40 batches of 25,000.  The batch size of the connector is controlled by the `batch.size` option and
-is set to a fairly low, conservative level.  _This is likely too low for many applications and can be improved
+is set to a fairly low, conservative level. _This is likely too low for many applications and can be improved
 with better knowledge of your data_.
 
-Batch size tradeoff is as follows:
+Batch size trade-off is as follows:
 
 * The bigger the batch size, the better the overall ingest performance, because it means fewer transactions,
 and less overall transactional overhead.
-* When batch sizes become too large, so that Neo4j's heap memory cannot accomodate them, it can cause out of
+* When batch sizes become too large, so that Neo4j's heap memory cannot accommodate them, it can cause out of
 memory errors on the server and cause failures.
 
 [NOTE]
 **Best write throughput comes when you use the largest batch size you can, while staying in the range of memory
-available on the server**.
+available on the server.**
 
 It's impossible to pick a single batch size that works for everyone, because how much memory your transactions
 take up depends on the number of properties & relationships, and other factors.  A good general aggressive value
@@ -251,97 +245,96 @@ to try is around 20,000 - but you can increase this number if your data is small
 on the server.  Lower the number if it's a small database server, or the data your pushing has many large
 properties.
 
-=== Tune your Neo4j Memory Configuration
+=== Tune your Neo4j memory configuration
 
-In the link:https://neo4j.com/developer/guide-performance-tuning/[Neo4j Performance Tuning Guide], important
+In the link:https://neo4j.com/docs/operations-manual/current/performance/memory-configuration/[Neo4j Operations Manual], important
 advice is given on how to size the heap and page cache of the server.  What's important for Spark is this:
 
 * Heap affects how big transactions can get.  The bigger the heap, the larger the batch size you can use.
-* Page cache affects how much of your database stays resident in RAM at any given time.  Page caches which
-are much smaller than your database will cause performance to suffer.
+* Page cache affects how much of your database stays resident in RAM at any given time. Page caches which
+are much smaller than your database cause performance to suffer.
 
-=== Have the Right Indexes
+=== Have the correct indexes
 
 At the Neo4j Cypher level, it's very common to use the Spark connector in a way that generates `MERGE` queries.
-In Neo4j, this looks up a node by some "key" and then creates it only if it does not already exist.
+In Neo4j, this looks up a node by some 'key' and then creates it only if it does not already exist.
 
 [NOTE]
 **It is strongly recommended to assert indexes or constraints on any graph property that you use as part of
-`node.keys`, `relationship.source.node.keys`, `relationship.target.node.keys` or other similar key options**
+`node.keys`, `relationship.source.node.keys`, `relationship.target.node.keys` or other similar key options.**
 
-A common source of poor performance is to write Spark code that generates `MERGE` cypher, or otherwise tries
-to look data up in Neo4j without the appropriate database indexes.  In this case, the Neo4j server ends up looking
+A common source of poor performance is to write Spark code that generates `MERGE` Cypher, or otherwise tries
+to look data up in Neo4j without the appropriate database indexes. In this case, the Neo4j server ends up looking
 through much more data than necessary to satisfy the query, and performance suffers.
 
-=== Tune Your Parallelism
+=== Tune your parallelism
 
-Spark is fundamentally about partitioning and paralleism; the go-to technique is to split a batch of
-data into partitions for each machine to work on in parallel.   In Neo4j, parallelism works very differently, which
-we will describe in this chapter.
+Spark is fundamentally about partitioning and parallelism; the go-to technique is to split a batch of
+data into partitions for each machine to work on in parallel.   
+In Neo4j, parallelism works very differently, which we will describe in this chapter.
 
-==== Write Parallelism in Neo4j
+==== Write parallelism in Neo4j
 
 [NOTE]
-**For most writes to Neo4j, it is strongly recommended to repartition your dataframe to 1 partition only**
+**For most writes to Neo4j, it is strongly recommended to repartition your DataFrame to one partition only.**
 
-When writing nodes & relationships in Neo4j:
+When writing nodes and relationships in Neo4j:
 
-* Writing a relationship locks both nodes
-* Writing a node locks the node
+* writing a relationship locks both nodes.
+* writing a node locks the node.
 
-Additionally, in Neo4j's causal cluster model, only the cluster leader may write data.  This means that
-because writes scale vertically in Neo4j, the practical paralleism is limited to the number of cores on the leader.
+Additionally, in the Neo4j Causal Cluster model, only the cluster leader may write data. Since writes scale vertically in Neo4j, the practical parallelism is limited to the number of cores on the leader.
 
-The reason a single partition for writes is recommended is because it eliminates lock contention between writes.  Suppose
+The reason a single partition for writes is recommended is that it eliminates lock contention between writes. Suppose
 one partition is writing:
 
 ```
 (:Person { name: "Michael" })-[:KNOWS]->(:Person { name: "Andrea" })
 ```
 
-while another partition is writing:
+While another partition is writing:
 
 ```
 (:Person { name: "Andrea" })-[:KNOWS]->(:Person { name: "Davide" })
 ```
 
-The relationship write will lock the "Andrea" node - and these writes cannot continue in parallel in any case. As
+The relationship write locks the "Andrea" node - and these writes cannot continue in parallel in any case. As
 a result, you may not gain performance by parallelizing more, if threads have to wait for each other's locks. In
 extreme cases with too much parallelism, Neo4j may reject the writes with lock contention errors.
 
-==== Dataset Partitioning
+==== Dataset partitioning
 
 [NOTE]
-**You can use as many partitions as there are cores in the Neo4j server, if you have properly partitioned your data to avoid Neo4j locks**
+**You can use as many partitions as there are cores in the Neo4j server, if you have properly partitioned your data to avoid Neo4j locks.**
 
-There is an exception to the "1 partition" rule above; if your data writes are partitioned ahead of time to avoid locks, you
-can generally do as many write threads to Neo4j as there are cores in the server. Suppose we want to write a long list of `:Person` nodes, and we know they are distinct by the person `id`.  We might stream those into Neo4j in 4 different partitions, as there will not be any lock contention.
+There is an exception to the "one partition" rule above: if your data writes are partitioned ahead of time to avoid locks, you
+can generally do as many write threads to Neo4j as there are cores in the server. Suppose we want to write a long list of `:Person` nodes, and we know they are distinct by the person `id`. We might stream those into Neo4j in four different partitions, as there will not be any lock contention.
 
-== Schema Considerations
+== Schema considerations
 
-Neo4j does not have a fixed schema; individual properties can contain multiple differently-typed values.  Spark
-on the other hand will tend to expect a fixed schema. For this reason, the connector contains a number of schema
-inference techniques that help ease this mapping. Paying close attention to how these features work can help
+Neo4j does not have a fixed schema; individual properties can contain multiple differently typed values. Spark
+on the other hand tends to expect a fixed schema. For this reason, the connector contains a number of schema
+inference techniques that help ease this mapping. Paying close attention to how these features work can 
 explain different scenarios.
 
 The two core techniques are:
 
 * <<APOC>>
-* <<Automatic Sampling>>
+* <<Automatic sampling>>
 
 === APOC
 
-If your Neo4j installation has APOC installed, this approach will be used by default. These stored procedures within APOC allow inspection of the
-metadata in your graph, and provide information such as the type of properties, and the universe of possible properties attached to a given node label.
+If your Neo4j installation has APOC installed, this approach is used by default. The stored procedures within APOC allow inspection of the
+metadata in your graph and provide information such as the type of relationship properties and the universe of possible properties attached to a given node label.
 
-You may try these calls yourself on your Neo4j database if you wish, simply execute:
+You may try these calls by yourself on your Neo4j database if you wish, simply execute:
 
 ```cypher
 CALL apoc.meta.nodeTypeProperties();
 CALL apoc.meta.relTypeProperties();
 ```
 
-And inspect the results.  These results are how the Neo4j Connector for Apache Spark represents the metadata of nodes & relationships read into DataFrames.
+Inspect the results.  These results are how the Neo4j Connector for Apache Spark represents the metadata of nodes and relationships read into DataFrames.
 
 This approach uses a configurable sampling technique that looks through many (but not all) instances in the database to build a profile of the valid
 values that exist within properties.  If the schema that is produced is not what is expected, take care to inspect the underlying data to ensure it has a consistent
@@ -376,24 +369,24 @@ ss.read
 
 For both procedures you can pass all the supported parameters except for:
 
-* `includeLabels` for `apoc.meta.nodeTypeProperties`, because we use the labels defined into
-the `labels` option;
-* `includeRels` for `apoc.meta.relTypeProperties` because we use the one defined into
+* `includeLabels` for `apoc.meta.nodeTypeProperties`, because you use the labels defined in
+the `labels` option.
+* `includeRels` for `apoc.meta.relTypeProperties`, because you use the one defined in
 the `relationship` option.
 
 ===== Fine tuning
 
-As these two procedure sample the graph in oder to extract the metadata necessary for building the <<Tables 4 Labels>>
-in most of real-world scenario is important to tune properly the sampling parameters because the execution of these
-can be expensive and have and impact in the performances of your extraction job.
+As these two procedures sample the graph to extract the metadata necessary for building the <<Tables for labels>>,
+in most real-world scenarios, it is crucial to tune the sampling parameters properly because using of them
+can be expensive and impact the performance of your extraction job.
 
-=== Automatic Sampling
+=== Automatic sampling
 
-In some installations and environments, the key APOC calls above will not be available.
-In these cases, the connector will automatically sample the first few records and infer
-the right data type from the examples that it sees.
+In some installations and environments, the key APOC calls above are not available.
+In these cases, the connector automatically samples the first few records and infers
+the correct data type from the examples that it sees.
 
 [NOTE]
-**Automatic sampling may be error prone, and may produce incorrect results,
+**Automatic sampling may be error prone and may produce incorrect results,
 particularly in cases where a single Neo4j property exists with several different data types.
-Consistent typing of properties is strongly recommended**
+Consistent typing of properties is strongly recommended.**
