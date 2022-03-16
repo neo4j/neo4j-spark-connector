@@ -5,7 +5,7 @@ site:
 
 content:
   sources:
-    - url: "https://github.com/neo4j-contrib/neo4j-spark-connector"
+    - url: ../
       branches: ['4.1', '4.0']
       start_path: doc/docs
       edit_url: https://github.com/neo4j-contrib/neo4j-spark-connector/tree/{refname}/{path}
@@ -22,6 +22,13 @@ ui:
 
 urls:
   html_extension_style: indexify
+
+antora:
+  extensions:
+  - require: "@neo4j-antora/antora-modify-sitemaps"
+    sitemap_version: '4.1'
+    sitemap_loc_version: 'current'
+    move_sitemaps_to_components: true
 
 asciidoc:
   extensions:
