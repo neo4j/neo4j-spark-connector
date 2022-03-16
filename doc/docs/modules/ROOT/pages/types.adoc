@@ -1,22 +1,19 @@
-= Neo4j / Spark Data Types Reference
+= Data type mapping between Neo4j and Spark
 
-[abstract]
---
-This chapter provides a reference to type compatibility issues between Neo4j and Spark
---
+:description:This chapter provides a reference to type compatibility issues between Neo4j and Spark.
 
 == Background
 
-Neo4j and Cypher provide a link:https://neo4j.com/docs/java-reference/current/extending-neo4j/procedures-and-functions/values-and-types/[type system]
+Neo4j and Cypher provide a link:https://neo4j.com/docs/java-reference/current/extending-neo4j/values-and-types/[type system]
 that describes how values are stored in the database, but these types do not always exactly match what Spark provides.
 
-In some cases there are types that Neo4j provides that Spark does not have an equivalent for, and vice versa.  
+In some cases, there are data types that Neo4j provides that Spark does not have an equivalent for, and vice versa.  
 
 == Type Mappings
 
-.Spark to Neo4j Type Mappings Reference
+.Spark to Neo4j type mappings reference
 |===
-|Neo4j Type |Spark Type |Notes
+|Neo4j type |Spark type |Notes
 
 |`String`
 |`string`
@@ -64,18 +61,18 @@ In some cases there are types that Neo4j provides that Spark does not have an eq
 
 |`Node`
 |`struct { <id>: long, <labels>: array[string], (PROPERTIES) }`
-|Nodes in Neo4j are represented as property containers; that is they appear as structs with properties corresponding to whatever properties were in the node.  _For ease of use it is usually better to return individual properties than a node from a query_
+|Nodes in Neo4j are represented as property containers; that is they appear as structs with properties corresponding to whatever properties were in the node.  _For ease of use it is usually better to return individual properties than a node from a query._
 
 |`Relationship`
 |`struct { <rel.id>: long, <rel.type>: string, <source.id>: long, <target.id>: long, (PROPERTIES) }`
-|Relationships are returned as maps, identifying the source and target of the relationship, its type, along with properties (if any) of the relationship.  _For ease of use it is usually better to return individual properties than a relationship from a query_
+|Relationships are returned as maps, identifying the source and target of the relationship, its type, along with properties (if any) of the relationship.  _For ease of use it is usually better to return individual properties than a relationship from a query._
 
 |`Path`
 |`string`
-|Example: `path[(322)<-[20280:AIRLINE]-(33510)]`.  _For ease of use it is recommended to use link:https://neo4j.com/docs/cypher-manual/current/functions/list/[path functions] to return individual properties/aspects of a path from a query.
+|Example: `path[(322)<-[20280:AIRLINE]-(33510)]`.  _For ease of use it is recommended to use link:https://neo4j.com/docs/cypher-manual/current/functions/list/[path functions] to return individual properties/aspects of a path from a query._
 
-|`[Array of Same Type]`
+|`[Array of same type]`
 |`array[element]`
-|In Neo4j, arrays must be consistently typed (i.e. an array of all Float values).  The inner spark type matches the type mapping above.
+|In Neo4j, arrays must be consistently typed (i.e., an array of all Float values). The inner Spark type matches the type mapping above.
 
 |===
