@@ -1,36 +1,39 @@
 {
-  "name": "@neo4j/docs",
+  "name": "neo4j-spark-connector",
   "version": "1.0.0",
-  "description": "Neo4j Docs builder",
-  "main": "index.js",
-  "watch": {
-    "build:docs": {
-      "patterns": [
-        "docs"
-      ],
-      "extensions": "adoc"
-    }
-  },
+  "description": "Neo4j Spark Connector",
+  "main": "server.js",
   "scripts": {
-    "server": "forever start server.js",
-    "start": "npm run server && npm-watch",
-    "stop": "forever stop server.js",
-    "build:docs": "antora --fetch --stacktrace preview.yml",
-    "lint:links": "node tasks/lint-links.js"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon -e adoc --exec \"npm run build && npm run serve\"",
+    "serve": "node server.js",
+    "build": "antora --stacktrace preview.yml",
+    "build-verify": "antora --stacktrace --fetch preview.yml --log-format=json --log-level=info --log-file ./build/log/log.json",
+    "publish-verify": "antora --stacktrace --fetch publish.yml --log-format=json --log-file ./build/log/log.json"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neo4j-contrib/neo4j-spark-connector.git"
+  },
+  "keywords": [],
+  "author": "",
   "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/neo4j-contrib/neo4j-spark-connector/issues"
+  },
+  "homepage": "https://github.com/neo4j-contrib/neo4j-spark-connector#readme",
   "dependencies": {
-    "@antora/cli": "^2.3.3",
-    "@antora/site-generator-default": "^2.3.3",
-    "cheerio": "^1.0.0-rc.3",
+    "@antora/cli": "^3.0.0",
+    "@antora/site-generator-default": "^3.0.0",
+    "@neo4j-antora/antora-add-notes": "^0.1.6",
     "@neo4j-antora/antora-listing-roles": "^0.1.0",
+    "@neo4j-antora/antora-modify-sitemaps": "^0.4.2",
+    "@neo4j-antora/antora-table-footnotes": "^0.3.0",
     "@neo4j-documentation/macros": "^1.0.0",
     "@neo4j-documentation/remote-include": "^1.0.0"
   },
   "devDependencies": {
     "express": "^4.17.1",
-    "forever": "^3.0.2",
-    "hyperlink": "^4.6.0",
-    "npm-watch": "^0.7.0"
+    "nodemon": "^1.19.4"
   }
 }
