@@ -9,9 +9,9 @@ that describes how values are stored in the database, but these types do not alw
 
 In some cases, there are data types that Neo4j provides that Spark does not have an equivalent for, and vice versa.  
 
-== Type Mappings
+== Data type mappings
 
-.Spark to Neo4j type mappings reference
+.Spark to Neo4j type mapping reference
 |===
 |Neo4j type |Spark type |Notes
 
