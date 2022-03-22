@@ -4,7 +4,8 @@ function tabTheSource($content) {
         'dotnet': 'C#',
         'java': 'Java',
         'javascript': 'JavaScript',
-        'python': 'Python'
+        'python': 'Python',
+        'scala': 'Scala'
     };
     var $UL = $('<ul class="nav nav-tabs" role="tablist"/>');
     var $LI = $('<li role="presentation"/>');
