@@ -104,3 +104,5 @@ This might happen when creating a new graph using the GDS library.
 The issue here is that the query is run the first time to extract the DataFrame schema and then is run again to get the data.
 
 To avoid this issue we suggest using the xref:quickstart.adoc#user-defined-schema[user defined schema] approach.
+
+
