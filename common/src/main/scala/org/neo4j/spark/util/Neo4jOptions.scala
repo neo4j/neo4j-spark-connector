@@ -41,13 +41,10 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     parameters.get(parameter)
   }
 
-  private def getParameter(parameter: String, defaultValue: String = ""): String = {
-    if (!parameters.containsKey(parameter) || parameters.get(parameter).isEmpty) {
-      return defaultValue
-    }
-
-    parameters.get(parameter).trim()
-  }
+  private def getParameter(parameter: String, defaultValue: String = ""): String = Some(parameters.getOrDefault(parameter, defaultValue))
+    .flatMap(Option(_)) // to turn null into None
+    .map(_.trim)
+    .getOrElse(defaultValue)
 
   val saveMode = getParameter(SAVE_MODE, DEFAULT_SAVE_MODE.toString)
   val pushdownFiltersEnabled: Boolean = getParameter(PUSHDOWN_FILTERS_ENABLED, DEFAULT_PUSHDOWN_FILTERS_ENABLED.toString).toBoolean

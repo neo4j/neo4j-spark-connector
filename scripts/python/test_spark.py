@@ -58,7 +58,7 @@ class SparkTest(unittest.TestCase):
         timeResult = df.select("myTime").collect()[0].myTime
 
         assert "offset-time" == timeResult.type
-        # .replace used in case of UTC timezone because of https://stackoverflow.com/a/42777551/1409772
+        # .replace used in case of UTC timezone because of https://stackoverflow.com/a/42777551/1409772
         assert str(time).replace("+00:00", "Z") \
             == timeResult.value.split("+")[0]
 
@@ -165,12 +165,12 @@ class SparkTest(unittest.TestCase):
 
         timeResult = df.select("result").collect()[0].result
 
-        # .replace used in case of UTC timezone because of https://stackoverflow.com/a/42777551/1409772
+        # .replace used in case of UTC timezone because of https://stackoverflow.com/a/42777551/1409772
         assert "offset-time" == timeResult[0].type
         assert str(datetime.time(11, 23, 0, 0, get_localzone())).replace("+00:00", "Z") \
             == timeResult[0].value.split("+")[0]
 
-        # .replace used in case of UTC timezone because of https://stackoverflow.com/a/42777551/1409772
+        # .replace used in case of UTC timezone because of https://stackoverflow.com/a/42777551/1409772
         assert "offset-time" == timeResult[1].type
         assert str(datetime.time(12, 23, 0, 0, get_localzone())).replace("+00:00", "Z") \
             == timeResult[1].value.split("+")[0]
@@ -268,6 +268,20 @@ class SparkTest(unittest.TestCase):
         assert 15 == durationResult[1][2]
         assert 58320 == durationResult[1][3]
         assert 0 == durationResult[1][4]
+
+    def test_unexisting_property(self):
+        self.spark.read.format("org.neo4j.spark.DataSource") \
+            .option("url", self.neo4j_container.get_connection_url()) \
+            .option("authentication.type", "basic") \
+            .option("authentication.basic.username", "neo4j") \
+            .option("authentication.basic.password", "password") \
+            .option("relationship.properties", None) \
+            .option("relationship", "FOO") \
+            .option("relationship.source.labels", ":Foo") \
+            .option("relationship.target.labels", ":Bar") \
+            .load()
+
+        # In this case we just test that the job has been executed without any exception
 
 
 if len(sys.argv) != 5:

@@ -179,4 +179,15 @@ class Neo4jOptionsTest {
 
     assertEquals(neo4jOptions.apocConfig.procedureConfigMap, expected)
   }
+
+  @Test
+  def testUnexistingProperty(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put("relationship.properties", null)
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    assertEquals(neo4jOptions.relationshipMetadata.properties, Map.empty)
+  }
 }
