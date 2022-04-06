@@ -25,7 +25,7 @@ jobs:
           node-version: '14'
       - run: npm install
         working-directory: 'doc'
-      - run: npm run build:docs
+      - run: npm run build-verify
         working-directory: 'doc'
       # REMIND: lint:links task is unreliable, enable again when we found a solution
       #- run: npm run lint:links
