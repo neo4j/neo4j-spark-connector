@@ -1,31 +1,30 @@
 
-= Project Overview
+= Project overview
 
- :description: This chapter provides an introduction to the Neo4j Connector for Apache Spark.
+:description: This chapter provides an introduction to the Neo4j Connector for Apache Spark.
 
-== Overview
+The Neo4j Connector for Apache Spark is intended to make integrating graphs with Spark easy.
 
-The Neo4j Connector for Apache Spark is intended to make integrating graphs together with Spark easy.  There are effectively two ways of using the connector:
+There are effectively two ways of using the connector:
 
-- **As a data source**:  read any set of nodes or relationships as a DataFrame in Spark.
-- **As a sink**: write any DataFrame to Neo4j as a collection of nodes or relationships, or alternatively; use a
-Cypher statement to process records in a DataFrame into the graph pattern of your choice.
+- **As a data source**: you can read any set of nodes or relationships as a DataFrame in Spark.
+- **As a sink**: you can write any DataFrame to Neo4j as a collection of nodes or relationships or use a Cypher statement to process records in a DataFrame into the graph pattern of your choice.
 
 == Multiple languages support
 
 Because the connector is based on the new Spark DataSource API, other Spark interpreters for languages such as Python and R work.
 
-The API remains the same, and mostly only slight syntax changes are necessary to accomodate the differences between (for example) Python
+The API remains the same, and mostly only slight syntax changes are necessary to accommodate the differences between (for example) Python
 and Scala.
 
 == Compatibility
 
 === Neo4j compatibility
-This connector works with Neo4j 3.5, and the entire 4.x series of Neo4j, whether run as a single instance,
-in Causal Cluster mode, or run as a managed service in Neo4j AuraDB.  The connector does not rely on enterprise features, and as
-such works with Neo4j Community as well, with the appropriate version number.
+This connector works with Neo4j 3.5 and the entire 4.x series of Neo4j, whether run as a single instance,
+in Causal Cluster mode, or run as a managed service in Neo4j AuraDB.  The connector does not rely on Enterprise Edition features and as
+such works with Neo4j Community Edition as well, with the appropriate version number.
 
-[NOTE]
+[TIP]
 **Neo4j versions prior to 3.5 are not supported.** 
 
 === Spark and Scala compatibility
@@ -36,7 +35,8 @@ This connector currently supports:
 - Spark 3.0+ with Scala 2.12.
 
 Depending on the combination of Spark and Scala versions you need a different JAR.
-JARs are named in the form `neo4j-connector-apache-spark_${scala.version}_${connector.version}_for_${spark.version}`
+JARs are named in the form:
+`neo4j-connector-apache-spark_${scala.version}_${connector.version}_for_${spark.version}`
 
 Ensure that you have the appropriate JAR file for your environment. 
 Here's a compatibility table to help you choose the correct JAR.
@@ -67,6 +67,6 @@ This connector is provided under the terms of the Apache 2.0 license, which can 
 
 == Support
 
-For Neo4j Enterprise and Neo4j AuraDB customers, official releases of this connector are supported under the terms of your existing Neo4j support agreement.  This support extends only to regular releases, and excludes
-alpha, beta, and pre-releases.  If you have any questions about the support policy, please get in touch with
+For Neo4j Enterprise and Neo4j AuraDB customers, official releases of this connector are supported under the terms of your existing Neo4j support agreement.  This support extends only to regular releases and excludes
+alpha, beta, and pre-releases.  If you have any questions about the support policy, get in touch with
 Neo4j.

@@ -3,11 +3,11 @@
 
 :description: The chapter explains how to read data from a Neo4j database.
 
-Neo4j Connector for Apache Spark allows you to read data from a Neo4j innstance in 3 different ways:
+Neo4j Connector for Apache Spark allows you to read data from a Neo4j instance in three different ways:
 
-* By node labels. 
-* By relationship type.
-* By Cypher query.
+* By node labels 
+* By relationship type
+* By Cypher query
 
 == Getting started
 
@@ -45,8 +45,8 @@ spark.read.format("org.neo4j.spark.DataSource")
 |Yes^*^
 
 |`labels`
-|List of node labels separated by `:`.
-The first label is to be the primary label
+|List of node labels separated by colon.
+The first label is to be the primary label.
 |_(none)_
 |Yes^*^
 
@@ -56,24 +56,24 @@ The first label is to be the primary label
 |Yes^*^
 
 |`schema.flatten.limit`
-|Number of records to be used to create the Schema (only if APOC is not installed)
+|Number of records to be used to create the Schema (only if APOC is not installed).
 |`10`
 |No
 
 |`schema.strategy`
 |Strategy used by the connector in order to compute the Schema definition for the Dataset.
-Possibile values are `string`, `sample`.
+Possible values are `string`, `sample`.
 When `string` is set, it coerces all the properties to String, otherwise it tries to sample the Neo4j's dataset.
 |`sample`
 |No
 
 |`pushdown.filters.enabled`
-|Enable or disable the PushdownFilters support
+|Enable or disable the PushdownFilters support.
 |`true`
 |No
 
 |`pushdown.columns.enabled`
-|Enable or disable the PushdownColumn support
+|Enable or disable the PushdownColumn support.
 |`true`
 |No
 
@@ -111,12 +111,12 @@ every single node property as column prefixed by `source` or `target`
 |No
 
 |`relationship.source.labels`
-|List of source node labels separated by `:`
+|List of source node labels separated by colon.
 |_(empty)_
 |Yes
 
 |`relationship.target.labels`
-|List of target node labels separated by `:`
+|List of target node labels separated by colon.
 |_(empty)_
 |Yes
 
@@ -126,7 +126,7 @@ every single node property as column prefixed by `source` or `target`
 
 == Read data
 
-Reading data from a Neo4j Database can be done in 3 ways:
+Reading data from a Neo4j Database can be done in three ways:
 
  * <<read-query,Custom Cypher query>>
  * <<read-node,Node>>
@@ -145,7 +145,7 @@ val spark = SparkSession.builder().getOrCreate()
 
 spark.read.format("org.neo4j.spark.DataSource")
   .option("url", "bolt://localhost:7687")
-  .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name")
+  .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) AS id, n.name AS name")
   .load()
   .show()
 ----
@@ -158,14 +158,18 @@ spark.read.format("org.neo4j.spark.DataSource")
 |1|Jane Doe
 |===
 
-[NOTE]
-We recommend individual property fields to be returned, rather than returning graph entity (node, relationship, and path) types.
-This best maps to Spark's type system and yields the best results.
-So instead of writing:
-`MATCH (p:Person) RETURN p` 
-write the following: 
-`MATCH (p:Person) RETURN id(p) as id, p.name as name`.
+[TIP]
+====
+We recommend individual property fields to be returned, rather than returning graph entity (node, relationship, and path) types. This best maps to Spark's type system and yields the best results. So instead of writing:
+
+`MATCH (p:Person) RETURN p`
+
+write the following:
+
+`MATCH (p:Person) RETURN id(p) AS id, p.name AS name`.
+
 If your query returns a graph entity, use the `labels` or `relationship` modes instead.
+====
 
 The structure of the Dataset returned by the query is influenced by the query itself.
 In this particular context, it could happen that the connector isn't able to sample the Schema from the query,
@@ -216,7 +220,7 @@ This does not cause any problems since you have no data in your dataset.
 For example, you have this query:
 [source]
 ----
-MATCH (n:NON_EXISTENT_LABEL) RETURN id(n) as id, n.name, n.age
+MATCH (n:NON_EXISTENT_LABEL) RETURN id(n) AS id, n.name, n.age
 ----
 
 The created schema is the following:
@@ -229,39 +233,42 @@ The created schema is the following:
 |n.age|String
 |===
 
-[NOTE]
+[TIP]
+====
 The returned column order is not guaranteed to match the RETURN statement for Neo4j 3.x and Neo4j 4.0.
+
 Starting from Neo4j 4.1 the order is the same.
+====
 
 [[limit-query]]
 ==== Limit the results
 
-This connector does not permit using `SKIP` or `LIMIT` at the end of a Cypher query.
-Attempts to do this result in errors, such as the message: 
-"SKIP/LIMIT are not allowed at the end of the query".
+This connector does not permit using `SKIP` or `LIMIT` at the end of a Cypher query. +
+Attempts to do this result in errors, such as the message: +
+_SKIP/LIMIT are not allowed at the end of the query_.
 
 This is not supported, because internally the connector uses SKIP/LIMIT pagination to break read sets up into multiple partitions to support partitioned reads.
 As a result, user-provided SKIP/LIMIT clashes with what the connector itself adds to your query to support parallelism.
 
 There is a work-around though; you can still accomplish the same by using `SKIP / LIMIT` internal inside of the query, rather than after the final `RETURN` block of the query.
 
-Here's a simple example.
+Here's an example.
 This first query is rejected and fails:
 
 [source,cypher]
 ----
 MATCH (p:Person)
-RETURN p.name as name
+RETURN p.name AS name
 ORDER BY name
 LIMIT 10
 ----
 
-However this query can be reformulated and works:
+However, you can reformulate this query to make it works:
 
 [source,cypher]
 ----
 MATCH (p:Person)
-WITH p.name as name
+WITH p.name AS name
 ORDER BY name
 LIMIT 10
 RETURN p.name
@@ -303,7 +310,7 @@ spark.read.format("org.neo4j.spark.DataSource")
 ----
 
 [NOTE]
-Label list can be specified both with starting colon or without it:
+Label list can be specified both with starting colon or without it: +
 `Person:Customer` and `:Person:Customer` are considered the same thing.
 
 ==== Columns
@@ -391,7 +398,7 @@ The result format can be controlled by the `relationship.nodes.map` option (defa
 When it is set to `false`, source and target nodes properties are returned in separate columns
 prefixed with `source.` or `target.` (i.e., `source.name`, `target.price`).
 
-When it is set to `true`, the source and target nodes properties are returned as Map[String, String] in two columns named `source`and `target`.
+When it is set to `true`, the source and target nodes properties are returned as Map[String, String] in two columns named `source` and `target`.
 
 [[rel-schema-no-map]]
 .Nodes map set to `false`
@@ -518,7 +525,7 @@ Use the correct prefix:
 If `relationship.nodes.map` is set to `false`:
 
 * ``\`source.[property]` `` for the source node properties.
-* ``\`rel.[property]` `` for the relation property.
+* ``\`rel.[property]` `` for the relationship property.
 * ``\`target.[property]` `` for the target node property.
 
 [source,scala]
@@ -541,7 +548,7 @@ df.where("`source.id` = 14 AND `target.id` = 16")
 If `relationship.nodes.map` is set to `true`:
 
 * ``\`<source>`.\`[property]` `` for the source node map properties.
-* ``\`<rel>`.\`[property]` `` for the relation map property.
+* ``\`<rel>`.\`[property]` `` for the relationship map property.
 * ``\`<target>`.\`[property]` `` for the target node map property.
 
 In this case, all the map values are to be strings, so the filter value must be a string too.

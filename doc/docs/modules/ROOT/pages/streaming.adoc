@@ -3,13 +3,13 @@
 
 :description: The chapter describes how to use Spark Structured Streaming API with the Neo4j Connector for Apache Spark.
 
-Let's see how you can leverage the link:http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html[Spark Structured Streaming API] with the Neo4j Connector for Apache Spark.
+Let's see how you can leverage the link:http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html[Spark Structured Streaming API^] with the Neo4j Connector for Apache Spark.
 
 Although the connector is the same, Spark streaming works differently from Spark batching.
 Here are some links to learn more about the Spark streaming approach:
 
-* link:https://spark.apache.org/docs/latest/streaming-programming-guide.html#overview[Structured Streaming Programming Guide] from the Spark website.
-* link:https://databricks.com/blog/2015/07/30/diving-into-apache-spark-streamings-execution-model.html[Diving into Apache Spark Streaming’s Execution Model] by Databricks.
+* link:https://spark.apache.org/docs/latest/streaming-programming-guide.html#overview[Structured Streaming Programming Guide^] from the Spark website.
+* link:https://databricks.com/blog/2015/07/30/diving-into-apache-spark-streamings-execution-model.html[Diving into Apache Spark Streaming’s Execution Model^] by Databricks.
 
 == Neo4j streaming options
 
@@ -20,20 +20,20 @@ Here are some links to learn more about the Spark streaming approach:
 4+|*Sink*
 
 |`checkpointLocation`
-|Checkpoint file location (xref:#_checkpoint[see more])
+|Checkpoint file location (xref:#_checkpoint[see more]).
 |_(none)_
 |Yes
 
 4+|*Source*
 
 |`streaming.property.name`
-|The timestamp property used for batch reading. Read more xref:#_streaming_property_name[here]
+|The timestamp property used for batch reading. Read more xref:#_streaming_property_name[here].
 |_(none)_
 |Yes
 
 |`streaming.from`
-|This option is used to tell the connector from where to send data to the stream
-Read more xref:#_streaming_from[here].
+|This option is used to tell the connector from where to send data to the stream.
+Read more xref:#_streaming_from_option[here].
 
 `**NOW**` starts streaming from the moment the stream starts.
 
@@ -46,7 +46,7 @@ Read more xref:#_streaming_from[here].
 
 (i.e., `MATCH (p:MyLabel) RETURN MAX(p.timestamp)`)
 
-This is used to get the last timestamp in the database for a given query. More on this xref:#_notes_on_query_mode[here]
+This is used to get the last timestamp in the database for a given query. More on this xref:#_notes_on_query_mode[here].
 |_(none)_
 |Yes, only for `query` mode
 
@@ -56,7 +56,7 @@ This is used to get the last timestamp in the database for a given query. More o
 
 Writing a stream to a Neo4j instance is pretty easy and can be done using any of the xref:writing.adoc#_write_data[three writing strategies].
 
-[NOTE]
+[TIP]
 The same xref:quickstart.adoc#_schema[schema concepts] also apply here.
 If you start a streaming read with an empty result set, you need to specify the schema using
 the xref:quickstart.adoc#user-defined-schema[user defined schema], or the batch read fails.
@@ -90,7 +90,7 @@ As said, you can use any writing strategy: xref:writing.adoc#write-node[Node], x
 
 The only difference is that you must set the `checkpointLocation` and `save.mode` options.
 
-With `save.mode`, you can control how the data are written. More info xref:writing.adoc#save-mode[here].
+With `save.mode`, you can control how the data are written. More information xref:writing.adoc#save-mode[here].
 
 === Checkpoint
 
@@ -98,7 +98,7 @@ The **checkpoint** is a file that allows Spark Structured Streaming to recover f
 Spark updates this file with the progress information and recovers from that point in case of failure or query restart.
 **This checkpoint location has to be a path in an HDFS compatible file system.**
 
-Since the topic is wide and complex, you can read the link:https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#recovering-from-failures-with-checkpointing[official Spark documentation].
+Since the topic is wide and complex, you can read the link:https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#recovering-from-failures-with-checkpointing[official Spark documentation^].
 
 == Source
 
@@ -206,6 +206,6 @@ this option is used by the connector to read the last timestamp in the database,
 
 === Additional examples
 
-You can find streaming code bits and many other examples on link:https://github.com/utnaf/neo4j-connector-apache-spark-notebooks[this repository] that contains Zeppelin notebooks.
+You can find streaming code bits and many other examples on link:https://github.com/utnaf/neo4j-connector-apache-spark-notebooks[this repository^] that contains Zeppelin notebooks.
 
-A complete example using Spark, Neo4j and AWS Kinesis is described in the article link:link:https://medium.com/neo4j/from-kinesis-via-spark-to-neo4j-97d564562b61[From Kinesis via Spark to Neo4j].
+A complete example using Spark, Neo4j and AWS Kinesis is described in the article link:https://medium.com/neo4j/from-kinesis-via-spark-to-neo4j-97d564562b61[From Kinesis via Spark to Neo4j^].

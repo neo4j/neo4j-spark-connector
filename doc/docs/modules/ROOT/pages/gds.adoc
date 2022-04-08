@@ -14,18 +14,17 @@ GDS algorithms are bucketed into five groups:
 
 == GDS operates via Cypher
 
-All of the link:{url-neo4j-gds-manual}[functionality of GDS] is used by issuing Cypher queries.  As such, it is easily
+All of the link:{url-neo4j-gds-manual}[functionality of GDS^] is used by issuing Cypher queries.  As such, it is easily
 accessible via Spark, because the Neo4j Connector for Apache Spark can issue Cypher queries and read their results back.  This combination means
 that you can use Neo4j and GDS as a graph co-processor in an existing ML workflow that you may implement in Apache Spark.
 
 == Example
 
-In the link:{url-gh-spark-notebooks}[sample Zeppelin Notebook repository], there is a GDS example that can be run against
-a Neo4j Sandbox, showing how to use the two together.
+In the link:{url-gh-spark-notebooks}[sample Zeppelin Notebook repository^], there is a GDS example that can be run against a Neo4j Sandbox, showing how to use the two together.
 
 === Create a virtual graph in GDS using Spark
 
-This is very simple, straightforward code; it constructs the right Cypher statement to link:https://neo4j.com/docs/graph-data-science/current/common-usage/creating-graphs/[create a virtual graph in GDS] and returns the results.
+This is very simple, straightforward code; it constructs the right Cypher statement to link:https://neo4j.com/docs/graph-data-science/current/common-usage/projecting-graphs/[create a virtual graph in GDS^] and returns the results.
 
 [source,python]
 ----
@@ -50,13 +49,11 @@ df = spark.read.format("org.neo4j.spark.DataSource") \
     .load()
 ----
 
-[NOTE]
-If you get a `A graph with name [name] already exists` error, take a look at this xref:faq.adoc#graph-already-exists[FAQ].
+[TIP]
+If you get a _A graph with name [name] already exists_ error, take a look at this xref:faq.adoc#graph-already-exists[FAQ].
 
-[NOTE]
 **Ensure that option `partitions` is set to 1. You do not want to execute this query in parallel, it should be executed only once.**
 
-[NOTE]
 **When you use stored procedures, you must include a `RETURN` clause.**
 
 === Run a GDS analysis and stream the results back
@@ -90,7 +87,7 @@ df.show()
 
 === Streaming versus persisting GDS results
 
-When link:https://neo4j.com/docs/graph-data-science/current/common-usage/running-algos/[running GDS algorithms], the library gives you the choice
+When link:https://neo4j.com/docs/graph-data-science/current/common-usage/running-algos/[running GDS algorithms^], the library gives you the choice
 of either streaming the algorithm results back to the caller, or mutating the underlying graph. Using GDS together with Spark provides an
 additional option of transforming or otherwise using a GDS result. Ultimately, either modality works with the Neo4j Connector for Apache
 Spark, and you choose what's best for your use case.
