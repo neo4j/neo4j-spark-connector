@@ -33,6 +33,11 @@ else
   ALT_DEPLOYMENT_REPOSITORY=""
 fi
 
+case $(sed --help 2>&1) in
+  *GNU*) sed_i () { sed -i "$@"; };;
+  *) sed_i () { sed -i '' "$@"; };;
+esac
+
 # backup files
 cp pom.xml pom.xml.bak
 cp common/pom.xml common/pom.xml.bak
@@ -41,12 +46,12 @@ cp test-support/pom.xml test-support/pom.xml.bak
 cp "${TARGET_DIR}/pom.xml" "${TARGET_DIR}/pom.xml.bak"
 
 # replace pom files with target scala version
-sed -i '' "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" pom.xml
-sed -i '' "s/<scala.binary.version \/>/<scala.binary.version>$SCALA_VERSION<\/scala.binary.version>/" pom.xml
-sed -i '' "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "doc/pom.xml"
-sed -i '' "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "common/pom.xml"
-sed -i '' "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "test-support/pom.xml"
-sed -i '' "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "${TARGET_DIR}/pom.xml"
+sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" pom.xml
+sed_i "s/<scala.binary.version \/>/<scala.binary.version>$SCALA_VERSION<\/scala.binary.version>/" pom.xml
+sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "doc/pom.xml"
+sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "common/pom.xml"
+sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "test-support/pom.xml"
+sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "${TARGET_DIR}/pom.xml"
 
 # build
 ./mvnw clean $DEPLOY_INSTALL -pl !'doc' -Pscala-$SCALA_VERSION -Pspark-$SPARK_VERSION -DskipTests $ALT_DEPLOYMENT_REPOSITORY
