@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.neo4j</groupId>
     <packaging>pom</packaging>
-    <version>4.1.1</version>
+    <version>4.1.2-SNAPSHOT</version>
     <artifactId>neo4j-connector-apache-spark</artifactId>
     <name>neo4j-connector-apache-spark</name>
     <description>Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
@@ -56,6 +56,8 @@
         <node.version>v12.16.0</node.version>
         <npm.version>6.13.7</npm.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- This is empty because we use it for the deploy process -->
+        <scala.binary.version />
     </properties>
 
     <profiles>
