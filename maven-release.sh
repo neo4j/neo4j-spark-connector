@@ -1,3 +1,5 @@
+#!/bin/bash
+
 if [[ $# -lt 3 ]] ; then
     echo "Usage ./maven-release.sh <DEPLOY_OR_INSTALL> <SCALA-VERSION> <SPARK-VERSION> [<ALT_DEPLOYMENT_REPOSITORY>]"
     exit 1
@@ -54,6 +56,6 @@ sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4
 sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "${TARGET_DIR}/pom.xml"
 
 # build
-./mvnw clean $DEPLOY_INSTALL -pl !'doc' -Pscala-$SCALA_VERSION -Pspark-$SPARK_VERSION -DskipTests $ALT_DEPLOYMENT_REPOSITORY
+mvn clean $DEPLOY_INSTALL -pl !'doc' -Pscala-$SCALA_VERSION -Pspark-$SPARK_VERSION -DskipTests $ALT_DEPLOYMENT_REPOSITORY
 
 exit_script
