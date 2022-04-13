@@ -27,13 +27,13 @@ This will open http://localhost:8000/ which will serve development docs.
 You can build for Spark 2.4 with both Scala 2.11 and Scala 2.12
 
 ```
-./mvnw clean package -P spark-2.4 -P scala-2.11
-./mvnw clean package -P spark-2.4 -P scala-2.12
+./maven-release.sh package 2.11 2.4
+./maven-release.sh package 2.12 2.4
 ```
 
 These commands will generate the corresponding targets
-* `spark-2.4/target/neo4j-connector-apache-spark_2.11-4.0.1_for_spark_2.4.jar`
-* `spark-2.4/target/neo4j-connector-apache-spark_2.12-4.0.1_for_spark_2.4.jar`
+* `spark-2.4/target/neo4j-connector-apache-spark_2.11-<version>_for_spark_2.4.jar`
+* `spark-2.4/target/neo4j-connector-apache-spark_2.12-<version>_for_spark_2.4.jar`
 
 
 ### Building for Spark 3
@@ -41,41 +41,42 @@ These commands will generate the corresponding targets
 You can build for Spark 3 by running
 
 ```
-./mvnw clean package -P spark-3 -P scala-2.12
+./maven-release.sh package 2.12 3
 ```
 
-This will generate `spark-3/target/neo4j-connector-apache-spark_2.12-4.0.1_for_spark_3.jar`
+This will generate `spark-3/target/neo4j-connector-apache-spark_2.12-<version>_for_spark_3.jar`
 
 
 ## Integration with Apache Spark Applications
 
 **spark-shell, pyspark, or spark-submit**
 
-`$SPARK_HOME/bin/spark-shell --jars neo4j-connector-apache-spark_2.12-4.0.1_for_spark_3.jar`
+`$SPARK_HOME/bin/spark-shell --jars neo4j-connector-apache-spark_2.12-<version>_for_spark_3.jar`
 
-`$SPARK_HOME/bin/spark-shell --packages org.neo4j:neo4j-connector-apache-spark_2.12:4.0.1_for_spark_3`
+`$SPARK_HOME/bin/spark-shell --packages org.neo4j:neo4j-connector-apache-spark_2.12:<version>_for_spark_3`
 
 **sbt**
 
 If you use the [sbt-spark-package plugin](https://github.com/databricks/sbt-spark-package), in your sbt build file, add:
 
-```scala spDependencies += "org.neo4j/neo4j-connector-apache-spark_2.11:4.0.1_for_spark_2.4"```
+```scala spDependencies += "org.neo4j/neo4j-connector-apache-spark_2.11:<version>_for_spark_2.4"```
 
 Otherwise,
 
 ```scala
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "org.neo4j" % "neo4j-connector-apache-spark_2.12" % "4.0.1_for_spark_2.4"
+libraryDependencies += "org.neo4j" % "neo4j-connector-apache-spark_2.12" % "<version>_for_spark_2.4"
 ```
 
 Or, for Spark 3
 
 ```scala
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "org.neo4j" % "neo4j-connector-apache-spark_2.12" % "4.0.1_for_spark_3"
+libraryDependencies += "org.neo4j" % "neo4j-connector-apache-spark_2.12" % "<version>_for_spark_3"
 ```  
 
 **maven**  
+
 In your pom.xml, add:   
 
 ```xml
@@ -84,16 +85,9 @@ In your pom.xml, add:
   <dependency>
     <groupId>org.neo4j</groupId>
     <artifactId>neo4j-connector-apache-spark_2.11</artifactId>
-    <version>4.0.1_for_spark_2.4</version>
+    <version>[version]_for_spark_2.4</version>
   </dependency>
 </dependencies>
-<repositories>
-  <!-- list of other repositories -->
-  <repository>
-    <id>SparkPackagesRepo</id>
-    <url>http://dl.bintray.com/spark-packages/maven</url>
-  </repository>
-</repositories>
 ```
 
 In case of Spark 3
@@ -104,16 +98,9 @@ In case of Spark 3
   <dependency>
     <groupId>org.neo4j</groupId>
     <artifactId>neo4j-connector-apache-spark_2.12</artifactId>
-    <version>4.0.1_for_spark_3</version>
+    <version>[version]_for_spark_3</version>
   </dependency>
 </dependencies>
-<repositories>
-  <!-- list of other repositories -->
-  <repository>
-    <id>SparkPackagesRepo</id>
-    <url>http://dl.bintray.com/spark-packages/maven</url>
-  </repository>
-</repositories>
 ```
 
 For more info about the available version visit https://neo4j.com/developer/spark/overview/#_compatibility
