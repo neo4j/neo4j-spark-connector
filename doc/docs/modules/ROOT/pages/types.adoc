@@ -1,6 +1,5 @@
 = Data type mapping between Neo4j and Spark
-
-:description:This chapter provides a reference to type compatibility issues between Neo4j and Spark.
+:description: This chapter provides a reference to type compatibility issues between Neo4j and Spark.
 
 == Background
 
