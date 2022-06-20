@@ -1281,4 +1281,43 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (m:Musician) ASSERT (m.name) IS UNIQUE")
   }
+
+  @Test
+  def shouldWriteComplexDF(): Unit = {
+    val data = Seq(
+      ("Cuba Gooding Jr.", 1, "2022-06-07 00:00:00", Seq(Map("product_id" -> 1, "quantity" -> 2, "product_id" -> 2, "quantity" -> 4))),
+      ("Tom Hanks", 2, "2022-07-07 00:00:00", Seq(Map("product_id" -> 11, "quantity" -> 2, "product_id" -> 22, "quantity" -> 4)))
+    ).toDF("actor_name", "order_id", "order_date", "products")
+    data.write
+      .mode(SaveMode.Overwrite)
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query",
+        """
+          |MERGE (person:Person {name: event.actor_name})
+          |CREATE (order:Order {id: event.order_id, date: datetime(replace(event.order_date, ' ', 'T'))})
+          |MERGE (person)-[:CREATED]->(order)
+          |WITH event, person, order
+          |UNWIND event.products AS product_order
+          |MERGE (product:Product {id: product_order.product_id})
+          |CREATE (order)-[:CONTAINS{quantityOrdered: product_order.quantity}]->(product)
+          |""".stripMargin)
+      .save()
+
+    val actual = SparkConnectorScalaSuiteIT.session().run(
+      """
+        |MATCH (p:Person)-[cr:CREATED]->(o:Order)-[co:CONTAINS]->(pr:Product)
+        |RETURN p.name AS name, o.id AS order, collect({id: pr.id, quantity: co.quantityOrdered}) AS products
+        |""".stripMargin)
+      .list()
+      .asScala
+      .map(_.asMap())
+      .toSet
+      .asJava
+    val expected = Set(
+      Map("name" -> "Cuba Gooding Jr.", "order" -> 1L, "products" -> List(Map("quantity" -> 4L, "id" -> 2L).asJava).asJava).asJava,
+      Map("name" -> "Tom Hanks", "order" -> 2L, "products" -> List(Map("quantity" -> 4L, "id" -> 22L).asJava).asJava).asJava
+    ).asJava
+    assertEquals(expected, actual)
+  }
 }

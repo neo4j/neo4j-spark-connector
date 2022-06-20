@@ -11,7 +11,7 @@ import org.neo4j.spark.util.Neo4jImplicits.{CypherImplicits, EntityImplicits}
 import org.neo4j.spark.util._
 
 import java.util
-import java.util.Collections
+import java.util.{Collections, function}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -66,18 +66,19 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
   }
 
   private def retrieveSchemaFromApoc(query: String, params: java.util.Map[String, AnyRef]): mutable.Buffer[StructField] = {
-    session.run(query, params)
+    val fields = session.run(query, params)
       .list
       .asScala
       .filter(record => !record.get("propertyName").isNull && !record.get("propertyName").isEmpty)
       .map(record => {
         val fieldTypesList = record.get("propertyTypes")
-          .asList(new java.util.function.Function[Value, String]() {
+          .asList(new function.Function[Value, String]() {
             override def apply(v: Value): String = v.asString()
           })
           .asScala
         val fieldType: String = if (fieldTypesList.size > 1) {
-          log.warn(s"""
+          log.warn(
+            s"""
                |The field ${record.get("propertyName")} has different types: $fieldTypesList
                |Every value will be casted to string.
                |""".stripMargin)
@@ -90,6 +91,10 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         StructField(record.get("propertyName").asString,
           cypherToSparkType(fieldType))
       })
+    if (fields.isEmpty) {
+      throw new ClientException("Unable to compute the resulting schema from APOC")
+    }
+    fields
   }
 
   private def retrieveSchema(query: String,

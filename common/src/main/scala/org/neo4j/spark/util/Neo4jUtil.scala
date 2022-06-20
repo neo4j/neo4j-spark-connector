@@ -198,7 +198,7 @@ object Neo4jUtil {
         case _ => schema.dataType
       }
       val javaList = unsafeArray.toSeq[AnyRef](sparkType)
-        .map(elem => convertFromSpark(elem, schema))
+        .map(elem => convertFromSpark(elem, StructField("", sparkType, true)))
         .asJava
       Values.value(javaList)
     }
