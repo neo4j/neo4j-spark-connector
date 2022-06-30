@@ -7,7 +7,7 @@ License: link:{attachmentsdir}/LICENSE.txt[Creative Commons 4.0]
 
 [abstract]
 --
-This is the user guide for Neo4j Connector for Apache Spark version {connector-version}, authored by the Neo4j Labs Team.
+This is the user guide for Neo4j Connector for Apache Spark version {connector-version}.
 --
 
 The guide covers the following areas:
