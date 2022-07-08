@@ -200,7 +200,13 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val params = Map[String, AnyRef](Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT -> Collections.emptyList(),
       Neo4jQueryStrategy.VARIABLE_STREAM -> Collections.emptyMap())
       .asJava
-    val structFields = retrieveSchema(query, params, { record => record.asMap.asScala.toMap })
+    val structFields = retrieveSchema(
+      s"""
+        |$query
+        |ORDER BY rand()
+        |LIMIT ${options.schemaMetadata.flattenLimit}
+        |""".stripMargin, params, { record => record.asMap.asScala.toMap })
+
 
     val columns = getReturnedColumns(query)
     if (columns.isEmpty && structFields.isEmpty) {

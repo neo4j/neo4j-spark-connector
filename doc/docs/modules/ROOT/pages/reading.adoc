@@ -56,7 +56,8 @@ The first label is to be the primary label.
 |Yes^*^
 
 |`schema.flatten.limit`
-|Number of records to be used to create the Schema (only if APOC is not installed).
+|Number of records to be used to create the Schema (only if APOC is not installed,
+or for custom Cypher queries provided via `query` options).
 |`10`
 |No
 
