@@ -260,7 +260,9 @@ case class Neo4jDriverOptions(
                              ) extends Serializable {
 
   def toDriverConfig: Config = {
-    val builder = Config.builder().withUserAgent(s"neo4j-spark-connector/${Neo4jUtil.connectorVersion}")
+    val builder = Config.builder()
+      .withUserAgent(s"neo4j-spark-connector/${Neo4jUtil.connectorVersion}")
+      .withLogging(Logging.slf4j())
 
     if (lifetime > -1) builder.withMaxConnectionLifetime(lifetime, TimeUnit.MILLISECONDS)
     if (acquisitionTimeout > -1) builder.withConnectionAcquisitionTimeout(acquisitionTimeout, TimeUnit.MILLISECONDS)
