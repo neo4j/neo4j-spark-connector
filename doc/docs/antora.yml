@@ -8,7 +8,7 @@ nav:
 asciidoc:
   attributes:
     theme: docs
-    connector-version: 4.1.2
+    connector-version: 4.1.3
     copyright: Neo4j Inc.
     url-neo4j-product-gds-lib: https://neo4j.com/product/graph-data-science-library/
     url-gh-spark-notebooks: https://github.com/utnaf/neo4j-connector-apache-spark-notebooks
