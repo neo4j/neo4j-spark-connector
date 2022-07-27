@@ -30,13 +30,13 @@ This is very simple, straightforward code; it constructs the right Cypher statem
 ----
 %pyspark
 query = """
-    CALL gds.graph.create('got-interactions', 'Person', {
+    CALL gds.graph.project('got-interactions', 'Person', {
       INTERACTS: {
         orientation: 'UNDIRECTED'
       }
     })
-    YIELD graphName, nodeCount, relationshipCount, createMillis
-    RETURN graphName, nodeCount, relationshipCount, createMillis
+    YIELD graphName, nodeCount, relationshipCount, projectMillis
+    RETURN graphName, nodeCount, relationshipCount, projectMillis
 """
 
 df = spark.read.format("org.neo4j.spark.DataSource") \
