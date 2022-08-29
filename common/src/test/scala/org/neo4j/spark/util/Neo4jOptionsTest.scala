@@ -3,7 +3,9 @@ package org.neo4j.spark.util
 import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.AccessMode
+import org.neo4j.driver.net.ServerAddress
 
+import java.net.URI
 import scala.collection.JavaConverters._
 
 class Neo4jOptionsTest {
@@ -189,5 +191,17 @@ class Neo4jOptionsTest {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     assertEquals(neo4jOptions.relationshipMetadata.properties, Map.empty)
+  }
+
+  @Test
+  def testUrls(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783")
+
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+    val (baseUrl, resolvers) = neo4jOptions.connection.connectionUrls
+
+    assertEquals(URI.create("neo4j://localhost"), baseUrl)
+    assertEquals(Set(ServerAddress.of("foo.bar", 7687), ServerAddress.of("foo.bar.baz", 7783)), resolvers)
   }
 }

@@ -3,6 +3,7 @@ package org.neo4j.spark.util
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.neo4j.driver.Config.TrustStrategy
 import org.neo4j.driver._
+import org.neo4j.driver.net.{ServerAddress, ServerAddressResolver}
 
 import java.io.File
 import java.net.URI
@@ -268,7 +269,10 @@ case class Neo4jDriverOptions(
     if (acquisitionTimeout > -1) builder.withConnectionAcquisitionTimeout(acquisitionTimeout, TimeUnit.MILLISECONDS)
     if (livenessCheckTimeout > -1) builder.withConnectionLivenessCheckTimeout(livenessCheckTimeout, TimeUnit.MILLISECONDS)
     if (connectionTimeout > -1) builder.withConnectionTimeout(connectionTimeout, TimeUnit.MILLISECONDS)
-    URI.create(url).getScheme match {
+
+    val (primaryUrl, resolvers) = connectionUrls
+
+    primaryUrl.getScheme match {
       case "neo4j+s" | "neo4j+ssc" | "bolt+s" | "bolt+ssc" => ()
       case _ => {
         if (!encryption) {
@@ -287,9 +291,28 @@ case class Neo4jDriverOptions(
       }
     }
 
+    if (!resolvers.isEmpty) {
+      builder.withResolver(new ServerAddressResolver {
+        override def resolve(serverAddress: ServerAddress): util.Set[ServerAddress] = resolvers.asJava
+      })
+    }
+
     builder.build()
   }
 
+  // public only for testing purposes
+  def connectionUrls: (URI, Set[ServerAddress]) = {
+    val urls = url.split(",").toList
+    val extraUrls = urls
+      .drop(1)
+      .map(_.trim)
+      .map(URI.create(_))
+      .map(uri => ServerAddress.of(uri.getHost, if (uri.getPort > -1) uri.getPort else 7687))
+      .toSet
+    (URI.create(urls(0).trim), extraUrls)
+  }
+
+  // public only for testing purposes
   def toNeo4jAuth: AuthToken = {
     auth match {
       case "basic" => AuthTokens.basic(username, password)

@@ -77,7 +77,10 @@ documentation on all possible configuration options for Neo4j Drivers, see the l
 4+|*Driver options*
 
 |`url`
-|The url of the Neo4j instance to connect to
+|The url of the Neo4j instance to connect to.
+You can provide a comma-separated list of valid Neo4j URIs like: `neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783`, the first one
+will be used as base URL and the others as resolvers just as explained
+link:https://neo4j.com/docs/java-manual/current/client-applications/#java-driver-resolver-function[here, window=_blank]
 |_(none)_
 |Yes
 
