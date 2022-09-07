@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>neo4j-spark-connector-docs</artifactId>
-    <version>${parent.version}</version>
+    <version>${project.parent.version}</version>
     <name>neo4j-connector-apache-spark-doc</name>
     <description>Neo4j Connector for Apache Spark - Documentation</description>
 

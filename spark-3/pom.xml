@@ -21,12 +21,12 @@
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-connector-apache-spark_${scala.binary.version}_common</artifactId>
-            <version>${parent.version}</version>
+            <version>${project.parent.version}</version>
         </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-connector-apache-spark_${scala.binary.version}_test-support</artifactId>
-            <version>${parent.version}</version>
+            <version>${project.parent.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
