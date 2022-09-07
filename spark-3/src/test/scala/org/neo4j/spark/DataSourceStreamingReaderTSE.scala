@@ -102,7 +102,6 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("labels", "Test4_Movie")
       .option("streaming.property.name", "timestamp")
       .option("streaming.from", "ALL")
-      .option("streaming.get.all", "true")
       .load()
 
     query = stream.writeStream
@@ -252,7 +251,6 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship", "LIKES")
       .option("streaming.property.name", "timestamp")
       .option("streaming.from", "ALL")
-      .option("streaming.get.all", "true")
       .option("relationship.source.labels", "Test5_Person")
       .option("relationship.target.labels", "Test5_Post")
       .load()

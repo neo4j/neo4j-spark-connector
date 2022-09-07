@@ -676,16 +676,16 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
     val count = df.collectAsList()
       .asScala
-      .filter(row => row.getAs[Long]("<rel.id>") != null
+      .filter(row => row.getAs[Long]("<rel.id>") >= 0
         && row.getAs[String]("<rel.type>") != null
-        && row.getAs[Long]("rel.when") != null
-        && row.getAs[Long]("rel.quantity") != null
-        && row.getAs[Long]("<source.id>") != null
-        && row.getAs[Long]("source.id") != null
+        && row.getAs[Double]("rel.when") >= 0
+        && row.getAs[Double]("rel.quantity") >= 0
+        && row.getAs[Long]("<source.id>") >= 0
+        && row.getAs[Long]("source.id") >= 0
         && !row.getAs[Seq[String]]("<source.labels>").isEmpty
         && row.getAs[String]("source.fullName") != null
-        && row.getAs[Long]("<target.id>") != null
-        && row.getAs[Long]("target.id") != null
+        && row.getAs[Long]("<target.id>") >= 0
+        && row.getAs[Double]("target.id") >= 0
         && !row.getAs[Seq[String]]("<target.labels>").isEmpty
         && row.getAs[String]("target.name") != null)
       .size
@@ -719,10 +719,10 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
     val rows = df.collectAsList().asScala
     val count = rows
-      .filter(row => row.getAs[Long]("<rel.id>") != null
+      .filter(row => row.getAs[Long]("<rel.id>") >= 0
         && row.getAs[String]("<rel.type>") != null
-        && row.getAs[Long]("rel.when") != null
-        && row.getAs[Long]("rel.quantity") != null
+        && row.getAs[Double]("rel.when") >= 0
+        && row.getAs[Double]("rel.quantity") >= 0
         && row.getAs[Map[String, String]]("<source>") != null
         && row.getAs[Map[String, String]]("<target>") != null)
       .size

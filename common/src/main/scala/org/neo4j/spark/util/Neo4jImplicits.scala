@@ -33,7 +33,7 @@ object Neo4jImplicits {
 
     /**
      * df: we need this to handle scenarios like `WHERE age > 19 and age < 22`,
-     * so we can't basically add a parameter named $age.
+     * so we can't basically add a parameter named \$age.
      * So we base64 encode the value to ensure a unique parameter name
      */
     def toParameterName(value: Any): String = {

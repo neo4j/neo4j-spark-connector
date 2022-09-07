@@ -31,35 +31,39 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
       tx.close()
     }
 
-    Unreliables.retryUntilSuccess(startupTimeout.getSeconds.toInt, TimeUnit.SECONDS, new Callable[Boolean] {
-      override def call(): Boolean = {
-        getRateLimiter.doWhenReady(new Runnable {
-          override def run(): Unit = {
-            if (databases.nonEmpty) {
-              val tx = systemSession.beginTransaction()
-              val databasesStatus = try {
-                tx.run("SHOW DATABASES").list().asScala.map(db => {
-                  (db.get("name").asString(), db.get("currentStatus").asString())
-                }).toMap
-              } finally {
-                tx.close()
-              }
+    try {
 
-              val notOnline = databasesStatus.filter(it => {
-                it._2 != "online"
-              })
+      Unreliables.retryUntilSuccess(startupTimeout.getSeconds.toInt, TimeUnit.SECONDS, new Callable[Boolean] {
+        override def call(): Boolean = {
+          getRateLimiter.doWhenReady(new Runnable {
+            override def run(): Unit = {
+              if (databases.nonEmpty) {
+                val tx = systemSession.beginTransaction()
+                val databasesStatus = try {
+                  tx.run("SHOW DATABASES").list().asScala.map(db => {
+                    (db.get("name").asString(), db.get("currentStatus").asString())
+                  }).toMap
+                } finally {
+                  tx.close()
+                }
 
-              if (databasesStatus.size < databases.size || notOnline.nonEmpty) {
-                throw new RuntimeException(s"Cannot started because of the following databases: ${notOnline.keys}")
+                val notOnline = databasesStatus.filter(it => {
+                  it._2 != "online"
+                })
+
+                if (databasesStatus.size < databases.size || notOnline.nonEmpty) {
+                  throw new RuntimeException(s"Cannot started because of the following databases: ${notOnline.keys}")
+                }
               }
             }
-          }
-        })
-        true
-      }
-    })
-    systemSession.close()
-    driver.close()
+          })
+          true
+        }
+      })
+    } finally {
+      systemSession.close()
+      driver.close()
+    }
   }
 }
 
