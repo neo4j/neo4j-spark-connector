@@ -105,7 +105,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
   override def initialOffset(): Offset = Neo4jOffset(neo4jOptions.streamingOptions.from.value())
 
   override def createReaderFactory(): PartitionReaderFactory = {
-    new SimpleStreamingPartitionReaderFactory(
+    new Neo4jStreamingPartitionReaderFactory(
       neo4jOptions, optionalSchema.orElse(new StructType()), jobId, scriptResult, offsetAccumulator
     )
   }

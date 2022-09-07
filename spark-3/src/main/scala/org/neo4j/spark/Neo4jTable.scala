@@ -7,7 +7,7 @@ import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.neo4j.driver.AccessMode
-import org.neo4j.spark.reader.SimpleScanBuilder
+import org.neo4j.spark.reader.Neo4jScanBuilder
 import org.neo4j.spark.util.{Neo4jOptions, ValidateRead, Validations}
 import org.neo4j.spark.writer.Neo4jWriterBuilder
 
@@ -34,9 +34,9 @@ class Neo4jTable(schema: StructType, options: java.util.Map[String, String], job
     TableCapability.MICRO_BATCH_READ
   ).asJava
 
-  override def newScanBuilder(options: CaseInsensitiveStringMap): SimpleScanBuilder = {
+  override def newScanBuilder(options: CaseInsensitiveStringMap): Neo4jScanBuilder = {
     Validations.validate(ValidateRead(neo4jOptions, jobId))
-    new SimpleScanBuilder(neo4jOptions, jobId, schema())
+    new Neo4jScanBuilder(neo4jOptions, jobId, schema())
   }
 
   override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {

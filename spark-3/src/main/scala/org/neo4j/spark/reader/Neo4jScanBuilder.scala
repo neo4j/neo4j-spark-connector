@@ -5,7 +5,7 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.util.Neo4jOptions
 
-class SimpleScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: StructType) extends ScanBuilder
+class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: StructType) extends ScanBuilder
   with SupportsPushDownFilters
   with SupportsPushDownRequiredColumns {
 
@@ -14,7 +14,7 @@ class SimpleScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struc
   private var requiredColumns: StructType = new StructType()
 
   override def build(): Scan = {
-    new SimpleScan(neo4jOptions, jobId, schema, filters, requiredColumns)
+    new Neo4jScan(neo4jOptions, jobId, schema, filters, requiredColumns)
   }
 
   override def pushFilters(filtersArray: Array[Filter]): Array[Filter] = {

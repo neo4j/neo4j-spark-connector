@@ -12,7 +12,7 @@ import java.util.Optional
 
 case class Neo4jPartition(partitionSkipLimit: PartitionSkipLimit) extends InputPartition
 
-class SimpleScan(
+class Neo4jScan(
                   neo4jOptions: Neo4jOptions,
                   jobId: String,
                   schema: StructType,
@@ -42,7 +42,7 @@ class SimpleScan(
   }
 
   override def createReaderFactory(): PartitionReaderFactory = {
-    new SimplePartitionReaderFactory(
+    new Neo4jPartitionReaderFactory(
       neo4jOptions, filters, schema, jobId, scriptResult, requiredColumns
     )
   }

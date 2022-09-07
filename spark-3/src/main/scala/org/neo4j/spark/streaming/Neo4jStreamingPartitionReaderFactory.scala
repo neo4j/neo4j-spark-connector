@@ -11,11 +11,11 @@ import org.neo4j.spark.util.Neo4jOptions
 case class Neo4jStreamingPartition(partitionSkipLimit: PartitionSkipLimit, filters: Array[Filter])
   extends InputPartition
 
-class SimpleStreamingPartitionReaderFactory(private val neo4jOptions: Neo4jOptions,
-                                            private val schema: StructType,
-                                            private val jobId: String,
-                                            private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
-                                            private val offsetAccumulator: OffsetStorage[java.lang.Long, java.lang.Long]) extends PartitionReaderFactory {
+class Neo4jStreamingPartitionReaderFactory(private val neo4jOptions: Neo4jOptions,
+                                           private val schema: StructType,
+                                           private val jobId: String,
+                                           private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
+                                           private val offsetAccumulator: OffsetStorage[java.lang.Long, java.lang.Long]) extends PartitionReaderFactory {
   override def createReader(partition: InputPartition): PartitionReader[InternalRow] = new Neo4jStreamingPartitionReader(
     neo4jOptions,
     partition.asInstanceOf[Neo4jStreamingPartition].filters,
