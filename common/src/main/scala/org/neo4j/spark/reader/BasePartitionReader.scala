@@ -2,6 +2,7 @@ package org.neo4j.spark.reader
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.{Record, Session, Transaction, Values}
@@ -19,14 +20,16 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
                                    private val jobId: String,
                                    private val partitionSkipLimit: PartitionSkipLimit,
                                    private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
-                                   private val requiredColumns: StructType) extends Logging {
+                                   private val requiredColumns: StructType,
+                                   private val aggregateColumns: Array[AggregateFunc]) extends Logging {
   private var result: Iterator[Record] = _
   private var session: Session = _
   private var transaction: Transaction = _
   protected val name: String = if (partitionSkipLimit.partitionNumber > 0) s"$jobId-${partitionSkipLimit.partitionNumber}" else jobId
   protected val driverCache: DriverCache = new DriverCache(options.connection, name)
 
-  private val query: String = new Neo4jQueryService(options, new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.fieldNames))
+  private val query: String = new Neo4jQueryService(options,
+    new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.fieldNames, aggregateColumns))
     .createQuery()
 
   private var nextRow: InternalRow = _
@@ -53,8 +56,8 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
 
       val queryParams = getQueryParameters
 
-      logDebug(s"Running the following query on Neo4j: $query\nwith parameters $queryParams")
       logInfo(s"Running the following query on Neo4j: $query")
+      logDebug(s"with parameters $queryParams")
 
       result = transaction.run(query, Values.value(queryParams))
         .asScala

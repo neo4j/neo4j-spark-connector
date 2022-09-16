@@ -1,9 +1,11 @@
 package org.neo4j.spark.util
 
-import org.apache.spark.sql.sources.{And, EqualTo, Not}
+import org.apache.spark.sql.connector.expressions.NamedReference
+import org.apache.spark.sql.connector.expressions.aggregate.{Aggregation, Sum}
+import org.apache.spark.sql.sources.{And, EqualTo}
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
-import org.junit.Test
 import org.junit.Assert._
+import org.junit.Test
 import org.neo4j.spark.util.Neo4jImplicits._
 
 class Neo4jImplicitsTest {
@@ -121,5 +123,22 @@ class Neo4jImplicitsTest {
     val result = struct.getMissingFields(Set("im.aMap", "`im.also.a`.field", "`im.a`.map", "`im.not.a.map`", "fi``(╯°□°)╯︵ ┻━┻eld"))
 
     assertEquals(Set("im.aMap"), result)
+  }
+
+  @Test
+  def `groupByCols aggregation should work`: Unit = {
+    val aggField = new NamedReference {
+      override def fieldNames(): Array[String] = Array("foo")
+
+      override def describe(): String = "foo"
+    }
+    val gbyField = new NamedReference {
+      override def fieldNames(): Array[String] = Array("bar")
+
+      override def describe(): String = "bar"
+    }
+    val agg = new Aggregation(Array(new Sum(aggField, false)), Array(gbyField))
+    assertEquals(1, agg.groupByCols().length)
+    assertEquals("bar", agg.groupByCols()(0).describe())
   }
 }

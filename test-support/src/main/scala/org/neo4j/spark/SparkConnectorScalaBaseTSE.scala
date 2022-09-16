@@ -44,6 +44,12 @@ class SparkConnectorScalaBaseTSE {
 
   @Before
   def before() {
+    ss.catalog.listTables()
+      .collect()
+      .foreach(t => ss.catalog.dropTempView(t.name))
+    ss.catalog.listTables()
+      .collect()
+      .foreach(t => ss.catalog.dropGlobalTempView(t.name))
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[ResultSummary] {
         override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()

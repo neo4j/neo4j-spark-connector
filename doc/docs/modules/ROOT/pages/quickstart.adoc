@@ -208,6 +208,47 @@ The conditions are automatically joined with an `AND` operator.
 When using `relationship.node.map = true` or `query` the PushdownFilters support is automatically disabled,
 thus the filters are applied by Spark and not by Neo4j.
 
+=== Aggregation
+
+The Neo4j Connector for Apache Spark implements the `SupportsPushDownAggregates` interface, that allows you to push
+Spark aggregations down to the Neo4j layer.
+In this way the data that Spark receives have been already aggregate by Neo4j,
+decreasing the amount of data transferred from Neo4j to Spark.
+
+You can manually disable the PushdownAggregate support using the `pushdown.aggregate.enabled` option and set it to `false` (default is `true`).
+
+
+[source,scala]
+----
+// Given a DB populated with the following query
+"""CREATE (pe:Person {id: 1, fullName: 'Person'})
+ |WITH pe
+ |UNWIND range(1, 10) as id
+ |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id, price: id})
+ |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+ |RETURN *
+"""
+import org.apache.spark.sql.{SaveMode, SparkSession}
+val spark = SparkSession.builder().getOrCreate()
+
+spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://localhost:7687")
+  .option("relationship", "BOUGHT")
+  .option("relationship.source.labels", "Person")
+  .option("relationship.target.labels", "Product")
+  .load
+  .createTempView("BOUGHT")
+
+
+val df = spark.sql(
+  """SELECT `source.fullName`, MAX(`target.price`) AS max, MIN(`target.price`) AS min
+    |FROM BOUGHT
+    |GROUP BY `source.fullName`""".stripMargin)
+
+df.show()
+----
+The `MAX` and `MIN` operators are applied directly on Neo4j.
+
 === Schema
 
 Spark works with data in a fixed tabular schema.

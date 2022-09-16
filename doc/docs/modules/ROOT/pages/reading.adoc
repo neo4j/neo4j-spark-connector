@@ -78,6 +78,11 @@ When `string` is set, it coerces all the properties to String, otherwise it trie
 |`true`
 |No
 
+|`pushdown.aggregate.enabled`
+|Enable or disable the PushdownColumn support.
+|`true`
+|No
+
 |`partitions`
 |This defines the parallelization level while pulling data from Neo4j.
 

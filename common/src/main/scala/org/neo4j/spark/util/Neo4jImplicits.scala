@@ -1,12 +1,13 @@
 package org.neo4j.spark.util
 
-import javax.lang.model.SourceVersion
-import org.apache.spark.sql.types.{DataType, DataTypes, MapType, StructField, StructType}
+import org.apache.spark.sql.connector.expressions.Expression
+import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
+import org.apache.spark.sql.sources.{And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
+import org.apache.spark.sql.types.{DataTypes, MapType, StructField, StructType}
 import org.neo4j.driver.types.{Entity, Node, Relationship}
 import org.neo4j.spark.service.SchemaService
-import org.apache.spark.sql.sources.{And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
 
-import scala.annotation.tailrec
+import javax.lang.model.SourceVersion
 import scala.collection.JavaConverters._
 
 object Neo4jImplicits {
@@ -191,6 +192,10 @@ object Neo4jImplicits {
       })
       .filterNot(e => e._2)
       .map(e => e._1)
+  }
+
+  implicit class AggregationImplicit(aggregation: Aggregation) {
+    def groupByCols(): Array[Expression] = ReflectionUtils.groupByCols(aggregation)
   }
 
 }

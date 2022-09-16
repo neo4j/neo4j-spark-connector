@@ -1,5 +1,6 @@
 package org.neo4j.spark.reader
 
+import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
 import org.apache.spark.sql.connector.read.streaming.MicroBatchStream
 import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory, Scan}
 import org.apache.spark.sql.sources.Filter
@@ -17,7 +18,8 @@ class Neo4jScan(
                   jobId: String,
                   schema: StructType,
                   filters: Array[Filter],
-                  requiredColumns: StructType
+                  requiredColumns: StructType,
+                  aggregateColumns: Array[AggregateFunc]
                 ) extends Scan with Batch {
 
   override def toBatch: Batch = this
@@ -43,7 +45,7 @@ class Neo4jScan(
 
   override def createReaderFactory(): PartitionReaderFactory = {
     new Neo4jPartitionReaderFactory(
-      neo4jOptions, filters, schema, jobId, scriptResult, requiredColumns
+      neo4jOptions, filters, schema, jobId, scriptResult, requiredColumns, aggregateColumns
     )
   }
 
@@ -56,6 +58,6 @@ class Neo4jScan(
     optsMap.put(Neo4jOptions.STREAMING_METADATA_STORAGE, StorageType.SPARK.toString)
     val newOpts = new Neo4jOptions(optsMap)
     Validations.validate(ValidateReadStreaming(newOpts, jobId))
-    new Neo4jMicroBatchReader(Optional.of(schema), newOpts, jobId)
+    new Neo4jMicroBatchReader(Optional.of(schema), newOpts, jobId, aggregateColumns)
   }
 }

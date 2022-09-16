@@ -50,6 +50,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   val saveMode = getParameter(SAVE_MODE, DEFAULT_SAVE_MODE.toString)
   val pushdownFiltersEnabled: Boolean = getParameter(PUSHDOWN_FILTERS_ENABLED, DEFAULT_PUSHDOWN_FILTERS_ENABLED.toString).toBoolean
   val pushdownColumnsEnabled: Boolean = getParameter(PUSHDOWN_COLUMNS_ENABLED, DEFAULT_PUSHDOWN_COLUMNS_ENABLED.toString).toBoolean
+  val pushdownAggregateEnabled: Boolean = getParameter(PUSHDOWN_AGGREGATE_ENABLED, DEFAULT_PUSHDOWN_AGGREGATE_ENABLED.toString).toBoolean
 
   val schemaMetadata = Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
     SchemaStrategy.withCaseInsensitiveName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase),
@@ -355,6 +356,7 @@ object Neo4jOptions {
 
   val PUSHDOWN_FILTERS_ENABLED = "pushdown.filters.enabled"
   val PUSHDOWN_COLUMNS_ENABLED = "pushdown.columns.enabled"
+  val PUSHDOWN_AGGREGATE_ENABLED = "pushdown.aggregate.enabled"
 
   // schema options
   val SCHEMA_STRATEGY = "schema.strategy"
@@ -423,6 +425,7 @@ object Neo4jOptions {
   val DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE: NodeSaveMode.Value = NodeSaveMode.Match
   val DEFAULT_PUSHDOWN_FILTERS_ENABLED = true
   val DEFAULT_PUSHDOWN_COLUMNS_ENABLED = true
+  val DEFAULT_PUSHDOWN_AGGREGATE_ENABLED = true
   val DEFAULT_PARTITIONS = 1
   val DEFAULT_OPTIMIZATION_TYPE = OptimizationType.NONE
   val DEFAULT_SAVE_MODE = SaveMode.Overwrite
