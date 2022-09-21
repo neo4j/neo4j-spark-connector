@@ -2,6 +2,7 @@ package org.neo4j.spark.streaming
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
 import org.apache.spark.sql.connector.read.streaming.{MicroBatchStream, Offset}
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory}
 import org.apache.spark.sql.sources.{Filter, GreaterThan}
@@ -15,7 +16,8 @@ import java.util.Optional
 
 class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
                             private val neo4jOptions: Neo4jOptions,
-                            private val jobId: String)
+                            private val jobId: String,
+                            private val aggregateColumns: Array[AggregateFunc])
   extends MicroBatchStream
     with Logging {
 
@@ -33,7 +35,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
 
   private var lastUsedOffset: Neo4jOffset = null
 
-  private var filters: Array[Filter] = Array[Filter]()
+  private var filters: Array[Filter] = Array.empty[Filter]
 
   override def deserializeOffset(json: String): Offset = Neo4jOffset(json.toLong)
 
@@ -106,7 +108,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
 
   override def createReaderFactory(): PartitionReaderFactory = {
     new Neo4jStreamingPartitionReaderFactory(
-      neo4jOptions, optionalSchema.orElse(new StructType()), jobId, scriptResult, offsetAccumulator
+      neo4jOptions, optionalSchema.orElse(new StructType()), jobId, scriptResult, offsetAccumulator, aggregateColumns
     )
   }
 }

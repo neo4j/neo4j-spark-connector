@@ -2,8 +2,9 @@ package org.neo4j.spark.service
 
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.connector.expressions.aggregate.{AggregateFunc, Count, CountStar, Max, Min, Sum}
 import org.apache.spark.sql.sources.{And, Filter, Or}
-import org.neo4j.cypherdsl.core.StatementBuilder.{BuildableStatement, TerminalExposesLimit}
+import org.neo4j.cypherdsl.core.StatementBuilder.{BuildableStatement, TerminalExposesLimit, TerminalExposesSkip}
 import org.neo4j.cypherdsl.core._
 import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.util.Neo4jImplicits._
@@ -100,11 +101,14 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
 
 class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
                              partitionSkipLimit: PartitionSkipLimit = PartitionSkipLimit.EMPTY,
-                             requiredColumns: Seq[String] = Seq.empty) extends Neo4jQueryStrategy {
+                             requiredColumns: Seq[String] = Seq.empty,
+                             aggregateColumns: Array[AggregateFunc] = Array.empty) extends Neo4jQueryStrategy {
   private val renderer: Renderer = Renderer.getDefaultRenderer
 
+  private val hasPartitons: Boolean = partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1
+
   override def createStatementForQuery(options: Neo4jOptions): String = {
-    val limitedQuery = if (partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1) {
+    val limitedQuery = if (hasPartitons) {
       s"""${options.query.value}
          |SKIP ${partitionSkipLimit.skip} LIMIT ${partitionSkipLimit.limit}
          |""".stripMargin
@@ -125,8 +129,12 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     val matchQuery: StatementBuilder.OngoingReadingWithoutWhere = filterRelationship(sourceNode, targetNode, relationship)
 
     val returnExpressions: Seq[Expression] = buildReturnExpression(sourceNode, targetNode, relationship)
-
-    renderer.render(buildStatement(options, matchQuery.returning(returnExpressions : _*), relationship))
+    val stmt = if (aggregateColumns.isEmpty) {
+      buildStatement(options, matchQuery.returning(returnExpressions : _*), relationship)
+    } else {
+      buildStatementAggregation(options, matchQuery, relationship, returnExpressions)
+    }
+    renderer.render(stmt)
   }
 
   private def buildReturnExpression(sourceNode: Node, targetNode: Node, relationship: Relationship): Seq[Expression] = {
@@ -148,10 +156,10 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
           targetNode
         }
         else {
-          throw new IllegalArgumentException(s"`$column` is not a valid column.`")
+          null
         }
 
-        if (splatColumn.length == 1) {
+        if (entity != null && splatColumn.length == 1) {
           entity match {
             case n: Node => n.as(entityName.quote())
             case r: Relationship => r.getRequiredSymbolicName
@@ -164,33 +172,63 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     }
   }
 
+  private def buildStatementAggregation(options: Neo4jOptions,
+                                        query: StatementBuilder.OngoingReadingWithoutWhere,
+                                        entity: PropertyContainer,
+                                        fields: Seq[Expression]) = {
+    val ret: StatementBuilder.BuildableStatement = if (hasPartitons) {
+      val id = entity match {
+        case node: Node => Functions.id(node)
+        case rel: Relationship => Functions.id(rel)
+      }
+      query
+        .`with`(entity)
+        .orderBy(id)
+        .skip(partitionSkipLimit.skip)
+        .asInstanceOf[StatementBuilder.ExposesLimit with StatementBuilder.OngoingReadingAndWith]
+        .limit(partitionSkipLimit.limit)
+        .returning(fields: _*)
+    } else {
+      val orderByProp = options.orderBy
+      if (StringUtils.isBlank(orderByProp)) {
+        query.returning(fields: _*)
+      } else {
+        val order: StatementBuilder.OngoingReadingAndWithWithWhereAndOrder = query.`with`(entity).orderBy(entity.property(orderByProp))
+          .asInstanceOf[StatementBuilder.OngoingOrderDefinition]
+          .ascending()
+        order
+          .returning(fields: _*)
+          .asInstanceOf[StatementBuilder.BuildableStatement]
+      }
+    }
+    ret.build()
+  }
+
   private def buildStatement(options: Neo4jOptions,
                              returning: StatementBuilder.OngoingReadingAndReturn,
-                             entity: PropertyContainer = null) =
-    if (partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1) {
-      val ret = if (entity != null) {
-        val id = if (entity.isInstanceOf[Node]) {
-          Functions.id(entity.asInstanceOf[Node])
-        } else {
-          Functions.id(entity.asInstanceOf[Relationship])
-        }
-        returning.orderBy(id)
-      } else {
-        returning
-      }
-      ret
-        .skip[TerminalExposesLimit with BuildableStatement](partitionSkipLimit.skip)
-        .limit(partitionSkipLimit.limit)
-        .build()
+                             entity: PropertyContainer = null) = {
+
+    def addSkipLimit(ret: StatementBuilder.TerminalExposesSkip
+        with StatementBuilder.TerminalExposesLimit
+        with StatementBuilder.BuildableStatement) = ret
+      .skip(partitionSkipLimit.skip).asInstanceOf[StatementBuilder.TerminalExposesLimit].limit(partitionSkipLimit.limit)
+
+    val ret = if (entity == null) {
+      if (hasPartitons) addSkipLimit(returning) else returning
     } else {
-      val name = options.orderBy
-      val ret = if (StringUtils.isNotBlank(name) && entity != null) {
-        returning.orderBy(entity.property(name))
+      if (hasPartitons) {
+        val id = entity match {
+          case node: Node => Functions.id(node)
+          case rel: Relationship => Functions.id(rel)
+        }
+        addSkipLimit(returning.orderBy(id))
       } else {
-        returning
+        val orderByProp = options.orderBy
+        if (StringUtils.isBlank(orderByProp)) returning else returning.orderBy(entity.property(orderByProp))
       }
-      ret.build()
     }
+    ret.build()
+  }
 
   private def filterRelationship(sourceNode: Node, targetNode: Node, relationship: Relationship) = {
     val matchQuery = Cypher.`match`(sourceNode).`match`(targetNode).`match`(relationship)
@@ -226,15 +264,6 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     matchQuery
   }
 
-  private def returnRequiredColumns(entity: PropertyContainer, matchQuery: StatementBuilder.OngoingReading): StatementBuilder.OngoingReadingAndReturn = {
-    if (requiredColumns.isEmpty) {
-      matchQuery.returning(entity)
-    }
-    else {
-      matchQuery.returning(requiredColumns.map(column => getCorrectProperty(column, entity)): _*)
-    }
-  }
-
   private def getCorrectProperty(column: String, entity: PropertyContainer): Expression = {
     column match {
       case Neo4jUtil.INTERNAL_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD)
@@ -243,15 +272,56 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
       case Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD)
       case Neo4jUtil.INTERNAL_REL_TYPE_FIELD => Functions.`type`(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_TYPE_FIELD)
       case Neo4jUtil.INTERNAL_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_LABELS_FIELD)
-      case name => entity.property(name.removeAlias()).as(name)
+      case Neo4jUtil.INTERNAL_REL_SOURCE_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_SOURCE_LABELS_FIELD)
+      case Neo4jUtil.INTERNAL_REL_TARGET_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_TARGET_LABELS_FIELD)
+      case "*" => Asterisk.INSTANCE
+      case name => {
+        val cleanedName = name.removeAlias()
+        aggregateColumns
+          .filter(_.toString == name)
+          .headOption
+          .map(ag => ag match {
+            case count: Count => {
+              val prop = entity.property(count.column().describe().unquote().removeAlias())
+              if (count.isDistinct) {
+                Functions.countDistinct(prop).as(name)
+              } else {
+                Functions.count(prop).as(name)
+              }
+            }
+            case countStar: CountStar => Functions.count(Asterisk.INSTANCE).as(name)
+            case max: Max => Functions.max(entity.property(max.column().describe().unquote().removeAlias())).as(name)
+            case min: Min => Functions.min(entity.property(min.column().describe().unquote().removeAlias())).as(name)
+            case sum: Sum => {
+              val prop = entity.property(sum.column().describe().unquote().removeAlias())
+              if (sum.isDistinct) {
+                Functions.sumDistinct(prop).as(name)
+              } else {
+                Functions.sum(prop).as(name)
+              }
+            }
+          })
+          .getOrElse(entity.property(cleanedName).as(name))
+          .asInstanceOf[Expression]
+      }
     }
   }
 
   override def createStatementForNodes(options: Neo4jOptions): String = {
     val node = createNode(Neo4jUtil.NODE_ALIAS, options.nodeMetadata.labels)
     val matchQuery = filterNode(node)
-    val returning = returnRequiredColumns(node, matchQuery)
-    renderer.render(buildStatement(options, returning, node))
+    val expressions = requiredColumns.map(column => getCorrectProperty(column, node))
+    val stmt = if (aggregateColumns.nonEmpty) {
+      buildStatementAggregation(options, matchQuery, node, expressions)
+    } else {
+      val ret = if (requiredColumns.isEmpty) {
+        matchQuery.returning(node)
+      } else {
+        matchQuery.returning(expressions : _*)
+      }
+      buildStatement(options, ret, node)
+    }
+    renderer.render(stmt)
   }
 
   private def filterNode(node: Node) = {

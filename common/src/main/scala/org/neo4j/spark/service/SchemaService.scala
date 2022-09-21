@@ -47,7 +47,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       retrieveSchemaFromApoc(query, Collections.singletonMap("config", apocConfig.asJava))
     } catch {
       case e: ClientException =>
-        logSchemaResolutionChange(e)
+        logResolutionChange("Switching to query schema resolution", e)
         // TODO get back to Cypher DSL when rand function will be available
         val query =
           s"""MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
@@ -177,7 +177,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       retrieveSchemaFromApoc(query, params)
     } catch {
       case e: ClientException =>
-        logSchemaResolutionChange(e)
+        logResolutionChange("Switching to query schema resolution", e)
         // TODO get back to Cypher DSL when rand function will be available
         val query =
           s"""MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(_.quote()).mkString(":")})
@@ -325,7 +325,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   } catch {
     case e: ClientException => {
-      log.warn("Switching to query count resolution because of the following exception:", e)
+      logResolutionChange("Switching to query count resolution", e)
       countForNodeWithQuery(filters)
     }
     case e: Throwable => logExceptionForCount(e)
@@ -355,7 +355,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   } catch {
     case e: ClientException => {
-      log.warn("Switching to query count resolution because of the following exception:", e)
+      logResolutionChange("Switching to query count resolution", e)
       countForRelationshipWithQuery(filters)
     }
     case e: Throwable => logExceptionForCount(e)
@@ -664,8 +664,8 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     case QueryType.QUERY => lastOffsetForQuery()
   }
 
-  private def logSchemaResolutionChange(e: ClientException): Unit = {
-    log.warn(s"Switching to query schema resolution")
+  private def logResolutionChange(message: String, e: ClientException): Unit = {
+    log.warn(message)
     if(!e.code().equals("Neo.ClientError.Procedure.ProcedureNotFound")) {
       log.warn(s"For the following exception", e)
     }

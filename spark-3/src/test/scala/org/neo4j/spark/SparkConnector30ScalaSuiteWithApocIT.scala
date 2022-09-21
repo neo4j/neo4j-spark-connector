@@ -8,6 +8,7 @@ import org.junit.runners.Suite
 @Suite.SuiteClasses(Array(
   classOf[DataSourceReaderWithApocTSE],
   classOf[DataSourceReaderNeo4j4xWithApocTSE],
-  classOf[DataSourceReaderNeo4j41xWithApocTSE]
+  classOf[DataSourceReaderNeo4j41xWithApocTSE],
+  classOf[DataSourceReaderAggregationTSE]
 ))
 class SparkConnector30ScalaSuiteWithApocIT extends SparkConnectorScalaSuiteWithApocIT {}
