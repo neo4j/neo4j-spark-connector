@@ -52,8 +52,8 @@ Here's a compatibility table to help you choose the correct JAR.
 |`neo4j-connector-apache-spark_2.12-{connector-version}_for_spark_3.jar`
 
 |*Scala 2.13* |_(not available)_
-|`neo4j-connector-apache-spark_2.12-4.1.5_for_spark_3.jar`
-|`neo4j-connector-apache-spark_2.12-{connector-version}_for_spark_3.jar`
+|`neo4j-connector-apache-spark_2.13-4.1.5_for_spark_3.jar`
+|`neo4j-connector-apache-spark_2.13-{connector-version}_for_spark_3.jar`
 |===
 
 
