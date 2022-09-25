@@ -14,6 +14,7 @@ class VersionValidationTest extends SparkConnectorScalaBaseTSE {
       .getOrElse("UNKNOWN")
     try {
       Validations.validate(ValidateSparkVersion("2.4"))
+      fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     } catch {
       case e: IllegalArgumentException =>
         assertEquals(
@@ -22,6 +23,15 @@ class VersionValidationTest extends SparkConnectorScalaBaseTSE {
             |""".stripMargin, e.getMessage)
       case e: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, got ${e.getClass} instead")
     }
+  }
+
+
+  @Test
+  def testShouldBeValid(): Unit = {
+    Validations.validate(ValidateSparkVersion("3.2"))
+    Validations.validate(ValidateSparkVersion("3.2.*"))
+    Validations.validate(ValidateSparkVersion("3.2.0"))
+    Validations.validate(ValidateSparkVersion("3.2.2"))
   }
 
 }

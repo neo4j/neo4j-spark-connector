@@ -12,7 +12,7 @@ import java.util.UUID
 class DataSource extends TableProvider
   with DataSourceRegister {
 
-  Validations.validate(ValidateSparkVersion("3.*"))
+  Validations.validate(ValidateSparkVersion("3.2.0"))
 
   private val jobId: String = UUID.randomUUID().toString
 
