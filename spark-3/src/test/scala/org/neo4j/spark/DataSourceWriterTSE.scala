@@ -460,7 +460,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def `should throw an error because the node already exists`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT ON (p:Person) ASSERT p.surname IS UNIQUE")
+        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE")
       })
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
@@ -483,7 +483,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
           assertTrue(clientException.getMessage.endsWith("share the property value ( String(\"Santurbano\") )"))
         }
         else {
-          assertTrue(clientException.getMessage.endsWith("already exists with label `Person` and property `surname` = 'Santurbano'"))
+          // assertTrue(clientException.getMessage.endsWith("already exists with label `Person` and property `surname` = 'Santurbano'"))
+          assertTrue(clientException.getMessage.contains("New data does not satisfy Constraint")
+            && clientException.getMessage.endsWith("share the property value ( String(\"Santurbano\") )"))
         }
         throw sparkException
       }
@@ -491,7 +493,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     } finally {
       SparkConnectorScalaSuiteIT.session()
         .writeTransaction(new TransactionWork[Result] {
-          override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT ON (p:Person) ASSERT p.surname IS UNIQUE")
+          override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT person_surname")
         })
     }
   }
@@ -500,7 +502,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def `should update the node that already exists`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT ON (p:Person) ASSERT p.surname IS UNIQUE")
+        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE")
       })
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
@@ -530,7 +532,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT ON (p:Person) ASSERT p.surname IS UNIQUE")
+        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT person_surname")
       })
   }
 
@@ -653,7 +655,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def `should handle unusual column names`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
+        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT instrument_name FOR (i:Instrument) REQUIRE i.name IS UNIQUE")
       })
 
     val musicDf = Seq(
@@ -680,7 +682,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
+        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT instrument_name")
       })
 
     val musicDfCheck = ss.read.format(classOf[DataSource].getName)
@@ -1001,35 +1003,32 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .asLong()
     assertEquals(1, indexCount)
 
-    SparkConnectorScalaSuiteIT.session().run("DROP INDEX ON :Person(surname)")
+    SparkConnectorScalaSuiteIT.session().run("DROP INDEX spark_INDEX_Person_surname")
   }
 
-  private def getIndexQueryCount = {
-    if (TestUtil.neo4jVersion().startsWith("3.5")) {
-      """CALL db.indexes() YIELD tokenNames, properties, type
-        |WHERE tokenNames = ['Person'] AND properties = ['surname'] AND type = 'node_label_property'
-        |RETURN count(*) AS count
-        |""".stripMargin
+  private def getIndexQueryCount: String = {
+    val (uniqueKey, uniqueCondition) = if (TestUtil.neo4jVersion().startsWith("5.")) {
+      ("owningConstraint", "owningConstraint IS NULL")
     } else {
-      """CALL db.indexes() YIELD labelsOrTypes, properties, uniqueness
-        |WHERE labelsOrTypes = ['Person'] AND properties = ['surname'] AND uniqueness = 'NONUNIQUE'
-        |RETURN count(*) AS count
-        |""".stripMargin
+      ("uniqueness", "uniqueness = 'NONUNIQUE'")
     }
+
+    s"""SHOW INDEXES YIELD labelsOrTypes, properties, $uniqueKey
+      |WHERE labelsOrTypes = ['Person'] AND properties = ['surname'] AND $uniqueCondition
+      |RETURN count(*) AS count
+      |""".stripMargin
   }
 
-  private def getConstraintQueryCount = {
-    if (TestUtil.neo4jVersion().startsWith("3.5")) {
-      """CALL db.indexes() YIELD tokenNames, properties, type
-        |WHERE tokenNames = ['Person'] AND properties = ['surname'] AND type = 'node_unique_property'
-        |RETURN count(*) AS count
-        |""".stripMargin
+  private def getConstraintQueryCount: String = {
+    val (uniqueKey, uniqueCondition) = if (TestUtil.neo4jVersion().startsWith("5.")) {
+      ("owningConstraint", "owningConstraint IS NOT NULL")
     } else {
-      """CALL db.indexes() YIELD labelsOrTypes, properties, uniqueness
-        |WHERE labelsOrTypes = ['Person'] AND properties = ['surname'] AND uniqueness = 'UNIQUE'
-        |RETURN count(*) AS count
-        |""".stripMargin
+      ("uniqueness", "uniqueness = 'UNIQUE'")
     }
+    s"""SHOW INDEXES YIELD labelsOrTypes, properties, $uniqueKey
+      |WHERE labelsOrTypes = ['Person'] AND properties = ['surname'] AND $uniqueCondition
+      |RETURN count(*) AS count
+      |""".stripMargin
   }
 
   @Test
@@ -1064,12 +1063,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .get("count")
       .asLong()
     assertEquals(1, constraintCount)
-    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (p:Person) ASSERT (p.surname) IS UNIQUE")
+    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT spark_NODE_CONSTRAINTS_Person_surname")
   }
 
   @Test
   def `should not create constraint when insert nodes because they already exist`(): Unit = {
-    SparkConnectorScalaSuiteIT.session().run("CREATE CONSTRAINT ON (p:Person) ASSERT (p.surname) IS UNIQUE")
+    SparkConnectorScalaSuiteIT.session().run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE (p.surname) IS UNIQUE")
     val total = 10
     val ds = (1 to total)
       .map(i => i.toString)
@@ -1100,7 +1099,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .get("count")
       .asLong()
     assertEquals(1, constraintCount)
-    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (p:Person) ASSERT (p.surname) IS UNIQUE")
+    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT person_surname")
   }
 
   @Test
@@ -1144,7 +1143,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .asLong()
     assertEquals(1, indexCount)
 
-    SparkConnectorScalaSuiteIT.session().run("DROP INDEX ON :Person(surname)")
+    SparkConnectorScalaSuiteIT.session().run("DROP INDEX spark_INDEX_Person_surname")
   }
 
   @Test
@@ -1158,9 +1157,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("query", "CREATE (n:Person{fullName: event.name + ' ' + event.surname, age: scriptResult[0].age[event.name]})")
       .option("script",
-        """CREATE INDEX ON :Person(surname);
-          |CREATE CONSTRAINT ON (p:Product)
-          | ASSERT (p.name, p.sku)
+        """CREATE INDEX person_surname FOR (p:Person) ON (p.surname);
+          |CREATE CONSTRAINT product_name_sku FOR (p:Product)
+          | REQUIRE (p.name, p.sku)
           | IS NODE KEY;
           |RETURN {Andrea: 36, Davide: 32} AS age;
           |""".stripMargin)
@@ -1178,27 +1177,25 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val expected = ds.count
     assertEquals(expected, records)
 
-    val query = if (TestUtil.neo4jVersion().startsWith("3.5")) {
-      """CALL db.indexes() YIELD tokenNames, properties, type
-        |WHERE (tokenNames = ['Person'] AND properties = ['surname'] AND type = 'node_label_property')
-        |OR (tokenNames = ['Product'] AND properties = ['name', 'sku'] AND type = 'node_unique_property')
-        |RETURN count(*) AS count
-        |""".stripMargin
+    val uniqueFieldName = if (TestUtil.neo4jVersion().startsWith("5.")) "owningConstraint" else "uniqueness"
+    val (indexCondition, uniqueCondition) = if (TestUtil.neo4jVersion().startsWith("5.")) {
+      (s"$uniqueFieldName IS NULL", s"$uniqueFieldName IS NOT NULL")
     } else {
-      """CALL db.indexes() YIELD labelsOrTypes, properties, uniqueness
-        |WHERE (labelsOrTypes = ['Person'] AND properties = ['surname'] AND uniqueness = 'NONUNIQUE')
-        |OR (labelsOrTypes = ['Product'] AND properties = ['name', 'sku'] AND uniqueness = 'UNIQUE')
+      (s"$uniqueFieldName = 'NONUNIQUE'", s"$uniqueFieldName = 'UNIQUE'")
+    }
+    val query = s"""SHOW INDEXES YIELD labelsOrTypes, properties, $uniqueFieldName
+        |WHERE (labelsOrTypes = ['Person'] AND properties = ['surname'] AND $indexCondition)
+        |OR (labelsOrTypes = ['Product'] AND properties = ['name', 'sku'] AND $uniqueCondition)
         |RETURN count(*) AS count
         |""".stripMargin
-    }
     val constraintCount = SparkConnectorScalaSuiteIT.session()
       .run(query)
       .single()
       .get("count")
       .asLong()
     assertEquals(2, constraintCount)
-    SparkConnectorScalaSuiteIT.session().run("DROP INDEX ON :Person(surname)")
-    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (p:Product) ASSERT (p.name, p.sku) IS NODE KEY")
+    SparkConnectorScalaSuiteIT.session().run("DROP INDEX person_surname")
+    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT product_name_sku")
   }
 
   @Test
@@ -1242,7 +1239,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should work match source node and merge target node`() {
-    SparkConnectorScalaSuiteIT.session().run("CREATE CONSTRAINT ON (m:Musician) ASSERT (m.name) IS UNIQUE")
+    SparkConnectorScalaSuiteIT.session().run("CREATE CONSTRAINT musician_name FOR (m:Musician) REQUIRE (m.name) IS UNIQUE")
     val data = Seq(
       (12, "John Bonham", "Drums"),
       (19, "John Mayer", "Guitar"),
@@ -1279,7 +1276,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(data.size, count)
 
-    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (m:Musician) ASSERT (m.name) IS UNIQUE")
+    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT musician_name")
   }
 
   @Test

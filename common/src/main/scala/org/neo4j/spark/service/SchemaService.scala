@@ -452,48 +452,36 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     case OptimizationType.NONE => log.info("No optimization type provided")
     case _ => {
       try {
-        val isNeo4j35 = neo4jVersion().versions(0).startsWith("3.5")
         val quotedLabel = label.quote()
         val quotedProps = props
           .map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.quote()}")
           .mkString(", ")
+        val isNeo4j5 = neo4jVersion().versions(0).startsWith("5.")
+        val uniqueFieldName = if (isNeo4j5) "owningConstraint" else "uniqueness"
         val dashSeparatedProps = props.mkString("-")
-        val (querySuffix, uniqueness) = action match {
-          case OptimizationType.INDEX => {
-            if (isNeo4j35) {
-              (s"ON :$quotedLabel(${props.map(_.quote()).mkString(",")})", "node_label_property")
-            } else {
-              (s"FOR (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ON ($quotedProps)", "NONUNIQUE")
-            }
-          }
+        val (querySuffix, uniqueCondition) = action match {
+          case OptimizationType.INDEX => (s"FOR (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ON ($quotedProps)",
+            if (isNeo4j5) s"$uniqueFieldName IS NULL" else s"$uniqueFieldName = 'NONUNIQUE'")
           case OptimizationType.NODE_CONSTRAINTS => {
             val assertType = if (props.size > 1) "NODE KEY" else "UNIQUE"
-            val uniquenessValue = if (isNeo4j35) {
-              "node_unique_property"
-            } else {
-              "UNIQUE"
-            }
-            (s"ON (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ASSERT ($quotedProps) IS $assertType", uniquenessValue)
+            (s"FOR (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) REQUIRE ($quotedProps) IS $assertType",
+              if (isNeo4j5) s"$uniqueFieldName IS NOT NULL" else s"$uniqueFieldName = 'UNIQUE'")
           }
         }
-        val (labelIndexFieldName, uniqueFieldName, actionName) = if (isNeo4j35) {
-          ("tokenNames", "type", "")
-        } else {
-          ("labelsOrTypes", "uniqueness", s"spark_${action.toString}_${label}_$dashSeparatedProps".quote())
-        }
+        val actionName = s"spark_${action.toString}_${label}_$dashSeparatedProps".quote()
         val queryPrefix = action match {
           case OptimizationType.INDEX => s"CREATE INDEX $actionName"
           case OptimizationType.NODE_CONSTRAINTS => s"CREATE CONSTRAINT $actionName"
         }
         val queryCheck =
-          s"""CALL db.indexes() YIELD $labelIndexFieldName, properties, $uniqueFieldName
-             |WHERE $labelIndexFieldName = ${'$'}labels
+          s"""SHOW INDEXES YIELD labelsOrTypes, properties, $uniqueFieldName
+             |WHERE labelsOrTypes = ${'$'}labels
              |AND properties = ${'$'}properties
-             |AND $uniqueFieldName = ${'$'}uniqueness
+             |AND $uniqueCondition
              |RETURN count(*) > 0 AS isPresent""".stripMargin
-        val isPresent = session.run(queryCheck, Map("labels" -> Seq(label).asJava,
-          "properties" -> props.asJava,
-          "uniqueness" -> uniqueness).asJava)
+        val params: util.Map[String, AnyRef] = Map("labels" -> Seq(label).asJava,
+          "properties" -> props.asJava).asJava.asInstanceOf[util.Map[String, AnyRef]]
+        val isPresent = session.run(queryCheck, params)
           .single()
           .get("isPresent")
           .asBoolean()
@@ -514,42 +502,21 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
   }
 
   def checkIndex(indexType: OptimizationType.Value, label: String, props: Seq[String]): Boolean = try {
-    val isNeo4j35 = neo4jVersion().versions(0).startsWith("3.5")
-    val quotedLabel = label.quote()
-    val quotedProps = props
-      .map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.quote()}")
-      .mkString(", ")
-    val dashSeparatedProps = props.mkString("-")
-    val uniqueness = indexType match {
-      case OptimizationType.INDEX => {
-        if (isNeo4j35) {
-          "node_label_property"
-        } else {
-          "NONUNIQUE"
-        }
-      }
-      case OptimizationType.NODE_CONSTRAINTS => {
-        if (isNeo4j35) {
-          "node_unique_property"
-        } else {
-          "UNIQUE"
-        }
-      }
-    }
-    val (labelIndexFieldName, uniqueFieldName) = if (isNeo4j35) {
-      ("tokenNames", "type")
-    } else {
-      ("labelsOrTypes", "uniqueness")
+    val isNeo4j5 = neo4jVersion().versions(0).startsWith("5.")
+    val uniqueFieldName = if (isNeo4j5) "owningConstraint" else "uniqueness"
+    val uniqueCondition = indexType match {
+      case OptimizationType.INDEX => if (isNeo4j5) s"$uniqueFieldName = NULL" else s"$uniqueFieldName = 'NONUNIQUE'"
+      case OptimizationType.NODE_CONSTRAINTS => if (isNeo4j5) s"$uniqueFieldName IS NOT NULL" else s"$uniqueFieldName = 'UNIQUE'"
     }
     val queryCheck =
-      s"""CALL db.indexes() YIELD $labelIndexFieldName, properties, $uniqueFieldName
-         |WHERE $labelIndexFieldName = ${'$'}labels
+      s"""SHOW INDEXES YIELD labelsOrTypes, properties, $uniqueFieldName
+         |WHERE labelsOrTypes = ${'$'}labels
          |AND properties = ${'$'}properties
-         |AND $uniqueFieldName = ${'$'}uniqueness
+         |AND $uniqueCondition
          |RETURN count(*) > 0 AS isPresent""".stripMargin
-    session.run(queryCheck, Map("labels" -> Seq(label).asJava,
-      "properties" -> props.asJava,
-      "uniqueness" -> uniqueness).asJava)
+    val params: util.Map[String, AnyRef] = Map("labels" -> Seq(label).asJava,
+      "properties" -> props.asJava).asJava.asInstanceOf[util.Map[String, AnyRef]]
+      session.run(queryCheck, params)
       .single()
       .get("isPresent")
       .asBoolean()

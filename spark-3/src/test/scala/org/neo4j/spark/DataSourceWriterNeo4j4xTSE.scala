@@ -53,8 +53,8 @@ class DataSourceWriterNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[Unit] {
           override def execute(tx: Transaction): Unit = {
-            tx.run("CREATE CONSTRAINT ON (p:Person) ASSERT p.id IS UNIQUE")
-            tx.run("CREATE CONSTRAINT ON (p:Product) ASSERT p.id IS UNIQUE")
+            tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE")
+            tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE")
           }
         })
 
@@ -136,8 +136,8 @@ class DataSourceWriterNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
         .writeTransaction(
           new TransactionWork[Unit] {
             override def execute(tx: Transaction): Unit = {
-              tx.run("DROP CONSTRAINT ON (p:Person) ASSERT p.id IS UNIQUE")
-              tx.run("DROP CONSTRAINT ON (p:Product) ASSERT p.id IS UNIQUE")
+              tx.run("DROP CONSTRAINT person_id")
+              tx.run("DROP CONSTRAINT product_id")
             }
           })
     }
@@ -174,8 +174,8 @@ class DataSourceWriterNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[Unit] {
           override def execute(tx: Transaction): Unit = {
-            tx.run("CREATE CONSTRAINT ON (p:Person) ASSERT p.id IS UNIQUE")
-            tx.run("CREATE CONSTRAINT ON (p:Product) ASSERT p.id IS UNIQUE")
+            tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE")
+            tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE")
           }
         })
 
@@ -254,8 +254,8 @@ class DataSourceWriterNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
         .writeTransaction(
           new TransactionWork[Unit] {
             override def execute(tx: Transaction): Unit = {
-              tx.run("DROP CONSTRAINT ON (p:Person) ASSERT p.id IS UNIQUE")
-              tx.run("DROP CONSTRAINT ON (p:Product) ASSERT p.id IS UNIQUE")
+              tx.run("DROP CONSTRAINT person_id")
+              tx.run("DROP CONSTRAINT product_id")
             }
           })
     }
@@ -344,7 +344,7 @@ class DataSourceWriterNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
   def `should read and write relations with MERGE and node keys`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
+        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT instrument_name FOR (i:Instrument) REQUIRE i.name IS UNIQUE")
       })
 
     val total = 100
@@ -421,7 +421,7 @@ class DataSourceWriterNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
 
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
+        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT instrument_name")
       })
   }
 

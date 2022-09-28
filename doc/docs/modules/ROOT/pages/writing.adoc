@@ -667,7 +667,7 @@ ds.write
 Before the import starts, the code above creates the following schema query:
 
 ----
-CREATE CONSTRAINT ON (p:Person) ASSERT (p.surname) IS UNIQUE
+CREATE CONSTRAINT FOR (p:Person) REQUIRE (p.surname) IS UNIQUE
 ----
 
 *Take into consideration that the first label is used for the index creation.*
@@ -687,9 +687,9 @@ ds.write
   .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
   .option("query", "CREATE (n:Person{fullName: event.name + ' ' + event.surname, age: scriptResult[0].age})")
   .option("script",
-    """CREATE INDEX ON :Person(surname);
-      |CREATE CONSTRAINT ON (p:Product)
-      | ASSERT (p.name, p.sku)
+    """CREATE INDEX person_surname FOR (p:Person) ON (p.surname);
+      |CREATE CONSTRAINT product_name_sku FOR (p:Product)
+      | REQUIRE (p.name, p.sku)
       | IS NODE KEY;
       |RETURN 36 AS age;
       |""".stripMargin)

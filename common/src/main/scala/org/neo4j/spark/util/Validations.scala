@@ -274,7 +274,7 @@ case class ValidateReadStreaming(neo4jOptions: Neo4jOptions, jobId: String) exte
                 |The connector need to store intermediate results
                 |for pushing the data into Streaming tables.
                 |Please define a constraint into your Neo4j instance in this way:
-                |`CREATE CONSTRAINT ON (n:${Neo4jAccumulator.LABEL}) ASSERT (n.${Neo4jAccumulator.KEY}) IS UNIQUE`
+                |`CREATE CONSTRAINT FOR (n:${Neo4jAccumulator.LABEL}) REQUIRE (n.${Neo4jAccumulator.KEY}) IS UNIQUE`
                 |""".stripMargin)
         }
         case _ =>

@@ -48,7 +48,7 @@
     </licenses>
 
     <properties>
-        <neo4j.version>4.0.8</neo4j.version>
+        <neo4j.version>4.4.10</neo4j.version>
         <driver.version>4.4.9</driver.version>
         <neo4j.experimental>false</neo4j.experimental>
         <testcontainers.version>1.15.3</testcontainers.version>
@@ -88,6 +88,13 @@
             <id>neo4j-4.4</id>
             <properties>
                 <neo4j.version>4.4.0</neo4j.version>
+                <neo4j.experimental>false</neo4j.experimental>
+            </properties>
+        </profile>
+        <profile>
+            <id>neo4j-5.0-dev</id>
+            <properties>
+                <neo4j.version>5.0.0-drop09.0</neo4j.version>
                 <neo4j.experimental>false</neo4j.experimental>
             </properties>
         </profile>

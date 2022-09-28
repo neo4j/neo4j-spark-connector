@@ -175,7 +175,7 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
     val partition = 5
     val checkpointLocation = "/tmp/checkpoint/" + UUID.randomUUID().toString
 
-    SparkConnectorScalaSuiteIT.session().run("CREATE CONSTRAINT ON (t:Timestamp) ASSERT (t.value) IS UNIQUE")
+    SparkConnectorScalaSuiteIT.session().run("CREATE CONSTRAINT timestamp_value FOR (t:Timestamp) REQUIRE (t.value) IS UNIQUE")
 
     query = memStream.toDF().writeStream
       .format(classOf[DataSource].getName)
@@ -208,7 +208,7 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
       }
     }, Matchers.equalTo(true), 30L, TimeUnit.SECONDS)
 
-    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (t:Timestamp) ASSERT (t.value) IS UNIQUE")
+    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT timestamp_value")
   }
 
   @Test
@@ -223,8 +223,8 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[Unit] {
           override def execute(tx: Transaction): Unit = {
-            tx.run("CREATE CONSTRAINT ON (p:From) ASSERT p.value IS UNIQUE")
-            tx.run("CREATE CONSTRAINT ON (p:To) ASSERT p.value IS UNIQUE")
+            tx.run("CREATE CONSTRAINT From_value FOR (p:From) REQUIRE p.value IS UNIQUE")
+            tx.run("CREATE CONSTRAINT To_value FOR (p:To) REQUIRE p.value IS UNIQUE")
           }
         })
 
@@ -274,8 +274,8 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[Unit] {
           override def execute(tx: Transaction): Unit = {
-            tx.run("DROP CONSTRAINT ON (p:From) ASSERT p.value IS UNIQUE")
-            tx.run("DROP CONSTRAINT ON (p:To) ASSERT p.value IS UNIQUE")
+            tx.run("DROP CONSTRAINT From_value")
+            tx.run("DROP CONSTRAINT To_value")
           }
         })
   }
