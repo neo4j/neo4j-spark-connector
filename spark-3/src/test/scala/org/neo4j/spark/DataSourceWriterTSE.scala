@@ -35,6 +35,12 @@ case class Point3d(`type`: String = "point-3d",
                    y: Double,
                    z: Double) extends Neo4jType(`type`)
 
+case class Time(`type`: String = "offset-time",
+                 value: String) extends Neo4jType(`type`)
+
+case class LocalTime(`type`: String = "local-time",
+                     value: String) extends Neo4jType(`type`)
+
 case class Person(name: String, surname: String, age: Int, livesIn: Point3d)
 
 case class SimplePerson(name: String, surname: String)
