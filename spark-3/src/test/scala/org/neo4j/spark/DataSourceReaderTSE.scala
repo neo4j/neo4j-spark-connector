@@ -1,7 +1,5 @@
 package org.neo4j.spark
 
-import java.sql.Timestamp
-import java.time.{Instant, LocalDateTime, LocalTime, OffsetDateTime, OffsetTime, ZoneOffset}
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row}
@@ -10,6 +8,8 @@ import org.junit.Test
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
 
+import java.sql.Timestamp
+import java.time._
 import java.util.TimeZone
 import scala.collection.JavaConverters._
 import scala.collection.mutable.Seq

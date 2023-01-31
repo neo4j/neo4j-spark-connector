@@ -1,6 +1,6 @@
 package org.neo4j.spark
 
-import java.time.ZoneOffset
+import java.time.{LocalTime, OffsetTime, ZoneOffset}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.SparkException
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
@@ -35,7 +35,15 @@ case class Point3d(`type`: String = "point-3d",
                    y: Double,
                    z: Double) extends Neo4jType(`type`)
 
+case class Time(`type`: String = "offset-time",
+                 value: String) extends Neo4jType(`type`)
+
+case class LocalTimeValue(`type`: String = "local-time",
+                     value: String) extends Neo4jType(`type`)
+
 case class Person(name: String, surname: String, age: Int, livesIn: Point3d)
+
+case class Person_TimeAndLocalTime(name: String, time: Time, localTime: LocalTimeValue)
 
 case class SimplePerson(name: String, surname: String)
 
@@ -415,7 +423,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(expected, records)
   }
-
+  
   @Test
   def `should write nodes into Neo4j with points`(): Unit = {
     val total = 10
@@ -455,6 +463,43 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       })
     assertEquals(total, records.size)
   }
+  
+  @Test
+  def `should write nodes into Neo4j with Time and LocalTime Types`(): Unit = {
+    val total = 1
+    val rand = Random
+    val ds = (1 to total)
+      .map(i => Person_TimeAndLocalTime(name = "Andrea",time = Time(value = "12:50:35.556000000+01:00"),localTime = LocalTimeValue(value = "12:50:35.556000000"))).toDS()
+
+    ds.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Overwrite)
+	  .option("node.keys", "name")
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":Person_TimeAndLocalTime")
+      .save()
+
+    val count = SparkConnectorScalaSuiteIT.session().run(
+      """MATCH (p:Person_TimeAndLocalTime)
+        |WHERE p.name STARTS WITH 'Andrea'        
+        |RETURN count(p) AS count
+        |""".stripMargin).single().get("count").asInt()
+    assertEquals(total, count)
+
+    val records = SparkConnectorScalaSuiteIT.session().run(
+      """MATCH (p:Person_TimeAndLocalTime)
+        |WHERE p.name STARTS WITH 'Andrea'        
+        |RETURN p.name AS name, p.time AS time, p.localTime AS localTime
+        |""".stripMargin).list().asScala
+      .filter(r => {
+        val map: java.util.Map[String, Object] = r.asMap()
+        (map.get("name").isInstanceOf[String]
+          && map.get("time").isInstanceOf[OffsetTime]
+          && map.get("localTime").isInstanceOf[LocalTime])
+      })
+    assertEquals(total, records.size)
+  }
+
 
   @Test(expected = classOf[SparkException])
   def `should throw an error because the node already exists`(): Unit = {

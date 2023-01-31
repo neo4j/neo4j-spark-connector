@@ -188,8 +188,8 @@ object Neo4jUtil {
             struct.getAs[Number]("days").longValue(),
             struct.getAs[Number]("seconds").longValue(),
             struct.getAs[Number]("nanoseconds").intValue())
-          case SchemaService.TIME_TYPE_OFFSET => Values.value(OffsetTime.parse(struct.getAs[String]("value")))
-          case SchemaService.TIME_TYPE_LOCAL => Values.value(LocalTime.parse(struct.getAs[String]("value")))
+          case SchemaService.TIME_TYPE_OFFSET => Values.value(OffsetTime.parse(struct.getAs[UTF8String]("value").toString))
+          case SchemaService.TIME_TYPE_LOCAL => Values.value(LocalTime.parse(struct.getAs[UTF8String]("value").toString))
           case _ => toMap(struct)
         }
       } catch {
