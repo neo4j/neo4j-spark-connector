@@ -49,16 +49,16 @@
 
     <properties>
         <neo4j.version>4.4.10</neo4j.version>
-        <driver.version>4.4.9</driver.version>
+        <driver.version>4.4.11</driver.version>
         <neo4j.experimental>false</neo4j.experimental>
-        <testcontainers.version>1.15.3</testcontainers.version>
+        <testcontainers.version>1.17.3</testcontainers.version>
         <xbean.version>4.10</xbean.version>
         <cypherdsl.version>2020.1.4</cypherdsl.version>
         <node.version>v12.16.0</node.version>
         <npm.version>6.13.7</npm.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
-        <spark.version>3.2.2</spark.version>
+        <spark.version>3.3.1</spark.version>
         <!-- This is empty because we use it for the deploy process -->
         <scala.binary.version />
         <scala-maven-plugin.version>4.5.4</scala-maven-plugin.version>
@@ -92,9 +92,9 @@
             </properties>
         </profile>
         <profile>
-            <id>neo4j-5.0-dev</id>
+            <id>neo4j-5</id>
             <properties>
-                <neo4j.version>5.0.0-drop09.0</neo4j.version>
+                <neo4j.version>5.4.0</neo4j.version>
                 <neo4j.experimental>false</neo4j.experimental>
             </properties>
         </profile>

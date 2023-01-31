@@ -105,7 +105,15 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     .map(_.trim)
     .filter(!_.isEmpty)
     .map(s => {
-      val keys = s.split(":")
+      val keys = if (s.startsWith("`")) {
+        val pattern = "`[^`]+`".r
+        val groups = pattern findAllIn s
+        groups
+          .map(_.replaceAll("`", ""))
+          .toArray
+      } else {
+        s.split(":")
+      }
       if (keys.length == 2) {
         (keys(0), keys(1))
       } else {

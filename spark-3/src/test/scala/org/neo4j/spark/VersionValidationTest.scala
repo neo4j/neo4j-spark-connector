@@ -18,7 +18,7 @@ class VersionValidationTest extends SparkConnectorScalaBaseTSE {
     } catch {
       case e: IllegalArgumentException =>
         assertEquals(
-          s"""Your currentSpark version $sparkVersion is not supported by the current connector.
+          s"""Your current Spark version $sparkVersion is not supported by the current connector.
             |Please visit https://neo4j.com/developer/spark/overview/#_spark_compatibility to know which connector version you need.
             |""".stripMargin, e.getMessage)
       case e: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, got ${e.getClass} instead")
@@ -28,10 +28,17 @@ class VersionValidationTest extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testShouldBeValid(): Unit = {
-    Validations.validate(ValidateSparkVersion("3.2"))
-    Validations.validate(ValidateSparkVersion("3.2.*"))
-    Validations.validate(ValidateSparkVersion("3.2.0"))
-    Validations.validate(ValidateSparkVersion("3.2.2"))
+    val baseVersion = SparkSession
+      .getDefaultSession
+      .map(_.version)
+      .getOrElse("3.2")
+      .split("\\.")
+      .take(2)
+      .mkString(".")
+    Validations.validate(ValidateSparkVersion(baseVersion))
+    Validations.validate(ValidateSparkVersion(s"$baseVersion.*"))
+    Validations.validate(ValidateSparkVersion(s"$baseVersion.0"))
+    Validations.validate(ValidateSparkVersion(s"$baseVersion.1-amzn-0"))
   }
 
 }

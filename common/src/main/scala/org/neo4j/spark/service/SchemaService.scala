@@ -197,14 +197,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
 
   def structForQuery(): StructType = {
     val query = queryReadStrategy.createStatementForQuery(options)
-    val randLimitedQueryForSchema =
-      s"""
-         |$query
-         |ORDER BY rand()
-         |LIMIT ${options.schemaMetadata.flattenLimit}
-         |""".stripMargin
-    if (!isValidQuery(query, summary.QueryType.READ_ONLY)
-        || !isValidQuery(randLimitedQueryForSchema, summary.QueryType.READ_ONLY)) {
+    if (!isValidQuery(query, summary.QueryType.READ_ONLY)) {
       return new StructType()
     }
 
@@ -212,8 +205,24 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       Neo4jQueryStrategy.VARIABLE_STREAM -> Collections.emptyMap())
       .asJava
 
-    val structFields = retrieveSchema(
-      randLimitedQueryForSchema, params, { record => record.asMap.asScala.toMap })
+    val randLimitedQueryForSchema =
+      s"""
+         |$query
+         |ORDER BY rand()
+         |LIMIT ${options.schemaMetadata.flattenLimit}
+         |""".stripMargin
+    val randCallLimitedQueryForSchema =
+      s"""
+         |CALL {
+         |  $query
+         |} RETURN *
+         |ORDER BY rand()
+         |LIMIT ${options.schemaMetadata.flattenLimit}
+         |""".stripMargin
+
+    val limitedQuery = if (isValidQuery(randLimitedQueryForSchema)) randLimitedQueryForSchema else randCallLimitedQueryForSchema
+
+    val structFields = retrieveSchema(limitedQuery, params, { record => record.asMap.asScala.toMap })
 
 
     val columns = getReturnedColumns(query)

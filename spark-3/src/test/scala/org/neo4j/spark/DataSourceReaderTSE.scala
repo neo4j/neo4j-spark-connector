@@ -1193,7 +1193,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("query", "MATCH (i:Instrument) RETURN id(i) as internal_id, i.id as id, i.name as name, i.name")
-      .load
+      .load()
       .orderBy("id")
 
     val row = df.collectAsList().get(0)
@@ -1631,6 +1631,22 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .load()
 
     assertEquals("8", df.collect().head.get(0))
+  }
+
+  @Test
+  def testQueryWithOrderByShouldBeAllowed(): Unit = {
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run("CREATE (p:Person {name: 'Foo Bar', age: 8})").consume()
+        })
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query", "MATCH (n:Person) RETURN n.age AS age ORDER by age")
+      .load()
+
+    assertEquals(8L, df.collect().head.get(0))
   }
 
   private def initTest(query: String): DataFrame = {

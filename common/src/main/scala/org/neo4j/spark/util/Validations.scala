@@ -44,19 +44,19 @@ case class ValidateSchemaOptions(neo4jOptions: Neo4jOptions, schema: StructType)
 
 case class ValidateSparkVersion(supportedVersions: String*) extends Validation {
   private def compare(version: String, toCompare: String): Boolean = (toCompare == "*"
-    || version.toInt >= toCompare.toInt)
+    || version.toInt >= toCompare.split("\\W").head.toInt)
 
   override def validate(): Unit = {
     val sparkVersion = SparkSession.getActiveSession
-      .map { _.version }
+      .map(_.version)
       .getOrElse("UNKNOWN")
     val splittedVersion = sparkVersion.split("\\.")
 
     ValidationUtil.isTrue(
       sparkVersion(0) == "UNKNOWN" || supportedVersions
-        .map(_.split("\\.").zip(splittedVersion))
-        .forall(arr => arr.forall(t => compare(t._2, t._1))),
-      s"""Your currentSpark version $sparkVersion is not supported by the current connector.
+        .flatMap(_.split("\\.").zip(splittedVersion))
+        .forall(t => compare(t._2, t._1)),
+      s"""Your current Spark version $sparkVersion is not supported by the current connector.
          |Please visit https://neo4j.com/developer/spark/overview/#_spark_compatibility to know which connector version you need.
          |""".stripMargin
     )

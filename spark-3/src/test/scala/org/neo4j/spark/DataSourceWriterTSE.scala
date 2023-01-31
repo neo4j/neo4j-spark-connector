@@ -1280,6 +1280,40 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def `should work match source node and merge target node with odd chars`() {
+    val data = Seq(
+      (12, "John Bonham", "Drums"),
+      (19, "John Mayer", "Guitar"),
+      (32, "John Scofield", "Guitar"),
+      (15, "John Butler", "Guitar")
+    )
+    val musicDf = data.toDF("experience", "who:name", "instrument")
+
+    musicDf.repartition(1).write
+      .mode(SaveMode.Overwrite)
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "PLAYS")
+      .option("relationship.save.strategy", "keys")
+      .option("relationship.source.save.mode", "overwrite")
+      .option("relationship.source.labels", ":Musician")
+      .option("relationship.source.node.keys", "`who:name`")
+      .option("relationship.target.save.mode", "overwrite")
+      .option("relationship.target.labels", ":Instrument")
+      .option("relationship.target.node.keys", "instrument:name")
+      .save
+
+    val count = SparkConnectorScalaSuiteIT.session().run(
+      """MATCH p = (:Musician)-[:PLAYS]->(:Instrument)
+        |RETURN count(p) AS count""".stripMargin)
+      .single()
+      .get("count")
+      .asLong()
+
+    assertEquals(data.size, count)
+  }
+
+  @Test
   def shouldWriteComplexDF(): Unit = {
     val data = Seq(
       ("Cuba Gooding Jr.", 1, "2022-06-07 00:00:00", Seq(Map("product_id" -> 1, "quantity" -> 2, "product_id" -> 2, "quantity" -> 4))),

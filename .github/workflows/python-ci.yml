@@ -13,8 +13,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.6", "3.7", "3.8" ]
-        neo4j-version: [ "3.5", "4.0", "4.1", "4.2", "4.3", "4.4" ]
+        python-version: [ "3.7", "3.8" ]
+        neo4j-version: [ "4.4", "5" ]
         spark-version: [ {short: "3", ext: "3.2.2", scala: "2.12"} ]
 
     steps:
