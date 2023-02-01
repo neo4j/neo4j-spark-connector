@@ -1,6 +1,6 @@
 package org.neo4j.spark
 
-import java.time.ZoneOffset
+import java.time.{LocalTime, OffsetTime, ZoneOffset}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.SparkException
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
@@ -38,12 +38,12 @@ case class Point3d(`type`: String = "point-3d",
 case class Time(`type`: String = "offset-time",
                  value: String) extends Neo4jType(`type`)
 
-case class LocalTime(`type`: String = "local-time",
+case class LocalTimeValue(`type`: String = "local-time",
                      value: String) extends Neo4jType(`type`)
 
 case class Person(name: String, surname: String, age: Int, livesIn: Point3d)
 
-case class Person_TimeAndLocalTime(name: String, time: Time, localTime: LocalTime)
+case class Person_TimeAndLocalTime(name: String, time: Time, localTime: LocalTimeValue)
 
 case class SimplePerson(name: String, surname: String)
 
@@ -469,7 +469,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val total = 1
     val rand = Random
     val ds = (1 to total)
-      .map(i => Person_TimeAndLocalTime(name = "Andrea",time = Time(value = "12:50:35.556000000+01:00"),localTime = LocalTime(value = "12:50:35.556000000"))).toDS()
+      .map(i => Person_TimeAndLocalTime(name = "Andrea",time = Time(value = "12:50:35.556000000+01:00"),localTime = LocalTimeValue(value = "12:50:35.556000000"))).toDS()
 
     ds.write
       .format(classOf[DataSource].getName)
