@@ -37,8 +37,6 @@ abstract class BaseDataWriter(jobId: String,
 
   private val query: String = new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(saveMode)).createQuery()
 
-  private val bookmarks: scala.collection.mutable.Set[Bookmark] = new scala.collection.mutable.LinkedHashSet[Bookmark]()
-
   def write(record: InternalRow): Unit = {
     batch.add(mappingService.convert(record, structType))
     if (batch.size() == options.transactionMetadata.batchSize) {
@@ -49,7 +47,7 @@ abstract class BaseDataWriter(jobId: String,
   private def writeBatch(): Unit = {
     try {
       if (session == null || !session.isOpen) {
-        session = driverCache.getOrCreate().session(options.session.toNeo4jSession(bookmarks.toSeq))
+        session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
       }
       if (transaction == null || !transaction.isOpen) {
         transaction = session.beginTransaction()
@@ -77,7 +75,6 @@ abstract class BaseDataWriter(jobId: String,
              |""".stripMargin)
       }
       transaction.commit()
-      bookmarks.add(session.lastBookmark())
       closeSafety(transaction)
       batch.clear()
     } catch {
