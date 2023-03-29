@@ -32,7 +32,7 @@ such works with Neo4j Community Edition as well, with the appropriate version nu
 This connector currently supports:
 
 - Spark 2.4.5+ with Scala 2.11 and Scala 2.12. 
-- Spark 3.0+ with Scala 2.12.
+- Spark 3.0+ with Scala 2.12 and Scala 2.13.
 
 Depending on the combination of Spark and Scala versions you need a different JAR.
 JARs are named in the form:
