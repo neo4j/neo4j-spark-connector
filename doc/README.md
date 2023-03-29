@@ -8,4 +8,7 @@ In order to locally preview the Neo4j Connector for Apache Spark documentation b
 - browse to [localhost:8000](http://localhost:8000)
 
 Now everytime you change one of your `.adoc` files antora will rebuild everything,
-and you just need to refresh your page on [localhost:8000](http://localhost:8000) 
+and you just need to refresh your page on [localhost:8000](http://localhost:8000)
+
+Note: you may need to configure your ad/tracker blocker (like Ghostery) to not block the load of remote documentation
+assets. 
