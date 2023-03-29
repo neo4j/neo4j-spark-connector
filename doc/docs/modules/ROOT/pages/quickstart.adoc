@@ -142,7 +142,7 @@ Before going into details, we need to address you to some preliminary considerat
 
 === Complex data types
 
-Spark doesn't support all Neo4j data types (i.e., Point, Time, Duration). Such types are transformed into Struct types containing all the useful data.
+Spark doesn't natively support all Neo4j data types (i.e., link:https://neo4j.com/docs/cypher-manual/current/syntax/spatial/[`Point`], link:https://neo4j.com/docs/cypher-manual/current/syntax/temporal/#cypher-temporal-instants[`Time`], link:https://neo4j.com/docs/cypher-manual/current/syntax/temporal/#cypher-temporal-durations[`Duration`]). Such types are transformed into Struct types containing all the useful data.
 
 For complete details on type handling, consult the xref::types.adoc[Data type mapping between Neo4j and Spark].
 
@@ -191,7 +191,7 @@ The Neo4j Connector for Apache Spark implements the `SupportPushdownFilters` int
 In this way the data that Spark receives have been already filtered by Neo4j,
 decreasing the amount of data transferred from Neo4j to Spark.
 
-You can manually disable the PushdownFilters support using the `pushdown.filters.enabled` option and set it to `false` (default is `true`).
+You can manually disable the `PushdownFilters` support using the `pushdown.filters.enabled` option and set it to `false` (default is `true`).
 
 If you use the filter function more than once, like in this example:
 
