@@ -20,7 +20,7 @@ and Scala.
 == Compatibility
 
 === Neo4j compatibility
-This connector works with Neo4j 3.5 and the entire 4.x series of Neo4j, whether run as a single instance,
+This connector works with Neo4j 3.5 and the entire 4.x and 5.x series of Neo4j, whether run as a single instance,
 in Causal Cluster mode, or run as a managed service in Neo4j AuraDB.  The connector does not rely on Enterprise Edition features and as
 such works with Neo4j Community Edition as well, with the appropriate version number.
 
