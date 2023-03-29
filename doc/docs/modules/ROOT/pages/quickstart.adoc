@@ -125,7 +125,7 @@ val df = Seq(
 ).toDF("name")
 
 df.write.format("org.neo4j.spark.DataSource")
-  .mode(SaveMode.ErrorIfExists)
+  .mode(SaveMode.Append)
   .option("url", "bolt://localhost:7687")
   .option("authentication.basic.username", "neo4j")
   .option("authentication.basic.password", "neo4j")
