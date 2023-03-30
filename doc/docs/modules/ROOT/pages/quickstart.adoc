@@ -92,7 +92,31 @@ This is it!
 
 == Getting started
 
-You can read your Neo4j database and have the data available as Spark DataFrame.
+You can create Spark DataFrames and write them to your Neo4j database:
+
+.Write the DataFrame to nodes of label `Person`
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+import spark.implicits._
+
+val df = List(
+  Tuple2("John Doe", 32),
+  Tuple2("Jane Doe", 42),
+).toDF("name", "age")
+
+df.write.format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.Append)
+  .option("url", "bolt://localhost:7687")
+  .option("authentication.basic.username", "neo4j")
+  .option("authentication.basic.password", "neo4j")
+  .option("labels", ":Person")
+  .save()
+----
+
+Similarly, you can read from your Neo4j database and have the data available as Spark DataFrame.
 
 .Read all the nodes with of label `Person`
 [source,scala]
@@ -107,30 +131,6 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
   .option("authentication.basic.password", "neo4j")
   .option("labels", "Person")
   .load()
-----
-
-Similarly, it is possible to write your own DataFrame to Neo4j:
-
-.Write the DataFrame to nodes of label `Person`
-[source,scala]
-----
-import org.apache.spark.sql.{SaveMode, SparkSession}
-
-val spark = SparkSession.builder().getOrCreate()
-import spark.implicits._
-
-val df = Seq(
-  ("John Doe"),
-  ("Jane Doe")
-).toDF("name")
-
-df.write.format("org.neo4j.spark.DataSource")
-  .mode(SaveMode.Append)
-  .option("url", "bolt://localhost:7687")
-  .option("authentication.basic.username", "neo4j")
-  .option("authentication.basic.password", "neo4j")
-  .option("labels", ":Person")
-  .save()
 ----
 
 Visit the xref:reading.adoc[Reading] and xref:writing.adoc[Writing] sections for advanced usage.
