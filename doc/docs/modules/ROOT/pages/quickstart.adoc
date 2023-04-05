@@ -213,8 +213,8 @@ df.where("name = 'John Doe'").where("age = 32").show()
 The conditions are automatically joined with an `AND` operator.
 
 [NOTE]
-When using `relationship.node.map = true` or `query` the PushdownFilters support is automatically disabled,
-thus the filters are applied by Spark and not by Neo4j.
+When using `relationship.node.map = true` or `query` the PushdownFilters support is automatically disabled.
+In that case, the filters are applied by Spark and not by Neo4j.
 
 === Aggregation
 
@@ -262,7 +262,8 @@ The `MAX` and `MIN` operators are applied directly on Neo4j.
 === Schema
 
 Spark works with data in a fixed tabular schema.
-To accomplish this Neo4j Connector has a schema infer system that creates the schema based on the data retrieved from the database.
+To accomplish this, the Neo4j Connector has a schema inference system.
+It creates the schema based on the data retrieved from the database.
 Each read data method has its own strategy to create it, that is explained in the corresponding section.
 
 In general, we first try to use APOC, if that is not available we flatten the first `schema.flatten.limit` results
@@ -272,10 +273,9 @@ If you don't want this process to happen, set `schema.strategy` to `string` (def
 and every column is presented as a string.
 
 [NOTE]
-Schema strategy `sample` is good when all instances of a property in Neo4j are the same type,
-and `string` followed by cast is better when property types may differ.
-Remember that Neo4j does not enforce property typing, and so `person.age` could sometimes be a `long`
-and sometimes be a `string`.
+Schema strategy `sample` is good when all instances of a property in Neo4j are of the same type,
+and `string` followed by ad-hoc cast is better when property types may differ.
+Remember that Neo4j does not enforce property typing, and so `person.age` could for instance sometimes be a `long` and sometimes be a `string`.
 
 ==== Example
 
