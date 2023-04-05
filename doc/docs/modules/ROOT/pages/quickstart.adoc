@@ -287,16 +287,25 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 val spark = SparkSession.builder().getOrCreate()
 
-spark.read.format("org.neo4j.spark.DataSource")
+val df = spark.read.format("org.neo4j.spark.DataSource")
   .option("url", "bolt://localhost:7687")
   .option("authentication.basic.username", "neo4j")
   .option("authentication.basic.password", "letmein!")
   .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name")
   .load()
-  .show()
+
+df.printSchema()
+df.show()
 ----
 
-.Result of the above code
+.Schema output
+----
+root
+ |-- id: long (nullable = true)
+ |-- name: string (nullable = true)
+----
+
+.Dataframe output
 |===
 |id |name
 
@@ -312,14 +321,24 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 val spark = SparkSession.builder().getOrCreate()
 
-spark.read.format("org.neo4j.spark.DataSource")
+val df = spark.read.format("org.neo4j.spark.DataSource")
   .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name")
   .option("schema.strategy", "string")
   .load()
-  .show()
+
+df.printSchema()
+df.show()
 ----
 
-.Result of the above code
+.Schema output
+----
+root
+|-- id: string (nullable = true)
+|-- name: string (nullable = true)
+----
+
+
+.Dataframe output
 |===
 |id |name
 
@@ -327,8 +346,18 @@ spark.read.format("org.neo4j.spark.DataSource")
 |"1"|"Jane Doe"
 |===
 
-As you can see, the Struct returned by the query is made of strings
-that you can then cast by using Spark's getters (i.e., `getLong`).
+As you can see, the Struct returned by the query is made of strings.
+To convert *only some* of the values, use regular Scala/Python code:
+
+[source,scala]
+----
+import scala.jdk.CollectionConverters._
+val result = df.collectAsList()
+for (row <- result.asScala) {
+  // if <some specific condition> then convert like below
+  println(s"""Age is: ${row.getString(0).toLong}""")
+}
+----
 
 [[user-defined-schema]]
 ===== User defined schema
