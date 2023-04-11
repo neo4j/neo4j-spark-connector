@@ -438,7 +438,7 @@ converted to string.
 === Partitioning
 
 While we're trying to pull off the data we offer the possibility to partition the extraction in order
-parallelizing it.
+to parallelize it.
 
 Please consider the following job:
 
@@ -465,7 +465,7 @@ Partitioning the dataset makes sense only if you're dealing with a big dataset (
 [[parallelize]]
 ==== How to parallelize the query execution
 
-Considering that you have three options:
+Three options are available:
 
 1. Node extraction.
 2. Relationship extraction.
