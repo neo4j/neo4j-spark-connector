@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eEuxo pipefail
+
 if [[ $# -lt 3 ]] ; then
     echo "Usage ./maven-release.sh <DEPLOY_OR_INSTALL> <SCALA-VERSION> <SPARK-VERSION> [<ALT_DEPLOYMENT_REPOSITORY>]"
     exit 1
@@ -9,7 +11,6 @@ exit_script() {
   echo "Process terminated cleaning up resources"
   mv -f pom.xml.bak pom.xml
   mv -f common/pom.xml.bak common/pom.xml
-  mv -f doc/pom.xml.bak doc/pom.xml
   mv -f test-support/pom.xml.bak test-support/pom.xml
   mv -f "${TARGET_DIR}/pom.xml.bak" "${TARGET_DIR}/pom.xml"
   trap - SIGINT SIGTERM # clear the trap
@@ -36,19 +37,17 @@ esac
 # backup files
 cp pom.xml pom.xml.bak
 cp common/pom.xml common/pom.xml.bak
-cp doc/pom.xml doc/pom.xml.bak
 cp test-support/pom.xml test-support/pom.xml.bak
 cp "${TARGET_DIR}/pom.xml" "${TARGET_DIR}/pom.xml.bak"
 
 # replace pom files with target scala version
 sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" pom.xml
 sed_i "s/<scala.binary.version \/>/<scala.binary.version>$SCALA_VERSION<\/scala.binary.version>/" pom.xml
-sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "doc/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "common/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "test-support/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "${TARGET_DIR}/pom.xml"
 
 # build
-mvn clean $DEPLOY_INSTALL -pl !'doc' -Pscala-$SCALA_VERSION -Pspark-$SPARK_VERSION -DskipTests $ALT_DEPLOYMENT_REPOSITORY
+mvn clean "${DEPLOY_INSTALL}" -Pscala-"${SCALA_VERSION}" -Pspark-"${SPARK_VERSION}" -DskipTests "${ALT_DEPLOYMENT_REPOSITORY}"
 
 exit_script
