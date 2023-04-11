@@ -474,7 +474,7 @@ Three options are available:
 A general count on what you're trying to pull off is being provided and
 a query with `SKIP / LIMIT` approach over each partition is being built.
 
-Therefore for a dataset of 100 nodes (`Person`) with a partition size of 5 the following queries are generated (one for partition):
+Therefore, for a dataset of 100 nodes (`Person`) with a partition size of 5 the following queries are generated (one for partition):
 
 [source,cypher]
 ----
@@ -485,11 +485,11 @@ MATCH (p:Person) RETURN p SKIP 60 LIMIT 20
 MATCH (p:Person) RETURN p SKIP 80 LIMIT 20
 ----
 
-While for (1) and (2) you leverage the Neo4j count store in order to retrieve the total count
+While for node and relationship extraction, you leverage the https://neo4j.com/developer/kb/fast-counts-using-the-count-store/:[Neo4j count store] in order to retrieve the total count
 about the nodes/relationships you're trying pulling off, for the (3) you have two possible approaches:
 
 * Compute a count over the query that you're using.
-* Compute a count over a second *optimized* query that leverages indexes. In this case you can pass
+* Compute a count over a second *optimized* query that leverages indexes. In this case, you can pass
 it via the `.option("query.count", "<your cypher query>")` the query must always return only
 one field named `count` which is the result of the count:
 
