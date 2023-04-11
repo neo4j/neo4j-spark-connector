@@ -266,8 +266,9 @@ To accomplish this, the Neo4j Connector has a schema inference system.
 It creates the schema based on the data retrieved from the database.
 Each read data method has its own strategy to create it, that is explained in the corresponding section.
 
-In general, we first try to use APOC, if that is not available we flatten the first `schema.flatten.limit` results
-and try to infer the schema by the type of each column.
+In general, we first try to use APOC's https://neo4j.com/labs/apoc/4.4/overview/apoc.meta/apoc.meta.nodeTypeProperties/[`nodeTypeProperties`]
+and https://neo4j.com/labs/apoc/4.4/overview/apoc.meta/apoc.meta.relTypeProperties/[`relTypeProperties`] procedures.
+If they are not available, we flatten the first `schema.flatten.limit` results and try to infer the schema by the type of each column.
 
 If you don't want this process to happen, set `schema.strategy` to `string` (default is `sample`),
 and every column is presented as a string.
@@ -413,12 +414,13 @@ java.lang.ClassCastException: org.apache.spark.unsafe.types.UTF8String cannot be
 
 In this case you can either clean up and normalize your data, or install APOC.
 
-APOC causes every value of attributes affected by this problem to be cast to String.
+The APOC-based strategy causes every value of attributes affected by this problem to be casted to String.
 
 [NOTE]
-This solution is not error-proof, you might still get the errors. Behind the scenes the Connector
-uses link:https://neo4j.com/labs/apoc/4.1/overview/apoc.meta/apoc.meta.nodeTypeProperties/[apoc.meta.nodeTypeProperties]
-and link:https://neo4j.com/labs/apoc/4.1/overview/apoc.meta/apoc.meta.relTypeProperties/[apoc.meta.relTypeProperties]
+This solution is not error-proof, you might still get errors if the values cannot be coerced to String.
+Behind the scenes the Connector
+uses link:https://neo4j.com/labs/apoc/4.4/overview/apoc.meta/apoc.meta.nodeTypeProperties/[apoc.meta.nodeTypeProperties]
+and link:https://neo4j.com/labs/apoc/4.4/overview/apoc.meta/apoc.meta.relTypeProperties/[apoc.meta.relTypeProperties]
 to sample the data.
 
 When the casting operation happens, this warning appears in your log, letting you know what has happened:
