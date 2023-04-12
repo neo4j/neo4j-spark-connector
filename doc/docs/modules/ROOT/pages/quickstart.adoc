@@ -405,23 +405,16 @@ The same field on the same node label has two different types.
 Spark doesn't like it since the DataFrame requires a schema,
 meaning each column of the DataFrame needs to have its own type.
 
-If you don't have APOC installed on your Neo4j instance, you're most likely to be exposed to errors like this:
-
 [source]
 ----
 java.lang.ClassCastException: org.apache.spark.unsafe.types.UTF8String cannot be cast to java.lang.Long
 ----
 
-In this case you can either clean up and normalize your data, or install APOC.
-
-The APOC-based strategy causes every value of attributes affected by this problem to be casted to String.
+In this case you can either clean up and normalize your data, or rely on the connector to
+implicitly cast values to `String`.
 
 [NOTE]
 This solution is not error-proof, you might still get errors if the values cannot be coerced to String.
-Behind the scenes the Connector
-uses link:https://neo4j.com/labs/apoc/4.4/overview/apoc.meta/apoc.meta.nodeTypeProperties/[apoc.meta.nodeTypeProperties]
-and link:https://neo4j.com/labs/apoc/4.4/overview/apoc.meta/apoc.meta.relTypeProperties/[apoc.meta.relTypeProperties]
-to sample the data.
 
 When the casting operation happens, this warning appears in your log, letting you know what has happened:
 
