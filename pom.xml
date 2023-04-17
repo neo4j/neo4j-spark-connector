@@ -75,6 +75,9 @@
         </profile>
         <profile>
             <id>scala-2.13</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <properties>
                 <scala.version>2.13.4</scala.version>
                 <scala.binary.version>2.13</scala.binary.version>
@@ -93,6 +96,9 @@
         </profile>
         <profile>
             <id>neo4j-5</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <properties>
                 <neo4j.version>5.4.0</neo4j.version>
                 <neo4j.experimental>false</neo4j.experimental>
