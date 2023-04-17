@@ -5,13 +5,6 @@ if [[ $# -lt 3 ]] ; then
     exit 1
 fi
 
-JAVA_VER=$(java -version 2>&1 | grep -i version)
-
-if [[ ! $JAVA_VER =~ 1.8 ]] ; then
-    echo "You must use Java 8"
-    exit 1
-fi
-
 exit_script() {
   echo "Process terminated cleaning up resources"
   mv -f pom.xml.bak pom.xml
