@@ -49,7 +49,7 @@
 
     <properties>
         <neo4j.version>4.4.11</neo4j.version>
-        <driver.version>4.4.11</driver.version>
+        <driver.version>5.7.0</driver.version>
         <neo4j.experimental>false</neo4j.experimental>
         <testcontainers.version>1.17.3</testcontainers.version>
         <xbean.version>4.10</xbean.version>
