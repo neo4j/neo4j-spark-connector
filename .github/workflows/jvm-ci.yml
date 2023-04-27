@@ -20,7 +20,7 @@ jobs:
         neo4j-version: ["4.4", "5"]
     name: Build with JDK ${{ matrix.java-version }}, Scala ${{ matrix.scala-version }}, Spark ${{ matrix.spark-version }} and Neo4j ${{ matrix.neo4j-version }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         if: ${{ !(matrix.spark-version == 2.4 && matrix.scala-version == 2.13) }}
       - name: Set up JDK {{ matrix.java-version }}
         if: ${{ !(matrix.spark-version == 2.4 && matrix.scala-version == 2.13) }}

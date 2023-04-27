@@ -18,7 +18,7 @@ jobs:
         spark-version: [ {short: "3", ext: "3.2.2", scala: "2.12"} ]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
