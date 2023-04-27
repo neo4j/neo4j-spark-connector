@@ -27,6 +27,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           java-version: ${{ matrix.java-version }}
+          distribution: 'temurin'
       - name: Cache Maven packages
         if: ${{ !(matrix.spark-version == 2.4 && matrix.scala-version == 2.13) }}
         uses: actions/cache@v1
