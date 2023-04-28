@@ -2,8 +2,8 @@
 
 set -eEuxo pipefail
 
-if [[ $# -lt 3 ]] ; then
-    echo "Usage ./maven-release.sh <DEPLOY_OR_INSTALL> <SCALA-VERSION> <SPARK-VERSION> [<ALT_DEPLOYMENT_REPOSITORY>]"
+if [[ $# -lt 2 ]] ; then
+    echo "Usage ./maven-release.sh <DEPLOY_OR_INSTALL> <SCALA-VERSION> [<ALT_DEPLOYMENT_REPOSITORY>]"
     exit 1
 fi
 
@@ -21,10 +21,8 @@ trap exit_script SIGINT SIGTERM
 
 DEPLOY_INSTALL=$1
 SCALA_VERSION=$2
-SPARK_VERSION=$3
-TARGET_DIR=spark-$SPARK_VERSION
-if [[ $# -eq 4 ]] ; then
-  ALT_DEPLOYMENT_REPOSITORY="-DaltDeploymentRepository=$4"
+if [[ $# -eq 3 ]] ; then
+  ALT_DEPLOYMENT_REPOSITORY="-DaltDeploymentRepository=$3"
 else
   ALT_DEPLOYMENT_REPOSITORY=""
 fi
@@ -38,16 +36,16 @@ esac
 cp pom.xml pom.xml.bak
 cp common/pom.xml common/pom.xml.bak
 cp test-support/pom.xml test-support/pom.xml.bak
-cp "${TARGET_DIR}/pom.xml" "${TARGET_DIR}/pom.xml.bak"
+cp spark-3/pom.xml spark-3/pom.xml.bak
 
 # replace pom files with target scala version
 sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" pom.xml
 sed_i "s/<scala.binary.version \/>/<scala.binary.version>$SCALA_VERSION<\/scala.binary.version>/" pom.xml
 sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "common/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "test-support/pom.xml"
-sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "${TARGET_DIR}/pom.xml"
+sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_$SCALA_VERSION<\/artifactId>/" "spark-3/pom.xml"
 
 # build
-mvn clean "${DEPLOY_INSTALL}" -Pscala-"${SCALA_VERSION}" -Pspark-"${SPARK_VERSION}" -DskipTests "${ALT_DEPLOYMENT_REPOSITORY}"
+mvn clean "${DEPLOY_INSTALL}" -Pscala-"${SCALA_VERSION}" -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
 
 exit_script
