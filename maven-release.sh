@@ -12,7 +12,7 @@ exit_script() {
   mv -f pom.xml.bak pom.xml
   mv -f common/pom.xml.bak common/pom.xml
   mv -f test-support/pom.xml.bak test-support/pom.xml
-  mv -f "${TARGET_DIR}/pom.xml.bak" "${TARGET_DIR}/pom.xml"
+  mv -f spark-3/pom.xml.bak spark-3/pom.xml
   trap - SIGINT SIGTERM # clear the trap
   kill -- -$$ # Sends SIGTERM to child/sub processes
 }
