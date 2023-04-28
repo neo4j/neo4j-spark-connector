@@ -28,7 +28,7 @@ jobs:
         with:
           java-version: 8
           distribution: 'temurin'
-      - uses: avides/actions-project-version-check@v1.2.0
+      - uses: avides/actions-project-version-check@v1.4.0
         id: version
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
