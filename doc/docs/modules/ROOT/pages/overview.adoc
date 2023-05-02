@@ -27,30 +27,23 @@ such works with Neo4j Community Edition as well, with the appropriate version nu
 
 === Spark and Scala compatibility
 
-This connector currently supports:
-
-- Spark 2.4.5+ with Scala 2.11 and Scala 2.12. 
-- Spark 3.0+ with Scala 2.12 and Scala 2.13.
+This connector currently supports Spark 3.0+ with Scala 2.12 and Scala 2.13.
 
 Depending on the combination of Spark and Scala versions you need a different JAR.
 JARs are named in the form:
-`neo4j-connector-apache-spark_${scala.version}_${connector.version}_for_${spark.version}`
+`neo4j-connector-apache-spark_${scala.version}_${connector.version}_for_3`
 
 Ensure that you have the appropriate JAR file for your environment. 
 Here's a compatibility table to help you choose the correct JAR.
 
 .Compatibility table
 |===
-| |Spark 2.4 | Spark 3.0.x and 3.1.x | 3.2.x and above
+| | Spark 3.0.x and 3.1.x | 3.2.x and above
 
-|*Scala 2.11* |`neo4j-connector-apache-spark_2.11-4.1.5_for_spark_2.4.jar`|_(not available)_|_(not available)_
-
-|*Scala 2.12* |`neo4j-connector-apache-spark_2.12-4.1.5_for_spark_2.4.jar`
-|`neo4j-connector-apache-spark_2.12-4.1.5_for_spark_3.jar`
+|*Scala 2.12* |`neo4j-connector-apache-spark_2.12-4.1.5_for_spark_3.jar`
 |`neo4j-connector-apache-spark_2.12-{connector-version}_for_spark_3.jar`
 
-|*Scala 2.13* |_(not available)_
-|`neo4j-connector-apache-spark_2.13-4.1.5_for_spark_3.jar`
+|*Scala 2.13* |`neo4j-connector-apache-spark_2.13-4.1.5_for_spark_3.jar`
 |`neo4j-connector-apache-spark_2.13-{connector-version}_for_spark_3.jar`
 |===
 
