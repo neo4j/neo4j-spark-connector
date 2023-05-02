@@ -326,6 +326,9 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 val spark = SparkSession.builder().getOrCreate()
 
 val df = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://localhost:7687")
+  .option("authentication.basic.username", "neo4j")
+  .option("authentication.basic.password", "letmein!")
   .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name")
   .option("schema.strategy", "string")
   .load()
@@ -377,6 +380,9 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 val spark = SparkSession.builder().getOrCreate()
 
 spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://localhost:7687")
+  .option("authentication.basic.username", "neo4j")
+  .option("authentication.basic.password", "letmein!")
   .schema(StructType(StructField("id", DataTypes.StringType), StructField("name", DataTypes.StringType)))
   .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name")
   .load()
