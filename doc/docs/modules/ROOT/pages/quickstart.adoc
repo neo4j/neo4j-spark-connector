@@ -131,6 +131,8 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
   .option("authentication.basic.password", "letmein!")
   .option("labels", "Person")
   .load()
+
+df.show()
 ----
 
 Visit the xref:reading.adoc[Reading] and xref:writing.adoc[Writing] sections for advanced usage.
