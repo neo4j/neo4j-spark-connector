@@ -231,12 +231,13 @@ You can manually disable the PushdownAggregate support using the `pushdown.aggre
 [source,scala]
 ----
 // Given a DB populated with the following query
-"""CREATE (pe:Person {id: 1, fullName: 'Person'})
- |WITH pe
- |UNWIND range(1, 10) as id
- |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id, price: id})
- |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
- |RETURN *
+"""
+  CREATE (pe:Person {id: 1, fullName: 'Jane Doe'})
+  WITH pe
+  UNWIND range(1, 10) as id
+  CREATE (pr:Product {id: id * rand(), name: 'Product ' + id, price: id})
+  CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+  RETURN *
 """
 import org.apache.spark.sql.{SaveMode, SparkSession}
 val spark = SparkSession.builder().getOrCreate()
