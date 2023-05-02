@@ -118,7 +118,7 @@ df.write.format("org.neo4j.spark.DataSource")
 
 Similarly, you can read from your Neo4j database and have the data available as Spark DataFrame.
 
-.Read all the nodes with of label `Person`
+.Read all the nodes with label `Person`
 [source,scala]
 ----
 import org.apache.spark.sql.{SaveMode, SparkSession}
