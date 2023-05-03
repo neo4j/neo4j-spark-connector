@@ -502,9 +502,3 @@ WHERE pr.name = 'An Awesome Product'
 RETURN count(p) AS count
 ----
 
-=== Examples
-
-You can find examples on how to use the Neo4j Connector for Apache Spark at link:{url-gh-spark-notebooks}[this repository].
-It's a collection of Zeppelin Notebooks with different usage scenarios, along with a getting started guide.
-
-The repository is in constant development, and feel free to submit your examples.
