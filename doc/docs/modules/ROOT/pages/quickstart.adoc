@@ -107,13 +107,13 @@ val df = List(
   ("Jane Doe", 42),
 ).toDF("name", "age")
 
-df.write.format("org.neo4j.spark.DataSource")
+(df.write.format("org.neo4j.spark.DataSource")
   .mode(SaveMode.Append)
   .option("url", "bolt://localhost:7687")
   .option("authentication.basic.username", "neo4j")
   .option("authentication.basic.password", "letmein!")
   .option("labels", ":Person")
-  .save()
+  .save())
 ----
 
 Similarly, you can read from your Neo4j database and have the data available as Spark DataFrame.
@@ -125,12 +125,12 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 val spark = SparkSession.builder().getOrCreate()
 
-val df = spark.read.format("org.neo4j.spark.DataSource")
+val df = (spark.read.format("org.neo4j.spark.DataSource")
   .option("url", "bolt://localhost:7687")
   .option("authentication.basic.username", "neo4j")
   .option("authentication.basic.password", "letmein!")
   .option("labels", "Person")
-  .load()
+  .load())
 
 df.show()
 ----
@@ -203,12 +203,12 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 val spark = SparkSession.builder().getOrCreate()
 
-val df = spark.read.format("org.neo4j.spark.DataSource")
+val df = (spark.read.format("org.neo4j.spark.DataSource")
   .option("url", "bolt://localhost:7687")
   .option("authentication.basic.username", "neo4j")
   .option("authentication.basic.password", "letmein!")
   .option("labels", ":Person")
-  .load()
+  .load())
 
 df.where("name = 'John Doe'").where("age = 32").show()
 ----
@@ -242,7 +242,7 @@ You can manually disable the PushdownAggregate support using the `pushdown.aggre
 import org.apache.spark.sql.{SaveMode, SparkSession}
 val spark = SparkSession.builder().getOrCreate()
 
-spark.read.format("org.neo4j.spark.DataSource")
+(spark.read.format("org.neo4j.spark.DataSource")
   .option("url", "bolt://localhost:7687")
   .option("authentication.basic.username", "neo4j")
   .option("authentication.basic.password", "letmein!")
@@ -250,7 +250,7 @@ spark.read.format("org.neo4j.spark.DataSource")
   .option("relationship.source.labels", "Person")
   .option("relationship.target.labels", "Product")
   .load
-  .createTempView("BOUGHT")
+  .createTempView("BOUGHT"))
 
 
 val df = spark.sql(
@@ -291,12 +291,12 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 val spark = SparkSession.builder().getOrCreate()
 
-val df = spark.read.format("org.neo4j.spark.DataSource")
+val df = (spark.read.format("org.neo4j.spark.DataSource")
   .option("url", "bolt://localhost:7687")
   .option("authentication.basic.username", "neo4j")
   .option("authentication.basic.password", "letmein!")
   .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name")
-  .load()
+  .load())
 
 df.printSchema()
 df.show()
@@ -325,13 +325,13 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 val spark = SparkSession.builder().getOrCreate()
 
-val df = spark.read.format("org.neo4j.spark.DataSource")
+val df = (spark.read.format("org.neo4j.spark.DataSource")
   .option("url", "bolt://localhost:7687")
   .option("authentication.basic.username", "neo4j")
   .option("authentication.basic.password", "letmein!")
   .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name")
   .option("schema.strategy", "string")
-  .load()
+  .load())
 
 df.printSchema()
 df.show()
@@ -379,14 +379,14 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 val spark = SparkSession.builder().getOrCreate()
 
-spark.read.format("org.neo4j.spark.DataSource")
+(spark.read.format("org.neo4j.spark.DataSource")
   .option("url", "bolt://localhost:7687")
   .option("authentication.basic.username", "neo4j")
   .option("authentication.basic.password", "letmein!")
-  .schema(StructType(StructField("id", DataTypes.StringType), StructField("name", DataTypes.StringType)))
+  .schema(StructType(Array(StructField("id", DataTypes.StringType), StructField("name", DataTypes.StringType))))
   .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name")
   .load()
-  .show()
+  .show())
 ----
 
 .Result of the above code
@@ -450,13 +450,13 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 val spark = SparkSession.builder().getOrCreate()
 
-val df = spark.read.format("org.neo4j.spark.DataSource")
+val df = (spark.read.format("org.neo4j.spark.DataSource")
         .option("url", "bolt://localhost:7687")
         .option("authentication.basic.username", "neo4j")
         .option("authentication.basic.password", "letmein!")
         .option("labels", "Person")
         .option("partitions", "5")
-        .load()
+        .load())
 ----
 
 This means that if the total count of the nodes with label `Person` into Neo4j is 100 we are creating 5
