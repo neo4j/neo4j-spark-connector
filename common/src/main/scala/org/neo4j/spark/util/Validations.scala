@@ -53,7 +53,7 @@ case class ValidateSparkVersion(supportedVersions: String*) extends Validation {
     val splittedVersion = sparkVersion.split("\\.")
 
     ValidationUtil.isTrue(
-      supportedVersions
+      sparkVersion == "UNKNOWN" || supportedVersions
         .flatMap(_.split("\\.").zip(splittedVersion))
         .forall(t => compare(t._2, t._1)),
       s"""Your current Spark version $sparkVersion is not supported by the current connector.
