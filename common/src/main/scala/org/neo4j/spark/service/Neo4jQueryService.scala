@@ -3,7 +3,7 @@ package org.neo4j.spark.service
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.connector.expressions.aggregate.{AggregateFunc, Count, CountStar, Max, Min, Sum}
-import org.apache.spark.sql.sources.{And, Filter, Or}
+import org.apache.spark.sql.connector.expressions.filter.{And, Or, Predicate}
 import org.neo4j.cypherdsl.core._
 import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.util.Neo4jImplicits._
@@ -98,16 +98,16 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
   }
 }
 
-class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
+class Neo4jQueryReadStrategy(predicates: Array[Predicate] = Array.empty,
                              partitionSkipLimit: PartitionSkipLimit = PartitionSkipLimit.EMPTY,
                              requiredColumns: Seq[String] = Seq.empty,
                              aggregateColumns: Array[AggregateFunc] = Array.empty) extends Neo4jQueryStrategy {
   private val renderer: Renderer = Renderer.getDefaultRenderer
 
-  private val hasPartitons: Boolean = partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1
+  private val hasPartitions: Boolean = partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1
 
   override def createStatementForQuery(options: Neo4jOptions): String = {
-    val limitedQuery = if (hasPartitons) {
+    val limitedQuery = if (hasPartitions) {
       s"""${options.query.value}
          |SKIP ${partitionSkipLimit.skip} LIMIT ${partitionSkipLimit.limit}
          |""".stripMargin
@@ -175,7 +175,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
                                         query: StatementBuilder.OngoingReadingWithoutWhere,
                                         entity: PropertyContainer,
                                         fields: Seq[Expression]) = {
-    val ret: StatementBuilder.BuildableStatement = if (hasPartitons) {
+    val ret: StatementBuilder.BuildableStatement = if (hasPartitions) {
       val id = entity match {
         case node: Node => Functions.id(node)
         case rel: Relationship => Functions.id(rel)
@@ -213,9 +213,9 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
       .skip(partitionSkipLimit.skip).asInstanceOf[StatementBuilder.TerminalExposesLimit].limit(partitionSkipLimit.limit)
 
     val ret = if (entity == null) {
-      if (hasPartitons) addSkipLimit(returning) else returning
+      if (hasPartitions) addSkipLimit(returning) else returning
     } else {
-      if (hasPartitons) {
+      if (hasPartitions) {
         val id = entity match {
           case node: Node => Functions.id(node)
           case rel: Relationship => Functions.id(rel)
@@ -232,31 +232,31 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
   private def filterRelationship(sourceNode: Node, targetNode: Node, relationship: Relationship) = {
     val matchQuery = Cypher.`match`(sourceNode).`match`(targetNode).`match`(relationship)
 
-    def getContainer(filter: Filter): PropertyContainer = {
-      if (filter.isAttribute(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)) {
+    def getContainer(predicate: Predicate): PropertyContainer = {
+      if (predicate.isAttribute(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)) {
         sourceNode
       }
-      else if (filter.isAttribute(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)) {
+      else if (predicate.isAttribute(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)) {
         targetNode
       }
-      else if (filter.isAttribute(Neo4jUtil.RELATIONSHIP_ALIAS)) {
+      else if (predicate.isAttribute(Neo4jUtil.RELATIONSHIP_ALIAS)) {
         relationship
       }
       else {
-        throw new IllegalArgumentException(s"Attribute '${filter.getAttribute.get}' is not valid")
+        throw new IllegalArgumentException(s"Attribute '${predicate.getAttribute.get}' is not valid")
       }
     }
 
-    if (filters.nonEmpty) {
-      def mapFilter(filter: Filter): Condition = {
-        filter match {
-          case and: And => mapFilter(and.left).and(mapFilter(and.right))
-          case or: Or => mapFilter(or.left).or(mapFilter(or.right))
-          case filter: Filter => Neo4jUtil.mapSparkFiltersToCypher(filter, getContainer(filter), filter.getAttributeWithoutEntityName)
+    if (predicates.nonEmpty) {
+      def mapPredicate(predicate: Predicate): Condition = {
+        predicate match {
+          case and: And => mapPredicate(and.left).and(mapPredicate(and.right))
+          case or: Or => mapPredicate(or.left).or(mapPredicate(or.right))
+          case p: Predicate => Neo4jUtil.mapSparkPredicatesToCypher(p, getContainer(p), p.getAttributeWithoutEntityName)
         }
       }
 
-      val cypherFilters = filters.map(mapFilter)
+      val cypherFilters = predicates.map(mapPredicate)
 
       assembleConditionQuery(matchQuery, cypherFilters)
     }
@@ -326,16 +326,16 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
   private def filterNode(node: Node) = {
     val matchQuery = Cypher.`match`(node)
 
-    if (filters.nonEmpty) {
-      def mapFilter(filter: Filter): Condition = {
-        filter match {
-          case and: And => mapFilter(and.left).and(mapFilter(and.right))
-          case or: Or => mapFilter(or.left).or(mapFilter(or.right))
-          case filter: Filter => Neo4jUtil.mapSparkFiltersToCypher(filter, node)
+    if (predicates.nonEmpty) {
+      def mapPredicate(predicate: Predicate): Condition = {
+        predicate match {
+          case and: And => mapPredicate(and.left).and(mapPredicate(and.right))
+          case or: Or => mapPredicate(or.left).or(mapPredicate(or.right))
+          case p: Predicate => Neo4jUtil.mapSparkPredicatesToCypher(p, node)
         }
       }
 
-      val cypherFilters = filters.map(mapFilter)
+      val cypherFilters = predicates.map(mapPredicate)
       assembleConditionQuery(matchQuery, cypherFilters)
     }
     matchQuery

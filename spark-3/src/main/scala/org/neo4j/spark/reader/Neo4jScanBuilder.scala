@@ -1,18 +1,19 @@
 package org.neo4j.spark.reader
 
 import org.apache.spark.sql.connector.expressions.aggregate.{AggregateFunc, Aggregation}
-import org.apache.spark.sql.connector.read.{Scan, ScanBuilder, SupportsPushDownAggregates, SupportsPushDownFilters, SupportsPushDownRequiredColumns}
+import org.apache.spark.sql.connector.expressions.filter.Predicate
+import org.apache.spark.sql.connector.read.{Scan, ScanBuilder, SupportsPushDownAggregates, SupportsPushDownFilters, SupportsPushDownRequiredColumns, SupportsPushDownV2Filters}
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.neo4j.spark.util.Neo4jImplicits.{AggregationImplicit, CypherImplicits}
 import org.neo4j.spark.util.{Neo4jOptions, QueryType}
 
 class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: StructType)
-  extends SupportsPushDownFilters
+  extends SupportsPushDownV2Filters
   with SupportsPushDownAggregates
   with SupportsPushDownRequiredColumns {
 
-  private var filters: Array[Filter] = Array.empty[Filter]
+  private var predicates: Array[Predicate] = Array.empty[Predicate]
 
   private var requiredSchema: StructType = schema
   private var requiredColumns: StructType = new StructType()
@@ -20,18 +21,18 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
   private var aggregateColumns: Array[AggregateFunc] = Array.empty[AggregateFunc]
 
   override def build(): Scan = {
-    new Neo4jScan(neo4jOptions, jobId, requiredSchema, filters, requiredColumns, aggregateColumns)
+    new Neo4jScan(neo4jOptions, jobId, requiredSchema, predicates, requiredColumns, aggregateColumns)
   }
 
-  override def pushFilters(filtersArray: Array[Filter]): Array[Filter] = {
+  override def pushPredicates(predicateArray: Array[Predicate]): Array[Predicate] = {
     if (neo4jOptions.pushdownFiltersEnabled) {
-      filters = filtersArray
+      predicates = predicateArray
     }
 
-    filtersArray
+    predicateArray
   }
 
-  override def pushedFilters(): Array[Filter] = filters
+  override def pushedPredicates(): Array[Predicate] = predicates
 
   override def pruneColumns(newSchema: StructType): Unit = {
     requiredColumns = if (

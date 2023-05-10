@@ -1,6 +1,7 @@
 package org.neo4j.spark.service
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
 import org.neo4j.driver.exceptions.ClientException
@@ -25,10 +26,10 @@ case class PartitionSkipLimit(partitionNumber: Int, skip: Long, limit: Long)
 
 case class Neo4jVersion(name: String, versions: Seq[String], edition: String)
 
-class SchemaService(private val options: Neo4jOptions, private val driverCache: DriverCache, private val filters: Array[Filter] = Array.empty)
+class SchemaService(private val options: Neo4jOptions, private val driverCache: DriverCache, private val predicates: Array[Predicate] = Array.empty)
   extends AutoCloseable with Logging {
 
-  private val queryReadStrategy = new Neo4jQueryReadStrategy(filters)
+  private val queryReadStrategy = new Neo4jQueryReadStrategy(predicates)
 
   private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
 
@@ -263,8 +264,8 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     struct
   }
 
-  def countForNodeWithQuery(filters: Array[Filter]): Long = {
-    val query = if (filters.isEmpty) {
+  def countForNodeWithQuery(predicates: Array[Predicate]): Long = {
+    val query = if (predicates.isEmpty) {
       options.nodeMetadata.labels
         .map(_.quote())
         .map(label =>
@@ -276,7 +277,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       queryReadStrategy.createStatementForNodeCount(options)
     }
     log.info(s"Executing the following counting query on Neo4j: $query")
-    session.run(query, Values.value(Neo4jUtil.paramsFromFilters(filters).asJava))
+    session.run(query, Values.value(Neo4jUtil.paramsFromFilters(predicates).asJava))
       .list()
       .asScala
       .map(_.get("count"))
@@ -284,8 +285,8 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       .min
   }
 
-  def countForRelationshipWithQuery(filters: Array[Filter]): Long = {
-    val query = if (filters.isEmpty) {
+  def countForRelationshipWithQuery(predicates: Array[Predicate]): Long = {
+    val query = if (predicates.isEmpty) {
       val sourceQueries = options.relationshipMetadata.source.labels
         .map(_.quote())
         .map(label =>
@@ -312,14 +313,14 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       .min
   }
 
-  def countForNode(filters: Array[Filter]): Long = try {
+  def countForNode(predicates: Array[Predicate]): Long = try {
     /*
      * we try to leverage the count store in order to have the faster response possible
      * https://neo4j.com/developer/kb/fast-counts-using-the-count-store/
      * so in this scenario we have some limitations given the fact that we get the min
      * for the sequence of counts returned
      */
-    if (filters.isEmpty) {
+    if (predicates.isEmpty) {
       val query = "CALL apoc.meta.stats() yield labels RETURN labels"
       val map = session.run(query).single()
         .asMap()
@@ -330,18 +331,18 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       map.filterKeys(k => options.nodeMetadata.labels.contains(k))
         .values.min
     } else {
-      countForNodeWithQuery(filters)
+      countForNodeWithQuery(predicates)
     }
   } catch {
     case e: ClientException => {
       logResolutionChange("Switching to query count resolution", e)
-      countForNodeWithQuery(filters)
+      countForNodeWithQuery(predicates)
     }
     case e: Throwable => logExceptionForCount(e)
   }
 
-  def countForRelationship(filters: Array[Filter]): Long = try {
-    if (filters.isEmpty) {
+  def countForRelationship(predicates: Array[Predicate]): Long = try {
+    if (predicates.isEmpty) {
       val query = "CALL apoc.meta.stats() yield relTypes RETURN relTypes"
       val map = session.run(query).single()
         .asMap()
@@ -360,12 +361,12 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         .min
       Math.min(minFromSource, minFromTarget)
     } else {
-      countForRelationshipWithQuery(filters)
+      countForRelationshipWithQuery(predicates)
     }
   } catch {
     case e: ClientException => {
       logResolutionChange("Switching to query count resolution", e)
-      countForRelationshipWithQuery(filters)
+      countForRelationshipWithQuery(predicates)
     }
     case e: Throwable => logExceptionForCount(e)
   }
@@ -391,9 +392,9 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   }
 
-  def count(filters: Array[Filter] = this.filters): Long = options.query.queryType match {
-    case QueryType.LABELS => countForNode(filters)
-    case QueryType.RELATIONSHIP => countForRelationship(filters)
+  def count(predicates: Array[Predicate] = this.predicates): Long = options.query.queryType match {
+    case QueryType.LABELS => countForNode(predicates)
+    case QueryType.RELATIONSHIP => countForRelationship(predicates)
     case QueryType.QUERY => countForQuery()
   }
 

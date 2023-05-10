@@ -3,6 +3,7 @@ package org.neo4j.spark.reader
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
+import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.{Record, Session, Transaction, Values}
@@ -15,7 +16,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 abstract class BasePartitionReader(private val options: Neo4jOptions,
-                                   private val filters: Array[Filter],
+                                   private val predicates: Array[Predicate],
                                    private val schema: StructType,
                                    private val jobId: String,
                                    private val partitionSkipLimit: PartitionSkipLimit,
@@ -29,7 +30,7 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
   protected val driverCache: DriverCache = new DriverCache(options.connection, name)
 
   private val query: String = new Neo4jQueryService(options,
-    new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.fieldNames, aggregateColumns))
+    new Neo4jQueryReadStrategy(predicates, partitionSkipLimit, requiredColumns.fieldNames, aggregateColumns))
     .createQuery()
 
   private var nextRow: InternalRow = _
@@ -37,7 +38,7 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
   private lazy val values = {
     val params = mutable.HashMap[String, Any]()
     params.put(Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT, scriptResult)
-    Neo4jUtil.paramsFromFilters(filters)
+    Neo4jUtil.paramsFromFilters(predicates)
       .foreach(p => params.put(p._1, p._2))
 
     params.asJava

@@ -1,8 +1,8 @@
 package org.neo4j.spark.util
 
-import org.apache.spark.sql.connector.expressions.Expression
+import org.apache.spark.sql.connector.expressions.{Expression, GeneralScalarExpression, Literal, filter}
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
-import org.apache.spark.sql.sources.{And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
+import org.apache.spark.sql.connector.expressions.filter.{And, Not, Or, Predicate}
 import org.apache.spark.sql.types.{DataTypes, MapType, StructField, StructType}
 import org.neo4j.driver.types.{Entity, Node, Relationship}
 import org.neo4j.spark.service.SchemaService
@@ -94,52 +94,36 @@ object Neo4jImplicits {
     }
   }
 
-  implicit class FilterImplicit(filter: Filter) {
-    def flattenFilters: Array[Filter] = {
-      filter match {
-        case or: Or => Array(or.left.flattenFilters, or.right.flattenFilters).flatten
-        case and: And => Array(and.left.flattenFilters, and.right.flattenFilters).flatten
-        case f: Filter => Array(f)
+  implicit class ExpressionImplicit(expression: Expression) {
+    def flattenExpressions: Array[Expression] = {
+      expression match {
+        case or: Or => Array(or.left.flattenExpressions, or.right.flattenExpressions).flatten
+        case and: And => Array(and.left.flattenExpressions, and.right.flattenExpressions).flatten
+        case p: Predicate =>
+          p.children()
       }
     }
 
-    def getAttribute: Option[String] = Option(filter match {
-      case eqns: EqualNullSafe => eqns.attribute
-      case eq: EqualTo => eq.attribute
-      case gt: GreaterThan => gt.attribute
-      case gte: GreaterThanOrEqual => gte.attribute
-      case lt: LessThan => lt.attribute
-      case lte: LessThanOrEqual => lte.attribute
-      case in: In => in.attribute
-      case notNull: IsNotNull => notNull.attribute
-      case isNull: IsNull => isNull.attribute
-      case startWith: StringStartsWith => startWith.attribute
-      case endsWith: StringEndsWith => endsWith.attribute
-      case contains: StringContains => contains.attribute
-      case not: Not => not.child.getAttribute.orNull
-      case _ => null
-    })
+    def getAttribute: Option[String] = expression.references().headOption.flatMap(_.fieldNames().headOption)
 
-    def getValue: Option[Any] = Option(filter match {
-      case eqns: EqualNullSafe => eqns.value
-      case eq: EqualTo => eq.value
-      case gt: GreaterThan => gt.value
-      case gte: GreaterThanOrEqual => gte.value
-      case lt: LessThan => lt.value
-      case lte: LessThanOrEqual => lte.value
-      case in: In => in.values
-      case startWith: StringStartsWith => startWith.value
-      case endsWith: StringEndsWith => endsWith.value
-      case contains: StringContains => contains.value
-      case not: Not => not.child.getValue.orNull
-      case _ => null
-    })
+    def getValue: Option[Any] = {
+      expression match {
+        case scalar: GeneralScalarExpression => scalar.name() match {
+          case "STARTS_WITH" | "ENDS_WITH" | "CONTAINS" | "=" | "<>" | "<=>" | "<" | "<=" | ">" | ">=" | "AND" | "OR" =>
+            expression.references().tail.headOption.map(_.asInstanceOf[Literal[_]].value)
+          case "IN" =>
+            Some(expression.references().tail.map(_.asInstanceOf[Literal[_]].value))
+          case _ => null
+        }
+        case _ => null
+      }
+    }
 
     def isAttribute(entityType: String): Boolean = {
       getAttribute.exists(_.contains(s"$entityType."))
     }
 
-    def getAttributeWithoutEntityName: Option[String] = filter.getAttribute.map(_.unquote().split('.').tail.mkString("."))
+    def getAttributeWithoutEntityName: Option[String] = expression.getAttribute.map(_.unquote().split('.').tail.mkString("."))
 
     /**
      * df: we are not handling AND/OR because they are not actually filters
@@ -148,54 +132,52 @@ object Neo4jImplicits {
      * of filters, including the one contained in the ANDs/ORs objects.
      */
     def getAttributeAndValue: Seq[Any] = {
-      filter match {
-        case f: EqualNullSafe => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: EqualTo => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: GreaterThan => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: GreaterThanOrEqual => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: LessThan => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: LessThanOrEqual => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: In => Seq(f.attribute.toParameterName(f.values), f.values)
-        case f: StringStartsWith => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: StringEndsWith => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: StringContains => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: Not => f.child.getAttributeAndValue
-        case _ => Seq()
+      expression match {
+        case scalar: GeneralScalarExpression =>
+          (scalar, scalar.name()) match {
+            case (_, "STARTS_WITH" | "ENDS_WITH" | "CONTAINS" | "IN" | "=" | "<>" | "<=>" | "<" | "<=" | ">" | ">=" | "AND" | "OR") =>
+              val value = expression.getValue.get
+              Seq(expression.getAttribute.get.toParameterName(value), value)
+            case (not: Not, _) =>
+              not.child().getAttributeAndValue
+            case _ => Seq.empty
+          }
+        case _ => Seq.empty
       }
     }
   }
 
-  implicit class StructTypeImplicit(structType: StructType) {
-    private def isValidMapOrStructField(field: String, structFieldName: String) = {
-      val value: String = """(`.*`)|([^\.]*)""".r.findFirstIn(field).getOrElse("")
-      structFieldName == value.unquote() || structFieldName == value
+    implicit class StructTypeImplicit(structType: StructType) {
+      private def isValidMapOrStructField(field: String, structFieldName: String) = {
+        val value: String = """(`.*`)|([^\.]*)""".r.findFirstIn(field).getOrElse("")
+        structFieldName == value.unquote() || structFieldName == value
+      }
+
+      def getByName(name: String): Option[StructField] = {
+        val index = structType.fieldIndex(name)
+        if (index > -1) Some(structType(index)) else None
+      }
+
+      def getFieldIndex(fieldName: String): Long = structType.fields.map(_.name).indexOf(fieldName)
+
+      def getMissingFields(fields: Set[String]): Set[String] = fields
+        .map(field => {
+          val maybeField = structType
+            .find(structField => {
+              structField.dataType match {
+                case _: MapType => isValidMapOrStructField(field, structField.name)
+                case _: StructType => isValidMapOrStructField(field, structField.name)
+                case _ => structField.name == field.unquote() || structField.name == field
+              }
+            })
+          field -> maybeField.isDefined
+        })
+        .filterNot(e => e._2)
+        .map(e => e._1)
     }
 
-    def getByName(name: String): Option[StructField] = {
-      val index = structType.fieldIndex(name)
-      if (index > -1) Some(structType(index)) else None
+    implicit class AggregationImplicit(aggregation: Aggregation) {
+      def groupByCols(): Array[Expression] = ReflectionUtils.groupByCols(aggregation)
     }
 
-    def getFieldIndex(fieldName: String): Long = structType.fields.map(_.name).indexOf(fieldName)
-
-    def getMissingFields(fields: Set[String]): Set[String] = fields
-      .map(field => {
-        val maybeField = structType
-          .find(structField => {
-            structField.dataType match {
-              case _: MapType => isValidMapOrStructField(field, structField.name)
-              case _: StructType => isValidMapOrStructField(field, structField.name)
-              case _ => structField.name == field.unquote() || structField.name == field
-            }
-          })
-        field -> maybeField.isDefined
-      })
-      .filterNot(e => e._2)
-      .map(e => e._1)
   }
-
-  implicit class AggregationImplicit(aggregation: Aggregation) {
-    def groupByCols(): Array[Expression] = ReflectionUtils.groupByCols(aggregation)
-  }
-
-}

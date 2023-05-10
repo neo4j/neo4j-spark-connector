@@ -1,9 +1,9 @@
 package org.neo4j.spark.reader
 
 import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
+import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.connector.read.streaming.MicroBatchStream
 import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory, Scan}
-import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.service.PartitionSkipLimit
 import org.neo4j.spark.streaming.Neo4jMicroBatchReader
@@ -14,12 +14,12 @@ import java.util.Optional
 case class Neo4jPartition(partitionSkipLimit: PartitionSkipLimit) extends InputPartition
 
 class Neo4jScan(
-                  neo4jOptions: Neo4jOptions,
-                  jobId: String,
-                  schema: StructType,
-                  filters: Array[Filter],
-                  requiredColumns: StructType,
-                  aggregateColumns: Array[AggregateFunc]
+                 neo4jOptions: Neo4jOptions,
+                 jobId: String,
+                 schema: StructType,
+                 predicates: Array[Predicate],
+                 requiredColumns: StructType,
+                 aggregateColumns: Array[AggregateFunc]
                 ) extends Scan with Batch {
 
   override def toBatch: Batch = this
@@ -29,7 +29,7 @@ class Neo4jScan(
   private def createPartitions() = {
     Validations.validate(ValidateReadNotStreaming(neo4jOptions, jobId))
     // we get the skip/limit for each partition and execute the "script"
-    val (partitionSkipLimitList, scriptResult) = Neo4jUtil.callSchemaService(neo4jOptions, jobId, filters, { schemaService =>
+    val (partitionSkipLimitList, scriptResult) = Neo4jUtil.callSchemaService(neo4jOptions, jobId, predicates, { schemaService =>
       (schemaService.skipLimitFromPartition(), schemaService.execute(neo4jOptions.script))
     })
     // we generate a partition for each element
@@ -45,7 +45,7 @@ class Neo4jScan(
 
   override def createReaderFactory(): PartitionReaderFactory = {
     new Neo4jPartitionReaderFactory(
-      neo4jOptions, filters, schema, jobId, scriptResult, requiredColumns, aggregateColumns
+      neo4jOptions, predicates, schema, jobId, scriptResult, requiredColumns, aggregateColumns
     )
   }
 

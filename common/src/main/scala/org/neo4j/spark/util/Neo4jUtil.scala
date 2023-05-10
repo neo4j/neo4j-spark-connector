@@ -1,12 +1,13 @@
 package org.neo4j.spark.util
 
+
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.{JsonSerializer, ObjectMapper, SerializerProvider}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{GenericRowWithSchema, UnsafeArrayData, UnsafeMapData, UnsafeRow}
 import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, DateTimeUtils}
-import org.apache.spark.sql.sources._
+import org.apache.spark.sql.connector.expressions.filter.{Not, Predicate}
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 import org.neo4j.cypherdsl.core.{Condition, Cypher, Expression, Functions, Property, PropertyContainer}
@@ -15,15 +16,14 @@ import org.neo4j.driver.internal._
 import org.neo4j.driver.types.{Entity, Path}
 import org.neo4j.driver.{Session, Transaction, Value, Values}
 import org.neo4j.spark.service.SchemaService
-import org.neo4j.spark.util.Neo4jImplicits.{EntityImplicits, _}
+import org.neo4j.spark.util.Neo4jImplicits._
 import org.slf4j.Logger
 
 import java.time._
 import java.time.format.DateTimeFormatter
 import java.util.Properties
-import org.neo4j.spark.util.Neo4jImplicits._
-
 import scala.collection.JavaConverters._
+import org.neo4j.spark.util.Neo4jImplicits.ExpressionImplicit
 
 object Neo4jUtil {
 
@@ -250,8 +250,9 @@ object Neo4jUtil {
     container.property(attribute.split('.'): _*)
   }
 
-  def paramsFromFilters(filters: Array[Filter]): Map[String, Any] = {
-    filters.flatMap(f => f.flattenFilters).map(_.getAttributeAndValue)
+  def paramsFromFilters(predicates: Array[Predicate]): Map[String, Any] = {
+    predicates.flatMap(f => f.flattenExpressions)
+      .map(_.getAttributeAndValue)
       .filter(_.nonEmpty)
       .map(valAndAtt => valAndAtt.head.toString.unquote() -> toParamValue(valAndAtt(1)))
       .toMap
@@ -274,46 +275,56 @@ object Neo4jUtil {
     }
   }
 
-  def mapSparkFiltersToCypher(filter: Filter, container: PropertyContainer, attributeAlias: Option[String] = None): Condition = {
-    filter match {
-      case eqns: EqualNullSafe =>
-        val parameter = valueToCypherExpression(eqns.attribute, eqns.value)
-        val property = getCorrectProperty(container, attributeAlias.getOrElse(eqns.attribute))
+  def mapSparkPredicatesToCypher(predicate: Predicate, container: PropertyContainer, attributeAlias: Option[String] = None): Condition = {
+    (predicate, predicate.name()) match {
+      case (_, "<=>") =>
+        val attribute = predicate.getAttribute.get
+        val parameter = valueToCypherExpression(attribute, predicate.getValue.get)
+        val property = getCorrectProperty(container, attributeAlias.getOrElse(attribute))
         property.isNull.and(parameter.isNull)
           .or(
             property.isEqualTo(parameter)
           )
-      case eq: EqualTo =>
-        getCorrectProperty(container, attributeAlias.getOrElse(eq.attribute))
-          .isEqualTo(valueToCypherExpression(eq.attribute, eq.value))
-      case gt: GreaterThan =>
-        getCorrectProperty(container, attributeAlias.getOrElse(gt.attribute))
-          .gt(valueToCypherExpression(gt.attribute, gt.value))
-      case gte: GreaterThanOrEqual =>
-        getCorrectProperty(container, attributeAlias.getOrElse(gte.attribute))
-          .gte(valueToCypherExpression(gte.attribute, gte.value))
-      case lt: LessThan =>
-        getCorrectProperty(container, attributeAlias.getOrElse(lt.attribute))
-          .lt(valueToCypherExpression(lt.attribute, lt.value))
-      case lte: LessThanOrEqual =>
-        getCorrectProperty(container, attributeAlias.getOrElse(lte.attribute))
-          .lte(valueToCypherExpression(lte.attribute, lte.value))
-      case in: In =>
-        getCorrectProperty(container, attributeAlias.getOrElse(in.attribute))
-          .in(valueToCypherExpression(in.attribute, in.values))
-      case startWith: StringStartsWith =>
-        getCorrectProperty(container, attributeAlias.getOrElse(startWith.attribute))
-          .startsWith(valueToCypherExpression(startWith.attribute, startWith.value))
-      case endsWith: StringEndsWith =>
-        getCorrectProperty(container, attributeAlias.getOrElse(endsWith.attribute))
-          .endsWith(valueToCypherExpression(endsWith.attribute, endsWith.value))
-      case contains: StringContains =>
-        getCorrectProperty(container, attributeAlias.getOrElse(contains.attribute))
-          .contains(valueToCypherExpression(contains.attribute, contains.value))
-      case notNull: IsNotNull => getCorrectProperty(container, attributeAlias.getOrElse(notNull.attribute)).isNotNull
-      case isNull: IsNull => getCorrectProperty(container, attributeAlias.getOrElse(isNull.attribute)).isNull
-      case not: Not => mapSparkFiltersToCypher(not.child, container, attributeAlias).not()
-      case filter@(_: Filter) => throw new IllegalArgumentException(s"Filter of type `$filter` is not supported.")
+      case (_, "=") =>
+        val attribute = predicate.getAttribute.get
+        getCorrectProperty(container, attributeAlias.getOrElse(attribute))
+          .isEqualTo(valueToCypherExpression(attribute, predicate.getValue.get))
+      case (_, ">") =>
+        val attribute = predicate.getAttribute.get
+        getCorrectProperty(container, attributeAlias.getOrElse(attribute))
+          .gt(valueToCypherExpression(attribute, predicate.getValue.get))
+      case (_, ">=") =>
+        val attribute = predicate.getAttribute.get
+        getCorrectProperty(container, attributeAlias.getOrElse(attribute))
+          .gte(valueToCypherExpression(attribute, predicate.getValue.get))
+      case (_, "<") =>
+        val attribute = predicate.getAttribute.get
+        getCorrectProperty(container, attributeAlias.getOrElse(attribute))
+          .lt(valueToCypherExpression(attribute, predicate.getValue.get))
+      case (_, "<=") =>
+        val attribute = predicate.getAttribute.get
+        getCorrectProperty(container, attributeAlias.getOrElse(attribute))
+          .lte(valueToCypherExpression(attribute, predicate.getValue.get))
+      case (_, "IN") =>
+        val attribute = predicate.getAttribute.get
+        getCorrectProperty(container, attributeAlias.getOrElse(attribute))
+          .in(valueToCypherExpression(attribute, predicate.getValue.get))
+      case (_, "STARTS_WITH") =>
+        val attribute = predicate.getAttribute.get
+        getCorrectProperty(container, attributeAlias.getOrElse(attribute))
+          .startsWith(valueToCypherExpression(attribute, predicate.getValue.get))
+      case (_, "ENDS_WITH") =>
+        val attribute = predicate.getAttribute.get
+        getCorrectProperty(container, attributeAlias.getOrElse(attribute))
+          .endsWith(valueToCypherExpression(attribute, predicate.getValue.get))
+      case (_, "CONTAINS") =>
+        val attribute = predicate.getAttribute.get
+        getCorrectProperty(container, attributeAlias.getOrElse(attribute))
+          .contains(valueToCypherExpression(attribute, predicate.getValue.get))
+      case (_, "IS_NOT_NULL") => getCorrectProperty(container, attributeAlias.getOrElse(predicate.getAttribute.get)).isNotNull
+      case (_, "IS_NULL") => getCorrectProperty(container, attributeAlias.getOrElse(predicate.getAttribute.get)).isNull
+      case (not: Not, _) => mapSparkPredicatesToCypher(not.child, container, attributeAlias).not()
+      case _ => throw new IllegalArgumentException(s"Predicate of type `$predicate` is not supported.")
     }
   }
 
@@ -324,10 +335,10 @@ object Neo4jUtil {
 
   def callSchemaService[T](neo4jOptions: Neo4jOptions,
                            jobId: String,
-                           filters: Array[Filter],
+                           predicates: Array[Predicate],
                            function: SchemaService => T): T = {
     val driverCache = new DriverCache(neo4jOptions.connection, jobId)
-    val schemaService = new SchemaService(neo4jOptions, driverCache, filters)
+    val schemaService = new SchemaService(neo4jOptions, driverCache, predicates)
     var hasError = false
     try {
       function(schemaService)

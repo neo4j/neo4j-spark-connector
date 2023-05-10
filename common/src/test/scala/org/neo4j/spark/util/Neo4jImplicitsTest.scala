@@ -59,24 +59,24 @@ class Neo4jImplicitsTest {
   }
 
   @Test
-  def `should return attribute if filter has it` {
+  def `should return attribute if predicate has it` {
     // given
-    val filter = EqualTo("name", "John")
+    val predicate = EqualTo("name", "John").toV2
 
     // when
-    val attribute = filter.getAttribute
+    val attribute = predicate.getAttribute
 
     // then
     assertTrue(attribute.isDefined)
   }
 
   @Test
-  def `should return an empty option if the filter doesn't have an attribute` {
+  def `should return an empty option if the predicate doesn't have an attribute` {
     // given
-    val filter = And(EqualTo("name", "John"), EqualTo("age", 32))
+    val predicate = And(EqualTo("name", "John"), EqualTo("age", 32)).toV2
 
     // when
-    val attribute = filter.getAttribute
+    val attribute = predicate.getAttribute
 
     // then
     assertFalse(attribute.isDefined)
@@ -85,10 +85,10 @@ class Neo4jImplicitsTest {
   @Test
   def `should return the attribute without the entity identifier` {
     // given
-    val filter = EqualTo("person.address.coords", 32)
+    val predicate = EqualTo("person.address.coords", 32).toV2
 
     // when
-    val attribute = filter.getAttributeWithoutEntityName
+    val attribute = predicate.getAttributeWithoutEntityName
 
     // then
     assertEquals("address.coords", attribute.get)

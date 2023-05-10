@@ -2,6 +2,7 @@ package org.neo4j.spark.streaming
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
+import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{DataTypes, StructType}
 import org.neo4j.spark.reader.BasePartitionReader
@@ -13,7 +14,7 @@ import java.util
 import java.util.Collections
 
 class BaseStreamingPartitionReader(private val options: Neo4jOptions,
-                                   private val filters: Array[Filter],
+                                   private val predicates: Array[Predicate],
                                    private val schema: StructType,
                                    private val jobId: String,
                                    private val partitionSkipLimit: PartitionSkipLimit,
@@ -21,7 +22,7 @@ class BaseStreamingPartitionReader(private val options: Neo4jOptions,
                                    private val offsetAccumulator: OffsetStorage[java.lang.Long, java.lang.Long],
                                    private val requiredColumns: StructType,
                                    private val aggregateColumns: Array[AggregateFunc]) extends BasePartitionReader(options,
-    filters,
+    predicates,
     schema,
     jobId,
     partitionSkipLimit,
@@ -31,7 +32,7 @@ class BaseStreamingPartitionReader(private val options: Neo4jOptions,
 
   private val streamingPropertyName = Neo4jUtil.getStreamingPropertyName(options)
 
-  private val streamingField = filters.find(f => f.getAttribute
+  private val streamingField = predicates.find(f => f.getAttribute
       .map(name => name == streamingPropertyName).getOrElse(false))
 
   @volatile
