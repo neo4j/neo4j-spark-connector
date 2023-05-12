@@ -277,7 +277,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       queryReadStrategy.createStatementForNodeCount(options)
     }
     log.info(s"Executing the following counting query on Neo4j: $query")
-    session.run(query, Values.value(Neo4jUtil.paramsFromFilters(predicates).asJava))
+    session.run(query, Values.value(Neo4jUtil.paramsFromPredicates(predicates).asJava))
       .list()
       .asScala
       .map(_.get("count"))

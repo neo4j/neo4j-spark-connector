@@ -1,14 +1,16 @@
 package org.neo4j.spark.util
 
-import org.apache.spark.sql.connector.expressions.{Expression, GeneralScalarExpression, Literal, filter}
+import org.apache.spark.sql.catalyst.util.DateTimeUtils
+import org.apache.spark.sql.connector.expressions.{Expression, GeneralScalarExpression, Literal, NamedReference, filter}
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.expressions.filter.{And, Not, Or, Predicate}
-import org.apache.spark.sql.types.{DataTypes, MapType, StructField, StructType}
+import org.apache.spark.sql.types.{DataTypes, DateType, MapType, StructField, StructType}
 import org.neo4j.driver.types.{Entity, Node, Relationship}
 import org.neo4j.spark.service.SchemaService
 
 import javax.lang.model.SourceVersion
 import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
 
 object Neo4jImplicits {
 
@@ -99,23 +101,34 @@ object Neo4jImplicits {
       expression match {
         case or: Or => Array(or.left.flattenExpressions, or.right.flattenExpressions).flatten
         case and: And => Array(and.left.flattenExpressions, and.right.flattenExpressions).flatten
-        case p: Predicate =>
-          p.children()
+        case p: Predicate => Array(p)
       }
     }
 
-    def getAttribute: Option[String] = expression.references().headOption.flatMap(_.fieldNames().headOption)
+    def getAttribute: Option[String] = expression match {
+      case scalar: GeneralScalarExpression => scalar.name() match {
+        case "STARTS_WITH" | "ENDS_WITH" | "CONTAINS" | "=" | "<>" | "<=>" | "<" | "<=" | ">" | ">=" | "IN" | "IS_NULL" | "IS_NOT_NULL" =>
+          expression.references().headOption.map(_.fieldNames().mkString("."))
+        case _ => Option.empty
+      }
+      case _ => Option.empty
+    }
 
     def getValue: Option[Any] = {
       expression match {
         case scalar: GeneralScalarExpression => scalar.name() match {
           case "STARTS_WITH" | "ENDS_WITH" | "CONTAINS" | "=" | "<>" | "<=>" | "<" | "<=" | ">" | ">=" | "AND" | "OR" =>
-            expression.references().tail.headOption.map(_.asInstanceOf[Literal[_]].value)
+            expression.children().tail.headOption
+              .map {
+                case ref: NamedReference => ref // FIXME
+                case literal: Literal[_] => literal.objectValue()
+                case child => throw new RuntimeException(s"cannot get value for unsupported expression type: ${child.getClass}")
+              }
           case "IN" =>
-            Some(expression.references().tail.map(_.asInstanceOf[Literal[_]].value))
-          case _ => null
+            Some(expression.children().tail.mapInstanceOf[Literal[_]]().map(_.objectValue()))
+          case _ => Option.empty
         }
-        case _ => null
+        case _ => Option.empty
       }
     }
 
@@ -147,37 +160,53 @@ object Neo4jImplicits {
     }
   }
 
-    implicit class StructTypeImplicit(structType: StructType) {
-      private def isValidMapOrStructField(field: String, structFieldName: String) = {
-        val value: String = """(`.*`)|([^\.]*)""".r.findFirstIn(field).getOrElse("")
-        structFieldName == value.unquote() || structFieldName == value
-      }
-
-      def getByName(name: String): Option[StructField] = {
-        val index = structType.fieldIndex(name)
-        if (index > -1) Some(structType(index)) else None
-      }
-
-      def getFieldIndex(fieldName: String): Long = structType.fields.map(_.name).indexOf(fieldName)
-
-      def getMissingFields(fields: Set[String]): Set[String] = fields
-        .map(field => {
-          val maybeField = structType
-            .find(structField => {
-              structField.dataType match {
-                case _: MapType => isValidMapOrStructField(field, structField.name)
-                case _: StructType => isValidMapOrStructField(field, structField.name)
-                case _ => structField.name == field.unquote() || structField.name == field
-              }
-            })
-          field -> maybeField.isDefined
-        })
-        .filterNot(e => e._2)
-        .map(e => e._1)
-    }
-
-    implicit class AggregationImplicit(aggregation: Aggregation) {
-      def groupByCols(): Array[Expression] = ReflectionUtils.groupByCols(aggregation)
-    }
-
+  implicit class LiteralImplicit[T](literal: Literal[T]) {
+    def objectValue(): Any = Neo4jUtil.convertFromSpark(literal.value(), StructField("", literal.dataType()))
   }
+
+  implicit class OptionImplicit[T](option: Option[T]) {
+    def mapInstanceOf[U: ClassTag](): Option[U] = {
+      option.filter(x => x.isInstanceOf[U]).map(_.asInstanceOf[U])
+    }
+  }
+
+  implicit class ArrayImplicit[T](array: Array[T]) {
+    def mapInstanceOf[U: ClassTag](): Array[U] = {
+      array.filter(_.isInstanceOf[U]).map(_.asInstanceOf[U])
+    }
+  }
+
+  implicit class StructTypeImplicit(structType: StructType) {
+    private def isValidMapOrStructField(field: String, structFieldName: String) = {
+      val value: String = """(`.*`)|([^\.]*)""".r.findFirstIn(field).getOrElse("")
+      structFieldName == value.unquote() || structFieldName == value
+    }
+
+    def getByName(name: String): Option[StructField] = {
+      val index = structType.fieldIndex(name)
+      if (index > -1) Some(structType(index)) else None
+    }
+
+    def getFieldIndex(fieldName: String): Long = structType.fields.map(_.name).indexOf(fieldName)
+
+    def getMissingFields(fields: Set[String]): Set[String] = fields
+      .map(field => {
+        val maybeField = structType
+          .find(structField => {
+            structField.dataType match {
+              case _: MapType => isValidMapOrStructField(field, structField.name)
+              case _: StructType => isValidMapOrStructField(field, structField.name)
+              case _ => structField.name == field.unquote() || structField.name == field
+            }
+          })
+        field -> maybeField.isDefined
+      })
+      .filterNot(e => e._2)
+      .map(e => e._1)
+  }
+
+  implicit class AggregationImplicit(aggregation: Aggregation) {
+    def groupByCols(): Array[Expression] = ReflectionUtils.groupByCols(aggregation)
+  }
+
+}

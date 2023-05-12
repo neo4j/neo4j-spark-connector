@@ -1,5 +1,6 @@
 package org.neo4j.spark.util
 
+import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.connector.expressions.NamedReference
 import org.apache.spark.sql.connector.expressions.aggregate.{Aggregation, Sum}
 import org.apache.spark.sql.sources.{And, EqualTo}

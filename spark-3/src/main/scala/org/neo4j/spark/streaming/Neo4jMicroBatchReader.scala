@@ -3,6 +3,7 @@ package org.neo4j.spark.streaming
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
+import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.connector.read.streaming.{MicroBatchStream, Offset}
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory}
 import org.apache.spark.sql.sources.{Filter, GreaterThan}
@@ -35,28 +36,28 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
 
   private var lastUsedOffset: Neo4jOffset = null
 
-  private var filters: Array[Filter] = Array.empty[Filter]
+  private var predicates: Array[Predicate] = Array.empty
 
   override def deserializeOffset(json: String): Offset = Neo4jOffset(json.toLong)
 
   override def commit(end: Offset): Unit = { }
 
   override def planInputPartitions(start: Offset, end: Offset): Array[InputPartition] = {
-    this.filters = if (start.asInstanceOf[Neo4jOffset].offset != StreamingFrom.ALL.value()) {
+    this.predicates = if (start.asInstanceOf[Neo4jOffset].offset != StreamingFrom.ALL.value()) {
       val prop = Neo4jUtil.getStreamingPropertyName(neo4jOptions)
-      Array(GreaterThan(prop, latestOffset().asInstanceOf[Neo4jOffset].offset))
+      Array(GreaterThan(prop, latestOffset().asInstanceOf[Neo4jOffset].offset).toV2)
     }
     else {
-      this.filters
+      this.predicates
     }
 
     val partitions = Neo4jUtil.callSchemaService(
-      neo4jOptions, jobId, filters,
+      neo4jOptions, jobId, predicates,
       { schemaService => schemaService.skipLimitFromPartition() }
     )
 
     partitions
-      .map(p => Neo4jStreamingPartition(p, filters))
+      .map(p => Neo4jStreamingPartition(p, predicates))
       .toArray
   }
 
@@ -85,7 +86,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
     // so we check if
     if (lastUsedOffset != null && currentOffset.offset == lastUsedOffset.offset) {
       // there is a database change by invoking the last offset inserted
-      val lastNeo4jOffset = Neo4jUtil.callSchemaService[Long](neo4jOptions, jobId, filters, {
+      val lastNeo4jOffset = Neo4jUtil.callSchemaService[Long](neo4jOptions, jobId, predicates, {
         schemaService =>
           try {
             schemaService.lastOffset()

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.{JsonSerializer, ObjectMapper, SerializerP
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{GenericRowWithSchema, UnsafeArrayData, UnsafeMapData, UnsafeRow}
 import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, DateTimeUtils}
+import org.apache.spark.sql.connector.expressions.NamedReference
 import org.apache.spark.sql.connector.expressions.filter.{Not, Predicate}
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -250,7 +251,7 @@ object Neo4jUtil {
     container.property(attribute.split('.'): _*)
   }
 
-  def paramsFromFilters(predicates: Array[Predicate]): Map[String, Any] = {
+  def paramsFromPredicates(predicates: Array[Predicate]): Map[String, Any] = {
     predicates.flatMap(f => f.flattenExpressions)
       .map(_.getAttributeAndValue)
       .filter(_.nonEmpty)
@@ -271,6 +272,7 @@ object Neo4jUtil {
     value match {
       case d: java.sql.Date => Functions.date(parameter)
       case t: java.sql.Timestamp => Functions.localdatetime(parameter)
+      case ref: NamedReference => Cypher.parameter(ref.fieldNames().mkString(".")) // FIXME: not a parameter
       case _ => parameter
     }
   }

@@ -38,7 +38,7 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
   private lazy val values = {
     val params = mutable.HashMap[String, Any]()
     params.put(Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT, scriptResult)
-    Neo4jUtil.paramsFromFilters(predicates)
+    Neo4jUtil.paramsFromPredicates(predicates)
       .foreach(p => params.put(p._1, p._2))
 
     params.asJava

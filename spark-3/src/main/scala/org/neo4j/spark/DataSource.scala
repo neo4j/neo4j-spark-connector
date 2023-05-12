@@ -26,7 +26,7 @@ class DataSource extends TableProvider
     if (schema == null) {
       val neo4jOpts = getNeo4jOptions(caseInsensitiveStringMap)
       Validations.validate(ValidateConnection(neo4jOpts, jobId))
-      schema = Neo4jUtil.callSchemaService(neo4jOpts, jobId, Array.empty[Filter], { schemaService => schemaService.struct() })
+      schema = Neo4jUtil.callSchemaService(neo4jOpts, jobId, Array.empty, { schemaService => schemaService.struct() })
     }
 
     schema
