@@ -1,12 +1,14 @@
 package org.neo4j.spark.util
 
-import org.apache.logging.log4j.{LogManager, Logger}
-import org.apache.spark.sql.connector.expressions.Expression
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
-import org.apache.spark.sql.sources.{And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
+import org.apache.spark.sql.connector.expressions.filter.Predicate
+import org.apache.spark.sql.connector.expressions.{Expression, Literal, filter}
+import org.apache.spark.sql.sources.{AlwaysFalse, AlwaysTrue, And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
 import org.apache.spark.sql.types.{DataTypes, MapType, StructField, StructType}
+import org.neo4j.driver.Value
 import org.neo4j.driver.types.{Entity, Node, Relationship}
 import org.neo4j.spark.service.SchemaService
+import org.neo4j.spark.util.Neo4jUtil.convertFromSpark
 
 import javax.lang.model.SourceVersion
 import scala.collection.JavaConverters._
@@ -92,6 +94,57 @@ object Neo4jImplicits {
         }
       }
       (entityFields ++ entityMap).asJava
+    }
+  }
+
+  implicit class PredicateImplicit(predicate: Predicate) {
+
+    def toFilter: Filter = {
+      predicate.name() match {
+        case "IS_NULL" => IsNull(predicate.rawAttributeName())
+        case "IS_NOT_NULL" => IsNotNull(predicate.rawAttributeName())
+        case "STARTS_WITH" => StringStartsWith(predicate.rawAttributeName(), predicate.rawLiteralValue().asString())
+        case "ENDS_WITH" => StringEndsWith(predicate.rawAttributeName(), predicate.rawLiteralValue().asString())
+        case "CONTAINS" => StringContains(predicate.rawAttributeName(), predicate.rawLiteralValue().asString())
+        case "IN" => In(predicate.rawAttributeName(), predicate.rawLiteralValues())
+        case "=" => EqualTo(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
+        case "<>" => Not(EqualTo(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject()))
+        case "<=>" => EqualNullSafe(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
+        case "<" => LessThan(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
+        case "<=" => LessThanOrEqual(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
+        case ">" => GreaterThan(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
+        case ">=" => GreaterThan(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
+        case "AND" =>
+          val andPredicate = predicate.asInstanceOf[filter.And]
+          And(andPredicate.left().toFilter, andPredicate.right().toFilter
+          )
+        case "OR" =>
+          val orPredicate = predicate.asInstanceOf[filter.Or]
+          Or(orPredicate.left().toFilter, orPredicate.right().toFilter
+          )
+        case "NOT" =>
+          val notPredicate = predicate.asInstanceOf[filter.Not]
+          Not(notPredicate.child().toFilter
+          )
+        case "ALWAYS_TRUE" => AlwaysTrue
+        case "ALWAYS_FALSE" => AlwaysFalse
+      }
+    }
+
+    def rawAttributeName(): String = {
+      predicate.references().head.fieldNames().mkString(".")
+    }
+
+    def rawLiteralValue(): Value = {
+      val literalValue = predicate.children().filter(_.isInstanceOf[Literal[_]]).map(_.asInstanceOf[Literal[_]]).head
+      convertFromSpark(literalValue.value(), StructField("", literalValue.dataType()))
+    }
+
+    def rawLiteralValues(): Array[Any] = {
+      predicate.children()
+        .filter(_.isInstanceOf[Literal[_]])
+        .map(_.asInstanceOf[Literal[_]])
+        .map(v => convertFromSpark(v.value(), StructField("", v.dataType())).asObject())
     }
   }
 

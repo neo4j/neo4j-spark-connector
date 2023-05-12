@@ -155,7 +155,7 @@ object Neo4jUtil {
     case _ => throw new UnsupportedOperationException(s"$dataType not supported")
   }
 
-  def convertFromSpark(value: Any, schema: StructField = null): AnyRef = value match {
+  def convertFromSpark(value: Any, schema: StructField = null): Value = value match {
     case date: java.sql.Date => convertFromSpark(date.toLocalDate, schema)
     case timestamp: java.sql.Timestamp => convertFromSpark(timestamp.toInstant.atZone(ZoneOffset.UTC), schema)
     case intValue: Int if schema != null && schema.dataType == DataTypes.DateType => convertFromSpark(DateTimeUtils
