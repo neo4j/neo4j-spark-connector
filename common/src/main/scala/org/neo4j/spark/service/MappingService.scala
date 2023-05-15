@@ -128,7 +128,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
           case map: MapValue =>
             map.asMap().asScala.toMap
               .flattenMap(field.name, options.schemaMetadata.mapGroupDuplicateKeys)
-              .mapValues(Values.value)
+              .mapValues(value => Values.value(value).asInstanceOf[AnyRef])
               .toSeq
           case _ => Seq((field.name, neo4jValue))
         }
