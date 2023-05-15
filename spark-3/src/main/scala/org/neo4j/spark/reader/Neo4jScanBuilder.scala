@@ -21,7 +21,7 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
   private var aggregateColumns: Array[AggregateFunc] = Array.empty[AggregateFunc]
 
   override def build(): Scan = {
-    new Neo4jScan(neo4jOptions, jobId, requiredSchema, predicates.map(_.toFilter), requiredColumns, aggregateColumns)
+    new Neo4jScan(neo4jOptions, jobId, requiredSchema, predicates.flatMap(_.toFilter), requiredColumns, aggregateColumns)
   }
 
   override def pushPredicates(predicatesArray: Array[Predicate]): Array[Predicate] = {

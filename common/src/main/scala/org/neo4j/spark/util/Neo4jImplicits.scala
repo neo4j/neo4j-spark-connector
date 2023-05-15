@@ -99,35 +99,40 @@ object Neo4jImplicits {
 
   implicit class PredicateImplicit(predicate: Predicate) {
 
-    def toFilter: Filter = {
+    def toFilter: Option[Filter] = {
       predicate.name() match {
-        case "IS_NULL" => IsNull(predicate.rawAttributeName())
-        case "IS_NOT_NULL" => IsNotNull(predicate.rawAttributeName())
-        case "STARTS_WITH" => StringStartsWith(predicate.rawAttributeName(), predicate.rawLiteralValue().asString())
-        case "ENDS_WITH" => StringEndsWith(predicate.rawAttributeName(), predicate.rawLiteralValue().asString())
-        case "CONTAINS" => StringContains(predicate.rawAttributeName(), predicate.rawLiteralValue().asString())
-        case "IN" => In(predicate.rawAttributeName(), predicate.rawLiteralValues())
-        case "=" => EqualTo(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
-        case "<>" => Not(EqualTo(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject()))
-        case "<=>" => EqualNullSafe(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
-        case "<" => LessThan(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
-        case "<=" => LessThanOrEqual(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
-        case ">" => GreaterThan(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
-        case ">=" => GreaterThanOrEqual(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
+        case "IS_NULL" => Some(IsNull(predicate.rawAttributeName()))
+        case "IS_NOT_NULL" => Some(IsNotNull(predicate.rawAttributeName()))
+        case "STARTS_WITH" => predicate.rawLiteralValue().map(lit => StringStartsWith(predicate.rawAttributeName(), lit.asString()))
+        case "ENDS_WITH" => predicate.rawLiteralValue().map(lit => StringEndsWith(predicate.rawAttributeName(), lit.asString()))
+        case "CONTAINS" => predicate.rawLiteralValue().map(lit => StringContains(predicate.rawAttributeName(), lit.asString()))
+        case "IN" => Some(In(predicate.rawAttributeName(), predicate.rawLiteralValues()))
+        case "=" => predicate.rawLiteralValue().map(lit => EqualTo(predicate.rawAttributeName(), lit.asObject()))
+        case "<>" => predicate.rawLiteralValue().map(lit => Not(EqualTo(predicate.rawAttributeName(), lit.asObject())))
+        case "<=>" => predicate.rawLiteralValue().map(lit => EqualNullSafe(predicate.rawAttributeName(), lit.asObject()))
+        case "<" => predicate.rawLiteralValue().map(lit => LessThan(predicate.rawAttributeName(), lit.asObject()))
+        case "<=" => predicate.rawLiteralValue().map(lit => LessThanOrEqual(predicate.rawAttributeName(), lit.asObject()))
+        case ">" => predicate.rawLiteralValue().map(lit => GreaterThan(predicate.rawAttributeName(), lit.asObject()))
+        case ">=" => predicate.rawLiteralValue().map(lit => GreaterThanOrEqual(predicate.rawAttributeName(), lit.asObject()))
         case "AND" =>
           val andPredicate = predicate.asInstanceOf[filter.And]
-          And(andPredicate.left().toFilter, andPredicate.right().toFilter
-          )
+          (andPredicate.left().toFilter, andPredicate.right().toFilter) match {
+            case (_, None) => None
+            case (None, _) => None
+            case (Some(left), Some(right)) => Some(And(left, right))
+          }
         case "OR" =>
-          val orPredicate = predicate.asInstanceOf[filter.Or]
-          Or(orPredicate.left().toFilter, orPredicate.right().toFilter
-          )
+          val andPredicate = predicate.asInstanceOf[filter.Or]
+          (andPredicate.left().toFilter, andPredicate.right().toFilter) match {
+            case (_, None) => None
+            case (None, _) => None
+            case (Some(left), Some(right)) => Some(Or(left, right))
+          }
         case "NOT" =>
           val notPredicate = predicate.asInstanceOf[filter.Not]
-          Not(notPredicate.child().toFilter
-          )
-        case "ALWAYS_TRUE" => AlwaysTrue
-        case "ALWAYS_FALSE" => AlwaysFalse
+          notPredicate.child().toFilter.map(Not)
+        case "ALWAYS_TRUE" => Some(AlwaysTrue)
+        case "ALWAYS_FALSE" => Some(AlwaysFalse)
       }
     }
 
@@ -135,9 +140,12 @@ object Neo4jImplicits {
       predicate.references().head.fieldNames().mkString(".")
     }
 
-    def rawLiteralValue(): Value = {
-      val literalValue = predicate.children().filter(_.isInstanceOf[Literal[_]]).map(_.asInstanceOf[Literal[_]]).head
-      convertFromSpark(literalValue.value(), literalValue.dataType())
+    def rawLiteralValue(): Option[Value] = {
+      predicate.children()
+        .filter(_.isInstanceOf[Literal[_]])
+        .map(_.asInstanceOf[Literal[_]])
+        .headOption
+        .map(literal => convertFromSpark(literal.value(), literal.dataType()))
     }
 
     def rawLiteralValues(): Array[Any] = {
