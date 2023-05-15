@@ -123,7 +123,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     schema.indices
       .flatMap(i => {
         val field = schema(i)
-        val neo4jValue = Neo4jUtil.convertFromSpark(seq(i), field)
+        val neo4jValue = Neo4jUtil.convertFromSpark(seq(i), field.dataType)
         neo4jValue match {
           case map: MapValue =>
             map.asMap().asScala.toMap

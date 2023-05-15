@@ -68,7 +68,7 @@ object Neo4jImplicits {
           Seq(StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.LongType, nullable = false),
             StructField(Neo4jUtil.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true))
         }
-        case relationship: Relationship => {
+        case _: Relationship => {
           Seq(StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.LongType, nullable = false),
             StructField(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, DataTypes.StringType, nullable = false),
             StructField(Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD, DataTypes.LongType, nullable = false),
@@ -137,14 +137,14 @@ object Neo4jImplicits {
 
     def rawLiteralValue(): Value = {
       val literalValue = predicate.children().filter(_.isInstanceOf[Literal[_]]).map(_.asInstanceOf[Literal[_]]).head
-      convertFromSpark(literalValue.value(), StructField("", literalValue.dataType()))
+      convertFromSpark(literalValue.value(), literalValue.dataType())
     }
 
     def rawLiteralValues(): Array[Any] = {
       predicate.children()
         .filter(_.isInstanceOf[Literal[_]])
         .map(_.asInstanceOf[Literal[_]])
-        .map(v => convertFromSpark(v.value(), StructField("", v.dataType())).asObject())
+        .map(v => convertFromSpark(v.value(), v.dataType()).asObject())
     }
   }
 

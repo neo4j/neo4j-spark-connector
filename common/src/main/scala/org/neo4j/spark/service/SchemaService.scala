@@ -701,8 +701,8 @@ object SchemaService {
 
   def cypherToSparkType(cypherType: String, value: Any = null): DataType = {
     cypherType.replaceAll(cleanTerms, "") match {
-      case "Node" | "Relationship" => if (value != null) value.asInstanceOf[Entity].toStruct() else DataTypes.NullType
-      case "NodeArray" | "RelationshipArray" => if (value != null) DataTypes.createArrayType(value.asInstanceOf[Entity].toStruct()) else DataTypes.NullType
+      case "Node" | "Relationship" => if (value != null) value.asInstanceOf[Entity].toStruct else DataTypes.NullType
+      case "NodeArray" | "RelationshipArray" => if (value != null) DataTypes.createArrayType(value.asInstanceOf[Entity].toStruct) else DataTypes.NullType
       case "Boolean" => DataTypes.BooleanType
       case "Long" => DataTypes.LongType
       case "Double" => DataTypes.DoubleType

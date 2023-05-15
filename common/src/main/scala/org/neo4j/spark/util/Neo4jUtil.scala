@@ -69,7 +69,7 @@ object Neo4jUtil {
   module.addSerializer(classOf[Entity], new JsonSerializer[Entity]() {
     override def serialize(entity: Entity,
                            jsonGenerator: JsonGenerator,
-                           serializerProvider: SerializerProvider): Unit = jsonGenerator.writeObject(entity.toMap())
+                           serializerProvider: SerializerProvider): Unit = jsonGenerator.writeObject(entity.toMap)
   })
   mapper.registerModule(module)
 
@@ -155,15 +155,15 @@ object Neo4jUtil {
     case _ => throw new UnsupportedOperationException(s"$dataType not supported")
   }
 
-  def convertFromSpark(value: Any, schema: StructField = null): Value = value match {
-    case date: java.sql.Date => convertFromSpark(date.toLocalDate, schema)
-    case timestamp: java.sql.Timestamp => convertFromSpark(timestamp.toInstant.atZone(ZoneOffset.UTC), schema)
-    case intValue: Int if schema != null && schema.dataType == DataTypes.DateType => convertFromSpark(DateTimeUtils
-      .toJavaDate(intValue), schema)
-    case longValue: Long if schema != null && schema.dataType == DataTypes.TimestampType => convertFromSpark(DateTimeUtils
-      .toJavaTimestamp(longValue), schema)
+  def convertFromSpark(value: Any, dataType: DataType = null): Value = value match {
+    case date: java.sql.Date => convertFromSpark(date.toLocalDate, dataType)
+    case timestamp: java.sql.Timestamp => convertFromSpark(timestamp.toInstant.atZone(ZoneOffset.UTC), dataType)
+    case intValue: Int if dataType != null && dataType == DataTypes.DateType => convertFromSpark(DateTimeUtils
+      .toJavaDate(intValue), dataType)
+    case longValue: Long if dataType != null && dataType == DataTypes.TimestampType => convertFromSpark(DateTimeUtils
+      .toJavaTimestamp(longValue), dataType)
     case unsafeRow: UnsafeRow => {
-      val structType = extractStructType(schema.dataType)
+      val structType = extractStructType(dataType)
       val row = new GenericRowWithSchema(unsafeRow.toSeq(structType).toArray, structType)
       convertFromSpark(row)
     }
@@ -171,7 +171,7 @@ object Neo4jUtil {
       def toMap(struct: GenericRowWithSchema): Value = {
         Values.value(
           struct.schema.fields.map(
-            f => f.name -> Neo4jUtil.convertFromSpark(struct.getAs(f.name), f)
+            f => f.name -> Neo4jUtil.convertFromSpark(struct.getAs(f.name), f.dataType)
           ).toMap.asJava)
       }
 
@@ -197,18 +197,18 @@ object Neo4jUtil {
       }
     }
     case unsafeArray: UnsafeArrayData => {
-      val sparkType = schema.dataType match {
+      val sparkType = dataType match {
         case arrayType: ArrayType => arrayType.elementType
-        case _ => schema.dataType
+        case _ => dataType
       }
       val javaList = unsafeArray.toSeq[AnyRef](sparkType)
-        .map(elem => convertFromSpark(elem, StructField("", sparkType, true)))
+        .map(elem => convertFromSpark(elem, sparkType))
         .asJava
       Values.value(javaList)
     }
     case unsafeMapData: UnsafeMapData => { // Neo4j only supports Map[String, AnyRef]
-      val mapType = schema.dataType.asInstanceOf[MapType]
-      val map: Map[String, AnyRef] = (0 to unsafeMapData.numElements() - 1)
+      val mapType = dataType.asInstanceOf[MapType]
+      val map: Map[String, AnyRef] = (0 until unsafeMapData.numElements())
         .map(i => (unsafeMapData.keyArray().getUTF8String(i).toString, unsafeMapData.valueArray().get(i, mapType.valueType)))
         .toMap[String, AnyRef]
         .mapValues(innerValue => convertFromSpark(innerValue, StructField("", mapType.valueType, true)))
