@@ -422,7 +422,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def testReadNodeWithEqualToTimestampFilter(): Unit = {
+  def testReadNodeWithTimestampGteFilter(): Unit = {
     val localDateTime = "2007-12-03T10:15:30"
     val df: DataFrame = initTest(
       s"""
