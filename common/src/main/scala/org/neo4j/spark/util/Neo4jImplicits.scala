@@ -113,7 +113,7 @@ object Neo4jImplicits {
         case "<" => LessThan(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
         case "<=" => LessThanOrEqual(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
         case ">" => GreaterThan(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
-        case ">=" => GreaterThan(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
+        case ">=" => GreaterThanOrEqual(predicate.rawAttributeName(), predicate.rawLiteralValue().asObject())
         case "AND" =>
           val andPredicate = predicate.asInstanceOf[filter.And]
           And(andPredicate.left().toFilter, andPredicate.right().toFilter
