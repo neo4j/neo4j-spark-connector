@@ -55,7 +55,7 @@ object Neo4jImplicits {
   }
 
   implicit class EntityImplicits(entity: Entity) {
-    def toStruct(): StructType = {
+    def toStruct: StructType = {
       val fields = entity.asMap().asScala
         .groupBy(_._1)
         .map(t => {
@@ -64,22 +64,22 @@ object Neo4jImplicits {
           StructField(t._1, SchemaService.cypherToSparkType(cypherType))
         })
       val entityFields = entity match {
-        case node: Node => {
+        case _: Node => {
           Seq(StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.LongType, nullable = false),
             StructField(Neo4jUtil.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true))
         }
         case relationship: Relationship => {
-          Seq(StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.LongType, false),
-            StructField(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, DataTypes.StringType, false),
-            StructField(Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD, DataTypes.LongType, false),
-            StructField(Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD, DataTypes.LongType, false))
+          Seq(StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.LongType, nullable = false),
+            StructField(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, DataTypes.StringType, nullable = false),
+            StructField(Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD, DataTypes.LongType, nullable = false),
+            StructField(Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD, DataTypes.LongType, nullable = false))
         }
       }
 
       StructType(entityFields ++ fields)
     }
 
-    def toMap(): java.util.Map[String, Any] = {
+    def toMap: java.util.Map[String, Any] = {
       val entityMap = entity.asMap().asScala
       val entityFields = entity match {
         case node: Node => {

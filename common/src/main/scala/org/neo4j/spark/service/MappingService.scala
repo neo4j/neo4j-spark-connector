@@ -120,7 +120,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
 
   override def query(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     val seq = row.toSeq(schema)
-    (0 to schema.size - 1)
+    schema.indices
       .flatMap(i => {
         val field = schema(i)
         val neo4jValue = Neo4jUtil.convertFromSpark(seq(i), field)
