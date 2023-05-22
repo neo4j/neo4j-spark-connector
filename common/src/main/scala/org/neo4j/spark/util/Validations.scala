@@ -50,7 +50,7 @@ case class ValidateSparkVersion(supportedVersions: String*) extends Validation {
     val sparkVersion = SparkSession.getActiveSession
       .map(_.version)
       .getOrElse("UNKNOWN")
-    val splittedVersion = sparkVersion.split("\\.")
+    val splittedVersion = sparkVersion.split("-")(0).split("\\.")
 
     ValidationUtil.isTrue(
       sparkVersion == "UNKNOWN" || supportedVersions
