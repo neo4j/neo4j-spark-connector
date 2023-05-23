@@ -250,6 +250,80 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     StructType(sortedStructFields)
   }
 
+  def structForGDS(): StructType = {
+    val query =
+      """
+        |CALL gds.list() YIELD name, signature
+        |WHERE name = $procName
+        |WITH split(signature, ') :: (')[1] AS fields
+        |WITH substring(fields, 0, size(fields) - 1) AS fields
+        |WITH split(fields, ',') AS fields
+        |WITH [field IN fields | split(field, ' :: ')] AS fields
+        |UNWIND fields AS field
+        |WITH field
+        |RETURN *
+        |""".stripMargin
+    val map: util.Map[String, AnyRef] = Map[String, AnyRef]("procName" -> options.query.value).asJava
+    val fields = session.run(query, map).list.asScala
+      .map(r => r.get("field").asList((t: Value) => t.asString()).asScala)
+      .map(r => (r.head.trim, r(1).replaceAll("\\?", "") match {
+        case "STRING" => ("String", null)
+        case "INTEGER" => ("Long", null)
+        case "FLOAT" | "NUMBER" => ("Double", null)
+        case "DATETIME" => ("DateTime", null)
+        case "BOOLEAN" => ("Boolean", null)
+        case "LOCALTIME" => ("LocalTime", null)
+        case "LIST OF INTEGER" => ("LongArray", null)
+        case "LIST OF FLOAT" => ("DoubleArray", null)
+        case "LIST OF FLOAT" => ("DoubleArray", null)
+        case "LIST OF STRING" => ("StringArray", null)
+        case "MAP" =>
+          logWarning(
+            s"""
+               |For procedure ${options.query.value}
+               |Neo4j return type MAP? of field ${r.head.trim} not fully supported.
+               |We'll coerce it to a Map<String, String>
+               |""".stripMargin)
+          ("Map", Map("key" -> "").asJava) // dummy value
+        case "LIST OF MAP" =>
+          logWarning(
+            s"""
+               |For procedure ${options.query.value}
+               |Neo4j return type LIST? OF MAP? of field ${r.head.trim} not fully supported.
+               |We'll coerce it to a [Map<String, String>]
+               |""".stripMargin)
+          ("MapArray", Seq(Map("key" -> "").asJava).asJava) // dummy value
+        case "PATH" => ("Path", null)
+        case _ => throw new IllegalArgumentException(s"Neo4j type ${r(1)} not supported")
+      }))
+      .map(r => StructField(r._1, cypherToSparkType(r._2._1, r._2._2)))
+      .toSeq
+    StructType(fields)
+  }
+
+  def inputForGDSProc(procName: String): Seq[(String, Boolean)]  = {
+    val query =
+      """
+        |WITH $procName AS procName
+        |CALL gds.list() YIELD name, signature
+        |WHERE name = procName
+        |WITH replace(signature, procName + '(', '') AS signature
+        |WITH split(signature, ') :: (')[0] AS fields
+        |WITH substring(fields, 0, size(fields) - 1) AS fields
+        |WITH split(fields, ',') AS fields
+        |WITH [field IN fields | split(field, ' :: ')] AS fields
+        |UNWIND fields AS field
+        |WITH trim(split(field[0], ' = ')[0]) AS fieldName, field[0] contains ' = ' AS optional
+        |RETURN *
+        |""".stripMargin
+    val map: util.Map[String, AnyRef] = Map[String, AnyRef]("procName" -> procName).asJava
+    session.run(query, map)
+      .list
+      .asScala
+      .map(r => (r.get("fieldName").asString(), r.get("optional").asBoolean()))
+      .toSeq
+  }
+
   private def getReturnedColumns(query: String): Array[String] = session.run("EXPLAIN " + query)
     .keys().asScala.toArray
 
@@ -258,6 +332,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       case QueryType.LABELS => structForNode()
       case QueryType.RELATIONSHIP => structForRelationship()
       case QueryType.QUERY => structForQuery()
+      case QueryType.GDS => structForGDS()
     }
 
     struct
@@ -418,9 +493,22 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   }
 
+  def isGdsProcedure(procName: String): Boolean = {
+    val params: util.Map[String, AnyRef] = Map[String, AnyRef]("procName" -> procName).asJava
+    session.run(
+      """
+        |CALL gds.list() YIELD name
+        |WHERE name = $procName
+        |RETURN count(*) = 1
+        |""".stripMargin, params)
+      .peek()
+      .get(0)
+      .asBoolean()
+  }
+
   def isValidQuery(query: String, expectedQueryTypes: org.neo4j.driver.summary.QueryType*): Boolean = try {
     val queryType = session.run(s"EXPLAIN $query").consume().queryType()
-    expectedQueryTypes.size == 0 || expectedQueryTypes.contains(queryType)
+    expectedQueryTypes.isEmpty || expectedQueryTypes.contains(queryType)
   } catch {
     case e: Throwable => {
       if (log.isDebugEnabled) {
@@ -573,7 +661,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       .groupBy(_._1)
       .mapValues(_.map(_._2))
     val schemaQueries = queryMap.getOrElse(org.neo4j.driver.summary.QueryType.SCHEMA_WRITE, Seq.empty[String])
-    schemaQueries.foreach(session.run(_))
+    schemaQueries.foreach(session.run)
     val others = queryMap
       .filterKeys(key => key != org.neo4j.driver.summary.QueryType.SCHEMA_WRITE)
       .values
@@ -586,14 +674,14 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         .writeTransaction(new TransactionWork[util.List[java.util.Map[String, AnyRef]]] {
           override def execute(transaction: Transaction): util.List[util.Map[String, AnyRef]] = {
             others.size match {
-              case 1 => transaction.run(others(0)).list()
+              case 1 => transaction.run(others.head).list()
                 .asScala
                 .map(_.asMap())
                 .asJava
               case _ => {
                 others
                   .slice(0, queries.size - 1)
-                  .foreach(transaction.run(_))
+                  .foreach(transaction.run)
                 val result = transaction.run(others.last).list()
                   .asScala
                   .map(_.asMap())
@@ -683,7 +771,7 @@ object SchemaService {
     DataTypes.createStructField("value", DataTypes.StringType, false)
   ))
 
-  private val cleanTerms = "Unmodifiable|Internal|Iso|2D|3D|Offset|Local|Zoned"
+  private val cleanTerms: String = "Unmodifiable|Internal|Iso|2D|3D|Offset|Local|Zoned"
 
   def normalizedClassName(value: AnyRef): String = value match {
     case list: java.util.List[_] => "Array"

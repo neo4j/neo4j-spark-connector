@@ -24,7 +24,7 @@ class DriverCache(private val options: Neo4jDriverOptions, private val jobId: St
   def close(): Unit = {
     this.synchronized {
       jobIdCache.remove(jobId)
-      if(jobIdCache.isEmpty) {
+      if (jobIdCache.isEmpty) {
         val driver = cache.remove(options)
         if (driver != null) {
           Neo4jUtil.closeSafety(driver)

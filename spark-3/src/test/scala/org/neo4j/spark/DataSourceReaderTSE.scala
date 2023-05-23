@@ -26,7 +26,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       org.junit.Assert.fail("Expected to throw an exception")
     } catch {
       case e: IllegalArgumentException =>
-        assertEquals("No valid option found. One of `query`, `labels`, `relationship` is required", e.getMessage)
+        assertEquals("No valid option found. One of `GDS`, `LABELS`, `QUERY`, `RELATIONSHIP` is required", e.getMessage)
       case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
@@ -43,7 +43,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       org.junit.Assert.fail("Expected to throw an exception")
     } catch {
       case e: IllegalArgumentException =>
-        assertEquals("You need to specify just one of these options: 'labels', 'query', 'relationship'", e.getMessage)
+        assertEquals("You need to specify just one of these options: 'gds', 'labels', 'query', 'relationship'", e.getMessage)
       case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
@@ -61,7 +61,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       org.junit.Assert.fail("Expected to throw an exception")
     } catch {
       case e: IllegalArgumentException =>
-        assertEquals("You need to specify just one of these options: 'labels', 'query', 'relationship'", e.getMessage)
+        assertEquals("You need to specify just one of these options: 'gds', 'labels', 'query', 'relationship'", e.getMessage)
       case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }

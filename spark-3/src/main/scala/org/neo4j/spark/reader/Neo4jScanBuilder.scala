@@ -1,10 +1,10 @@
 package org.neo4j.spark.reader
 
+import org.apache.spark.sql.connector.expressions.Expression
 import org.apache.spark.sql.connector.expressions.aggregate.{AggregateFunc, Aggregation}
 import org.apache.spark.sql.connector.expressions.filter.Predicate
-import org.apache.spark.sql.connector.read.{Scan, ScanBuilder, SupportsPushDownAggregates, SupportsPushDownFilters, SupportsPushDownRequiredColumns, SupportsPushDownV2Filters}
-import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
+import org.apache.spark.sql.connector.read.{Scan, SupportsPushDownAggregates, SupportsPushDownRequiredColumns, SupportsPushDownV2Filters}
+import org.apache.spark.sql.types.{LongType, StructField, StructType}
 import org.neo4j.spark.util.Neo4jImplicits.{AggregationImplicit, CypherImplicits, PredicateImplicit}
 import org.neo4j.spark.util.{Neo4jOptions, QueryType}
 
@@ -35,13 +35,10 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
   override def pushedPredicates(): Array[Predicate] = predicates
 
   override def pruneColumns(newSchema: StructType): Unit = {
-    requiredColumns = if (
-      !neo4jOptions.pushdownColumnsEnabled || neo4jOptions.relationshipMetadata.nodeMap
-      || newSchema == schema
-    ) {
+    if (!neo4jOptions.pushdownColumnsEnabled || neo4jOptions.relationshipMetadata.nodeMap) {
       new StructType()
     } else {
-      newSchema
+      requiredColumns = StructType(requiredSchema.filter(sf => newSchema.contains(sf)))
     }
   }
 
@@ -57,8 +54,27 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
       .map(_.describe().unquote())
       .toSet
     requiredColumns = StructType(requiredSchema.filter(field => groupByColumns.contains(field.name)))
+
     aggregateColumns.foreach(af => {
-      requiredColumns = requiredColumns.add(StructField(af.toString, DataTypes.LongType))
+      val fields = try {
+        af.children()
+          .toSet[Expression]
+          .map(_.describe())
+          .map(_.unquote())
+      } catch {
+        // for making it compatible with Spark 3.2
+        case noSuchMethodException: NoSuchMethodError => Set(af.describe().unquote())
+      }
+      val dt = if (fields.nonEmpty) {
+        requiredSchema.filter(field => fields.contains(field.name))
+          .map(_.dataType)
+          .toSet
+          .headOption
+          .getOrElse(LongType)
+      } else {
+        LongType
+      }
+      requiredColumns = requiredColumns.add(StructField(af.toString, dt))
     })
     requiredSchema = requiredColumns
     true

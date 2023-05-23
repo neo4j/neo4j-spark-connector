@@ -115,7 +115,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         .show()  // we need the action to be able to trigger the exception because of the changes in Spark 3
     } catch {
       case e: IllegalArgumentException =>
-        assertEquals("No valid option found. One of `query`, `labels`, `relationship` is required", e.getMessage)
+        assertEquals("No valid option found. One of `GDS`, `LABELS`, `QUERY`, `RELATIONSHIP` is required", e.getMessage)
       case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
@@ -130,7 +130,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         .load()  // we need the action to be able to trigger the exception because of the changes in Spark 3
     } catch {
       case e: IllegalArgumentException =>
-        assertEquals("You need to specify just one of these options: 'labels', 'query', 'relationship'", e.getMessage)
+        assertEquals("You need to specify just one of these options: 'gds', 'labels', 'query', 'relationship'", e.getMessage)
       case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
@@ -146,7 +146,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         .load()  // we need the action to be able to trigger the exception because of the changes in Spark 3
     } catch {
       case e: IllegalArgumentException =>
-        assertEquals("You need to specify just one of these options: 'labels', 'query', 'relationship'", e.getMessage)
+        assertEquals("You need to specify just one of these options: 'gds', 'labels', 'query', 'relationship'", e.getMessage)
       case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }

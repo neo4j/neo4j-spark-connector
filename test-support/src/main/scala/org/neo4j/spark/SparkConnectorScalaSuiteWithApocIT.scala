@@ -69,7 +69,7 @@ object SparkConnectorScalaSuiteWithApocIT {
     _session
   }
 
-  def getActiveConnections = session()
+  def getActiveConnections: Long = session()
     .readTransaction(new TransactionWork[Long] {
       override def execute(tx: Transaction): Long = tx.run(
         """|CALL dbms.listConnections() YIELD connectionId, connector

@@ -6,7 +6,10 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.neo4j.driver.{AccessMode, Session, summary}
 import org.neo4j.spark.service.{Neo4jQueryStrategy, SchemaService}
 import org.neo4j.spark.streaming.Neo4jAccumulator
+import org.neo4j.spark.util
 import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
+
+import java.util.Locale
 
 object Validations {
   def validate(validations: Validation*): Unit = validations.toSet[Validation].foreach(_.validate())
@@ -208,6 +211,13 @@ case class ValidateRead(neo4jOptions: Neo4jOptions, jobId: String) extends Valid
             }
           }
         }
+        case QueryType.GDS => {
+          ValidationUtil.isFalse(neo4jOptions.query.value.contains(".mutate") || neo4jOptions.query.value.contains(".write"),
+            "you cannot execute GDS mutate or write procedure in a read query")
+          ValidationUtil.isTrue(schemaService.isGdsProcedure(neo4jOptions.query.value), s"GDS procedure ${neo4jOptions.query.value} does not exist")
+          ValidationUtil.isTrue(neo4jOptions.partitions == 1, "For GDS queries we support only one partition")
+          Validations.validate(ValidateGdsMetadata(neo4jOptions.gdsMetadata))
+        }
       }
       neo4jOptions.script.foreach(query => ValidationUtil.isTrue(schemaService.isValidQuery(query),
         s"The following query inside the `${Neo4jOptions.SCRIPT}` is not valid, please check the syntax: $query"))
@@ -234,36 +244,85 @@ case class ValidateReadNotStreaming(neo4jOptions: Neo4jOptions, jobId: String) e
 case class ValidateNeo4jOptionsConsistency(neo4jOptions: Neo4jOptions) extends Validation {
   override def validate(): Unit = {
     if (neo4jOptions.query.value.isEmpty) {
-      throw new IllegalArgumentException("No valid option found. One of `query`, `labels`, `relationship` is required")
+      val reqTypes = QueryType.values.map(qt => s"`${qt.toString}`").mkString(", ")
+      throw new IllegalArgumentException(s"No valid option found. One of $reqTypes is required")
     }
 
     neo4jOptions.query.queryType match {
-      case QueryType.LABELS | QueryType.RELATIONSHIP => {
-        if (neo4jOptions.queryMetadata.queryCount.nonEmpty) {
-          ignoreOption(Neo4jOptions.QUERY_COUNT, QueryType.LABELS.toString.toLowerCase)
-        }
+      case QueryType.LABELS =>
+        ignoreQueryMetadata(QueryType.LABELS)
+        ignoreRelMetadata(QueryType.LABELS)
+        ignoreGdsMetadata(QueryType.LABELS)
+      case QueryType.RELATIONSHIP  =>
+        ignoreQueryMetadata(QueryType.RELATIONSHIP)
+        ignoreNodeMetadata(QueryType.RELATIONSHIP)
+        ignoreGdsMetadata(QueryType.RELATIONSHIP)
+      case QueryType.QUERY => {
+        ignoreNodeMetadata(QueryType.QUERY)
+        ignoreRelMetadata(QueryType.QUERY)
+        ignoreGdsMetadata(QueryType.QUERY)
       }
-      case QueryType.QUERY | QueryType.LABELS => {
-        if (neo4jOptions.relationshipMetadata.source.labels.nonEmpty) {
-          ignoreOption(Neo4jOptions.RELATIONSHIP_SOURCE_LABELS, QueryType.RELATIONSHIP.toString.toLowerCase)
-        }
-        if (neo4jOptions.relationshipMetadata.source.nodeProps.nonEmpty) {
-          ignoreOption(Neo4jOptions.RELATIONSHIP_SOURCE_NODE_PROPS, QueryType.RELATIONSHIP.toString.toLowerCase)
-        }
-        if (neo4jOptions.relationshipMetadata.source.nodeKeys.nonEmpty) {
-          ignoreOption(Neo4jOptions.RELATIONSHIP_SOURCE_NODE_KEYS, QueryType.RELATIONSHIP.toString.toLowerCase)
-        }
-        if (neo4jOptions.relationshipMetadata.target.labels.nonEmpty) {
-          ignoreOption(Neo4jOptions.RELATIONSHIP_TARGET_LABELS, QueryType.RELATIONSHIP.toString.toLowerCase)
-        }
-        if (neo4jOptions.relationshipMetadata.target.nodeProps.nonEmpty) {
-          ignoreOption(Neo4jOptions.RELATIONSHIP_TARGET_NODE_PROPS, QueryType.RELATIONSHIP.toString.toLowerCase)
-        }
-        if (neo4jOptions.relationshipMetadata.target.nodeKeys.nonEmpty) {
-          ignoreOption(Neo4jOptions.RELATIONSHIP_TARGET_NODE_KEYS, QueryType.RELATIONSHIP.toString.toLowerCase)
-        }
-      }
+      case QueryType.GDS =>
+        ignoreQueryMetadata(QueryType.GDS)
+        ignoreNodeMetadata(QueryType.GDS)
+        ignoreRelMetadata(QueryType.GDS)
     }
+  }
+
+  private def ignoreGdsMetadata(queryType: QueryType.Value): Unit = {
+    if (!neo4jOptions.gdsMetadata.parameters.isEmpty) {
+      ignoreOption(Neo4jOptions.QUERY_COUNT, queryType.toString.toLowerCase.toLowerCase(Locale.ENGLISH))
+    }
+  }
+
+  private def ignoreQueryMetadata(queryType: QueryType.Value): Unit = {
+    if (neo4jOptions.queryMetadata.queryCount.nonEmpty) {
+      ignoreOption(Neo4jOptions.QUERY_COUNT, queryType.toString.toLowerCase.toLowerCase(Locale.ENGLISH))
+    }
+  }
+
+  private def ignoreRelMetadata(queryType: QueryType.Value): Unit = {
+    val optName = queryTypeAsOptionString(queryType)
+    if (neo4jOptions.relationshipMetadata.source.labels.nonEmpty) {
+      ignoreOption(Neo4jOptions.RELATIONSHIP_SOURCE_LABELS, optName)
+    }
+    if (neo4jOptions.relationshipMetadata.source.nodeProps.nonEmpty) {
+      ignoreOption(Neo4jOptions.RELATIONSHIP_SOURCE_NODE_PROPS, optName)
+    }
+    if (neo4jOptions.relationshipMetadata.source.nodeKeys.nonEmpty) {
+      ignoreOption(Neo4jOptions.RELATIONSHIP_SOURCE_NODE_KEYS, optName)
+    }
+    if (neo4jOptions.relationshipMetadata.target.labels.nonEmpty) {
+      ignoreOption(Neo4jOptions.RELATIONSHIP_TARGET_LABELS, optName)
+    }
+    if (neo4jOptions.relationshipMetadata.target.nodeProps.nonEmpty) {
+      ignoreOption(Neo4jOptions.RELATIONSHIP_TARGET_NODE_PROPS, optName)
+    }
+    if (neo4jOptions.relationshipMetadata.target.nodeKeys.nonEmpty) {
+      ignoreOption(Neo4jOptions.RELATIONSHIP_TARGET_NODE_KEYS, optName)
+    }
+  }
+
+  private def queryTypeAsOptionString(queryType: util.QueryType.Value): String =
+    queryType.toString.toLowerCase(Locale.ENGLISH)
+
+  private def ignoreNodeMetadata(queryType: QueryType.Value): Unit = {
+    val optName = queryTypeAsOptionString(queryType)
+    if (neo4jOptions.nodeMetadata.nodeKeys.nonEmpty) {
+      ignoreOption(Neo4jOptions.NODE_KEYS, optName)
+    }
+    if (neo4jOptions.nodeMetadata.nodeProps.nonEmpty) {
+      ignoreOption(Neo4jOptions.NODE_PROPS, optName)
+    }
+  }
+}
+
+case class ValidateGdsMetadata(neo4jGdsMetadata: Neo4jGdsMetadata) extends Validation {
+  override def validate(): Unit = {
+    val hasGraphName = neo4jGdsMetadata.parameters.get("graphName") != null
+    val hasGraphNameOrConfiguration = neo4jGdsMetadata.parameters.get("graphNameOrConfiguration") != null
+    ValidationUtil.isTrue(hasGraphName || hasGraphNameOrConfiguration,
+      "One between gds.graphName or gds.graphNameOrConfiguration is required")
   }
 }
 

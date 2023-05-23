@@ -238,6 +238,7 @@ class MappingService[IN, OUT](private val strategy: Neo4jMappingStrategy[IN, OUT
     case QueryType.LABELS => strategy.node(record, schema)
     case QueryType.RELATIONSHIP => strategy.relationship(record, schema)
     case QueryType.QUERY => strategy.query(record, schema)
+    case QueryType.GDS => strategy.query(record, schema)
   }
 
 }

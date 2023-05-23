@@ -25,3 +25,11 @@ driver URI is provided by AuraDB itself when you create a database.
 AuraDB customers connecting from Databricks may encounter SSL handshake errors due to Databricks' custom Java security settings removing certain cipher support.
 
 See the AuraDB support article link:{url-aura-kbase-databricks}[Connecting to Aura with Databricks] for more information and instructions on how to configure your Databricks cluster to support connections to AuraDB.
+
+== Combining AuraDB and AuraDS
+
+AuraDB is the Neo4j Cloud solution for OLTP processes while AuraDS is designed for managing
+OLAP processes. With the Neo4j Spark connector you can easily:
+* export the data from AuraDB ingesting it in AuraDS
+* compute with GDS graph/ml algorithms over your data in AuraDS
+* write the result of the computation back to AuraDB in order to enrich your transactional data

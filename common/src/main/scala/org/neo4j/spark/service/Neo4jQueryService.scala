@@ -96,12 +96,16 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
        |SET node += ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jWriteMappingStrategy.PROPERTIES}
        |""".stripMargin
   }
+
+  override def createStatementForGDS(options: Neo4jOptions): String =
+    throw new UnsupportedOperationException("We don't support write operation with GDS")
 }
 
 class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
                              partitionSkipLimit: PartitionSkipLimit = PartitionSkipLimit.EMPTY,
                              requiredColumns: Seq[String] = Seq.empty,
-                             aggregateColumns: Array[AggregateFunc] = Array.empty) extends Neo4jQueryStrategy {
+                             aggregateColumns: Array[AggregateFunc] = Array.empty,
+                             jobId: String = "") extends Neo4jQueryStrategy {
   private val renderer: Renderer = Renderer.getDefaultRenderer
 
   private val hasPartitons: Boolean = partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1
@@ -262,6 +266,9 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
   }
 
   private def getCorrectProperty(column: String, entity: PropertyContainer): Expression = {
+    def propertyOrSymbolicName(col: String) = {
+      if (entity != null) entity.property(col) else Cypher.name(col)
+    }
     column match {
       case Neo4jUtil.INTERNAL_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD)
       case Neo4jUtil.INTERNAL_REL_ID_FIELD => Functions.id(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_ID_FIELD)
@@ -274,12 +281,11 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
       case "*" => Asterisk.INSTANCE
       case name => {
         val cleanedName = name.removeAlias()
-        aggregateColumns
-          .filter(_.toString == name)
-          .headOption
-          .map(ag => ag match {
+        aggregateColumns.find(_.toString == name)
+          .map {
             case count: Count => {
-              val prop = entity.property(count.column().describe().unquote().removeAlias())
+              val col = count.column().describe().unquote().removeAlias()
+              val prop = propertyOrSymbolicName(col)
               if (count.isDistinct) {
                 Functions.countDistinct(prop).as(name)
               } else {
@@ -287,18 +293,25 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
               }
             }
             case countStar: CountStar => Functions.count(Asterisk.INSTANCE).as(name)
-            case max: Max => Functions.max(entity.property(max.column().describe().unquote().removeAlias())).as(name)
-            case min: Min => Functions.min(entity.property(min.column().describe().unquote().removeAlias())).as(name)
+            case max: Max =>
+              val col = max.column().describe().unquote().removeAlias()
+              val prop = propertyOrSymbolicName(col)
+              Functions.max(prop).as(name)
+            case min: Min =>
+              val col = min.column().describe().unquote().removeAlias()
+              val prop = propertyOrSymbolicName(col)
+              Functions.min(prop).as(name)
             case sum: Sum => {
-              val prop = entity.property(sum.column().describe().unquote().removeAlias())
+              val col = sum.column().describe().unquote().removeAlias()
+              val prop = propertyOrSymbolicName(col)
               if (sum.isDistinct) {
                 Functions.sumDistinct(prop).as(name)
               } else {
                 Functions.sum(prop).as(name)
               }
             }
-          })
-          .getOrElse(entity.property(cleanedName).as(name))
+          }
+          .getOrElse(propertyOrSymbolicName(cleanedName).as(name))
           .asInstanceOf[Expression]
       }
     }
@@ -372,6 +385,30 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
       Cypher.node(primaryLabel, otherLabels.asJava).named(name)
     }
   }
+
+  override def createStatementForGDS(options: Neo4jOptions): String = {
+    val retCols = requiredColumns.map(column => getCorrectProperty(column, null))
+    // we need it in order to parse the field YIELD by the GDS procedure...
+    val (yieldFields, args) = Neo4jUtil.callSchemaService(options, jobId, filters,
+      { ss => (ss.struct().fieldNames, ss.inputForGDSProc(options.query.value)) })
+
+    val cypherParams = args
+      .filter(t => {
+        if (!t._2) {
+          true
+        } else {
+          options.gdsMetadata.parameters.containsKey(t._1)
+        }
+      })
+      .map(_._1)
+      .map(Cypher.parameter)
+    val statement = Cypher.call(options.query.value)
+      .withArgs(cypherParams : _*)
+      .`yield`(yieldFields : _*)
+      .returning(retCols : _*)
+      .build()
+    renderer.render(statement)
+  }
 }
 
 object Neo4jQueryStrategy {
@@ -388,6 +425,8 @@ abstract class Neo4jQueryStrategy {
   def createStatementForRelationships(options: Neo4jOptions): String
 
   def createStatementForNodes(options: Neo4jOptions): String
+
+  def createStatementForGDS(options: Neo4jOptions): String
 }
 
 class Neo4jQueryService(private val options: Neo4jOptions,
@@ -397,10 +436,9 @@ class Neo4jQueryService(private val options: Neo4jOptions,
     case QueryType.LABELS => strategy.createStatementForNodes(options)
     case QueryType.RELATIONSHIP => strategy.createStatementForRelationships(options)
     case QueryType.QUERY => strategy.createStatementForQuery(options)
+    case QueryType.GDS => strategy.createStatementForGDS(options)
     case _ => throw new UnsupportedOperationException(s"""Query Type not supported.
          |You provided ${options.query.queryType},
          |supported types: ${QueryType.values.mkString(",")}""".stripMargin)
   }
 }
-
-case class Neo4jSparkFieldMapping(neo4jFieldName: String, sparkFieldName: String)

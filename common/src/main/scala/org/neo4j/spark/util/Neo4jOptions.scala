@@ -12,6 +12,7 @@ import java.util
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
+import scala.language.implicitConversions
 
 
 class Neo4jOptions(private val options: java.util.Map[String, String]) extends Serializable {
@@ -47,12 +48,12 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     .map(_.trim)
     .getOrElse(defaultValue)
 
-  val saveMode = getParameter(SAVE_MODE, DEFAULT_SAVE_MODE.toString)
+  val saveMode: String = getParameter(SAVE_MODE, DEFAULT_SAVE_MODE.toString)
   val pushdownFiltersEnabled: Boolean = getParameter(PUSHDOWN_FILTERS_ENABLED, DEFAULT_PUSHDOWN_FILTERS_ENABLED.toString).toBoolean
   val pushdownColumnsEnabled: Boolean = getParameter(PUSHDOWN_COLUMNS_ENABLED, DEFAULT_PUSHDOWN_COLUMNS_ENABLED.toString).toBoolean
   val pushdownAggregateEnabled: Boolean = getParameter(PUSHDOWN_AGGREGATE_ENABLED, DEFAULT_PUSHDOWN_AGGREGATE_ENABLED.toString).toBoolean
 
-  val schemaMetadata = Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
+  val schemaMetadata: Neo4jSchemaMetadata = Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
     SchemaStrategy.withCaseInsensitiveName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase),
     OptimizationType.withCaseInsensitiveName(getParameter(SCHEMA_OPTIMIZATION_TYPE, DEFAULT_OPTIMIZATION_TYPE.toString).toUpperCase),
     getParameter(SCHEMA_MAP_GROUP_DUPLICATE_KEYS, DEFAULT_MAP_GROUP_DUPLICATE_KEYS.toString).toBoolean)
@@ -60,14 +61,16 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   val query: Neo4jQueryOptions = (
     getParameter(QUERY.toString.toLowerCase),
     getParameter(LABELS.toString.toLowerCase),
-    getParameter(RELATIONSHIP.toString.toLowerCase())
+    getParameter(RELATIONSHIP.toString.toLowerCase()),
+    getParameter(GDS.toString.toLowerCase())
   ) match {
-    case (query, "", "") => Neo4jQueryOptions(QUERY, query)
-    case ("", label, "") => {
+    case (query, "", "", "") => Neo4jQueryOptions(QUERY, query)
+    case ("", label, "", "") => {
       val parsed = if (label.trim.startsWith(":")) label.substring(1) else label
       Neo4jQueryOptions(LABELS, parsed)
     }
-    case ("", "", relationship) => Neo4jQueryOptions(RELATIONSHIP, relationship)
+    case ("", "", relationship, "") => Neo4jQueryOptions(RELATIONSHIP, relationship)
+    case ("", "", "", gds) => Neo4jQueryOptions(GDS, gds)
     case _ => throw new IllegalArgumentException(
       s"You need to specify just one of these options: ${
         QueryType.values.toSeq.map(value => s"'${value.toString.toLowerCase()}'")
@@ -100,11 +103,11 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     AccessMode.valueOf(getParameter(ACCESS_MODE, DEFAULT_ACCESS_MODE.toString).toUpperCase())
   )
 
-  val nodeMetadata = initNeo4jNodeMetadata()
+  val nodeMetadata: Neo4jNodeMetadata = initNeo4jNodeMetadata()
 
   private def mapPropsString(str: String): Map[String, String] = str.split(",")
     .map(_.trim)
-    .filter(!_.isEmpty)
+    .filter(_.nonEmpty)
     .map(s => {
       val keys = if (s.startsWith("`")) {
         val pattern = "`[^`]+`".r
@@ -133,13 +136,13 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     val labels = labelsString
       .split(":")
       .map(_.trim)
-      .filter(!_.isEmpty)
+      .filter(_.nonEmpty)
     Neo4jNodeMetadata(labels, nodeKeys, nodeProps)
   }
 
-  val transactionMetadata = initNeo4jTransactionMetadata()
+  val transactionMetadata: Neo4jTransactionMetadata = initNeo4jTransactionMetadata()
 
-  val script = getParameter(SCRIPT)
+  val script: Array[String] = getParameter(SCRIPT)
     .split(";")
     .map(_.trim)
     .filterNot(_.isEmpty)
@@ -149,16 +152,16 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     val failOnTransactionCodes = getParameter(TRANSACTION_CODES_FAIL, DEFAULT_EMPTY)
       .split(",")
         .map(_.trim)
-        .filter(!_.isEmpty)
+        .filter(_.nonEmpty)
         .toSet
     val batchSize = getParameter(BATCH_SIZE, DEFAULT_BATCH_SIZE.toString).toInt
     val retryTimeout = getParameter(TRANSACTION_RETRY_TIMEOUT, DEFAULT_TRANSACTION_RETRY_TIMEOUT.toString).toInt
     Neo4jTransactionMetadata(retries, failOnTransactionCodes, batchSize, retryTimeout)
   }
 
-  val relationshipMetadata = initNeo4jRelationshipMetadata()
+  val relationshipMetadata: Neo4jRelationshipMetadata = initNeo4jRelationshipMetadata()
 
-  def initNeo4jRelationshipMetadata(): Neo4jRelationshipMetadata = {
+  private def initNeo4jRelationshipMetadata(): Neo4jRelationshipMetadata = {
     val source = initNeo4jNodeMetadata(getParameter(RELATIONSHIP_SOURCE_NODE_KEYS, ""),
       getParameter(RELATIONSHIP_SOURCE_LABELS, ""),
       getParameter(RELATIONSHIP_SOURCE_NODE_PROPS, ""))
@@ -178,17 +181,26 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     Neo4jRelationshipMetadata(source, target, sourceSaveMode, targetSaveMode, relProps, query.value, nodeMap, writeStrategy)
   }
 
-  def initNeo4jQueryMetadata(): Neo4jQueryMetadata = Neo4jQueryMetadata(
+  private def initNeo4jQueryMetadata(): Neo4jQueryMetadata = Neo4jQueryMetadata(
     query.value.trim, getParameter(QUERY_COUNT, "").trim
   )
 
-  val queryMetadata = initNeo4jQueryMetadata()
+  val queryMetadata: Neo4jQueryMetadata = initNeo4jQueryMetadata()
 
-  val partitions = getParameter(PARTITIONS, DEFAULT_PARTITIONS.toString).toInt
+  private def initNeo4jGdsMetadata(): Neo4jGdsMetadata = Neo4jGdsMetadata(
+    Neo4jUtil.createGdsConfigurationMap(parameters.asScala
+      .filterKeys(k => k.startsWith("gds."))
+      .map(t => (t._1.substring("gds.".length), t._2))
+      .toMap)
+  )
 
-  val orderBy = getParameter(ORDER_BY, getParameter(STREAMING_PROPERTY_NAME))
+  val gdsMetadata: Neo4jGdsMetadata = initNeo4jGdsMetadata()
 
-  val apocConfig = Neo4jApocConfig(parameters.asScala
+  val partitions: Int = getParameter(PARTITIONS, DEFAULT_PARTITIONS.toString).toInt
+
+  val orderBy: String = getParameter(ORDER_BY, getParameter(STREAMING_PROPERTY_NAME))
+
+  val apocConfig: Neo4jApocConfig = Neo4jApocConfig(parameters.asScala
     .filterKeys(_.startsWith("apoc."))
     .mapValues(Neo4jUtil.mapper.readValue(_, classOf[java.util.Map[String, AnyRef]]).asScala)
     .toMap)
@@ -201,7 +213,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     case _ => s"table_query_${UUID.randomUUID()}"
   }
 
-  val streamingOptions = Neo4jStreamingOptions(getParameter(STREAMING_PROPERTY_NAME),
+  val streamingOptions: Neo4jStreamingOptions = Neo4jStreamingOptions(getParameter(STREAMING_PROPERTY_NAME),
     StreamingFrom.withCaseInsensitiveName(getParameter(STREAMING_FROM, DEFAULT_STREAMING_FROM.toString)),
     getParameter(STREAMING_QUERY_OFFSET),
     getParameter(STREAMING_CLEAN_STRUCT_TYPE_STORAGE, DEFAULT_STREAMING_CLEAN_STRUCT_TYPE_STORAGE.toString).toBoolean,
@@ -236,6 +248,8 @@ case class Neo4jRelationshipMetadata(
                                     )
 case class Neo4jQueryMetadata(query: String, queryCount: String)
 
+case class Neo4jGdsMetadata(parameters: util.Map[String, Any])
+
 case class Neo4jQueryOptions(queryType: QueryType.Value, value: String)
 
 case class Neo4jSessionOptions(database: String, accessMode: AccessMode = AccessMode.READ) {
@@ -246,7 +260,7 @@ case class Neo4jSessionOptions(database: String, accessMode: AccessMode = Access
     if (database != null && database != "") {
       builder.withDatabase(database)
     }
-    if (!bookmarks.isEmpty) {
+    if (bookmarks.nonEmpty) {
       builder.withBookmarks(bookmarks.asJava)
     }
 
@@ -304,7 +318,7 @@ case class Neo4jDriverOptions(
       }
     }
 
-    if (!resolvers.isEmpty) {
+    if (resolvers.nonEmpty) {
       builder.withResolver(new ServerAddressResolver {
         override def resolve(serverAddress: ServerAddress): util.Set[ServerAddress] = resolvers.asJava
       })
@@ -319,10 +333,10 @@ case class Neo4jDriverOptions(
     val extraUrls = urls
       .drop(1)
       .map(_.trim)
-      .map(URI.create(_))
+      .map(URI.create)
       .map(uri => ServerAddress.of(uri.getHost, if (uri.getPort > -1) uri.getPort else 7687))
       .toSet
-    (URI.create(urls(0).trim), extraUrls)
+    (URI.create(urls.head.trim), extraUrls)
   }
 
   // public only for testing purposes
@@ -470,7 +484,7 @@ object StreamingFrom extends CaseInsensitiveEnumeration {
     }
   }
 
-  implicit def valToStreamingFromValue(value: Value) = new StreamingFromValue(value)
+  implicit def valToStreamingFromValue(value: Value): StreamingFromValue = new StreamingFromValue(value)
 }
 
 object StorageType extends CaseInsensitiveEnumeration {
@@ -478,7 +492,7 @@ object StorageType extends CaseInsensitiveEnumeration {
 }
 
 object QueryType extends CaseInsensitiveEnumeration {
-  val QUERY, LABELS, RELATIONSHIP = Value
+  val QUERY, LABELS, RELATIONSHIP, GDS = Value
 }
 
 object RelationshipSaveStrategy extends CaseInsensitiveEnumeration {

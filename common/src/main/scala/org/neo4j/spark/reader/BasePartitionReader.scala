@@ -7,7 +7,7 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.{Record, Session, Transaction, Values}
 import org.neo4j.spark.service.{MappingService, Neo4jQueryReadStrategy, Neo4jQueryService, Neo4jQueryStrategy, Neo4jReadMappingStrategy, PartitionSkipLimit}
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil}
+import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, QueryType}
 
 import java.io.IOException
 import java.util
@@ -29,18 +29,22 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
   protected val driverCache: DriverCache = new DriverCache(options.connection, name)
 
   private val query: String = new Neo4jQueryService(options,
-    new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.fieldNames, aggregateColumns))
+    new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.fieldNames, aggregateColumns, jobId))
     .createQuery()
 
   private var nextRow: InternalRow = _
 
   private lazy val values = {
-    val params = mutable.HashMap[String, Any]()
+    val params = new java.util.HashMap[String, Any]()
     params.put(Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT, scriptResult)
     Neo4jUtil.paramsFromFilters(filters)
       .foreach(p => params.put(p._1, p._2))
 
-    params.asJava
+    if (options.query.queryType == QueryType.GDS) {
+      params.putAll(options.gdsMetadata.parameters)
+    }
+
+    params
   }
 
   private val mappingService = new MappingService(new Neo4jReadMappingStrategy(options, requiredColumns), options)

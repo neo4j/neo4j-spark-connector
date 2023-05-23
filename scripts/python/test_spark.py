@@ -12,8 +12,10 @@ class SparkTest(unittest.TestCase):
     neo4j_container = None
     spark = None
 
-    def init_test(self, query, parameters=None):
+    def tearDown(self):
         self.neo4_session.run("MATCH (n) DETACH DELETE n;")
+
+    def init_test(self, query, parameters=None):
         self.neo4_session.run(query, parameters)
         return self.spark.read.format("org.neo4j.spark.DataSource") \
             .option("url", self.neo4j_container.get_connection_url()) \
@@ -60,12 +62,12 @@ class SparkTest(unittest.TestCase):
         assert "offset-time" == timeResult.type
         # .replace used in case of UTC timezone because of https://stackoverflow.com/a/42777551/1409772
         assert str(time).replace("+00:00", "Z") \
-            == timeResult.value.split("+")[0]
+               == timeResult.value.split("+")[0]
 
     def test_datetime(self):
         dtString = "2015-06-24T12:50:35"
         df = self.init_test(
-            "CREATE (p:Person {datetime: datetime('"+dtString+"')})")
+            "CREATE (p:Person {datetime: datetime('" + dtString + "')})")
 
         dt = datetime.datetime(2015, 6, 24, 12, 50, 35, 0)
         dtResult = df.select("datetime").collect()[0].datetime
@@ -168,12 +170,12 @@ class SparkTest(unittest.TestCase):
         # .replace used in case of UTC timezone because of https://stackoverflow.com/a/42777551/1409772
         assert "offset-time" == timeResult[0].type
         assert str(datetime.time(11, 23, 0, 0, get_localzone())).replace("+00:00", "Z") \
-            == timeResult[0].value.split("+")[0]
+               == timeResult[0].value.split("+")[0]
 
         # .replace used in case of UTC timezone because of https://stackoverflow.com/a/42777551/1409772
         assert "offset-time" == timeResult[1].type
         assert str(datetime.time(12, 23, 0, 0, get_localzone())).replace("+00:00", "Z") \
-            == timeResult[1].value.split("+")[0]
+               == timeResult[1].value.split("+")[0]
 
     def test_datetime_array(self):
         df = self.init_test(
@@ -280,8 +282,60 @@ class SparkTest(unittest.TestCase):
             .option("relationship.source.labels", ":Foo") \
             .option("relationship.target.labels", ":Bar") \
             .load()
-
         # In this case we just test that the job has been executed without any exception
+
+    def test_gds(self):
+        self.neo4_session.run("""
+            CREATE
+              (home:Page {name:'Home'}),
+              (about:Page {name:'About'}),
+              (product:Page {name:'Product'}),
+              (links:Page {name:'Links'}),
+              (a:Page {name:'Site A'}),
+              (b:Page {name:'Site B'}),
+              (c:Page {name:'Site C'}),
+              (d:Page {name:'Site D'}),
+            
+              (home)-[:LINKS {weight: 0.2}]->(about),
+              (home)-[:LINKS {weight: 0.2}]->(links),
+              (home)-[:LINKS {weight: 0.6}]->(product),
+              (about)-[:LINKS {weight: 1.0}]->(home),
+              (product)-[:LINKS {weight: 1.0}]->(home),
+              (a)-[:LINKS {weight: 1.0}]->(home),
+              (b)-[:LINKS {weight: 1.0}]->(home),
+              (c)-[:LINKS {weight: 1.0}]->(home),
+              (d)-[:LINKS {weight: 1.0}]->(home),
+              (links)-[:LINKS {weight: 0.8}]->(home),
+              (links)-[:LINKS {weight: 0.05}]->(a),
+              (links)-[:LINKS {weight: 0.05}]->(b),
+              (links)-[:LINKS {weight: 0.05}]->(c),
+              (links)-[:LINKS {weight: 0.05}]->(d);
+        """)
+
+        self.spark.read.format("org.neo4j.spark.DataSource") \
+            .option("url", self.neo4j_container.get_connection_url()) \
+            .option("authentication.type", "basic") \
+            .option("authentication.basic.username", "neo4j") \
+            .option("authentication.basic.password", "password") \
+            .option("gds", "gds.graph.project") \
+            .option("gds.graphName", "myGraph") \
+            .option("gds.nodeProjection", "Page") \
+            .option("gds.relationshipProjection", "LINKS") \
+            .option("gds.configuration.relationshipProperties", "weight") \
+            .load() \
+            .show(truncate=False)
+
+        df = self.spark.read.format("org.neo4j.spark.DataSource") \
+            .option("url", self.neo4j_container.get_connection_url()) \
+            .option("authentication.type", "basic") \
+            .option("authentication.basic.username", "neo4j") \
+            .option("authentication.basic.password", "password") \
+            .option("gds", "gds.pageRank.stream") \
+            .option("gds.graphName", "myGraph") \
+            .option("gds.configuration.concurrency", "2") \
+            .load()
+
+        assert 8 == df.count()
 
 
 if len(sys.argv) != 5:
@@ -298,19 +352,20 @@ current_time_zone = get_localzone().zone
 print("Running tests for Connector %s, Neo4j %s, Scala %s, Spark %s, TimeZone %s"
       % (connector_version, neo4j_version, scala_version, spark_version, current_time_zone))
 
-
 if __name__ == "__main__":
-    with Neo4jContainer('neo4j:' + neo4j_version).with_env("NEO4J_db_temporal_timezone", current_time_zone) as neo4j_container:
+    with (Neo4jContainer('neo4j:' + neo4j_version)
+            .with_env("NEO4J_db_temporal_timezone", current_time_zone)
+            .with_env("NEO4JLABS_PLUGINS", "[\"graph-data-science\"]")) as neo4j_container:
         with neo4j_container.get_driver() as neo4j_driver:
             with neo4j_driver.session() as neo4j_session:
                 SparkTest.spark = SparkSession.builder \
                     .appName("Neo4jConnectorTests") \
                     .master('local[*]') \
                     .config(
-                        "spark.jars",
-                        "../../spark-%s/target/neo4j-connector-apache-spark_%s-%s_for_spark_%s.jar"
-                        % (spark_version, scala_version, connector_version, spark_version)
-                    ) \
+                    "spark.jars",
+                    "../../spark-%s/target/neo4j-connector-apache-spark_%s-%s_for_spark_%s.jar"
+                    % (spark_version, scala_version, connector_version, spark_version)
+                ) \
                     .config("spark.driver.host", "127.0.0.1") \
                     .getOrCreate()
                 SparkTest.neo4_session = neo4j_session

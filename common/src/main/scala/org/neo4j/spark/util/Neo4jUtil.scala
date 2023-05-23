@@ -1,8 +1,8 @@
 package org.neo4j.spark.util
 
-import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.core.{JsonGenerator, JsonParseException, JsonParser}
 import com.fasterxml.jackson.databind.module.SimpleModule
-import com.fasterxml.jackson.databind.{JsonSerializer, ObjectMapper, SerializerProvider}
+import com.fasterxml.jackson.databind.{JsonSerializer, MapperFeature, ObjectMapper, SerializerProvider}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{GenericRowWithSchema, UnsafeArrayData, UnsafeMapData, UnsafeRow}
 import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, DateTimeUtils}
@@ -21,8 +21,6 @@ import org.slf4j.Logger
 import java.time._
 import java.time.format.DateTimeFormatter
 import java.util.Properties
-import org.neo4j.spark.util.Neo4jImplicits._
-
 import scala.collection.JavaConverters._
 
 object Neo4jUtil {
@@ -43,7 +41,7 @@ object Neo4jUtil {
   val RELATIONSHIP_ALIAS = "rel"
 
   private val properties = new Properties()
-  properties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("neo4j-spark-connector.properties"))
+  properties.load(Thread.currentThread().getContextClassLoader.getResourceAsStream("neo4j-spark-connector.properties"))
 
   def closeSafety(autoCloseable: AutoCloseable, logger: Logger = null): Unit = {
     try {
@@ -269,9 +267,7 @@ object Neo4jUtil {
         val parameter = valueToCypherExpression(eqns.attribute, eqns.value)
         val property = getCorrectProperty(container, attributeAlias.getOrElse(eqns.attribute))
         property.isNull.and(parameter.isNull)
-          .or(
-            property.isEqualTo(parameter)
-          )
+          .or(property.isEqualTo(parameter))
       case eq: EqualTo =>
         getCorrectProperty(container, attributeAlias.getOrElse(eq.attribute))
           .isEqualTo(valueToCypherExpression(eq.attribute, eq.value))
@@ -306,7 +302,7 @@ object Neo4jUtil {
     }
   }
 
-  def getStreamingPropertyName(options: Neo4jOptions) = options.query.queryType match {
+  def getStreamingPropertyName(options: Neo4jOptions): String = options.query.queryType match {
     case QueryType.RELATIONSHIP => s"rel.${options.streamingOptions.propertyName}"
     case _ => options.streamingOptions.propertyName
   }
@@ -336,4 +332,31 @@ object Neo4jUtil {
   def isRetryableException(neo4jTransientException: Neo4jException) = (neo4jTransientException.isInstanceOf[SessionExpiredException]
     || neo4jTransientException.isInstanceOf[TransientException]
     || neo4jTransientException.isInstanceOf[ServiceUnavailableException])
+
+
+  private val propertyMapper = new ObjectMapper()
+  propertyMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
+  def createGdsConfigurationMap(data: Map[String, String]): java.util.Map[String, Any] = {
+    val map = new java.util.HashMap[String, Any]();
+    data.foreach(t => {
+      val splitted = t._1.split("\\.")
+      if (splitted.size == 1) {
+        val value = try {
+          propertyMapper.readValue[Any](t._2, classOf[Any])
+        } catch {
+          case e: JsonParseException => t._2
+        }
+        map.put(t._1, value)
+      } else {
+        if (map.containsKey(splitted.head)) {
+          val value = map.get(splitted.head).asInstanceOf[java.util.Map[String, Any]]
+          value.putAll(createGdsConfigurationMap(Map(splitted.drop(1).mkString(".") -> t._2)))
+          map.put(splitted.head, value)
+        } else {
+          map.put(splitted.head, createGdsConfigurationMap(Map(splitted.drop(1).mkString(".") -> t._2)))
+        }
+      }
+    })
+    map
+  }
 }

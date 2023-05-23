@@ -204,4 +204,20 @@ class Neo4jOptionsTest {
     assertEquals(URI.create("neo4j://localhost"), baseUrl)
     assertEquals(Set(ServerAddress.of("foo.bar", 7687), ServerAddress.of("foo.bar.baz", 7783)), resolvers)
   }
+
+  @Test
+  def testGdsProperties(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783")
+    options.put("gds", "gds.pageRank.stream")
+    options.put("gds.graphName", "myGraph")
+    options.put("gds.configuration.concurrency", "2")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+    assertEquals(QueryType.GDS, neo4jOptions.query.queryType)
+    assertEquals("gds.pageRank.stream", neo4jOptions.query.value)
+    assertEquals(Map(
+      "graphName" -> "myGraph",
+      "configuration" -> Map("concurrency" -> 2).asJava
+    ).asJava, neo4jOptions.gdsMetadata.parameters)
+  }
 }

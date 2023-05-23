@@ -18,11 +18,222 @@ All of the link:{url-neo4j-gds-manual}[functionality of GDS^] is used by issuing
 accessible via Spark, because the Neo4j Connector for Apache Spark can issue Cypher queries and read their results back.  This combination means
 that you can use Neo4j and GDS as a graph co-processor in an existing ML workflow that you may implement in Apache Spark.
 
-== Example
+== GDS first-class support
+
+Neo4j Spark Connector added first-class support to Graph Data Science library let's see how it works.
+
+=== Limitations
+
+We don't support `mutate` or `write` procedure as the don't return any kind of usable information in the dataframe, you can achieve the same by joining dataframes and then
+use the Neo4j Spark connector to write back the data to whatever Neo4j instance you want.
+
+=== Example
+
+Immagine that we want to replicate the example for the Page Rank algorithm
+detailed link:{url-neo4j-gds-manual}algorithms/page-rank/#algorithms-page-rank-examples[here in the GDS manual^].
+The related Spark example looks like the following (we'll assume that the data is already in Neo4j).
+
+1. Create the projection graph: the following Python code will project a graph using a native projection and store it in the graph catalog under the name 'myGraph'.
+
+[source,python]
+----
+    # we'll assume that `spark` variable is already present
+    spark.read.format("org.neo4j.spark.DataSource") \
+      .option("url", "neo4j://localhost:7687") \
+      .option("gds", "gds.graph.project") \
+      .option("gds.graphName", "myGraph") \
+      .option("gds.nodeProjection", "Page") \
+      .option("gds.relationshipProjection", "LINKS") \
+      .option("gds.configuration.relationshipProperties", "weight") \
+      .load() \
+      .show(truncate=False)
+----
+
+which will show a result like this:
+
+```bash
++------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------+---------+-----------------+-------------+
+|nodeProjection                            |relationshipProjection                                                                                                                                                                    |graphName|nodeCount|relationshipCount|projectMillis|
++------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------+---------+-----------------+-------------+
+|{Page -> {"properties":{},"label":"Page"}}|{LINKS -> {"orientation":"NATURAL","aggregation":"DEFAULT","type":"LINKS","properties":{"weight":{"property":"weight","aggregation":"DEFAULT","defaultValue":null}},"indexInverse":false}}|myGraph  |8        |14               |503          |
++------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------+---------+-----------------+-------------+
+```
+
+[start=2]
+. Estimate the cost of the algorithm: with the following Python code we will estimate the cost of running the algorithm using the estimate procedure
+
+[source,python]
+----
+    # we'll assume that `spark` variable is already present
+    spark.read.format("org.neo4j.spark.DataSource") \
+      .option("url", "neo4j://localhost:7687") \
+      .option("gds", "gds.pageRank.stream") \
+      .option("gds.graphName", "myGraph") \
+      .option("gds.configuration.concurrency", "2") \
+      .load() \
+      .show(truncate=False)
+----
+
+which will show a result like this:
+
+```bash
++--------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+--------+---------+-----------------+-----------------+-----------------+
+|requiredMemory|treeView                                                                                                                                                                                                                                                                                                                                                                                                                 |mapView                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |bytesMin|bytesMax|nodeCount|relationshipCount|heapPercentageMin|heapPercentageMax|
++--------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+--------+---------+-----------------+-----------------+-----------------+
+|816 Bytes     |Memory Estimation: 816 Bytes\n|-- algorithm: 816 Bytes\n    |-- this.instance: 88 Bytes\n    |-- vote bits: 104 Bytes\n    |-- compute steps: 208 Bytes\n        |-- this.instance: 104 Bytes\n    |-- node value: 120 Bytes\n        |-- pagerank (DOUBLE): 120 Bytes\n    |-- message arrays: 296 Bytes\n        |-- this.instance: 56 Bytes\n        |-- send array: 120 Bytes\n        |-- receive array: 120 Bytes\n|{name -> Memory Estimation, components -> [{"name":"algorithm","components":[{"name":"this.instance","memoryUsage":"88 Bytes"},{"name":"vote bits","memoryUsage":"104 Bytes"},{"name":"compute steps","components":[{"name":"this.instance","memoryUsage":"104 Bytes"}],"memoryUsage":"208 Bytes"},{"name":"node value","components":[{"name":"pagerank (DOUBLE)","memoryUsage":"120 Bytes"}],"memoryUsage":"120 Bytes"},{"name":"message arrays","components":[{"name":"this.instance","memoryUsage":"56 Bytes"},{"name":"send array","memoryUsage":"120 Bytes"},{"name":"receive array","memoryUsage":"120 Bytes"}],"memoryUsage":"296 Bytes"}],"memoryUsage":"816 Bytes"}], memoryUsage -> 816 Bytes}|816     |816     |8        |14               |0.1              |0.1              |
++--------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+--------+---------+-----------------+-----------------+-----------------+
+```
+
+[start=3]
+. Compute the algorithm: the following Python code will return the Page Rank
+computation without any impact to the graph
+
+[source,python]
+----
+    # we'll assume that `spark` variable is already present
+    # we save the dataframe in the `pr_df` variable as we'll reuse it later
+    pr_df = spark.read.format("org.neo4j.spark.DataSource") \
+      .option("url", "neo4j://localhost:7687") \
+      .option("gds", "gds.pageRank.stream") \
+      .option("gds.graphName", "myGraph") \
+      .option("gds.configuration.concurrency", "2") \
+      .load()
+
+    pr_df.show(truncate=False)
+----
+
+which will show a result like this:
+
+```bash
++------+------------------+
+|nodeId|score             |
++------+------------------+
+|0     |3.215681999884452 |
+|1     |1.0542700552146722|
+|2     |1.0542700552146722|
+|3     |1.0542700552146722|
+|4     |0.3278578964488539|
+|5     |0.3278578964488539|
+|6     |0.3278578964488539|
+|7     |0.3278578964488539|
++------+------------------+
+```
+
+As you can se we have now only the two columns `nodeId` and `score`, let's see how
+you can enrich your nodes with the score
+
+[start=5]
+. Enrich nodes with the score: the following Python code will enrich the nodes with the score
+
+[source,python]
+----
+    # we'll assume that `spark` variable is already present
+    # we create the `nodes_df`
+    nodes_df = spark.read.format("org.neo4j.spark.DataSource") \
+      .option("url", "neo4j://localhost:7687") \
+      .option("labels", "Page") \
+      .load()
+
+    # we join `nodes_df` with `pr_df` created in the step before
+    new_df = nodes_df.join(pr_df, nodes_df.col("<id>").equalTo(pr_df.col("nodeId")))
+    new_df.show(truncate=False)
+----
+
+which will show a result like this:
+
+```bash
++----+--------+-------+------+------------------+
+|<id>|<labels>|   name|nodeId|             score|
++----+--------+-------+------+------------------+
+|   0|  [Page]|   Home|     0| 3.215681999884452|
+|   1|  [Page]|  About|     1|1.0542700552146722|
+|   2|  [Page]|Product|     2|1.0542700552146722|
+|   3|  [Page]|  Links|     3|1.0542700552146722|
+|   4|  [Page]| Site A|     4|0.3278578964488539|
+|   5|  [Page]| Site B|     5|0.3278578964488539|
+|   6|  [Page]| Site C|     6|0.3278578964488539|
+|   7|  [Page]| Site D|     7|0.3278578964488539|
++----+--------+-------+------+------------------+
+```
+
+Now you can persist this dataset to whatever Neo4j instance you want.
+
+=== Options
+
+As you may understand from the examples above, you can pass the all the required options
+with the `gds.` prefix with the dot notation support for nested maps.
+
+.List of available configuration settings
+|===
+|Setting name |Description |Default value |Required
+
+4+|*GDS options*
+
+|`gds`
+|The procedure name.
+You can pick the well suited algorithm for your use case from the fllowing
+link:{url-neo4j-gds-manual}algorithms/[page in the GDS manual^]
+|_(none)_
+|Yes
+
+|`gds.`
+|the setting name is just a prefix that needs to be complete with input option of the procedure you choose.
+|_(none)_
+|Yes, it's related to the procedure that you choose
+|===
+
+==== How to manage the `gds.` prefix in your Spark Job
+
+Consider for instance that you want to project a graph. Like the following:
+
+[source, cypher]
+---
+CALL gds.graph.project(
+  'myGraph',
+  'Page',
+  'LINKS',
+  {
+    relationshipProperties: 'weight'
+  }
+)
+---
+
+So we need:
+
+* to invoke the `gds.graph.project`, and this leads to add `.option("gds", "gds.graph.project")` to our Spark Job. The the `project` procedure, as you can see link:{url-neo4j-gds-manual}management-ops/projections/graph-project/[here^] has 4 input parameters:
+
+** `graphName`: we want to name the graph `myGraph`; this leads to add `.option("gds.graphName", "myGraph")`
+** `nodeProjection`: we want to project `Page` nodes; this leads to add `.option("gds.nodeProjection", "Page")`
+** `relationshipProjection`: we want to project `LINKS` relationships; this leads to add `.option("gds.relationshipProjection", "LINKS")`
+** `configuration`: we want to configure `weight` as the property that defines the importance of the relationship; configuration is a map, and we need to add a `relationshipPropertis` key with the value `weight` to our map, we can do this via dot notation and this leads to add `.option("gds.configuration.relationshipProperties", "weight")`
+
+So the final Spark job will result as it follows:
+
+[source,python]
+----
+    # we'll assume that `spark` variable is already present
+    spark.read.format("org.neo4j.spark.DataSource") \
+      .option("url", "neo4j://localhost:7687") \
+      .option("gds", "gds.graph.project") \
+      .option("gds.graphName", "myGraph") \
+      .option("gds.nodeProjection", "Page") \
+      .option("gds.relationshipProjection", "LINKS") \
+      .option("gds.configuration.relationshipProperties", "weight") \
+      .load() \
+      .show(truncate=False)
+----
+
+
+
+== GDS support via Cypher queries
+
+With the mode you can use complicated custom queries in order to analyze your data with GDS.
+
+=== Example
 
 In the link:{url-gh-spark-notebooks}[sample Zeppelin Notebook repository^], there is a GDS example that can be run against a Neo4j Sandbox, showing how to use the two together.
 
-=== Create a virtual graph in GDS using Spark
+==== Create a virtual graph in GDS using Spark
 
 This is very simple, straightforward code; it constructs the right Cypher statement to link:https://neo4j.com/docs/graph-data-science/current/common-usage/projecting-graphs/[create a virtual graph in GDS^] and returns the results.
 
@@ -85,7 +296,8 @@ df.show()
 [NOTE]
 **Ensure that option `partitions` is set to 1. The algorithm should be executed only once.**
 
-=== Streaming versus persisting GDS results
+
+== Streaming versus persisting GDS results
 
 When link:https://neo4j.com/docs/graph-data-science/current/common-usage/running-algos/[running GDS algorithms^], the library gives you the choice
 of either streaming the algorithm results back to the caller, or mutating the underlying graph. Using GDS together with Spark provides an

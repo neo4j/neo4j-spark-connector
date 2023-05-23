@@ -1,7 +1,5 @@
 package org.neo4j
 
-import java.time.Duration
-import java.util.concurrent.{Callable, TimeUnit}
 import org.neo4j.driver.{AuthToken, AuthTokens, GraphDatabase, SessionConfig}
 import org.neo4j.spark.TestUtil
 import org.rnorth.ducttape.unreliables.Unreliables
@@ -9,7 +7,10 @@ import org.testcontainers.containers.Neo4jContainer
 import org.testcontainers.containers.wait.strategy.{AbstractWaitStrategy, WaitAllStrategy}
 import org.testcontainers.utility.DockerImageName
 
-import collection.JavaConverters._
+import java.time.Duration
+import java.util.concurrent.{Callable, TimeUnit}
+import scala.collection.JavaConverters._
+import scala.io.Source
 
 class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStrategy {
   private var databases = Seq.empty[String]
@@ -72,10 +73,17 @@ class Neo4jContainerExtension(imageName: String = s"neo4j${if (TestUtil.experime
   extends Neo4jContainer[Neo4jContainerExtension](
     DockerImageName.parse(imageName).asCompatibleSubstituteFor("neo4j")
   ) {
-  private var databases = Seq.empty[String]
+  private var databases: Seq[String] = Seq.empty
+
+  private var fixture: Set[(String, String)] = Set.empty
 
   def withDatabases(dbs: Seq[String]): Neo4jContainerExtension = {
     databases ++= dbs
+    this
+  }
+
+  def withFixture(database: String, path: String): Neo4jContainerExtension = {
+    fixture ++= Set((database, path))
     this
   }
 
@@ -88,5 +96,24 @@ class Neo4jContainerExtension(imageName: String = s"neo4j${if (TestUtil.experime
     }
     addEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     super.start()
+
+    if (fixture.nonEmpty) {
+      val driver = GraphDatabase.driver(this.getBoltUrl, createAuth())
+      try {
+        fixture.foreach(t => {
+          val session = driver.session(SessionConfig.forDatabase(t._1))
+          try {
+            val lines = Source.fromResource(t._2)
+              .mkString("\n")
+              .split(";")
+            lines.foreach(line => session.run(line))
+          } finally {
+            TestUtil.closeSafety(session)
+          }
+        })
+      } finally {
+        TestUtil.closeSafety(driver)
+      }
+    }
   }
 }
