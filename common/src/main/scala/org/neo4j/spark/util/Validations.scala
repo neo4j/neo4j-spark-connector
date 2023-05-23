@@ -50,16 +50,21 @@ case class ValidateSparkVersion(supportedVersions: String*) extends Validation {
     val sparkVersion = SparkSession.getActiveSession
       .map(_.version)
       .getOrElse("UNKNOWN")
-    val splittedVersion = sparkVersion.split("\\.")
 
     ValidationUtil.isTrue(
-      sparkVersion == "UNKNOWN" || supportedVersions
-        .flatMap(_.split("\\.").zip(splittedVersion))
-        .forall(t => compare(t._2, t._1)),
+      isSupported(sparkVersion),
       s"""Your current Spark version $sparkVersion is not supported by the current connector.
          |Please visit https://neo4j.com/developer/spark/overview/#_spark_compatibility to know which connector version you need.
          |""".stripMargin
     )
+  }
+
+  def isSupported(sparkVersion: String): Boolean = {
+    val splittedVersion = sparkVersion.split("\\.")
+    val supported = sparkVersion == "UNKNOWN" || supportedVersions
+      .flatMap(_.split("\\.").zip(splittedVersion))
+      .forall(t => compare(t._2, t._1))
+    supported
   }
 }
 
