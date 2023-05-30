@@ -4,6 +4,7 @@ import java.time.{LocalTime, OffsetTime, ZoneOffset}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.SparkException
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import org.junit
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
 import org.neo4j.driver.internal.types.InternalTypeSystem
@@ -1361,8 +1362,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def shouldWriteComplexDF(): Unit = {
     val data = Seq(
-      ("Cuba Gooding Jr.", 1, "2022-06-07 00:00:00", Seq(Map("product_id" -> 1, "quantity" -> 2, "product_id" -> 2, "quantity" -> 4))),
-      ("Tom Hanks", 2, "2022-07-07 00:00:00", Seq(Map("product_id" -> 11, "quantity" -> 2, "product_id" -> 22, "quantity" -> 4)))
+      ("Cuba Gooding Jr.", 1, "2022-06-07 00:00:00", Seq(Map("product_id" -> 1, "quantity" -> 2), Map("product_id" -> 2, "quantity" -> 4))),
+      ("Tom Hanks", 2, "2022-07-07 00:00:00", Seq(Map("product_id" -> 11, "quantity" -> 2), Map("product_id" -> 22, "quantity" -> 4)))
     ).toDF("actor_name", "order_id", "order_date", "products")
     data.write
       .mode(SaveMode.Overwrite)
@@ -1383,6 +1384,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val actual = SparkConnectorScalaSuiteIT.session().run(
       """
         |MATCH (p:Person)-[cr:CREATED]->(o:Order)-[co:CONTAINS]->(pr:Product)
+        |WITH p, pr, o, co
+        |ORDER BY p.name, pr.id
         |RETURN p.name AS name, o.id AS order, collect({id: pr.id, quantity: co.quantityOrdered}) AS products
         |""".stripMargin)
       .list()
@@ -1391,9 +1394,42 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .toSet
       .asJava
     val expected = Set(
-      Map("name" -> "Cuba Gooding Jr.", "order" -> 1L, "products" -> List(Map("quantity" -> 4L, "id" -> 2L).asJava).asJava).asJava,
-      Map("name" -> "Tom Hanks", "order" -> 2L, "products" -> List(Map("quantity" -> 4L, "id" -> 22L).asJava).asJava).asJava
+      Map("name" -> "Cuba Gooding Jr.", "order" -> 1L, "products" -> List(
+        Map("id" -> 1L, "quantity" -> 2L).asJava,
+        Map("id" -> 2L, "quantity" -> 4L).asJava
+      ).asJava).asJava,
+      Map("name" -> "Tom Hanks", "order" -> 2L, "products" -> List(
+        Map("id" -> 11L, "quantity" -> 2L).asJava,
+        Map("id" -> 22L, "quantity" -> 4L).asJava
+      ).asJava).asJava
     ).asJava
     assertEquals(expected, actual)
+  }
+
+  @Test
+  def shouldFix502(): Unit = {
+    val data = Seq(
+      ("Foo", 1, Map("key" -> Map("innerKey" -> "value"))),
+      ("Bar", 1, Map("key" -> Map("innerKey" -> "value1"))),
+    ).toDF("id", "time", "table")
+    data.write
+      .mode(SaveMode.Append)
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":MyNodeWithMapFlattend")
+      .save()
+    val count: Long = SparkConnectorScalaSuiteIT.session().run(
+      """
+        |MATCH (n:MyNodeWithMapFlattend)
+        |WHERE (
+        | properties(n) = {id: 'Foo', time: 1, `table.key.innerKey`: 'value'}
+        | OR properties(n) = {id: 'Bar', time: 1, `table.key.innerKey`: 'value1'}
+        |)
+        |RETURN count(n)
+        |""".stripMargin)
+      .peek()
+      .get(0)
+      .asLong()
+    junit.Assert.assertEquals(2L, count)
   }
 }
