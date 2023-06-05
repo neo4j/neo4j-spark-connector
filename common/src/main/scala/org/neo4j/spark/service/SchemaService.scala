@@ -707,7 +707,7 @@ object SchemaService {
       case "Long" => DataTypes.LongType
       case "Double" => DataTypes.DoubleType
       case "Point" => pointType
-      case "DateTime" => DataTypes.TimestampType
+      case "DateTime" | "ZonedDateTime" | "LocalDateTime" => DataTypes.TimestampType
       case "Time" => timeType
       case "Date" => DataTypes.DateType
       case "Duration" => durationType

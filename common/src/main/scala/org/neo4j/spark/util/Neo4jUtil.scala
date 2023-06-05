@@ -157,7 +157,7 @@ object Neo4jUtil {
 
   def convertFromSpark(value: Any, dataType: DataType = null): Value = value match {
     case date: java.sql.Date => convertFromSpark(date.toLocalDate, dataType)
-    case timestamp: java.sql.Timestamp => convertFromSpark(timestamp.toInstant.atZone(ZoneOffset.UTC), dataType)
+    case timestamp: java.sql.Timestamp => convertFromSpark(timestamp.toLocalDateTime, dataType)
     case intValue: Int if dataType != null && dataType == DataTypes.DateType => convertFromSpark(DateTimeUtils
       .toJavaDate(intValue), dataType)
     case longValue: Long if dataType != null && dataType == DataTypes.TimestampType => convertFromSpark(DateTimeUtils
@@ -249,7 +249,7 @@ object Neo4jUtil {
   def toParamValue(value: Any): Any = {
     value match {
       case date: java.sql.Date => date.toString
-      case timestamp: java.sql.Timestamp => timestamp.toLocalDateTime.toString
+      case timestamp: java.sql.Timestamp => timestamp.toLocalDateTime
       case _ => value
     }
   }

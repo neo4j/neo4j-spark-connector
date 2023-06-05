@@ -77,8 +77,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         foo match {
           case sqlDate: java.sql.Date => sqlDate
             .toLocalDate
-          case sqlTimestamp: java.sql.Timestamp => sqlTimestamp.toInstant
-            .atZone(ZoneOffset.UTC)
+          case sqlTimestamp: java.sql.Timestamp => sqlTimestamp.toLocalDateTime
           case _ => foo
         }
       }))
@@ -200,7 +199,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .map(i => java.sql.Timestamp.valueOf(s"2020-01-0$i 11:11:11.11"))
       .toDF("foo")
 
-    testType[java.sql.Timestamp](ds, InternalTypeSystem.TYPE_SYSTEM.DATE_TIME())
+    testType[java.sql.Timestamp](ds, InternalTypeSystem.TYPE_SYSTEM.LOCAL_DATE_TIME())
   }
 
   @Test
