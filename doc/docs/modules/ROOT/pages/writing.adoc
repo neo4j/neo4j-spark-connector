@@ -309,7 +309,7 @@ For example, if you have `.option("node.keys", "name:name,email:email")`, you ca
 `.option("node.keys", "name,email")`.
 
 In case the column value is a Map<String, `Value`> (where `Value` can be any supported
-link:https://neo4j.com/docs/cypher-manual/current/syntax/values/[Neo4j Type]), the connector
+link:https://neo4j.com/docs/cypher-manual/current/values-and-types/[Neo4j Type]), the connector
 automatically tries to flatten it.
 
 Let's consider the following dataset:

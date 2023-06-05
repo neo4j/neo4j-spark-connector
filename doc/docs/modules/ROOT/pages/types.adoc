@@ -32,7 +32,7 @@ In some cases, there are data types that Neo4j provides that Spark does not have
 
 |`Point`
 |`struct { type: string, srid: integer, x: double, y: double, z: double }`
-|For more information on spatial types in Neo4j, see link:https://neo4j.com/docs/cypher-manual/current/syntax/spatial/[Spatial values]
+|For more information on spatial types in Neo4j, see link:https://neo4j.com/docs/cypher-manual/current/values-and-types/spatial/[Spatial values]
 
 |`Date`
 |`date`
@@ -56,7 +56,7 @@ In some cases, there are data types that Neo4j provides that Spark does not have
 
 |`Duration`
 |`struct { type: string, months: long, days: long, seconds: long, nanonseconds: integer, value: string }`
-|See link:https://neo4j.com/docs/cypher-manual/current/functions/temporal/duration/[Temporal functions: duration]
+|See link:https://neo4j.com/docs/cypher-manual/current/values-and-types/temporal/#cypher-temporal-durations[Temporal functions: duration]
 
 |`Node`
 |`struct { <id>: long, <labels>: array[string], (PROPERTIES) }`
@@ -68,7 +68,7 @@ In some cases, there are data types that Neo4j provides that Spark does not have
 
 |`Path`
 |`string`
-|Example: `path[(322)<-[20280:AIRLINE]-(33510)]`.  _For ease of use it is recommended to use link:https://neo4j.com/docs/cypher-manual/current/functions/list/[path functions] to return individual properties/aspects of a path from a query._
+|Example: `path[(322)<-[20280:AIRLINE]-(33510)]`.  _For ease of use it is recommended to use link:https://neo4j.com/docs/cypher-manual/current/values-and-types/lists/[path functions] to return individual properties/aspects of a path from a query._
 
 |`[Array of same type]`
 |`array[element]`

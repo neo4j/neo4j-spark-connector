@@ -144,7 +144,7 @@ Before going into details, we need to address you to some preliminary considerat
 
 === Complex data types
 
-Spark doesn't natively support all Neo4j data types (i.e., link:https://neo4j.com/docs/cypher-manual/current/syntax/spatial/[`Point`], link:https://neo4j.com/docs/cypher-manual/current/syntax/temporal/#cypher-temporal-instants[`Time`], link:https://neo4j.com/docs/cypher-manual/current/syntax/temporal/#cypher-temporal-durations[`Duration`]). Such types are transformed into Struct types containing all the useful data.
+Spark doesn't natively support all Neo4j data types (i.e., link:https://neo4j.com/docs/cypher-manual/current/values-and-types/spatial/#spatial-values-point-type[`Point`], link:https://neo4j.com/docs/cypher-manual/current/values-and-types/temporal/#cypher-temporal-instants[`Time`], link:https://neo4j.com/docs/cypher-manual/current/values-and-types/temporal/#cypher-temporal-durations[`Duration`]). Such types are transformed into Struct types containing all the useful data.
 
 For complete details on type handling, consult the xref::types.adoc[Data type mapping between Neo4j and Spark].
 
