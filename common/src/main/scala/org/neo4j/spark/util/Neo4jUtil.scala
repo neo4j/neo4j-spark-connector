@@ -23,6 +23,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Properties
 import org.neo4j.spark.util.Neo4jImplicits._
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 object Neo4jUtil {
@@ -73,151 +74,24 @@ object Neo4jUtil {
   })
   mapper.registerModule(module)
 
-  def convertFromNeo4j(value: Any, schema: DataType = null): Any = {
-    if (schema != null && schema == DataTypes.StringType && value != null && !value.isInstanceOf[String]) {
-      convertFromNeo4j(mapper.writeValueAsString(value), schema)
-    } else {
-      value match {
-        case node: InternalNode => {
-          val map = node.asMap()
-          val structType = extractStructType(schema)
-          val fields = structType
-            .filter(field => field.name != Neo4jUtil.INTERNAL_ID_FIELD && field.name != Neo4jUtil.INTERNAL_LABELS_FIELD)
-            .map(field => convertFromNeo4j(map.get(field.name), field.dataType))
-          InternalRow.fromSeq(Seq(convertFromNeo4j(node.id()), convertFromNeo4j(node.labels())) ++ fields)
-        }
-        case rel: InternalRelationship => {
-          val map = rel.asMap()
-          val structType = extractStructType(schema)
-          val fields = structType
-            .filter(field => field.name != Neo4jUtil.INTERNAL_REL_ID_FIELD
-              && field.name != Neo4jUtil.INTERNAL_REL_TYPE_FIELD
-              && field.name != INTERNAL_REL_SOURCE_ID_FIELD
-              && field.name != INTERNAL_REL_TARGET_ID_FIELD)
-            .map(field => convertFromNeo4j(map.get(field.name), field.dataType))
-          InternalRow.fromSeq(Seq(convertFromNeo4j(rel.id()),
-            convertFromNeo4j(rel.`type`()),
-            convertFromNeo4j(rel.startNodeId()),
-            convertFromNeo4j(rel.endNodeId())) ++ fields)
-        }
-        case d: InternalIsoDuration => {
-          val months = d.months()
-          val days = d.days()
-          val nanoseconds: Integer = d.nanoseconds()
-          val seconds = d.seconds()
-          InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.DURATION_TYPE), months, days, seconds, nanoseconds, UTF8String.fromString(d.toString)))
-        }
-        case zt: ZonedDateTime => DateTimeUtils.instantToMicros(zt.toInstant)
-        case dt: LocalDateTime => DateTimeUtils.instantToMicros(dt.toInstant(ZoneOffset.UTC))
-        case d: LocalDate => d.toEpochDay.toInt
-        case lt: LocalTime => {
-          InternalRow.fromSeq(Seq(
-            UTF8String.fromString(SchemaService.TIME_TYPE_LOCAL),
-            UTF8String.fromString(lt.format(DateTimeFormatter.ISO_TIME))
-          ))
-        }
-        case t: OffsetTime => {
-          InternalRow.fromSeq(Seq(
-            UTF8String.fromString(SchemaService.TIME_TYPE_OFFSET),
-            UTF8String.fromString(t.format(DateTimeFormatter.ISO_TIME))
-          ))
-        }
-        case p: InternalPoint2D => {
-          val srid: Integer = p.srid()
-          InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.POINT_TYPE_2D), srid, p.x(), p.y(), null))
-        }
-        case p: InternalPoint3D => {
-          val srid: Integer = p.srid()
-          InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.POINT_TYPE_3D), srid, p.x(), p.y(), p.z()))
-        }
-        case l: java.util.List[_] => {
-          val elementType = if (schema != null) schema.asInstanceOf[ArrayType].elementType else null
-          ArrayData.toArrayData(l.asScala.map(e => convertFromNeo4j(e, elementType)).toArray)
-        }
-        case map: java.util.Map[_, _] => {
-          if (schema != null) {
-            val mapType = schema.asInstanceOf[MapType]
-            ArrayBasedMapData(map.asScala.map(t => (convertFromNeo4j(t._1, mapType.keyType), convertFromNeo4j(t._2, mapType.valueType))))
-          } else {
-            ArrayBasedMapData(map.asScala.map(t => (convertFromNeo4j(t._1), convertFromNeo4j(t._2))))
-          }
-        }
-        case s: String => UTF8String.fromString(s)
-        case _ => value
-      }
-    }
-  }
-
-  private def extractStructType(dataType: DataType): StructType = dataType match {
+  @tailrec
+  def extractStructType(dataType: DataType): StructType = dataType match {
     case structType: StructType => structType
     case mapType: MapType => extractStructType(mapType.valueType)
     case arrayType: ArrayType => extractStructType(arrayType.elementType)
     case _ => throw new UnsupportedOperationException(s"$dataType not supported")
   }
 
-  def convertFromSpark(value: Any, dataType: DataType = null): Value = value match {
-    case date: java.sql.Date => convertFromSpark(date.toLocalDate, dataType)
-    case timestamp: java.sql.Timestamp => convertFromSpark(timestamp.toLocalDateTime, dataType)
-    case intValue: Int if dataType == DataTypes.DateType => convertFromSpark(DateTimeUtils
-      .toJavaDate(intValue), dataType)
-    case longValue: Long if dataType == DataTypes.TimestampType => convertFromSpark(DateTimeUtils
-      .toJavaTimestamp(longValue), dataType)
-    case unsafeRow: UnsafeRow => {
-      val structType = extractStructType(dataType)
-      val row = new GenericRowWithSchema(unsafeRow.toSeq(structType).toArray, structType)
-      convertFromSpark(row)
+  def flattenMap(map: java.util.Map[String, AnyRef],
+                 prefix: String = ""): java.util.Map[String, AnyRef] = map.asScala.flatMap(t => {
+    val key: String = if (prefix != "") s"${prefix.quote()}.${t._1.quote()}" else t._1.quote()
+    t._2 match {
+      case nestedMap: Map[String, AnyRef] => flattenMap(nestedMap.asJava, key).asScala.toSeq
+      case _ => Seq((key, t._2))
     }
-    case struct: GenericRowWithSchema => {
-      def toMap(struct: GenericRowWithSchema): Value = {
-        Values.value(
-          struct.schema.fields.map(
-            f => f.name -> Neo4jUtil.convertFromSpark(struct.getAs(f.name), f.dataType)
-          ).toMap.asJava)
-      }
-
-      try {
-        struct.getAs[UTF8String]("type").toString match {
-          case SchemaService.POINT_TYPE_2D => Values.point(struct.getAs[Number]("srid").intValue(),
-            struct.getAs[Number]("x").doubleValue(),
-            struct.getAs[Number]("y").doubleValue())
-          case SchemaService.POINT_TYPE_3D => Values.point(struct.getAs[Number]("srid").intValue(),
-            struct.getAs[Number]("x").doubleValue(),
-            struct.getAs[Number]("y").doubleValue(),
-            struct.getAs[Number]("z").doubleValue())
-          case SchemaService.DURATION_TYPE => Values.isoDuration(struct.getAs[Number]("months").longValue(),
-            struct.getAs[Number]("days").longValue(),
-            struct.getAs[Number]("seconds").longValue(),
-            struct.getAs[Number]("nanoseconds").intValue())
-          case SchemaService.TIME_TYPE_OFFSET => Values.value(OffsetTime.parse(struct.getAs[UTF8String]("value").toString))
-          case SchemaService.TIME_TYPE_LOCAL => Values.value(LocalTime.parse(struct.getAs[UTF8String]("value").toString))
-          case _ => toMap(struct)
-        }
-      } catch {
-        case _: Throwable => toMap(struct)
-      }
-    }
-    case unsafeArray: UnsafeArrayData => {
-      val sparkType = dataType match {
-        case arrayType: ArrayType => arrayType.elementType
-        case _ => dataType
-      }
-      val javaList = unsafeArray.toSeq[AnyRef](sparkType)
-        .map(elem => convertFromSpark(elem, sparkType))
-        .asJava
-      Values.value(javaList)
-    }
-    case unsafeMapData: UnsafeMapData => { // Neo4j only supports Map[String, AnyRef]
-      val mapType = dataType.asInstanceOf[MapType]
-      val map: Map[String, AnyRef] = (0 until unsafeMapData.numElements())
-        .map(i => (unsafeMapData.keyArray().getUTF8String(i).toString, unsafeMapData.valueArray().get(i, mapType.valueType)))
-        .toMap[String, AnyRef]
-        .mapValues(innerValue => convertFromSpark(innerValue, mapType.valueType))
-        .toMap[String, AnyRef]
-      Values.value(map.asJava)
-    }
-    case string: UTF8String => convertFromSpark(string.toString)
-    case _ => Values.value(value)
-  }
+  })
+    .toMap
+    .asJava
 
   def isLong(str: String): Boolean = {
     if (str == null) {

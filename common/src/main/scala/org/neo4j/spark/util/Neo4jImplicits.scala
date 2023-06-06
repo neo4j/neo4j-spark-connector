@@ -7,8 +7,8 @@ import org.apache.spark.sql.sources.{AlwaysFalse, AlwaysTrue, And, EqualNullSafe
 import org.apache.spark.sql.types.{DataTypes, MapType, StructField, StructType}
 import org.neo4j.driver.Value
 import org.neo4j.driver.types.{Entity, Node, Relationship}
+import org.neo4j.spark.service.MappingService.convertFromSpark
 import org.neo4j.spark.service.SchemaService
-import org.neo4j.spark.util.Neo4jUtil.convertFromSpark
 
 import javax.lang.model.SourceVersion
 import scala.collection.JavaConverters._

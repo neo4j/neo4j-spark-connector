@@ -43,7 +43,7 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
     params.asJava
   }
 
-  private val mappingService = new MappingService(new Neo4jReadMappingStrategy(options, requiredColumns), options)
+  private val mappingService = new MappingService(new Neo4jReadMappingStrategy(options, requiredColumns, jobId), options)
 
   @volatile
   private var error: Boolean = false
