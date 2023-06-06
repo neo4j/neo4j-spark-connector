@@ -1,21 +1,28 @@
 package org.neo4j.spark.service
 
-import java.util
-import java.util.function
-import java.util.function.BiConsumer
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.catalyst.expressions.{GenericRowWithSchema, UnsafeArrayData, UnsafeMapData, UnsafeRow}
+import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, DateTimeUtils}
+import org.apache.spark.sql.types.{ArrayType, DataType, DataTypes, MapType, StructField, StructType}
+import org.apache.spark.unsafe.types.UTF8String
 import org.neo4j.driver.internal.value.MapValue
+import org.neo4j.driver.internal.{InternalIsoDuration, InternalNode, InternalPoint2D, InternalPoint3D, InternalRelationship}
 import org.neo4j.driver.types.Node
 import org.neo4j.driver.{Record, Value, Values}
 import org.neo4j.spark.service.Neo4jWriteMappingStrategy.{KEYS, PROPERTIES}
-import org.neo4j.spark.util.{Neo4jNodeMetadata, Neo4jOptions, Neo4jUtil, QueryType, RelationshipSaveStrategy, ValidateSchemaOptions, Validations}
+import org.neo4j.spark.util.Neo4jImplicits._
+import org.neo4j.spark.util.Neo4jUtil.{extractStructType, mapper}
+import org.neo4j.spark.util.{DriverCache, Neo4jNodeMetadata, Neo4jOptions, Neo4jUtil, QueryType, RelationshipSaveStrategy, ValidateSchemaOptions, Validations}
 
+import java.time.format.DateTimeFormatter
+import java.time.{LocalDate, LocalDateTime, LocalTime, OffsetTime, ZoneOffset, ZonedDateTime}
+import java.util
+import java.util.function
+import java.util.function.BiConsumer
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import org.neo4j.spark.util.Neo4jImplicits._
 
-class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
+class Neo4jWriteMappingStrategy(private val options: Neo4jOptions, private val jobId: String)
   extends Neo4jMappingStrategy[InternalRow, java.util.Map[String, AnyRef]] {
 
   override def node(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
@@ -115,12 +122,77 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     rowMap
   }
 
+  private def convertFromSpark(value: Any, schema: StructField = null): AnyRef = value match {
+    case date: java.sql.Date => convertFromSpark(date.toLocalDate, schema)
+    case timestamp: java.sql.Timestamp =>
+      val config = new DriverCache(options.connection, jobId).getServerConfig
+      val tz = config.getOrElse("db.temporal.timezone", "Z")
+      convertFromSpark(timestamp.toInstant.atZone(ZoneOffset.of(tz)), schema)
+    case intValue: Int if schema != null && schema.dataType == DataTypes.DateType => convertFromSpark(DateTimeUtils
+      .toJavaDate(intValue), schema)
+    case longValue: Long if schema != null && schema.dataType == DataTypes.TimestampType => convertFromSpark(DateTimeUtils
+      .toJavaTimestamp(longValue), schema)
+    case unsafeRow: UnsafeRow => {
+      val structType = extractStructType(schema.dataType)
+      val row = new GenericRowWithSchema(unsafeRow.toSeq(structType).toArray, structType)
+      convertFromSpark(row)
+    }
+    case struct: GenericRowWithSchema => {
+      def toMap(struct: GenericRowWithSchema): Value = {
+        Values.value(
+          struct.schema.fields.map(
+            f => f.name -> convertFromSpark(struct.getAs(f.name), f)
+          ).toMap.asJava)
+      }
+      try {
+        struct.getAs[UTF8String]("type").toString match {
+          case SchemaService.POINT_TYPE_2D => Values.point(struct.getAs[Number]("srid").intValue(),
+            struct.getAs[Number]("x").doubleValue(),
+            struct.getAs[Number]("y").doubleValue())
+          case SchemaService.POINT_TYPE_3D => Values.point(struct.getAs[Number]("srid").intValue(),
+            struct.getAs[Number]("x").doubleValue(),
+            struct.getAs[Number]("y").doubleValue(),
+            struct.getAs[Number]("z").doubleValue())
+          case SchemaService.DURATION_TYPE => Values.isoDuration(struct.getAs[Number]("months").longValue(),
+            struct.getAs[Number]("days").longValue(),
+            struct.getAs[Number]("seconds").longValue(),
+            struct.getAs[Number]("nanoseconds").intValue())
+          case SchemaService.TIME_TYPE_OFFSET => Values.value(OffsetTime.parse(struct.getAs[UTF8String]("value").toString))
+          case SchemaService.TIME_TYPE_LOCAL => Values.value(LocalTime.parse(struct.getAs[UTF8String]("value").toString))
+          case _ => toMap(struct)
+        }
+      } catch {
+        case _: Throwable => toMap(struct)
+      }
+    }
+    case unsafeArray: UnsafeArrayData => {
+      val sparkType = schema.dataType match {
+        case arrayType: ArrayType => arrayType.elementType
+        case _ => schema.dataType
+      }
+      val javaList = unsafeArray.toSeq[AnyRef](sparkType)
+        .map(elem => convertFromSpark(elem, StructField("", sparkType, true)))
+        .asJava
+      Values.value(javaList)
+    }
+    case unsafeMapData: UnsafeMapData => { // Neo4j only supports Map[String, AnyRef]
+      val mapType = schema.dataType.asInstanceOf[MapType]
+      val map: Map[String, AnyRef] = (0 until unsafeMapData.numElements())
+        .map(i => (unsafeMapData.keyArray().getUTF8String(i).toString, unsafeMapData.valueArray().get(i, mapType.valueType)))
+        .toMap[String, AnyRef]
+        .mapValues(innerValue => convertFromSpark(innerValue))
+      Values.value(map.asJava)
+    }
+    case string: UTF8String => convertFromSpark(string.toString)
+    case _ => Values.value(value)
+  }
+
   override def query(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     val seq = row.toSeq(schema)
-    (0 to schema.size - 1)
+    (0 until schema.size)
       .flatMap(i => {
         val field = schema(i)
-        val neo4jValue = Neo4jUtil.convertFromSpark(seq(i), field)
+        val neo4jValue = convertFromSpark(seq(i), field)
         neo4jValue match {
           case map: MapValue => Neo4jUtil.flattenMap(map.asMap(), field.name)
             .asScala
@@ -134,7 +206,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   }
 }
 
-class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumns: StructType) extends Neo4jMappingStrategy[Record, InternalRow] {
+class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumns: StructType, jobId: String) extends Neo4jMappingStrategy[Record, InternalRow] {
 
   override def node(record: Record, schema: StructType): InternalRow = {
     if (requiredColumns.nonEmpty) {
@@ -150,11 +222,90 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumn
     }
   }
 
+  private def convertFromNeo4j(value: Any, schema: DataType = null): Any = {
+    if (schema != null && schema == DataTypes.StringType && value != null && !value.isInstanceOf[String]) {
+      convertFromNeo4j(mapper.writeValueAsString(value), schema)
+    } else {
+      value match {
+        case node: InternalNode => {
+          val map = node.asMap()
+          val structType = Neo4jUtil.extractStructType(schema)
+          val fields = structType
+            .filter(field => field.name != Neo4jUtil.INTERNAL_ID_FIELD && field.name != Neo4jUtil.INTERNAL_LABELS_FIELD)
+            .map(field => convertFromNeo4j(map.get(field.name), field.dataType))
+          InternalRow.fromSeq(Seq(convertFromNeo4j(node.id()), convertFromNeo4j(node.labels())) ++ fields)
+        }
+        case rel: InternalRelationship => {
+          val map = rel.asMap()
+          val structType = Neo4jUtil.extractStructType(schema)
+          val fields = structType
+            .filter(field => field.name != Neo4jUtil.INTERNAL_REL_ID_FIELD
+              && field.name != Neo4jUtil.INTERNAL_REL_TYPE_FIELD
+              && field.name != Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD
+              && field.name != Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD)
+            .map(field => convertFromNeo4j(map.get(field.name), field.dataType))
+          InternalRow.fromSeq(Seq(convertFromNeo4j(rel.id()),
+            convertFromNeo4j(rel.`type`()),
+            convertFromNeo4j(rel.startNodeId()),
+            convertFromNeo4j(rel.endNodeId())) ++ fields)
+        }
+        case d: InternalIsoDuration => {
+          val months = d.months()
+          val days = d.days()
+          val nanoseconds: Integer = d.nanoseconds()
+          val seconds = d.seconds()
+          InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.DURATION_TYPE), months, days, seconds, nanoseconds, UTF8String.fromString(d.toString)))
+        }
+        case zt: ZonedDateTime => DateTimeUtils.anyToMicros(zt.toInstant)
+        case dt: LocalDateTime => {
+          val config = new DriverCache(options.connection, jobId).getServerConfig
+          val tz = config.getOrElse("db.temporal.timezone", "Z")
+          DateTimeUtils.anyToMicros(dt.toInstant(ZoneOffset.of(tz)))
+        }
+        case d: LocalDate => DateTimeUtils.anyToDays(d)
+        case lt: LocalTime => {
+          InternalRow.fromSeq(Seq(
+            UTF8String.fromString(SchemaService.TIME_TYPE_LOCAL),
+            UTF8String.fromString(lt.format(DateTimeFormatter.ISO_TIME))
+          ))
+        }
+        case t: OffsetTime => {
+          InternalRow.fromSeq(Seq(
+            UTF8String.fromString(SchemaService.TIME_TYPE_OFFSET),
+            UTF8String.fromString(t.format(DateTimeFormatter.ISO_TIME))
+          ))
+        }
+        case p: InternalPoint2D => {
+          val srid: Integer = p.srid()
+          InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.POINT_TYPE_2D), srid, p.x(), p.y(), null))
+        }
+        case p: InternalPoint3D => {
+          val srid: Integer = p.srid()
+          InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.POINT_TYPE_3D), srid, p.x(), p.y(), p.z()))
+        }
+        case l: java.util.List[_] => {
+          val elementType = if (schema != null) schema.asInstanceOf[ArrayType].elementType else null
+          ArrayData.toArrayData(l.asScala.map(e => convertFromNeo4j(e, elementType)).toArray)
+        }
+        case map: java.util.Map[_, _] => {
+          if (schema != null) {
+            val mapType = schema.asInstanceOf[MapType]
+            ArrayBasedMapData(map.asScala.map(t => (convertFromNeo4j(t._1, mapType.keyType), convertFromNeo4j(t._2, mapType.valueType))))
+          } else {
+            ArrayBasedMapData(map.asScala.map(t => (convertFromNeo4j(t._1), convertFromNeo4j(t._2))))
+          }
+        }
+        case s: String => UTF8String.fromString(s)
+        case _ => value
+      }
+    }
+  }
+
   private def mapToInternalRow(map: util.Map[String, Any],
                                schema: StructType) = InternalRow
     .fromSeq(
       schema.map(
-        field => Neo4jUtil.convertFromNeo4j(map.get(field.name), field.dataType)
+        field => convertFromNeo4j(map.get(field.name), field.dataType)
       )
     )
 

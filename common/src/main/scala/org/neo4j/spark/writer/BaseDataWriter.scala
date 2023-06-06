@@ -29,7 +29,7 @@ abstract class BaseDataWriter(jobId: String,
   private var transaction: Transaction = _
   private var session: Session = _
 
-  private val mappingService = new MappingService(new Neo4jWriteMappingStrategy(options), options)
+  private val mappingService = new MappingService(new Neo4jWriteMappingStrategy(options, jobId), options)
 
   private val batch: util.List[java.util.Map[String, Object]] = new util.ArrayList[util.Map[String, Object]]()
 
