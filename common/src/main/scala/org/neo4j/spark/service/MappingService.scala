@@ -1,5 +1,7 @@
 package org.neo4j.spark.service
 
+import org.apache.spark.internal.Logging
+
 import java.util
 import java.util.function
 import java.util.function.BiConsumer
@@ -16,7 +18,8 @@ import scala.collection.mutable
 import org.neo4j.spark.util.Neo4jImplicits._
 
 class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
-  extends Neo4jMappingStrategy[InternalRow, java.util.Map[String, AnyRef]] {
+  extends Neo4jMappingStrategy[InternalRow, java.util.Map[String, AnyRef]]
+  with Logging {
 
   override def node(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     Validations.validate(ValidateSchemaOptions(options, schema))
@@ -122,10 +125,22 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
         val field = schema(i)
         val neo4jValue = Neo4jUtil.convertFromSpark(seq(i), field)
         neo4jValue match {
-          case map: MapValue => Neo4jUtil.flattenMap(map.asMap(), field.name)
-            .asScala
-            .map(t => (t._1, Values.value(t._2)))
-            .toSeq
+          case map: MapValue =>
+            val scalaMap = map.asMap().asScala.toMap
+            val dupKeys = scalaMap.flattenKeys(field.name)
+              .groupBy(identity)
+              .collect { case (x, List(_,_,_*)) => x }
+            if (dupKeys.nonEmpty) {
+              logWarning(
+                s"""
+                   |The field `${field.name}` which has a map {${scalaMap.mkString(", ")}}
+                   |contains the following duplicated keys: [${dupKeys.mkString(", ")}],
+                   |you will loose information stored in these keys
+                   |""".stripMargin)
+            }
+            scalaMap.flattenMap(field.name)
+              .mapValues(Values.value)
+              .toSeq
           case _ => Seq((field.name, neo4jValue))
         }
       })

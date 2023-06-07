@@ -4,9 +4,11 @@ import org.apache.spark.sql.connector.expressions.Expression
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.sources.{And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
 import org.apache.spark.sql.types.{DataTypes, MapType, StructField, StructType}
+import org.json4s.jsonwritable
 import org.neo4j.driver.types.{Entity, Node, Relationship}
 import org.neo4j.spark.service.SchemaService
 
+import java.util
 import javax.lang.model.SourceVersion
 import scala.collection.JavaConverters._
 
@@ -196,6 +198,33 @@ object Neo4jImplicits {
 
   implicit class AggregationImplicit(aggregation: Aggregation) {
     def groupByCols(): Array[Expression] = ReflectionUtils.groupByCols(aggregation)
+  }
+
+  implicit class MapImplicit[K, V](map: Map[String, V]) {
+    def flattenMap(prefix: String = ""): Map[String, AnyRef] = {
+      map
+        .flatMap(t => {
+          val key: String = if (prefix != "") s"$prefix.${t._1}" else t._1
+          t._2 match {
+            case nestedMap: Map[String, _] => nestedMap.flattenMap(key).toSeq
+            case nestedMap: java.util.Map[String, _] => nestedMap.asScala.toMap.flattenMap(key).toSeq
+            case _ => Seq((key, t._2.asInstanceOf[AnyRef]))
+          }
+        })
+    }
+
+    def flattenKeys(prefix: String = ""): Seq[String] = {
+      map
+        .flatMap(t => {
+          val key: String = if (prefix != "") s"$prefix.${t._1}" else t._1
+          t._2 match {
+            case nestedMap: Map[String, _] => nestedMap.flattenKeys(key)
+            case nestedMap: java.util.Map[String, _] => nestedMap.asScala.toMap.flattenKeys(key)
+            case _ => Seq(key)
+          }
+        })
+        .toSeq
+    }
   }
 
 }

@@ -5,8 +5,11 @@ import org.apache.spark.sql.connector.expressions.aggregate.{Aggregation, Sum}
 import org.apache.spark.sql.sources.{And, EqualTo}
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Assert, Test}
 import org.neo4j.spark.util.Neo4jImplicits._
+
+import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
+import scala.collection.immutable.ListMap
 
 class Neo4jImplicitsTest {
 
@@ -140,5 +143,53 @@ class Neo4jImplicitsTest {
     val agg = new Aggregation(Array(new Sum(aggField, false)), Array(gbyField))
     assertEquals(1, agg.groupByCols().length)
     assertEquals("bar", agg.groupByCols()(0).describe())
+  }
+
+  @Test
+  def `should flatten the map`(): Unit = {
+    val input = Map(
+      "foo" -> "bar",
+      "key" -> Map(
+        "innerKey" -> Map("innerKey2" -> "value")
+      )
+    )
+    val expected = Map(
+      "foo" -> "bar",
+      "key.innerKey.innerKey2" -> "value"
+    )
+    val actual = input.flattenMap()
+    Assert.assertEquals(expected, actual)
+  }
+
+  @Test
+  def `should not handle collision`(): Unit = {
+    val input = ListMap(
+      "my" -> Map(
+        "inner" -> Map("key" -> 42424242),
+        "inner.key" -> 424242
+      ),
+      "my.inner" -> Map("key" -> 4242).asJava,
+      "my.inner.key" -> 42
+    )
+    val expected = Map(
+      "my.inner.key" -> 42
+    )
+    val actual = input.flattenMap()
+    Assert.assertEquals(expected, actual)
+  }
+
+  @Test
+  def `should show duplicate keys`(): Unit = {
+    val input = Map(
+      "my" -> Map(
+        "inner" -> Map("key" -> 42424242),
+        "inner.key" -> 424242
+      ),
+      "my.inner" -> Map("key" -> 4242).asJava,
+      "my.inner.key" -> 42
+    )
+    val expected = Seq("my.inner.key", "my.inner.key", "my.inner.key", "my.inner.key")
+    val actual = input.flattenKeys()
+    Assert.assertEquals(expected, actual)
   }
 }

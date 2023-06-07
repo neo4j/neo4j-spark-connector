@@ -708,3 +708,76 @@ CREATE (n:Person{fullName: event.name + ' ' + event.surname, age: scriptResult[0
 
 `scriptResult` is the result from the last query contained within the `script` options
 that is `RETURN 36 AS age;`
+
+== Note about columns with Map type
+
+When a Dataframe column is a map, what we do internally is to flatten the map as Neo4j does not support this type for graph entity properties; so for a Spark job like this:
+
+[source,scala]
+----
+val data = Seq(
+  ("Foo", 1, Map("inner" -> Map("key" -> "innerValue"))),
+  ("Bar", 2, Map("inner" -> Map("key" -> "innerValue1"))),
+).toDF("id", "time", "table")
+
+data.write
+  .mode(SaveMode.Append)
+  .format(classOf[DataSource].getName)
+  .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+  .option("labels", ":MyNodeWithMapFlattend")
+  .save()
+----
+
+In Neo4j for the nodes with label `MyNodeWithMapFlattend` you'll find this information stored:
+
+----
+MyNodeWithMapFlattend {
+    id: 'Foo',
+    time: 1,
+    `table.inner.key`: 'innerValue'
+}
+MyNodeWithMapFlattend {
+    id: 'Bar',
+    time: 1,
+    `table.inner.key`: 'innerValue1'
+}
+----
+
+Now could happen that you have a Spark job like
+
+[source,scala]
+----
+val data = Seq(
+  ("Foo", 1, Map("key.inner" -> Map("key" -> "innerValue"), "key" -> Map("inner.key" -> "value"))),
+  ("Bar", 1, Map("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1"))),
+).toDF("id", "time", "table")
+data.write
+  .mode(SaveMode.Append)
+  .format(classOf[DataSource].getName)
+  .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+  .option("labels", ":MyNodeWithMapFlattend")
+  .save()
+----
+
+which leads to have duplicates keys while we flatten it, the Neo4j Spark connector informs you with a WARN message like this;
+
+----
+The field `table` which has a map {key.inner -> {key=innerValue}, key -> {inner.key=value}}
+contains the following duplicated keys: [table.key.inner.key],
+you will loose information stored in these keys
+----
+
+Because the information that we'll store into Neo4j will be this:
+
+----
+MyNodeWithMapFlattend {
+    id: 'Foo',
+    time: 1,
+    `table.key.inner.key`: 'innerValue'
+}
+MyNodeWithMapFlattend {
+    id: 'Bar',
+    time: 1,
+    `table.key.inner.key`: 'innerValue1'
+}
+----

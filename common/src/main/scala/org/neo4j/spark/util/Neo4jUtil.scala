@@ -219,19 +219,6 @@ object Neo4jUtil {
     case _ => Values.value(value)
   }
 
-  def flattenMap(map: java.util.Map[String, AnyRef],
-                 prefix: String = ""): java.util.Map[String, AnyRef] = map.asScala
-    .flatMap(t => {
-      val key: String = if (prefix != "") s"${prefix}.${t._1}" else t._1.quote()
-      t._2 match {
-        case nestedMap: Map[String, AnyRef] => flattenMap(nestedMap.asJava, key).asScala.toSeq
-        case nestedMap: java.util.Map[String, AnyRef] => flattenMap(nestedMap, key).asScala.toSeq
-        case _ => Seq((key, t._2))
-      }
-    })
-    .toMap
-    .asJava
-
   def isLong(str: String): Boolean = {
     if (str == null) {
       false

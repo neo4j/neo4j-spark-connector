@@ -1409,8 +1409,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def shouldFix502(): Unit = {
     val data = Seq(
-      ("Foo", 1, Map("key" -> Map("innerKey" -> "value"))),
-      ("Bar", 1, Map("key" -> Map("innerKey" -> "value1"))),
+      ("Foo", 1, Map("inner" -> Map("key" -> "innerValue"))),
+      ("Bar", 1, Map("inner" -> Map("key" -> "innerValue1"))),
     ).toDF("id", "time", "table")
     data.write
       .mode(SaveMode.Append)
@@ -1422,8 +1422,35 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       """
         |MATCH (n:MyNodeWithMapFlattend)
         |WHERE (
-        | properties(n) = {id: 'Foo', time: 1, `table.key.innerKey`: 'value'}
-        | OR properties(n) = {id: 'Bar', time: 1, `table.key.innerKey`: 'value1'}
+        | properties(n) = {id: 'Foo', time: 1, `table.inner.key`: 'innerValue'}
+        | OR properties(n) = {id: 'Bar', time: 1, `table.inner.key`: 'innerValue1'}
+        |)
+        |RETURN count(n)
+        |""".stripMargin)
+      .peek()
+      .get(0)
+      .asLong()
+    junit.Assert.assertEquals(2L, count)
+  }
+
+  @Test
+  def shouldFix502WithCollisions(): Unit = {
+    val data = Seq(
+      ("Foo", 1, Map("key.inner" -> Map("key" -> "innerValue"), "key" -> Map("inner.key" -> "value"))),
+      ("Bar", 1, Map("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1"))),
+    ).toDF("id", "time", "table")
+    data.write
+      .mode(SaveMode.Append)
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":MyNodeWithMapFlattend")
+      .save()
+    val count: Long = SparkConnectorScalaSuiteIT.session().run(
+      """
+        |MATCH (n:MyNodeWithMapFlattend)
+        |WHERE (
+        | properties(n) = {id: 'Foo', time: 1, `table.key.inner.key`: 'value'}
+        | OR properties(n) = {id: 'Bar', time: 1, `table.key.inner.key`: 'value1'}
         |)
         |RETURN count(n)
         |""".stripMargin)
