@@ -1,5 +1,6 @@
 package org.neo4j.spark.service
 
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{GenericRowWithSchema, UnsafeArrayData, UnsafeMapData, UnsafeRow}
 import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, DateTimeUtils}
@@ -125,8 +126,16 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions, private val j
   private def convertFromSpark(value: Any, schema: StructField = null): AnyRef = value match {
     case date: java.sql.Date => convertFromSpark(date.toLocalDate, schema)
     case timestamp: java.sql.Timestamp =>
-      val config = new DriverCache(options.connection, jobId).getServerConfig
-      val tz = config.getOrElse("db.temporal.timezone", "Z")
+      // TODO discuss with Florent, I'm not sure about this
+      // I think that is better here to get the value of
+      // spark.sql.session.timeZone
+//      val config = new DriverCache(options.connection, jobId).getServerConfig
+//      val tz = config.getOrElse("db.temporal.timezone", "Z")
+      // This is the correct implementation for me
+      val tz = SparkSession.getActiveSession
+        .map(_.conf)
+        .map(c => c.get("spark.sql.session.timeZone"))
+        .getOrElse("Z")
       convertFromSpark(timestamp.toInstant.atZone(ZoneOffset.of(tz)), schema)
     case intValue: Int if schema != null && schema.dataType == DataTypes.DateType => convertFromSpark(DateTimeUtils
       .toJavaDate(intValue), schema)
