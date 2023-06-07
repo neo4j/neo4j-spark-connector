@@ -5,7 +5,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{GenericRowWithSchema, UnsafeArrayData, UnsafeMapData, UnsafeRow}
 import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, DateTimeUtils}
-import org.apache.spark.sql.types.{ArrayType, DataType, DataTypes, MapType, StructField, StructType}
+import org.apache.spark.sql.types.{ArrayType, DataType, DataTypes, MapType, StructType}
 import org.apache.spark.unsafe.types.UTF8String
 import org.neo4j.driver.internal.value.MapValue
 import org.neo4j.driver.internal.{InternalIsoDuration, InternalNode, InternalPoint2D, InternalPoint3D, InternalRelationship}
