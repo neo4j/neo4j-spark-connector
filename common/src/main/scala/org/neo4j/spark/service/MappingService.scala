@@ -135,7 +135,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
                 s"""
                    |The field `${field.name}` which has a map {${scalaMap.mkString(", ")}}
                    |contains the following duplicated keys: [${dupKeys.mkString(", ")}],
-                   |you will loose information stored in these keys
+                   |you will lose some of the values associated with these duplicate keys
                    |""".stripMargin)
             }
             scalaMap.flattenMap(field.name)

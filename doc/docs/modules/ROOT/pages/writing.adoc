@@ -724,26 +724,26 @@ data.write
   .mode(SaveMode.Append)
   .format(classOf[DataSource].getName)
   .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-  .option("labels", ":MyNodeWithMapFlattend")
+  .option("labels", ":MyNodeWithFlattenedMap")
   .save()
 ----
 
-In Neo4j for the nodes with label `MyNodeWithMapFlattend` you'll find this information stored:
+In Neo4j for the nodes with label `MyNodeWithFlattenedMap` you'll find this information stored:
 
 ----
-MyNodeWithMapFlattend {
+MyNodeWithFlattenedMap {
     id: 'Foo',
     time: 1,
     `table.inner.key`: 'innerValue'
 }
-MyNodeWithMapFlattend {
+MyNodeWithFlattenedMap {
     id: 'Bar',
     time: 1,
     `table.inner.key`: 'innerValue1'
 }
 ----
 
-Now could happen that you have a Spark job like
+Now could  into problematic situations like the following one:
 
 [source,scala]
 ----
@@ -755,29 +755,29 @@ data.write
   .mode(SaveMode.Append)
   .format(classOf[DataSource].getName)
   .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-  .option("labels", ":MyNodeWithMapFlattend")
+  .option("labels", ":MyNodeWithFlattenedMap")
   .save()
 ----
 
-which leads to have duplicates keys while we flatten it, the Neo4j Spark connector informs you with a WARN message like this;
+since the resulting flattened keys are duplicated, the Neo4j Spark will pick one of the associated value in a non-deterministic way and inform you with a `WARN` message like the following one:
 
 ----
 The field `table` which has a map {key.inner -> {key=innerValue}, key -> {inner.key=value}}
 contains the following duplicated keys: [table.key.inner.key],
-you will loose information stored in these keys
+you will lose some of the values associated with these duplicate keys
 ----
 
-Because the information that we'll store into Neo4j will be this:
+Because the information that we'll store into Neo4j will be this (consider that the order is not guaranteed):
 
 ----
-MyNodeWithMapFlattend {
+MyNodeWithFlattenedMap {
     id: 'Foo',
     time: 1,
-    `table.key.inner.key`: 'innerValue'
+    `table.key.inner.key`: 'innerValue' // but it could be `value` as the order is not guaranteed
 }
-MyNodeWithMapFlattend {
+MyNodeWithFlattenedMap {
     id: 'Bar',
     time: 1,
-    `table.key.inner.key`: 'innerValue1'
+    `table.key.inner.key`: 'innerValue1' // but it could be `value1` as the order is not guaranteed
 }
 ----
