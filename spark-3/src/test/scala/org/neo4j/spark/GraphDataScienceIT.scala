@@ -184,6 +184,82 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
       .show(false)
   }
 
+  @Test
+  def shouldWorkWithKNearest(): Unit = {
+    SparkConnectorScalaSuiteWithGdsBase.session()
+      .writeTransaction(
+        (tx: Transaction) => {
+          tx.run(
+            """
+              |CREATE (alice:Person {name: 'Alice', age: 24, lotteryNumbers: [1, 3], embedding: [1.0, 3.0]})
+              |CREATE (bob:Person {name: 'Bob', age: 73, lotteryNumbers: [1, 2, 3], embedding: [2.1, 1.6]})
+              |CREATE (carol:Person {name: 'Carol', age: 24, lotteryNumbers: [3], embedding: [1.5, 3.1]})
+              |CREATE (dave:Person {name: 'Dave', age: 48, lotteryNumbers: [2, 4], embedding: [0.6, 0.2]})
+              |CREATE (eve:Person {name: 'Eve', age: 67, lotteryNumbers: [1, 5], embedding: [1.8, 2.7]});
+              |""".stripMargin).consume()
+        })
+
+    ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
+      .option("gds", "gds.graph.project")
+      .option("gds.graphName", "myGraph")
+      .option("gds.nodeProjection.Person.properties", "['age','lotteryNumbers','embedding']")
+      .option("gds.relationshipProjection", "*")
+      .load()
+      .show(false)
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
+      .option("gds", "gds.knn.stream")
+      .option("gds.graphName", "myGraph")
+      .option("gds.configuration.topK", 1)
+      .option("gds.configuration.nodeProperties", "['age']")
+      .option("gds.configuration.randomSeed", 1337)
+      .option("gds.configuration.concurrency", 1)
+      .option("gds.configuration.sampleRate", 1.0)
+      .option("gds.configuration.deltaThreshold", 0.0)
+      .load()
+
+    assertEquals(df.count(), 5)
+    df.show(false)
+
+    assertEquals(StructType(
+      Array(
+        StructField("node1", LongType),
+        StructField("node2", LongType),
+        StructField("similarity", DoubleType),
+      )
+    ), df.schema)
+
+    val dfEstimate = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
+      .option("gds", "gds.knn.stream.estimate")
+      .option("gds.graphNameOrConfiguration", "myGraph")
+      .option("gds.algoConfiguration.topK", 1)
+      .option("gds.algoConfiguration.nodeProperties", "['age']")
+      .option("gds.algoConfiguration.randomSeed", 1337)
+      .option("gds.algoConfiguration.concurrency", 1)
+      .option("gds.algoConfiguration.sampleRate", 1.0)
+      .option("gds.algoConfiguration.deltaThreshold", 0.0)
+      .load()
+    assertEquals(dfEstimate.count(), 1)
+    dfEstimate.show(false)
+
+    assertEquals(StructType(
+      Array(
+        StructField("requiredMemory", StringType),
+        StructField("treeView", StringType),
+        StructField("mapView", MapType(StringType, StringType)),
+        StructField("bytesMin", LongType),
+        StructField("bytesMax", LongType),
+        StructField("nodeCount", LongType),
+        StructField("relationshipCount", LongType),
+        StructField("heapPercentageMin", DoubleType),
+        StructField("heapPercentageMax", DoubleType)
+      )
+    ), dfEstimate.schema)
+  }
+
   private def initForPageRank(): Unit = {
     SparkConnectorScalaSuiteWithGdsBase.session()
       .writeTransaction(

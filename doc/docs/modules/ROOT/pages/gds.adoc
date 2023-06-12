@@ -20,20 +20,19 @@ that you can use Neo4j and GDS as a graph co-processor in an existing ML workflo
 
 == GDS first-class support
 
-Neo4j Spark Connector added first-class support to Graph Data Science library let's see how it works.
+Neo4j Spark Connector provides first-class support to Graph Data Science library let's see how it works.
 
 === Limitations
 
-We don't support `mutate` or `write` procedure as the don't return any kind of usable information in the dataframe, you can achieve the same by joining dataframes and then
-use the Neo4j Spark connector to write back the data to whatever Neo4j instance you want.
+We don't support `mutate` or `write` procedure modes as they don't return any kind of usable information in the dataframe, you can achieve the same by joining dataframes and then use the Neo4j Spark connector to write back the data to whatever Neo4j instance you want.
 
 === Example
 
 Immagine that we want to replicate the example for the Page Rank algorithm
 detailed link:{url-neo4j-gds-manual}algorithms/page-rank/#algorithms-page-rank-examples[here in the GDS manual^].
-The related Spark example looks like the following (we'll assume that the data is already in Neo4j).
+The related Spark example looks like the following (we assume that the data is already in Neo4j).
 
-1. Create the projection graph: the following Python code will project a graph using a native projection and store it in the graph catalog under the name 'myGraph'.
+1. Create the projection graph: The following Python code will project a graph using a native projection and store it in the graph catalog under the name 'myGraph'.
 
 [source,python]
 ----
@@ -60,7 +59,7 @@ which will show a result like this:
 ```
 
 [start=2]
-. Estimate the cost of the algorithm: with the following Python code we will estimate the cost of running the algorithm using the estimate procedure
+. Estimate the cost of the algorithm: With the following Python code we will estimate the cost of running the algorithm using the estimate procedure
 
 [source,python]
 ----
@@ -85,7 +84,7 @@ which will show a result like this:
 ```
 
 [start=3]
-. Compute the algorithm: the following Python code will return the Page Rank
+. Compute the algorithm: The following Python code will return the Page Rank
 computation without any impact to the graph
 
 [source,python]
@@ -119,8 +118,7 @@ which will show a result like this:
 +------+------------------+
 ```
 
-As you can se we have now only the two columns `nodeId` and `score`, let's see how
-you can enrich your nodes with the score
+As you can see, we have now only the two columns `nodeId` and `score`, let's see how you can enrich your nodes with the score.
 
 [start=5]
 . Enrich nodes with the score: the following Python code will enrich the nodes with the score
@@ -160,8 +158,7 @@ Now you can persist this dataset to whatever Neo4j instance you want.
 
 === Options
 
-As you may understand from the examples above, you can pass the all the required options
-with the `gds.` prefix with the dot notation support for nested maps.
+As you may understand from the examples above, you can pass all the required options with the `gds.` prefix with the dot notation support for nested maps.
 
 .List of available configuration settings
 |===
@@ -200,7 +197,7 @@ CALL gds.graph.project(
 
 So we need:
 
-* to invoke the `gds.graph.project`, and this leads to add `.option("gds", "gds.graph.project")` to our Spark Job. The the `project` procedure, as you can see link:{url-neo4j-gds-manual}management-ops/projections/graph-project/[here^] has 4 input parameters:
+* to invoke the `gds.graph.project`, and this leads to add `.option("gds", "gds.graph.project")` to our Spark Job. The `project` procedure, as you can see ink:{url-neo4j-gds-manual}management-ops/projections/graph-project/[here^] has 4 input parameters:
 
 ** `graphName`: we want to name the graph `myGraph`; this leads to add `.option("gds.graphName", "myGraph")`
 ** `nodeProjection`: we want to project `Page` nodes; this leads to add `.option("gds.nodeProjection", "Page")`

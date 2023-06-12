@@ -271,13 +271,13 @@ case class ValidateNeo4jOptionsConsistency(neo4jOptions: Neo4jOptions) extends V
 
   private def ignoreGdsMetadata(queryType: QueryType.Value): Unit = {
     if (!neo4jOptions.gdsMetadata.parameters.isEmpty) {
-      ignoreOption(Neo4jOptions.QUERY_COUNT, queryType.toString.toLowerCase.toLowerCase(Locale.ENGLISH))
+      ignoreOption(Neo4jOptions.QUERY_COUNT, queryType.toString.toLowerCase(Locale.ENGLISH))
     }
   }
 
   private def ignoreQueryMetadata(queryType: QueryType.Value): Unit = {
     if (neo4jOptions.queryMetadata.queryCount.nonEmpty) {
-      ignoreOption(Neo4jOptions.QUERY_COUNT, queryType.toString.toLowerCase.toLowerCase(Locale.ENGLISH))
+      ignoreOption(Neo4jOptions.QUERY_COUNT, queryType.toString.toLowerCase(Locale.ENGLISH))
     }
   }
 
