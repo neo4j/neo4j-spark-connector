@@ -5,8 +5,8 @@
     <groupId>org.neo4j</groupId>
     <packaging>pom</packaging>
     <version>5.1.0</version>
-    <artifactId>neo4j-connector-apache-spark</artifactId>
-    <name>neo4j-connector-apache-spark</name>
+    <artifactId>neo4j-connector-apache-spark_parent</artifactId>
+    <name>neo4j-connector-apache-spark_parent</name>
     <description>Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
 
     <modules>
