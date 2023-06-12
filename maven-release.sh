@@ -3,7 +3,7 @@
 set -eEuxo pipefail
 
 if [[ $# -lt 2 ]] ; then
-    echo "Usage ./maven-release.sh <DEPLOY_OR_INSTALL> <SCALA-VERSION> [<ALT_DEPLOYMENT_REPOSITORY>]"
+    echo "Usage ./maven-release.sh <GOAL> <SCALA-VERSION> [<ALT_DEPLOYMENT_REPOSITORY>]"
     exit 1
 fi
 
@@ -25,7 +25,7 @@ mvn_evaluate() {
 
 trap exit_script SIGINT SIGTERM
 
-DEPLOY_INSTALL=$1
+GOAL=$1
 SCALA_VERSION=$2
 if [[ $# -eq 3 ]] ; then
   ALT_DEPLOYMENT_REPOSITORY="-DaltDeploymentRepository=$3"
@@ -66,6 +66,8 @@ sed_i "s/<artifactId>neo4j-connector-apache-spark_common<\/artifactId>/<artifact
 sed_i "s/<artifactId>neo4j-connector-apache-spark_test-support<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_test-support<\/artifactId>/" "spark-3/pom.xml"
 
 # build
-mvn clean "${DEPLOY_INSTALL}" -Pscala-"${SCALA_VERSION}" -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
+mvn clean "${GOAL}" -Pscala-"${SCALA_VERSION}" -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
 
-exit_script
+if [ ! ${CI:-false} = true ]; then
+  exit_script
+fi
