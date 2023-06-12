@@ -8,7 +8,7 @@ import org.junit.Assert._
 import org.junit.{Assert, Test}
 import org.neo4j.spark.util.Neo4jImplicits._
 
-import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter}
+import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter, seqAsJavaListConverter}
 import scala.collection.immutable.ListMap
 
 class Neo4jImplicitsTest {
@@ -175,6 +175,23 @@ class Neo4jImplicitsTest {
       "my.inner.key" -> 42
     )
     val actual = input.flattenMap()
+    Assert.assertEquals(expected, actual)
+  }
+
+  @Test
+  def `should handle collision by aggregating values`(): Unit = {
+    val input = ListMap(
+      "my" -> Map(
+        "inner" -> Map("key" -> 42424242),
+        "inner.key" -> 424242
+      ),
+      "my.inner" -> Map("key" -> 4242).asJava,
+      "my.inner.key" -> 42
+    )
+    val expected = Map(
+      "my.inner.key" -> Seq(42424242, 424242, 4242, 42).asJava
+    )
+    val actual = input.flattenMap(groupDuplicateKeys = true)
     Assert.assertEquals(expected, actual)
   }
 

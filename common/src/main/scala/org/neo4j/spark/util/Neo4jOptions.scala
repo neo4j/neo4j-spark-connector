@@ -54,7 +54,8 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
   val schemaMetadata = Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
     SchemaStrategy.withCaseInsensitiveName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase),
-    OptimizationType.withCaseInsensitiveName(getParameter(SCHEMA_OPTIMIZATION_TYPE, DEFAULT_OPTIMIZATION_TYPE.toString).toUpperCase))
+    OptimizationType.withCaseInsensitiveName(getParameter(SCHEMA_OPTIMIZATION_TYPE, DEFAULT_OPTIMIZATION_TYPE.toString).toUpperCase),
+    getParameter(SCHEMA_MAP_GROUP_DUPLICATE_KEYS, DEFAULT_MAP_GROUP_DUPLICATE_KEYS.toString).toBoolean)
 
   val query: Neo4jQueryOptions = (
     getParameter(QUERY.toString.toLowerCase),
@@ -216,7 +217,10 @@ case class Neo4jStreamingOptions(propertyName: String,
 
 case class Neo4jApocConfig(procedureConfigMap: Map[String, AnyRef])
 
-case class Neo4jSchemaMetadata(flattenLimit: Int, strategy: SchemaStrategy.Value, optimizationType: OptimizationType.Value)
+case class Neo4jSchemaMetadata(flattenLimit: Int,
+                               strategy: SchemaStrategy.Value,
+                               optimizationType: OptimizationType.Value,
+                               mapGroupDuplicateKeys: Boolean)
 case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int, retryTimeout: Long)
 
 case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String], nodeProps: Map[String, String])
@@ -370,6 +374,8 @@ object Neo4jOptions {
   val SCHEMA_STRATEGY = "schema.strategy"
   val SCHEMA_FLATTEN_LIMIT = "schema.flatten.limit"
   val SCHEMA_OPTIMIZATION_TYPE = "schema.optimization.type"
+  // map aggregation
+  val SCHEMA_MAP_GROUP_DUPLICATE_KEYS = "schema.map.group.duplicate.keys"
 
   // partitions
   val PARTITIONS = "partitions"
@@ -383,7 +389,6 @@ object Neo4jOptions {
 
   val BATCH_SIZE = "batch.size"
   val SUPPORTED_SAVE_MODES = Seq(SaveMode.Overwrite, SaveMode.ErrorIfExists, SaveMode.Append)
-  val SUPPORTED_SAVE_MODES_FOR_STREAMING = Seq(SaveMode.ErrorIfExists, SaveMode.Overwrite, SaveMode.Append)
 
   // Relationship Metadata
   val RELATIONSHIP_SOURCE_LABELS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.${QueryType.LABELS.toString.toLowerCase}"
@@ -444,6 +449,8 @@ object Neo4jOptions {
   // Default values optimizations for Aura please look at: https://aura.support.neo4j.com/hc/en-us/articles/1500002493281-Neo4j-Java-driver-settings-for-Aura
   val DEFAULT_CONNECTION_MAX_LIFETIME_MSECS = Duration.ofMinutes(8).toMillis
   val DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS = Duration.ofMinutes(2).toMillis
+
+  val DEFAULT_MAP_GROUP_DUPLICATE_KEYS = false
 }
 
 class CaseInsensitiveEnumeration extends Enumeration {

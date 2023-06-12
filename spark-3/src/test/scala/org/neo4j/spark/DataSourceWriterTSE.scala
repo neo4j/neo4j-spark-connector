@@ -15,6 +15,7 @@ import org.neo4j.driver.{Result, Transaction, TransactionWork}
 import org.neo4j.spark.util.Neo4jOptions
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable.ListMap
 import scala.util.Random
 
 abstract class Neo4jType(`type`: String)
@@ -1436,8 +1437,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def shouldFix502WithCollisions(): Unit = {
     val data = Seq(
-      ("Foo", 1, Map("key.inner" -> Map("key" -> "innerValue"), "key" -> Map("inner.key" -> "value"))),
-      ("Bar", 1, Map("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1"))),
+      ("Foo", 1, ListMap("key.inner" -> Map("key" -> "innerValue"), "key" -> Map("inner.key" -> "value"))),
+      ("Bar", 1, ListMap("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1"))),
     ).toDF("id", "time", "table")
     data.write
       .mode(SaveMode.Append)
@@ -1454,7 +1455,35 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         |)
         |RETURN count(n)
         |""".stripMargin)
-      .peek()
+      .single()
+      .get(0)
+      .asLong()
+    junit.Assert.assertEquals(2L, count)
+  }
+
+  @Test
+  def shouldFix502WithCollisionsAndAggregateValues(): Unit = {
+    val data = Seq(
+      ("Foo", 1, ListMap("key.inner" -> Map("key" -> "innerValue"), "key" -> Map("inner.key" -> "value"))),
+      ("Bar", 1, ListMap("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1"))),
+    ).toDF("id", "time", "table")
+    data.write
+      .mode(SaveMode.Append)
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":MyNodeWithMapFlattend")
+      .option("schema.map.group.duplicate.keys", true)
+      .save()
+    val count: Long = SparkConnectorScalaSuiteIT.session().run(
+      """
+        |MATCH (n:MyNodeWithMapFlattend)
+        |WHERE (
+        | properties(n) = {id: 'Foo', time: 1, `table.key.inner.key`: ['innerValue', 'value']}
+        | OR properties(n) = {id: 'Bar', time: 1, `table.key.inner.key`: ['innerValue1', 'value1']}
+        |)
+        |RETURN count(n)
+        |""".stripMargin)
+      .single()
       .get(0)
       .asLong()
     junit.Assert.assertEquals(2L, count)

@@ -743,7 +743,7 @@ MyNodeWithFlattenedMap {
 }
 ----
 
-Now could  into problematic situations like the following one:
+Now you could fall into problematic situations like the following one:
 
 [source,scala]
 ----
@@ -759,13 +759,7 @@ data.write
   .save()
 ----
 
-since the resulting flattened keys are duplicated, the Neo4j Spark will pick one of the associated value in a non-deterministic way and inform you with a `WARN` message like the following one:
-
-----
-The field `table` which has a map {key.inner -> {key=innerValue}, key -> {inner.key=value}}
-contains the following duplicated keys: [table.key.inner.key],
-you will lose some of the values associated with these duplicate keys
-----
+since the resulting flattened keys are duplicated, the Neo4j Spark will pick one of the associated value in a non-deterministic way.
 
 Because the information that we'll store into Neo4j will be this (consider that the order is not guaranteed):
 
@@ -781,3 +775,39 @@ MyNodeWithFlattenedMap {
     `table.key.inner.key`: 'innerValue1' // but it could be `value1` as the order is not guaranteed
 }
 ----
+
+=== Group duplicated keys to array of values
+
+You can use the option `schema.map.group.duplicate.keys` to avoid this problem. The connector will group all the values with the same keys into an array. The default value for the option is `false`.
+In a scenario like this:
+
+[source,scala]
+----
+val data = Seq(
+  ("Foo", 1, Map("key.inner" -> Map("key" -> "innerValue"), "key" -> Map("inner.key" -> "value"))),
+  ("Bar", 1, Map("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1"))),
+).toDF("id", "time", "table")
+data.write
+  .mode(SaveMode.Append)
+  .format(classOf[DataSource].getName)
+  .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+  .option("labels", ":MyNodeWithFlattenedMap")
+  .option("schema.map.group.duplicate.keys", true)
+  .save()
+----
+
+the output would be:
+
+----
+MyNodeWithFlattenedMap {
+    id: 'Foo',
+    time: 1,
+    `table.key.inner.key`: ['innerValue', 'value'] // the order is not guaranteed
+}
+MyNodeWithFlattenedMap {
+    id: 'Bar',
+    time: 1,
+    `table.key.inner.key`: ['innerValue1', 'value1'] // the order is not guaranteed
+}
+----
+

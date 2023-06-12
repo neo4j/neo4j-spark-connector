@@ -126,19 +126,8 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
         val neo4jValue = Neo4jUtil.convertFromSpark(seq(i), field)
         neo4jValue match {
           case map: MapValue =>
-            val scalaMap = map.asMap().asScala.toMap
-            val dupKeys = scalaMap.flattenKeys(field.name)
-              .groupBy(identity)
-              .collect { case (x, List(_,_,_*)) => x }
-            if (dupKeys.nonEmpty) {
-              logWarning(
-                s"""
-                   |The field `${field.name}` which has a map {${scalaMap.mkString(", ")}}
-                   |contains the following duplicated keys: [${dupKeys.mkString(", ")}],
-                   |you will lose some of the values associated with these duplicate keys
-                   |""".stripMargin)
-            }
-            scalaMap.flattenMap(field.name)
+            map.asMap().asScala.toMap
+              .flattenMap(field.name, options.schemaMetadata.mapGroupDuplicateKeys)
               .mapValues(Values.value)
               .toSeq
           case _ => Seq((field.name, neo4jValue))
