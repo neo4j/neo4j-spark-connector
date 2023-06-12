@@ -21,22 +21,18 @@ jobs:
     name: Build with JDK ${{ matrix.java-version }}, Scala ${{ matrix.scala-version }}, Spark ${{ matrix.spark-version }} and Neo4j ${{ matrix.neo4j-version }}
     steps:
       - uses: actions/checkout@v3
-        if: ${{ !(matrix.spark-version == 2.4 && matrix.scala-version == 2.13) }}
       - name: Set up JDK {{ matrix.java-version }}
-        if: ${{ !(matrix.spark-version == 2.4 && matrix.scala-version == 2.13) }}
         uses: actions/setup-java@v3
         with:
           java-version: ${{ matrix.java-version }}
           distribution: 'temurin'
       - name: Cache Maven packages
-        if: ${{ !(matrix.spark-version == 2.4 && matrix.scala-version == 2.13) }}
         uses: actions/cache@v3
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       - name: Build with Maven
-        if: ${{ !(matrix.spark-version == 2.4 && matrix.scala-version == 2.13) }}
         env:
           CI: true
         run: ./mvnw clean verify -Djava.version=${{ matrix.java-version }} -Pscala-${{ matrix.scala-version }} -Pspark-${{ matrix.spark-version }} -Pneo4j-${{ matrix.neo4j-version }} --no-transfer-progress
