@@ -50,6 +50,7 @@ jobs:
           CI: true
         run: |
           ./maven-release.sh package ${{ matrix.spark-version.scala }}
+          head -n 15 spark-3/pom.xml
       - name: Run tests for Spark ${{ matrix.spark-version.ext }} and Neo4j ${{ matrix.neo4j-version }}
         run: |
           pwd
