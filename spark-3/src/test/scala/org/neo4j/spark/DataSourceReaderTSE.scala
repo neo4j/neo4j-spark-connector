@@ -1649,6 +1649,59 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(8L, df.collect().head.get(0))
   }
 
+  @Test
+  def testShouldLimitTheNodeResults(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id, name: 'Product ' + id})
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        (tx: Transaction) => tx.run(fixtureQuery).consume())
+
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Product")
+      .load
+      .limit(10)
+
+    assertEquals(10, df.count())
+    assertEquals(Set("<id>", "<labels>", "name", "id"), df.columns.toSet)
+  }
+
+  @Test
+  def testShouldLimitTheRelationshipResults(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
+         |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+         |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        (tx: Transaction) => tx.run(fixtureQuery).consume())
+
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Product")
+      .load
+      .select("`target.name`", "`target.id`")
+      .limit(10)
+
+    assertEquals(10, df.count())
+    assertEquals(Set("target.name", "target.id"), df.columns.toSet)
+  }
+
   private def initTest(query: String): DataFrame = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(
