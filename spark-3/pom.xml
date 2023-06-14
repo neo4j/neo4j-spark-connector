@@ -9,7 +9,7 @@
     <description>Spark ${spark.version} for Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
 
     <packaging>jar</packaging>
-    <!-- don't remove the following commented line -->
+    <!-- don't update the following line -->
     <!-- <version>${project.parent.version}</version> -->
 
     <parent>
