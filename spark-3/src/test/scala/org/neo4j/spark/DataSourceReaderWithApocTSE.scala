@@ -1,7 +1,7 @@
 package org.neo4j.spark
 
 import java.sql.Timestamp
-import java.time.{Instant, LocalDateTime, LocalTime, OffsetDateTime, OffsetTime, ZoneOffset}
+import java.time.{Instant, LocalDateTime, LocalTime, OffsetDateTime, OffsetTime, ZoneId, ZoneOffset}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.junit.Assert._
@@ -111,8 +111,14 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
     val result = df.select("aTime").collectAsList().get(0).getTimestamp(0)
 
-
-    assertEquals(Timestamp.from(LocalDateTime.parse(localDateTime).toInstant(ZoneOffset.UTC)), result)
+    val tz = SparkConnectorScalaSuiteWithApocIT.session()
+      .readTransaction((tx: Transaction) =>
+        tx.run("CALL dbms.listConfig() YIELD name, value WHERE name = 'db.temporal.timezone' RETURN value LIMIT 1")
+          .single()
+          .get("value")
+          .asString()
+      )
+    assertEquals(Timestamp.from(LocalDateTime.parse(localDateTime).atZone(ZoneId.of(tz)).toInstant()), result)
   }
 
   @Test

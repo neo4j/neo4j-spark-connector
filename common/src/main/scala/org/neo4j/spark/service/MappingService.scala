@@ -17,7 +17,7 @@ import org.neo4j.spark.util.Neo4jUtil.{extractStructType, mapper}
 import org.neo4j.spark.util.{DriverCache, Neo4jNodeMetadata, Neo4jOptions, Neo4jUtil, QueryType, RelationshipSaveStrategy, ValidateSchemaOptions, Validations}
 
 import java.time.format.DateTimeFormatter
-import java.time.{LocalDate, LocalDateTime, LocalTime, OffsetTime, ZoneOffset, ZonedDateTime}
+import java.time.{LocalDate, LocalDateTime, LocalTime, OffsetTime, ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
 import java.util.function
 import java.util.function.BiConsumer
@@ -277,7 +277,7 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumn
         case dt: LocalDateTime => {
           val config = new DriverCache(options.connection, jobId).getServerConfig
           val tz = config.getOrElse("db.temporal.timezone", "Z")
-          DateTimeUtils.anyToMicros(dt.toInstant(ZoneOffset.of(tz)))
+          DateTimeUtils.anyToMicros(dt.atZone(ZoneId.of(tz)).toInstant)
         }
         case d: LocalDate => DateTimeUtils.anyToDays(d)
         case lt: LocalTime => {

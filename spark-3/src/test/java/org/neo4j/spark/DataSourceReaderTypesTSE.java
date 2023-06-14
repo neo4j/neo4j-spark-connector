@@ -71,7 +71,16 @@ public class DataSourceReaderTypesTSE extends SparkConnectorScalaBaseTSE {
         Dataset<Row> df = initTest("CREATE (p:Person {aTime: localdatetime('"+localDateTime+"')})");
 
         Timestamp result = df.select("aTime").collectAsList().get(0).getTimestamp(0);
-        assertEquals(Timestamp.from(LocalDateTime.parse(localDateTime).toInstant(ZoneOffset.UTC)), result);
+
+
+        String tz = SparkConnectorScalaSuiteIT.session()
+                .readTransaction((tx) ->
+                        tx.run("CALL dbms.listConfig() YIELD name, value WHERE name = 'db.temporal.timezone' RETURN value LIMIT 1")
+                                .single()
+                                .get("value")
+                                .asString()
+                );
+        assertEquals(Timestamp.from(LocalDateTime.parse(localDateTime).atZone(ZoneId.of(tz)).toInstant()), result);
     }
 
     @Test
