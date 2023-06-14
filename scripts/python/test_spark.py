@@ -1,5 +1,6 @@
 from pyspark.sql import SparkSession
 import datetime
+import zoneinfo
 from testcontainers.neo4j import Neo4jContainer
 from tzlocal import get_localzone
 
@@ -67,10 +68,16 @@ class SparkTest(unittest.TestCase):
         df = self.init_test(
             "CREATE (p:Person {datetime: datetime('"+dtString+"')})")
 
-        dt = datetime.datetime(2015, 6, 24, 12, 50, 35, 0)
+        tz = self.neo4_session.run("""
+            CALL dbms.listConfig() YIELD name, value
+            WHERE name = 'db.temporal.timezone'
+            RETURN value LIMIT 1
+        """).single()["value"]
+
         dtResult = df.select("datetime").collect()[0].datetime
 
-        assert dt == dtResult
+        expectedDt = datetime.datetime.strptime(dtString + " "+tz, "%Y-%m-%dT%H:%S %z")
+        assert expectedDt == dtResult
 
     def test_date(self):
         df = self.init_test(
