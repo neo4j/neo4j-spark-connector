@@ -1,5 +1,7 @@
 package org.neo4j.spark.util
 
+import com.fasterxml.jackson.core.{JsonParseException, JsonParser}
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.expressions.filter.Predicate
 import org.apache.spark.sql.connector.expressions.{Expression, Literal, filter}
@@ -289,6 +291,40 @@ object Neo4jImplicits {
         }
       })
       .toList
+  }
+
+
+  implicit class StringMapImplicits(map: Map[String, String]) {
+
+    private val propertyMapper = new ObjectMapper()
+    propertyMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
+
+
+    private def nestingMap(data: Map[String, String]): java.util.Map[String, Any] = {
+      val map = new java.util.HashMap[String, Any]();
+      data.foreach(t => {
+        val splitted = t._1.split("\\.")
+        if (splitted.size == 1) {
+          val value = try {
+            propertyMapper.readValue[Any](t._2, classOf[Any])
+          } catch {
+            case _: JsonParseException => t._2
+          }
+          map.put(t._1, value)
+        } else {
+          if (map.containsKey(splitted.head)) {
+            val value = map.get(splitted.head).asInstanceOf[java.util.Map[String, Any]]
+            value.putAll(nestingMap(Map(splitted.drop(1).mkString(".") -> t._2)))
+            map.put(splitted.head, value)
+          } else {
+            map.put(splitted.head, nestingMap(Map(splitted.drop(1).mkString(".") -> t._2)))
+          }
+        }
+      })
+      map
+    }
+
+    def toNestedJavaMap: java.util.Map[String, Any] = nestingMap(map)
   }
 
 }

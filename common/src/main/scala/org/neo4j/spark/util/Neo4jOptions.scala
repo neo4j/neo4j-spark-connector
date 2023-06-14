@@ -4,6 +4,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.neo4j.driver.Config.TrustStrategy
 import org.neo4j.driver._
 import org.neo4j.driver.net.{ServerAddress, ServerAddressResolver}
+import org.neo4j.spark.util.Neo4jImplicits.StringMapImplicits
 
 import java.io.File
 import java.net.URI
@@ -188,10 +189,11 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   val queryMetadata: Neo4jQueryMetadata = initNeo4jQueryMetadata()
 
   private def initNeo4jGdsMetadata(): Neo4jGdsMetadata = Neo4jGdsMetadata(
-    Neo4jUtil.createGdsConfigurationMap(parameters.asScala
+    parameters.asScala
       .filterKeys(k => k.startsWith("gds."))
       .map(t => (t._1.substring("gds.".length), t._2))
-      .toMap)
+      .toMap
+      .toNestedJavaMap
   )
 
   val gdsMetadata: Neo4jGdsMetadata = initNeo4jGdsMetadata()

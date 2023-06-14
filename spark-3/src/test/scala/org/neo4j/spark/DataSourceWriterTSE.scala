@@ -1427,7 +1427,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         |)
         |RETURN count(n)
         |""".stripMargin)
-      .peek()
+      .single()
       .get(0)
       .asLong()
     junit.Assert.assertEquals(2L, count)

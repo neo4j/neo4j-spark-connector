@@ -1,8 +1,8 @@
 package org.neo4j.spark.util
 
-import com.fasterxml.jackson.core.{JsonGenerator, JsonParseException, JsonParser}
+import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.module.SimpleModule
-import com.fasterxml.jackson.databind.{JsonSerializer, MapperFeature, ObjectMapper, SerializerProvider}
+import com.fasterxml.jackson.databind.{JsonSerializer, ObjectMapper, SerializerProvider}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{GenericRowWithSchema, UnsafeArrayData, UnsafeMapData, UnsafeRow}
 import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, DateTimeUtils}
@@ -333,30 +333,4 @@ object Neo4jUtil {
     || neo4jTransientException.isInstanceOf[TransientException]
     || neo4jTransientException.isInstanceOf[ServiceUnavailableException])
 
-
-  private val propertyMapper = new ObjectMapper()
-  propertyMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
-  def createGdsConfigurationMap(data: Map[String, String]): java.util.Map[String, Any] = {
-    val map = new java.util.HashMap[String, Any]();
-    data.foreach(t => {
-      val splitted = t._1.split("\\.")
-      if (splitted.size == 1) {
-        val value = try {
-          propertyMapper.readValue[Any](t._2, classOf[Any])
-        } catch {
-          case e: JsonParseException => t._2
-        }
-        map.put(t._1, value)
-      } else {
-        if (map.containsKey(splitted.head)) {
-          val value = map.get(splitted.head).asInstanceOf[java.util.Map[String, Any]]
-          value.putAll(createGdsConfigurationMap(Map(splitted.drop(1).mkString(".") -> t._2)))
-          map.put(splitted.head, value)
-        } else {
-          map.put(splitted.head, createGdsConfigurationMap(Map(splitted.drop(1).mkString(".") -> t._2)))
-        }
-      }
-    })
-    map
-  }
 }

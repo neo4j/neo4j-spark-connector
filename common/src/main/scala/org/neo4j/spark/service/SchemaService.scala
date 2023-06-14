@@ -253,8 +253,8 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
   def structForGDS(): StructType = {
     val query =
       """
-        |CALL gds.list() YIELD name, signature
-        |WHERE name = $procName
+        |CALL gds.list() YIELD name, signature, type
+        |WHERE name = $procName AND type = 'procedure'
         |WITH split(signature, ') :: (')[1] AS fields
         |WITH substring(fields, 0, size(fields) - 1) AS fields
         |WITH split(fields, ',') AS fields
@@ -305,8 +305,8 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val query =
       """
         |WITH $procName AS procName
-        |CALL gds.list() YIELD name, signature
-        |WHERE name = procName
+        |CALL gds.list() YIELD name, signature, type
+        |WHERE name = procName AND type = 'procedure'
         |WITH replace(signature, procName + '(', '') AS signature
         |WITH split(signature, ') :: (')[0] AS fields
         |WITH substring(fields, 0, size(fields) - 1) AS fields
@@ -497,11 +497,11 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val params: util.Map[String, AnyRef] = Map[String, AnyRef]("procName" -> procName).asJava
     session.run(
       """
-        |CALL gds.list() YIELD name
-        |WHERE name = $procName
+        |CALL gds.list() YIELD name, type
+        |WHERE name = $procName AND type = 'procedure'
         |RETURN count(*) = 1
         |""".stripMargin, params)
-      .peek()
+      .single()
       .get(0)
       .asBoolean()
   }

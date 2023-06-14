@@ -312,7 +312,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
               |CALL dbms.components() YIELD versions
               |RETURN versions[0] starts with "4";
               |""".stripMargin)
-            .peek()
+            .single()
             .get(0)
             .asBoolean()
         })

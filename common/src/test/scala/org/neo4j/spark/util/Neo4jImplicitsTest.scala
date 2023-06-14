@@ -209,4 +209,51 @@ class Neo4jImplicitsTest {
     val actual = input.flattenKeys()
     Assert.assertEquals(expected, actual)
   }
+
+  @Test
+  def `should create a nested Java map`(): Unit = {
+    val actual = Map(
+      "graphName" -> "foo",
+      "configuration.number" -> "1",
+      "configuration.string" -> "foo",
+      "configuration.list" -> "['a', 1]",
+      "configuration.map.key" -> "value",
+      "relationshipProjection.LINK.properties.foobar.defaultValue" -> "42.0"
+    ).toNestedJavaMap
+    val expected: java.util.Map[String, Object] = Map(
+      "graphName" -> "foo",
+      "configuration" -> Map(
+        "number" -> 1,
+        "string" -> "foo",
+        "list" -> Seq("a", 1).toList.asJava,
+        "map" -> Map(
+          "key" -> "value"
+        ).asJava
+      ).asJava,
+      "relationshipProjection" -> Map(
+        "LINK" -> Map(
+          "properties" -> Map(
+            "foobar" -> Map("defaultValue" -> 42.0).asJava
+          ).asJava
+        ).asJava
+      ).asJava
+    ).asJava
+    Assert.assertEquals(expected, actual)
+
+    val ucActual = Map(
+      "graphName" -> "myGraph",
+      "nodeProjection" -> "Website",
+      "relationshipProjection.LINK.indexInverse" -> "true",
+    ).toNestedJavaMap
+    val ucExpected: java.util.Map[String, Object] = Map(
+      "graphName" -> "myGraph",
+      "nodeProjection" -> "Website",
+      "relationshipProjection" -> Map(
+        "LINK" -> Map(
+          "indexInverse" -> true
+        ).asJava
+      ).asJava
+    ).asJava
+    Assert.assertEquals(ucExpected, ucActual)
+  }
 }
