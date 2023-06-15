@@ -57,9 +57,9 @@
         <npm.version>6.13.7</npm.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
-        <spark.version>3.3.1</spark.version>
+        <spark.version>3.4.0</spark.version>
         <!-- This is empty because we use it for the deploy process -->
-        <scala.binary.version />
+        <scala.binary.version/>
         <scala-maven-plugin.version>4.8.1</scala-maven-plugin.version>
     </properties>
 
@@ -70,7 +70,7 @@
             <properties>
                 <!-- 2.12.15 is the minimum, because of https://github.com/scala/bug/issues/12419) -->
                 <!-- required fix is https://github.com/scala/scala/pull/9676 -->
-                <scala.version>2.12.17</scala.version>
+                <scala.version>2.13.9</scala.version>
                 <scala.binary.version>2.12</scala.binary.version>
             </properties>
         </profile>
@@ -80,7 +80,7 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <scala.version>2.13.4</scala.version>
+                <scala.version>2.13.9</scala.version>
                 <scala.binary.version>2.13</scala.binary.version>
             </properties>
         </profile>
