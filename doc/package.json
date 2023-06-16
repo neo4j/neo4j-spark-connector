@@ -25,7 +25,7 @@
   "dependencies": {
     "@antora/cli": "^3.0.0",
     "@antora/site-generator-default": "^3.0.0",
-    "@neo4j-antora/antora-add-notes": "^0.1.6",
+    "@neo4j-antora/antora-add-notes": "^0.3.0",
     "@neo4j-antora/antora-listing-roles": "^0.1.0",
     "@neo4j-antora/antora-modify-sitemaps": "^0.4.2",
     "@neo4j-antora/antora-table-footnotes": "^0.3.0",
