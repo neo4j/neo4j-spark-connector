@@ -158,9 +158,9 @@ object Neo4jUtil {
   def convertFromSpark(value: Any, dataType: DataType = null): Value = value match {
     case date: java.sql.Date => convertFromSpark(date.toLocalDate, dataType)
     case timestamp: java.sql.Timestamp => convertFromSpark(timestamp.toLocalDateTime, dataType)
-    case intValue: Int if dataType != null && dataType == DataTypes.DateType => convertFromSpark(DateTimeUtils
+    case intValue: Int if dataType == DataTypes.DateType => convertFromSpark(DateTimeUtils
       .toJavaDate(intValue), dataType)
-    case longValue: Long if dataType != null && dataType == DataTypes.TimestampType => convertFromSpark(DateTimeUtils
+    case longValue: Long if dataType == DataTypes.TimestampType => convertFromSpark(DateTimeUtils
       .toJavaTimestamp(longValue), dataType)
     case unsafeRow: UnsafeRow => {
       val structType = extractStructType(dataType)
