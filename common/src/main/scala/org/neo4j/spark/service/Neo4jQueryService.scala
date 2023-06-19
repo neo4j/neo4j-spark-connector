@@ -174,8 +174,8 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
   private def buildStatementAggregation(options: Neo4jOptions,
                                         query: StatementBuilder.OngoingReadingWithoutWhere,
                                         entity: PropertyContainer,
-                                        fields: Seq[Expression]) = {
-    val ret: StatementBuilder.BuildableStatement = if (hasPartitons) {
+                                        fields: Seq[Expression]): Statement = {
+    val ret = if (hasPartitons) {
       val id = entity match {
         case node: Node => Functions.id(node)
         case rel: Relationship => Functions.id(rel)
@@ -184,7 +184,6 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
         .`with`(entity)
         .orderBy(id)
         .skip(partitionSkipLimit.skip)
-        .asInstanceOf[StatementBuilder.ExposesLimit with StatementBuilder.OngoingReadingAndWith]
         .limit(partitionSkipLimit.limit)
         .returning(fields: _*)
     } else {
@@ -192,12 +191,11 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
       if (StringUtils.isBlank(orderByProp)) {
         query.returning(fields: _*)
       } else {
-        val order: StatementBuilder.OngoingReadingAndWithWithWhereAndOrder = query.`with`(entity).orderBy(entity.property(orderByProp))
-          .asInstanceOf[StatementBuilder.OngoingOrderDefinition]
+        query
+          .`with`(entity)
+          .orderBy(entity.property(orderByProp))
           .ascending()
-        order
           .returning(fields: _*)
-          .asInstanceOf[StatementBuilder.BuildableStatement]
       }
     }
     ret.build()
@@ -205,11 +203,11 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
 
   private def buildStatement(options: Neo4jOptions,
                              returning: StatementBuilder.OngoingReadingAndReturn,
-                             entity: PropertyContainer = null) = {
+                             entity: PropertyContainer = null): Statement = {
 
     def addSkipLimit(ret: StatementBuilder.TerminalExposesSkip
         with StatementBuilder.TerminalExposesLimit
-        with StatementBuilder.BuildableStatement) = ret
+        with StatementBuilder.BuildableStatement[_]) = ret
       .skip(partitionSkipLimit.skip).asInstanceOf[StatementBuilder.TerminalExposesLimit].limit(partitionSkipLimit.limit)
 
     val ret = if (entity == null) {
