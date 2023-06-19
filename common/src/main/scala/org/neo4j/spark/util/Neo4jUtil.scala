@@ -211,7 +211,7 @@ object Neo4jUtil {
       val map: Map[String, AnyRef] = (0 until unsafeMapData.numElements())
         .map(i => (unsafeMapData.keyArray().getUTF8String(i).toString, unsafeMapData.valueArray().get(i, mapType.valueType)))
         .toMap[String, AnyRef]
-        .mapValues(innerValue => convertFromSpark(innerValue, StructField("", mapType.valueType, true)))
+        .mapValues(innerValue => convertFromSpark(innerValue, mapType.valueType))
         .toMap[String, AnyRef]
       Values.value(map.asJava)
     }
