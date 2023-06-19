@@ -373,8 +373,8 @@ class Neo4jQueryServiceTest {
 
     assertEquals(
       s"""MATCH (n:`Person`)
-         | WHERE ((n.name = ${parameterNames("name_1")} OR n.name = ${parameterNames("name_2")})
-         | AND (n.age = ${parameterNames("age_1")} OR n.age >= ${parameterNames("age_2")})
+         | WHERE (((n.name = ${parameterNames("name_1")} OR n.name = ${parameterNames("name_2")})
+         | AND (n.age = ${parameterNames("age_1")} OR n.age >= ${parameterNames("age_2")}))
          | AND (NOT (n.age = ${parameterNames("age_3")}) OR NOT (n.age < ${parameterNames("age_4")})))
          | RETURN n""".stripMargin.replaceAll("\n", ""), query)
   }
