@@ -84,8 +84,7 @@ which will show a result like this:
 ```
 
 [start=3]
-. Compute the algorithm: The following Python code will return the Page Rank
-computation without any impact to the graph
+. Compute the algorithm: The following Python code will return the Page Rank computation  without modifying the graph
 
 [source,python]
 ----

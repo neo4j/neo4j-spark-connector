@@ -98,7 +98,7 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
   }
 
   override def createStatementForGDS(options: Neo4jOptions): String =
-    throw new UnsupportedOperationException("We don't support write operation with GDS")
+    throw new UnsupportedOperationException("Write operations with GDS are currently not supported")
 }
 
 class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],

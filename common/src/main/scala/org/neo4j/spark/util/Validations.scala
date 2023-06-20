@@ -213,7 +213,7 @@ case class ValidateRead(neo4jOptions: Neo4jOptions, jobId: String) extends Valid
         }
         case QueryType.GDS => {
           ValidationUtil.isFalse(neo4jOptions.query.value.contains(".mutate") || neo4jOptions.query.value.contains(".write"),
-            "you cannot execute GDS mutate or write procedure in a read query")
+            "You cannot execute GDS mutate or write procedure in a read query")
           ValidationUtil.isTrue(schemaService.isGdsProcedure(neo4jOptions.query.value), s"GDS procedure ${neo4jOptions.query.value} does not exist")
           ValidationUtil.isTrue(neo4jOptions.partitions == 1, "For GDS queries we support only one partition")
           Validations.validate(ValidateGdsMetadata(neo4jOptions.gdsMetadata))

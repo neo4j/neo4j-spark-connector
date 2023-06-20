@@ -1,7 +1,7 @@
 package org.neo4j.spark
 
 import org.apache.spark.sql.types.{ArrayType, DoubleType, LongType, MapType, StringType, StructField, StructType}
-import org.junit.Assert.assertEquals
+import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.{After, Assume, Test}
 import org.neo4j.driver.Transaction
 
@@ -30,7 +30,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
 
   @Test
   def shouldReturnThePageRank(): Unit = {
-    initForPageRank
+    initForPageRank()
 
     val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
@@ -65,6 +65,55 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
         StructField("heapPercentageMax", DoubleType)
       )
     ), dfEstimate.schema)
+  }
+
+  @Test
+  def shouldFailWithUnsupportedOptions(): Unit = {
+    initForPageRank()
+
+    def run(options: Map[String, String], error: String): Unit = {
+      try {
+        ss.read.format(classOf[DataSource].getName)
+          .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
+          .options(options)
+          .load()
+          .show(false)
+        fail("Expected to throw an exception")
+      } catch {
+        case iae: IllegalArgumentException =>
+          assertTrue(iae.getMessage.equals(error))
+        case _: Throwable =>
+          fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+      }
+    }
+
+    run(
+      Map(
+        "gds" -> "gds.pageRank.stream",
+        "gds.graphName" -> "myGraph",
+        "gds.configuration.concurrency"-> "2",
+        "partitions"-> "2"
+      ),
+      "For GDS queries we support only one partition"
+    )
+
+    run(
+      Map(
+        "gds" -> "gds.pageRank.write",
+        "gds.graphName" -> "myGraph",
+        "gds.configuration.concurrency" -> "2",
+      ),
+      "You cannot execute GDS mutate or write procedure in a read query"
+    )
+
+    run(
+      Map(
+        "gds" -> "gds.pageRank.mutate",
+        "gds.graphName" -> "myGraph",
+        "gds.configuration.concurrency" -> "2",
+      ),
+      "You cannot execute GDS mutate or write procedure in a read query"
+    )
   }
 
   @Test

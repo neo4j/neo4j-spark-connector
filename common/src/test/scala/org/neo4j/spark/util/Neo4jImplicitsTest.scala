@@ -211,7 +211,7 @@ class Neo4jImplicitsTest {
   }
 
   @Test
-  def `should create a nested Java map`(): Unit = {
+  def `should deserialized dotted/stringified map into a nested Java map`(): Unit = {
     val actual = Map(
       "graphName" -> "foo",
       "configuration.number" -> "1",
