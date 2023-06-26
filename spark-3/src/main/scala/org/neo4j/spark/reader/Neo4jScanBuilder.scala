@@ -1,11 +1,12 @@
 package org.neo4j.spark.reader
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.connector.expressions.Expression
+import org.apache.spark.sql.connector.expressions.{Expression, SortOrder}
 import org.apache.spark.sql.connector.expressions.aggregate.{AggregateFunc, Aggregation}
 import org.apache.spark.sql.connector.expressions.filter.Predicate
-import org.apache.spark.sql.connector.read.{Scan, SupportsPushDownAggregates, SupportsPushDownLimit, SupportsPushDownRequiredColumns, SupportsPushDownV2Filters}
+import org.apache.spark.sql.connector.read.{Scan, SupportsPushDownAggregates, SupportsPushDownLimit, SupportsPushDownRequiredColumns, SupportsPushDownTopN, SupportsPushDownV2Filters}
 import org.apache.spark.sql.types.{LongType, StructField, StructType}
+import org.neo4j.spark.config.TopN
 import org.neo4j.spark.util.Neo4jImplicits.{AggregationImplicit, CypherImplicits, PredicateImplicit}
 import org.neo4j.spark.util.{Neo4jOptions, QueryType}
 
@@ -14,6 +15,7 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
   with SupportsPushDownAggregates
   with SupportsPushDownRequiredColumns
   with SupportsPushDownLimit
+  with SupportsPushDownTopN
   with Logging {
 
   private var predicates: Array[Predicate] = Array.empty
@@ -23,9 +25,17 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
 
   private var aggregateColumns: Array[AggregateFunc] = Array.empty[AggregateFunc]
   private var limit: Option[Int] = None
+  private var topN: Option[TopN] = None
 
   override def build(): Scan = {
-    new Neo4jScan(neo4jOptions, jobId, requiredSchema, predicates.flatMap(_.toFilter), requiredColumns, aggregateColumns, limit)
+    new Neo4jScan(
+      neo4jOptions,
+      jobId,
+      requiredSchema,
+      predicates.flatMap(_.toFilter),
+      requiredColumns,
+      aggregateColumns,
+      topN.orElse(limit.map((limit: Int) => TopN(limit))))
   }
 
   override def pushPredicates(predicatesArray: Array[Predicate]): Array[Predicate] = {
@@ -101,6 +111,19 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
       return false
     }
     limit = Some(pushedLimit)
+    true
+  }
+
+  override def pushTopN(orders: Array[SortOrder], limit: Int): Boolean = {
+    if (!neo4jOptions.pushdownTopNEnabled) {
+      return false
+    }
+    if (limit > 0 && neo4jOptions.partitions > 1) {
+      logWarning("disabling pushed down top N support since it conflicts with partitioning." +
+        "set the partition count to 1 or disable the pushdown limit support to remove this warning")
+      return false
+    }
+    topN = Some(TopN(limit, orders))
     true
   }
 }

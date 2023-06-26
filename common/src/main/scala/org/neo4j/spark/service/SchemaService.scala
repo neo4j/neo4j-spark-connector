@@ -6,6 +6,7 @@ import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
 import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.driver.types.Entity
 import org.neo4j.driver.{Record, Session, Transaction, TransactionWork, Value, Values, summary}
+import org.neo4j.spark.config.TopN
 import org.neo4j.spark.service.SchemaService.{cypherToSparkType, normalizedClassName, normalizedClassNameFromGraphEntity}
 import org.neo4j.spark.util.Neo4jImplicits.{CypherImplicits, EntityImplicits}
 import org.neo4j.spark.util._
@@ -16,12 +17,12 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-object PartitionSkipLimit {
-  val EMPTY = PartitionSkipLimit(0, -1, -1)
-  val EMPTY_FOR_QUERY = PartitionSkipLimit(0, 0, 0)
+object PartitionPagination {
+  val EMPTY = PartitionPagination(0, -1, TopN(-1))
+  val EMPTY_FOR_QUERY = PartitionPagination(0, 0, TopN(0))
 }
 
-case class PartitionSkipLimit(partitionNumber: Int, skip: Long, limit: Long)
+case class PartitionPagination(partitionNumber: Int, skip: Long, topN: TopN)
 
 case class Neo4jVersion(name: String, versions: Seq[String], edition: String)
 
@@ -301,7 +302,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     StructType(fields)
   }
 
-  def inputForGDSProc(procName: String): Seq[(String, Boolean)]  = {
+  def inputForGDSProc(procName: String): Seq[(String, Boolean)] = {
     val query =
       """
         |WITH $procName AS procName
@@ -472,27 +473,28 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     case QueryType.QUERY => countForQuery()
   }
 
-  def skipLimitFromPartition(limit: Option[Int]): Seq[PartitionSkipLimit] = if (options.partitions == 1) {
-    val skipLimit = limit.map(l => PartitionSkipLimit(0, 0, l)).getOrElse(PartitionSkipLimit.EMPTY)
-    Seq(skipLimit)
-  } else {
-    val count: Long = this.count()
-    if (count <= 0) {
-      Seq(PartitionSkipLimit.EMPTY)
+  def skipLimitFromPartition(topN: Option[TopN]): Seq[PartitionPagination] =
+    if (options.partitions == 1) {
+      val skipLimit = topN.map(top => PartitionPagination(0, 0, top)).getOrElse(PartitionPagination.EMPTY)
+      Seq(skipLimit)
     } else {
-      val partitionSize = Math.ceil(count.toDouble / options.partitions).toLong
-      val partitions = options.query.queryType match {
-        case QueryType.QUERY => if (options.queryMetadata.queryCount.nonEmpty) {
-          options.partitions // for custom query count we overfetch
-        } else {
-          options.partitions - 1
+      val count: Long = this.count()
+      if (count <= 0) {
+        Seq(PartitionPagination.EMPTY)
+      } else {
+        val partitionSize = Math.ceil(count.toDouble / options.partitions).toInt
+        val partitions = options.query.queryType match {
+          case QueryType.QUERY => if (options.queryMetadata.queryCount.nonEmpty) {
+            options.partitions // for custom query count we overfetch
+          } else {
+            options.partitions - 1
+          }
+          case _ => options.partitions - 1
         }
-        case _ => options.partitions - 1
+        (0 to partitions)
+          .map(index => PartitionPagination(index, index * partitionSize, TopN(partitionSize, Array.empty)))
       }
-      (0 to partitions)
-        .map(index => PartitionSkipLimit(index, index * partitionSize, partitionSize))
     }
-  }
 
   def isGdsProcedure(procName: String): Boolean = {
     val params: util.Map[String, AnyRef] = Map[String, AnyRef]("procName" -> procName).asJava
@@ -614,7 +616,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
          |RETURN count(*) > 0 AS isPresent""".stripMargin
     val params: util.Map[String, AnyRef] = Map("labels" -> Seq(label).asJava,
       "properties" -> props.asJava).asJava.asInstanceOf[util.Map[String, AnyRef]]
-      session.run(queryCheck, params)
+    session.run(queryCheck, params)
       .single()
       .get("isPresent")
       .asBoolean()
@@ -699,7 +701,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val label = options.nodeMetadata.labels.head
     session.run(
       s"""MATCH (n:$label)
-        |RETURN max(n.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin)
+         |RETURN max(n.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin)
       .single()
       .get(options.streamingOptions.propertyName)
       .asLong(-1)
@@ -731,7 +733,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
 
   private def logResolutionChange(message: String, e: ClientException): Unit = {
     log.warn(message)
-    if(!e.code().equals("Neo.ClientError.Procedure.ProcedureNotFound")) {
+    if (!e.code().equals("Neo.ClientError.Procedure.ProcedureNotFound")) {
       log.warn(s"For the following exception", e)
     }
   }

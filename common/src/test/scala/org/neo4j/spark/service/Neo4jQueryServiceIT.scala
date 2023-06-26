@@ -27,7 +27,7 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
 
     val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
       Array.empty,
-      PartitionSkipLimit.EMPTY,
+      PartitionPagination.EMPTY,
       List("nodeId",
         "MAX(score)",
         "MIN(score)",

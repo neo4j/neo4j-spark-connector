@@ -5,7 +5,7 @@ import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{DataTypes, StructType}
 import org.neo4j.spark.reader.BasePartitionReader
-import org.neo4j.spark.service.{Neo4jQueryStrategy, PartitionSkipLimit}
+import org.neo4j.spark.service.{Neo4jQueryStrategy, PartitionPagination}
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, StreamingFrom}
 
@@ -16,7 +16,7 @@ class BaseStreamingPartitionReader(private val options: Neo4jOptions,
                                    private val filters: Array[Filter],
                                    private val schema: StructType,
                                    private val jobId: String,
-                                   private val partitionSkipLimit: PartitionSkipLimit,
+                                   private val partitionSkipLimit: PartitionPagination,
                                    private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
                                    private val offsetAccumulator: OffsetStorage[java.lang.Long, java.lang.Long],
                                    private val requiredColumns: StructType,

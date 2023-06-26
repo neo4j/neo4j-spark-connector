@@ -5,13 +5,14 @@ import org.apache.spark.sql.connector.read.streaming.MicroBatchStream
 import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory, Scan}
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
-import org.neo4j.spark.service.PartitionSkipLimit
+import org.neo4j.spark.config.TopN
+import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.streaming.Neo4jMicroBatchReader
 import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, StorageType, ValidateReadNotStreaming, ValidateReadStreaming, Validations}
 
 import java.util.Optional
 
-case class Neo4jPartition(partitionSkipLimit: PartitionSkipLimit) extends InputPartition
+case class Neo4jPartition(partitionSkipLimit: PartitionPagination) extends InputPartition
 
 class Neo4jScan(neo4jOptions: Neo4jOptions,
                 jobId: String,
@@ -19,7 +20,7 @@ class Neo4jScan(neo4jOptions: Neo4jOptions,
                 filters: Array[Filter],
                 requiredColumns: StructType,
                 aggregateColumns: Array[AggregateFunc],
-                limit: Option[Int]) extends Scan with Batch {
+                topN: Option[TopN]) extends Scan with Batch {
 
   override def toBatch: Batch = this
 
@@ -29,7 +30,7 @@ class Neo4jScan(neo4jOptions: Neo4jOptions,
     Validations.validate(ValidateReadNotStreaming(neo4jOptions, jobId))
     // we get the skip/limit for each partition and execute the "script"
     val (partitionSkipLimitList, scriptResult) = Neo4jUtil.callSchemaService(neo4jOptions, jobId, filters, { schemaService =>
-      (schemaService.skipLimitFromPartition(limit), schemaService.execute(neo4jOptions.script))
+      (schemaService.skipLimitFromPartition(topN), schemaService.execute(neo4jOptions.script))
     })
     // we generate a partition for each element
     this.scriptResult = scriptResult

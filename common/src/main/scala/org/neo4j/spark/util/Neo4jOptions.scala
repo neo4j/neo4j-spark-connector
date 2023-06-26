@@ -54,6 +54,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   val pushdownColumnsEnabled: Boolean = getParameter(PUSHDOWN_COLUMNS_ENABLED, DEFAULT_PUSHDOWN_COLUMNS_ENABLED.toString).toBoolean
   val pushdownAggregateEnabled: Boolean = getParameter(PUSHDOWN_AGGREGATE_ENABLED, DEFAULT_PUSHDOWN_AGGREGATE_ENABLED.toString).toBoolean
   val pushdownLimitEnabled: Boolean = getParameter(PUSHDOWN_LIMIT_ENABLED, DEFAULT_PUSHDOWN_LIMIT_ENABLED.toString).toBoolean
+  val pushdownTopNEnabled: Boolean = getParameter(PUSHDOWN_TOPN_ENABLED, DEFAULT_PUSHDOWN_TOPN_ENABLED.toString).toBoolean
 
   val schemaMetadata: Neo4jSchemaMetadata = Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
     SchemaStrategy.withCaseInsensitiveName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase),
@@ -202,7 +203,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
   val partitions: Int = getParameter(PARTITIONS, DEFAULT_PARTITIONS.toString).toInt
 
-  val orderBy: String = getParameter(ORDER_BY, getParameter(STREAMING_PROPERTY_NAME))
+  val streamingOrderBy: String = getParameter(ORDER_BY, getParameter(STREAMING_PROPERTY_NAME))
 
   val apocConfig: Neo4jApocConfig = Neo4jApocConfig(parameters.asScala
     .filterKeys(_.startsWith("apoc."))
@@ -391,6 +392,7 @@ object Neo4jOptions {
   val PUSHDOWN_COLUMNS_ENABLED = "pushdown.columns.enabled"
   val PUSHDOWN_AGGREGATE_ENABLED = "pushdown.aggregate.enabled"
   val PUSHDOWN_LIMIT_ENABLED = "pushdown.limit.enabled"
+  val PUSHDOWN_TOPN_ENABLED = "pushdown.topN.enabled"
 
   // schema options
   val SCHEMA_STRATEGY = "schema.strategy"
@@ -462,6 +464,7 @@ object Neo4jOptions {
   val DEFAULT_PUSHDOWN_COLUMNS_ENABLED = true
   val DEFAULT_PUSHDOWN_AGGREGATE_ENABLED = true
   val DEFAULT_PUSHDOWN_LIMIT_ENABLED = true
+  val DEFAULT_PUSHDOWN_TOPN_ENABLED = true
   val DEFAULT_PARTITIONS = 1
   val DEFAULT_OPTIMIZATION_TYPE = OptimizationType.NONE
   val DEFAULT_SAVE_MODE = SaveMode.Overwrite

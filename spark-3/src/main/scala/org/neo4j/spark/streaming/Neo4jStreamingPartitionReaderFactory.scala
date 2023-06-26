@@ -6,10 +6,10 @@ import org.apache.spark.sql.connector.read.{InputPartition, PartitionReader, Par
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.{AccumulatorV2, LongAccumulator}
-import org.neo4j.spark.service.PartitionSkipLimit
+import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.util.Neo4jOptions
 
-case class Neo4jStreamingPartition(partitionSkipLimit: PartitionSkipLimit, filters: Array[Filter])
+case class Neo4jStreamingPartition(partitionSkipLimit: PartitionPagination, filters: Array[Filter])
   extends InputPartition
 
 class Neo4jStreamingPartitionReaderFactory(private val neo4jOptions: Neo4jOptions,

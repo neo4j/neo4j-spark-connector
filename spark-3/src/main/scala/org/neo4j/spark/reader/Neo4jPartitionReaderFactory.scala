@@ -5,7 +5,7 @@ import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReader, PartitionReaderFactory}
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
-import org.neo4j.spark.service.PartitionSkipLimit
+import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.util.Neo4jOptions
 
 class Neo4jPartitionReaderFactory(private val neo4jOptions: Neo4jOptions,

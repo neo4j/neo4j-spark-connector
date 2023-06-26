@@ -2,6 +2,7 @@ package org.neo4j.spark.service
 
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.connector.expressions.{SortDirection, SortOrder}
 import org.apache.spark.sql.connector.expressions.aggregate.{AggregateFunc, Count, CountStar, Max, Min, Sum}
 import org.apache.spark.sql.sources.{And, Filter, Or}
 import org.neo4j.cypherdsl.core._
@@ -102,21 +103,22 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
 }
 
 class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
-                             partitionSkipLimit: PartitionSkipLimit = PartitionSkipLimit.EMPTY,
+                             partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
                              requiredColumns: Seq[String] = Seq.empty,
                              aggregateColumns: Array[AggregateFunc] = Array.empty,
                              jobId: String = "") extends Neo4jQueryStrategy {
   private val renderer: Renderer = Renderer.getDefaultRenderer
 
-  private val hasSkipLimit: Boolean = partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1
+  private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 
   override def createStatementForQuery(options: Neo4jOptions): String = {
     val limitedQuery = if (hasSkipLimit) {
       s"""${options.query.value}
-         |SKIP ${partitionSkipLimit.skip} LIMIT ${partitionSkipLimit.limit}
+         |SKIP ${partitionPagination.skip} LIMIT ${partitionPagination.topN.limit}
          |""".stripMargin
     } else {
-      options.query.value
+      s"""${options.query.value}
+         |""".stripMargin
     }
     s"""WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
        |$limitedQuery""".stripMargin
@@ -130,14 +132,19 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
       .named(Neo4jUtil.RELATIONSHIP_ALIAS)
 
     val matchQuery: StatementBuilder.OngoingReadingWithoutWhere = filterRelationship(sourceNode, targetNode, relationship)
-
     val returnExpressions: Seq[Expression] = buildReturnExpression(sourceNode, targetNode, relationship)
     val stmt = if (aggregateColumns.isEmpty) {
-      buildStatement(options, matchQuery.returning(returnExpressions : _*), relationship)
+      val query = matchQuery.returning(returnExpressions: _*)
+      buildStatement(options, query, relationship)
     } else {
       buildStatementAggregation(options, matchQuery, relationship, returnExpressions)
     }
     renderer.render(stmt)
+  }
+
+  private def convertSort(order: SortOrder): SortItem = {
+    val direction = if (order.direction() == SortDirection.ASCENDING) SortItem.Direction.ASC else SortItem.Direction.DESC
+    Cypher.sort(Cypher.name(order.expression().describe()), direction)
   }
 
   private def buildReturnExpression(sourceNode: Node, targetNode: Node, relationship: Relationship): Seq[Expression] = {
@@ -186,13 +193,13 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
       }
       query
         .`with`(entity)
-        // Spark does not push down limits when aggregation is involved
+        // Spark does not push down limits/top N when aggregation is involved
         .orderBy(id)
-        .skip(partitionSkipLimit.skip)
-        .limit(partitionSkipLimit.limit)
+        .skip(partitionPagination.skip)
+        .limit(partitionPagination.topN.limit)
         .returning(fields: _*)
     } else {
-      val orderByProp = options.orderBy
+      val orderByProp = options.streamingOrderBy
       if (StringUtils.isBlank(orderByProp)) {
         query.returning(fields: _*)
       } else {
@@ -207,37 +214,41 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
   }
 
   private def buildStatement(options: Neo4jOptions,
-                             returning: StatementBuilder.OngoingReadingAndReturn,
+                             returning: StatementBuilder.TerminalExposesSkip
+                               with StatementBuilder.TerminalExposesLimit
+                               with StatementBuilder.TerminalExposesOrderBy
+                               with StatementBuilder.BuildableStatement[_],
                              entity: PropertyContainer = null): Statement = {
 
     def addSkipLimit(ret: StatementBuilder.TerminalExposesSkip
-        with StatementBuilder.TerminalExposesLimit
-        with StatementBuilder.BuildableStatement[_]) = {
+      with StatementBuilder.TerminalExposesLimit
+      with StatementBuilder.BuildableStatement[_]) = {
 
-      if (partitionSkipLimit.skip == 0) {
-        ret.limit(partitionSkipLimit.limit)
+      if (partitionPagination.skip == 0) {
+        ret.limit(partitionPagination.topN.limit)
       }
       else {
-        ret.skip(partitionSkipLimit.skip).asInstanceOf[StatementBuilder.TerminalExposesLimit]
-          .limit(partitionSkipLimit.limit)
+        ret.skip(partitionPagination.skip).asInstanceOf[StatementBuilder.TerminalExposesLimit]
+          .limit(partitionPagination.topN.limit)
       }
     }
 
     val ret = if (entity == null) {
+      // TODO: maybe it works for count queries - double-check
       if (hasSkipLimit) addSkipLimit(returning) else returning
     } else {
       if (hasSkipLimit) {
-        val id = entity match {
-          case node: Node => Functions.id(node)
-          case rel: Relationship => Functions.id(rel)
-        }
-        if (options.partitions == 1) {
-          addSkipLimit(returning)
+        if (options.partitions == 1 || partitionPagination.topN.orders.nonEmpty) {
+          addSkipLimit(returning.orderBy(partitionPagination.topN.orders.map(convertSort): _*))
         } else {
+          val id = entity match {
+            case node: Node => Functions.id(node)
+            case rel: Relationship => Functions.id(rel)
+          }
           addSkipLimit(returning.orderBy(id))
         }
       } else {
-        val orderByProp = options.orderBy
+        val orderByProp = options.streamingOrderBy
         if (StringUtils.isBlank(orderByProp)) returning else returning.orderBy(entity.property(orderByProp))
       }
     }
@@ -282,6 +293,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     def propertyOrSymbolicName(col: String) = {
       if (entity != null) entity.property(col) else Cypher.name(col)
     }
+
     column match {
       case Neo4jUtil.INTERNAL_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD)
       case Neo4jUtil.INTERNAL_REL_ID_FIELD => Functions.id(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_ID_FIELD)
@@ -340,7 +352,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
       val ret = if (requiredColumns.isEmpty) {
         matchQuery.returning(node)
       } else {
-        matchQuery.returning(expressions : _*)
+        matchQuery.returning(expressions: _*)
       }
       buildStatement(options, ret, node)
     }
@@ -416,9 +428,9 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
       .map(_._1)
       .map(Cypher.parameter)
     val statement = Cypher.call(options.query.value)
-      .withArgs(cypherParams : _*)
-      .`yield`(yieldFields : _*)
-      .returning(retCols : _*)
+      .withArgs(cypherParams: _*)
+      .`yield`(yieldFields: _*)
+      .returning(retCols: _*)
       .build()
     renderer.render(statement)
   }
@@ -450,7 +462,8 @@ class Neo4jQueryService(private val options: Neo4jOptions,
     case QueryType.RELATIONSHIP => strategy.createStatementForRelationships(options)
     case QueryType.QUERY => strategy.createStatementForQuery(options)
     case QueryType.GDS => strategy.createStatementForGDS(options)
-    case _ => throw new UnsupportedOperationException(s"""Query Type not supported.
+    case _ => throw new UnsupportedOperationException(
+      s"""Query Type not supported.
          |You provided ${options.query.queryType},
          |supported types: ${QueryType.values.mkString(",")}""".stripMargin)
   }
