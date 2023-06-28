@@ -12,4 +12,5 @@
 * xref::dwh.adoc[Interacting with Data Warehouses]
 * xref::architecture.adoc[Architecture guidance]
 * xref::types.adoc[Data type mapping between Neo4j and Spark]
+* xref::playground.adoc[Play with Neo4j and Spark in cloud environment]
 * xref::faq.adoc[Neo4j Connector for Apache Spark FAQ]
