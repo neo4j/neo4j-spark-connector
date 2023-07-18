@@ -115,6 +115,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     val limitedQuery = if (hasSkipLimit) {
       s"""${options.query.value}
          |SKIP ${partitionPagination.skip} LIMIT ${partitionPagination.topN.limit}
+         |${partitionPagination.topN.orderBy}
          |""".stripMargin
     } else {
       s"""${options.query.value}
@@ -142,9 +143,9 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     renderer.render(stmt)
   }
 
-  private def convertSort(order: SortOrder): SortItem = {
+  private def convertSort(entity: PropertyContainer, order: SortOrder): SortItem = {
     val direction = if (order.direction() == SortDirection.ASCENDING) SortItem.Direction.ASC else SortItem.Direction.DESC
-    Cypher.sort(Cypher.name(order.expression().describe()), direction)
+    Cypher.sort(entity.property(order.expression().describe()), direction)
   }
 
   private def buildReturnExpression(sourceNode: Node, targetNode: Node, relationship: Relationship): Seq[Expression] = {
@@ -228,7 +229,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
         ret.limit(partitionPagination.topN.limit)
       }
       else {
-        ret.skip(partitionPagination.skip).asInstanceOf[StatementBuilder.TerminalExposesLimit]
+        ret.skip(partitionPagination.skip)
           .limit(partitionPagination.topN.limit)
       }
     }
@@ -239,7 +240,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     } else {
       if (hasSkipLimit) {
         if (options.partitions == 1 || partitionPagination.topN.orders.nonEmpty) {
-          addSkipLimit(returning.orderBy(partitionPagination.topN.orders.map(convertSort): _*))
+          addSkipLimit(returning.orderBy(partitionPagination.topN.orders.map(order => convertSort(entity, order)): _*))
         } else {
           val id = entity match {
             case node: Node => Functions.id(node)

@@ -8,10 +8,6 @@ case class TopN(limit: Int, orders: Array[SortOrder] = Array.empty) {
     if (orders.isEmpty) {
       return ""
     }
-    orders.map(foobar).mkString("ORDER BY ", ", ", "")
-  }
-
-  private def foobar(order: SortOrder): String = {
-    order.toString
+    orders.map(_.toString).mkString("ORDER BY ", ", ", "")
   }
 }

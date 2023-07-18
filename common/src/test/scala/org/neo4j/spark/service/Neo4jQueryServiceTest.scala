@@ -1,8 +1,8 @@
 package org.neo4j.spark.service
 
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.connector.expressions.NamedReference
 import org.apache.spark.sql.connector.expressions.aggregate.{Count, Max, Min, Sum}
+import org.apache.spark.sql.connector.expressions.{Expression, NamedReference, NullOrdering, SortDirection, SortOrder}
 import org.apache.spark.sql.sources._
 import org.junit.Assert._
 import org.junit.Test
@@ -239,13 +239,14 @@ class Neo4jQueryServiceTest {
       List("source.name", "<source.id>")
     )).createQuery()
 
-    assertEquals("""MATCH (source:`Person`)
-                   |MATCH (target:`Person`)
-                   |MATCH (source)-[rel:`KNOWS`]->(target)
-                   |RETURN source.name AS `source.name`, id(source) AS `<source.id>`
-                   |LIMIT 100"""
-                    .stripMargin
-                    .replace(System.lineSeparator(), " "),
+    assertEquals(
+      """MATCH (source:`Person`)
+        |MATCH (target:`Person`)
+        |MATCH (source)-[rel:`KNOWS`]->(target)
+        |RETURN source.name AS `source.name`, id(source) AS `<source.id>`
+        |LIMIT 100"""
+        .stripMargin
+        .replace(System.lineSeparator(), " "),
       query)
   }
 
@@ -683,4 +684,119 @@ class Neo4jQueryServiceTest {
         .stripMargin
         .replaceAll("\n", " "), query)
   }
+
+  @Test
+  def testTopNForLabels(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
+      partitionPagination = PartitionPagination(0, 0, TopN(42, Array(new SortOrder {
+        override def expression(): Expression = new NamedReference {
+          override def fieldNames(): Array[String] = Array("name")
+
+          override def describe(): String = "name"
+        }
+
+        override def direction(): SortDirection = SortDirection.ASCENDING
+
+        override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
+      }))))).createQuery()
+
+    assertEquals("MATCH (n:`Person`) RETURN n ORDER BY n.name ASC LIMIT 42", query)
+  }
+
+  @Test
+  def testTopNForRequiredColumn(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
+      requiredColumns = Array("name"),
+      partitionPagination = PartitionPagination(0, 0, TopN(42, Array(new SortOrder {
+        override def expression(): Expression = new NamedReference {
+          override def fieldNames(): Array[String] = Array("name")
+
+          override def describe(): String = "name"
+        }
+
+        override def direction(): SortDirection = SortDirection.ASCENDING
+
+        override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
+      }))))).createQuery()
+
+    assertEquals("MATCH (n:`Person`) RETURN n.name AS name ORDER BY n.name ASC LIMIT 42", query)
+  }
+
+  @Test
+  def testTopNForRelationship(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "false")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
+      Array.empty[Filter],
+      PartitionPagination(0, 0, TopN(24, Array(new SortOrder {
+        override def expression(): Expression = new NamedReference {
+          override def fieldNames(): Array[String] = Array("since")
+
+          override def describe(): String = "since"
+        }
+
+        override def direction(): SortDirection = SortDirection.DESCENDING
+
+        override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
+      }))),
+    )).createQuery()
+
+    assertEquals("MATCH (source:`Person`) " +
+      "MATCH (target:`Person`) " +
+      "MATCH (source)-[rel:`KNOWS`]->(target) RETURN rel, source AS source, target AS target " +
+      "ORDER BY rel.since DESC LIMIT 24", query)
+  }
+
+  @Test
+  def testTopNForRelationshipWithOneRequiredColumn(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "false")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
+      Array.empty[Filter],
+      PartitionPagination(0, 0, TopN(24, Array(new SortOrder {
+        override def expression(): Expression = new NamedReference {
+          override def fieldNames(): Array[String] = Array("since")
+
+          override def describe(): String = "since"
+        }
+
+        override def direction(): SortDirection = SortDirection.DESCENDING
+
+        override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
+      }))),
+      Array("source.name")
+    )).createQuery()
+
+    assertEquals(
+      """MATCH (source:`Person`)
+        |MATCH (target:`Person`)
+        |MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`
+        |ORDER BY rel.since DESC LIMIT 24"""
+        .stripMargin
+        .replaceAll("\n", " "), query)
+  }
+
+  // TODO: add tests for Top N and custom queries
 }
