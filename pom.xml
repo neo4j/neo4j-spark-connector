@@ -48,7 +48,7 @@
 
     <properties>
         <neo4j.version>4.4.11</neo4j.version>
-        <driver.version>4.4.11</driver.version>
+        <driver.version>4.4.12</driver.version>
         <neo4j.experimental>false</neo4j.experimental>
         <testcontainers.version>1.18.3</testcontainers.version>
         <xbean.version>4.10</xbean.version>
@@ -59,7 +59,7 @@
         <java.version>1.8</java.version>
         <spark.version>3.3.1</spark.version>
         <!-- This is empty because we use it for the deploy process -->
-        <scala.binary.version />
+        <scala.binary.version/>
         <scala-maven-plugin.version>4.8.1</scala-maven-plugin.version>
     </properties>
 
