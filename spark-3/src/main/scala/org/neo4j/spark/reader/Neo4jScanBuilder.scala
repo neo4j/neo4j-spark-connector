@@ -89,13 +89,15 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
       return false
     }
     if (neo4jOptions.partitions > 1) {
-      // TODO: improve wording
-      logWarning("disabling pushed down limit support since it conflicts with partitioning." +
-        "set the partition count to 1 or disable the pushdown limit support to remove this warning")
+      logWarning(
+        s"""Disabling pushed down limit support since it conflicts with partitioning.
+          |Set the `${Neo4jOptions.PARTITIONS}` parameter value to 1
+          | or set `${Neo4jOptions.PUSHDOWN_LIMIT_ENABLED}` to false to remove this warning.
+          |""".stripMargin)
       return false
     }
     if (pushedLimit <= 0) {
-      logWarning(s"ignoring negative pushed down limit $pushedLimit")
+      logWarning(s"Ignoring negative pushed down limit $pushedLimit.")
       return false
     }
     limit = Some(pushedLimit)
