@@ -709,7 +709,7 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testTopNForRequiredColumn(): Unit = {
+  def testTopNForLabelsWithRequiredColumn(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -733,7 +733,7 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testTopNForRelationship(): Unit = {
+  def testTopNForRelationships(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -798,5 +798,32 @@ class Neo4jQueryServiceTest {
         .replaceAll("\n", " "), query)
   }
 
-  // TODO: add tests for Top N and custom queries
+
+  @Test
+  def testTopNForCustomQueryIgnoresAggregation(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (p:Person) RETURN p")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
+      Array.empty[Filter],
+      PartitionPagination(0, 0, TopN(24, Array(new SortOrder {
+        override def expression(): Expression = new NamedReference {
+          override def fieldNames(): Array[String] = Array("name")
+
+          override def describe(): String = "name"
+        }
+
+        override def direction(): SortDirection = SortDirection.DESCENDING
+
+        override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
+      }))),
+    )).createQuery()
+
+    assertEquals("""WITH $scriptResult AS scriptResult
+                   |MATCH (p:Person) RETURN p
+                   |SKIP 0 LIMIT 24
+                   |""".stripMargin, query)
+  }
 }

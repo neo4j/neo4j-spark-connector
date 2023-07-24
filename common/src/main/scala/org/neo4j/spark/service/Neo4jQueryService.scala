@@ -1,6 +1,7 @@
 package org.neo4j.spark.service
 
 import org.apache.commons.lang3.StringUtils
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.connector.expressions.{SortDirection, SortOrder}
 import org.apache.spark.sql.connector.expressions.aggregate.{AggregateFunc, Count, CountStar, Max, Min, Sum}
@@ -106,16 +107,21 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
                              partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
                              requiredColumns: Seq[String] = Seq.empty,
                              aggregateColumns: Array[AggregateFunc] = Array.empty,
-                             jobId: String = "") extends Neo4jQueryStrategy {
+                             jobId: String = "") extends Neo4jQueryStrategy with Logging {
   private val renderer: Renderer = Renderer.getDefaultRenderer
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 
   override def createStatementForQuery(options: Neo4jOptions): String = {
+    if (partitionPagination.topN.orders.nonEmpty) {
+      logWarning(
+        s"""Top N push-down optimizations with aggregations are not supported for custom queries.
+          |\tThese aggregations are going to be ignored.
+          |\tPlease specify the aggregations in the custom query directly""".stripMargin)
+    }
     val limitedQuery = if (hasSkipLimit) {
       s"""${options.query.value}
          |SKIP ${partitionPagination.skip} LIMIT ${partitionPagination.topN.limit}
-         |${partitionPagination.topN.orderBy}
          |""".stripMargin
     } else {
       s"""${options.query.value}
@@ -235,7 +241,6 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     }
 
     val ret = if (entity == null) {
-      // TODO: maybe it works for count queries - double-check
       if (hasSkipLimit) addSkipLimit(returning) else returning
     } else {
       if (hasSkipLimit) {
