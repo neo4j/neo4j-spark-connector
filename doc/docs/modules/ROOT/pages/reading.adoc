@@ -79,7 +79,12 @@ When `string` is set, it coerces all the properties to String, otherwise it trie
 |No
 
 |`pushdown.aggregate.enabled`
-|Enable or disable the PushdownColumn support.
+|Enable or disable the PushdownAggregate support.
+|`true`
+|No
+
+|`pushdown.limit.enabled`
+|Enable or disable the PushdownLimit support.
 |`true`
 |No
 
