@@ -150,8 +150,25 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
   }
 
   private def convertSort(entity: PropertyContainer, order: SortOrder): SortItem = {
+    val sortExpression = order.expression().describe()
+
+    val container = entity match {
+      case relationship: Relationship =>
+        if (sortExpression.contains(s"${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}.")) {
+          relationship.getLeft
+        } else if (sortExpression.contains(s"${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}.")) {
+          relationship.getRight
+        } else if (sortExpression.contains(s"${Neo4jUtil.RELATIONSHIP_ALIAS}.")) {
+          relationship
+        } else {
+          throw new IllegalArgumentException(s"Sort expression '${sortExpression}' is not valid")
+        }
+      case _ => entity
+    }
     val direction = if (order.direction() == SortDirection.ASCENDING) SortItem.Direction.ASC else SortItem.Direction.DESC
-    Cypher.sort(entity.property(order.expression().describe()), direction)
+    // FIXME: figure out when to use Cypher.name (qualified references) vs. container.getProperty (unqualified references)
+//    Cypher.sort(container.getProperty(sortExpression), direction)
+    Cypher.sort(Cypher.name(sortExpression.unquote()), direction)
   }
 
   private def buildReturnExpression(sourceNode: Node, targetNode: Node, relationship: Relationship): Seq[Expression] = {

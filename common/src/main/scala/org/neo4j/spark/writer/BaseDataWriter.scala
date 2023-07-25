@@ -10,6 +10,7 @@ import org.neo4j.spark.service._
 import org.neo4j.spark.util.Neo4jUtil.{closeSafely, isRetryableException}
 import org.neo4j.spark.util.{DriverCache, Neo4jOptions}
 
+import java.io.Closeable
 import java.time.Duration
 import java.util
 import java.util.concurrent.CountDownLatch
@@ -21,7 +22,7 @@ abstract class BaseDataWriter(jobId: String,
                               structType: StructType,
                               saveMode: SaveMode,
                               options: Neo4jOptions,
-                              scriptResult: java.util.List[java.util.Map[String, AnyRef]]) extends Logging {
+                              scriptResult: java.util.List[java.util.Map[String, AnyRef]]) extends Logging with Closeable {
   private val STOPPED_THREAD_EXCEPTION_MESSAGE = "Connection to the database terminated. Thread interrupted while committing the transaction"
 
   private val driverCache: DriverCache = new DriverCache(options.connection, jobId)

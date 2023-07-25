@@ -1,6 +1,7 @@
 package org.neo4j.spark
 
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
+import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row}
 import org.junit.Assert._
@@ -1768,6 +1769,37 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
         .map(r => (r.getTimestamp(0), r.getTimestamp(1)))
         .toList
     )
+  }
+
+  @Test
+  def testShouldAggregateAndLimitTheRelationshipResults(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
+         |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+         |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        (tx: Transaction) => tx.run(fixtureQuery).consume())
+
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Product")
+      .load
+      .select("`target.name`", "`target.id`")
+      .orderBy(col("`target.name`").desc) // FIXME (generated query is wrong)
+      .limit(10)
+
+    df.show()
+    assertEquals(10, df.count())
+    assertEquals(Set("target.name", "target.id"), df.columns.toSet)
   }
 
   private def initTest(query: String): DataFrame = {
