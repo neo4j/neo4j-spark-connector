@@ -126,4 +126,7 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
     topN = Some(TopN(limit, orders))
     true
   }
+
+  // otherwise doesn't compile in Scala 2.12
+  override def isPartiallyPushed: Boolean = true
 }

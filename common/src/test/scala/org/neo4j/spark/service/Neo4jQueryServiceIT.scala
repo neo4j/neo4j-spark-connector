@@ -1,11 +1,10 @@
 package org.neo4j.spark.service
 
-import org.apache.spark.sql.connector.expressions.NamedReference
 import org.apache.spark.sql.connector.expressions.aggregate.{Count, Max, Min, Sum}
 import org.junit.runners.MethodSorters
 import org.junit.{After, Assert, FixMethodOrder, Test}
 import org.neo4j.spark.SparkConnectorScalaSuiteWithGdsBase
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions}
+import org.neo4j.spark.util.{DriverCache, DummyNamedReference, Neo4jOptions}
 
 @FixMethodOrder(MethodSorters.JVM)
 class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
@@ -36,37 +35,37 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
         "SUM(score)",
         "SUM(DISTINCT score)"),
       Array(
-        new Max(new NamedReference {
+        new Max(new DummyNamedReference {
           override def fieldNames(): Array[String] = Array("score")
 
           override def describe(): String = "score"
         }),
-        new Min(new NamedReference {
+        new Min(new DummyNamedReference {
           override def fieldNames(): Array[String] = Array("score")
 
           override def describe(): String = "score"
         }),
-        new Sum(new NamedReference {
+        new Sum(new DummyNamedReference {
           override def fieldNames(): Array[String] = Array("score")
 
           override def describe(): String = "score"
         }, false),
-        new Count(new NamedReference {
+        new Count(new DummyNamedReference {
           override def fieldNames(): Array[String] = Array("score")
 
           override def describe(): String = "score"
         }, false),
-        new Count(new NamedReference {
+        new Count(new DummyNamedReference {
           override def fieldNames(): Array[String] = Array("score")
 
           override def describe(): String = "score"
         }, true),
-        new Sum(new NamedReference {
+        new Sum(new DummyNamedReference {
           override def fieldNames(): Array[String] = Array("score")
 
           override def describe(): String = "score"
         }, false),
-        new Sum(new NamedReference {
+        new Sum(new DummyNamedReference {
           override def fieldNames(): Array[String] = Array("score")
 
           override def describe(): String = "score"
