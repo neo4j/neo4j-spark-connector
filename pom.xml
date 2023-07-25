@@ -52,7 +52,7 @@
         <neo4j.experimental>false</neo4j.experimental>
         <testcontainers.version>1.18.3</testcontainers.version>
         <xbean.version>4.10</xbean.version>
-        <cypherdsl.version>2022.8.5</cypherdsl.version>
+        <cypherdsl.version>2022.9.0</cypherdsl.version>
         <node.version>v12.16.0</node.version>
         <npm.version>6.13.7</npm.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
