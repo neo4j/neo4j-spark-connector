@@ -24,6 +24,7 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
     options.put("gds", "gds.pageRank.stream")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
+    val field = new DummyNamedReference("score")
     val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
       Array.empty,
       PartitionPagination.EMPTY,
@@ -35,41 +36,13 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
         "SUM(score)",
         "SUM(DISTINCT score)"),
       Array(
-        new Max(new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("score")
-
-          override def describe(): String = "score"
-        }),
-        new Min(new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("score")
-
-          override def describe(): String = "score"
-        }),
-        new Sum(new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("score")
-
-          override def describe(): String = "score"
-        }, false),
-        new Count(new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("score")
-
-          override def describe(): String = "score"
-        }, false),
-        new Count(new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("score")
-
-          override def describe(): String = "score"
-        }, true),
-        new Sum(new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("score")
-
-          override def describe(): String = "score"
-        }, false),
-        new Sum(new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("score")
-
-          override def describe(): String = "score"
-        }, true)
+        new Max(field),
+        new Min(field),
+        new Sum(field, false),
+        new Count(field, false),
+        new Count(field, true),
+        new Sum(field, false),
+        new Sum(field, true)
       )
     )).createQuery()
 

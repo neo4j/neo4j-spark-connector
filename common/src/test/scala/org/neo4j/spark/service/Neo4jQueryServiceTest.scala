@@ -527,43 +527,29 @@ class Neo4jQueryServiceTest {
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
+    val ageField = new DummyNamedReference("age")
     var query: String = new Neo4jQueryService(
       neo4jOptions,
       new Neo4jQueryReadStrategy(Array.empty[Filter], PartitionPagination.EMPTY, Seq("name",
         "SUM(DISTINCT age)",
         "SUM(age)"),
         Array(
-          new Sum(new DummyNamedReference {
-            override def fieldNames(): Array[String] = Array("age")
-
-            override def describe(): String = "age"
-          }, false),
-          new Sum(new DummyNamedReference {
-            override def fieldNames(): Array[String] = Array("age")
-
-            override def describe(): String = "age"
-          }, true)
+          new Sum(ageField, false),
+          new Sum(ageField, true)
         ))
     ).createQuery()
 
     assertEquals("MATCH (n:`Person`) RETURN n.name AS name, sum(DISTINCT n.age) AS `SUM(DISTINCT age)`, sum(n.age) AS `SUM(age)`", query)
 
+    val nameField = new DummyNamedReference("name")
     query = new Neo4jQueryService(
       neo4jOptions,
       new Neo4jQueryReadStrategy(Array.empty[Filter], PartitionPagination.EMPTY, Seq("name",
         "COUNT(DISTINCT name)",
         "COUNT(name)"),
         Array(
-          new Count(new DummyNamedReference {
-            override def fieldNames(): Array[String] = Array("name")
-
-            override def describe(): String = "name"
-          }, false),
-          new Count(new DummyNamedReference {
-            override def fieldNames(): Array[String] = Array("name")
-
-            override def describe(): String = "name"
-          }, true)
+          new Count(nameField, false),
+          new Count(nameField, true)
         ))
     ).createQuery()
 
@@ -575,16 +561,8 @@ class Neo4jQueryServiceTest {
         "MAX(age)",
         "MIN(age)"),
         Array(
-          new Max(new DummyNamedReference {
-            override def fieldNames(): Array[String] = Array("age")
-
-            override def describe(): String = "age"
-          }),
-          new Min(new DummyNamedReference {
-            override def fieldNames(): Array[String] = Array("age")
-
-            override def describe(): String = "age"
-          })
+          new Max(ageField),
+          new Min(ageField)
         ))
     ).createQuery()
 
@@ -601,6 +579,7 @@ class Neo4jQueryServiceTest {
     options.put("relationship.target.labels", "Product")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
+    val targetPriceField = new DummyNamedReference("`target.price`")
     var query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
       Array.empty,
       PartitionPagination.EMPTY,
@@ -608,16 +587,8 @@ class Neo4jQueryServiceTest {
         "SUM(DISTINCT `target.price`)",
         "SUM(`target.price`)"),
       Array(
-        new Sum(new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("`target.price`")
-
-          override def describe(): String = "`target.price`"
-        }, false),
-        new Sum(new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("`target.price`")
-
-          override def describe(): String = "`target.price`"
-        }, true)
+        new Sum(targetPriceField, false),
+        new Sum(targetPriceField, true)
       )
     )).createQuery()
 
@@ -629,6 +600,7 @@ class Neo4jQueryServiceTest {
         .stripMargin
         .replaceAll("\n", " "), query)
 
+    val targetIdField = new DummyNamedReference("`target.id`")
     query = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
       Array.empty,
       PartitionPagination.EMPTY,
@@ -636,16 +608,8 @@ class Neo4jQueryServiceTest {
         "COUNT(DISTINCT `target.id`)",
         "COUNT(`target.id`)"),
       Array(
-        new Count(new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("`target.id`")
-
-          override def describe(): String = "`target.id`"
-        }, false),
-        new Count(new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("`target.id`")
-
-          override def describe(): String = "`target.id`"
-        }, true)
+        new Count(targetIdField, false),
+        new Count(targetIdField, true)
       )
     )).createQuery()
 
@@ -663,16 +627,8 @@ class Neo4jQueryServiceTest {
         "MAX(`target.price`)",
         "MIN(`target.price`)"),
       Array(
-        new Max(new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("`target.price`")
-
-          override def describe(): String = "`target.price`"
-        }),
-        new Min(new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("`target.price`")
-
-          override def describe(): String = "`target.price`"
-        })
+        new Max(targetPriceField),
+        new Min(targetPriceField)
       )
     )).createQuery()
 
@@ -694,11 +650,7 @@ class Neo4jQueryServiceTest {
 
     val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
       partitionPagination = PartitionPagination(0, 0, TopN(42, Array(new SortOrder {
-        override def expression(): Expression = new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("name")
-
-          override def describe(): String = "name"
-        }
+        override def expression(): Expression = new DummyNamedReference("name")
 
         override def direction(): SortDirection = SortDirection.ASCENDING
 
@@ -718,11 +670,7 @@ class Neo4jQueryServiceTest {
     val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
       requiredColumns = Array("name"),
       partitionPagination = PartitionPagination(0, 0, TopN(42, Array(new SortOrder {
-        override def expression(): Expression = new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("name")
-
-          override def describe(): String = "name"
-        }
+        override def expression(): Expression = new DummyNamedReference("name")
 
         override def direction(): SortDirection = SortDirection.ASCENDING
 
@@ -745,11 +693,7 @@ class Neo4jQueryServiceTest {
     val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
       Array.empty[Filter],
       PartitionPagination(0, 0, TopN(24, Array(new SortOrder {
-        override def expression(): Expression = new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("rel.since")
-
-          override def describe(): String = "rel.since"
-        }
+        override def expression(): Expression = new DummyNamedReference("rel.since")
 
         override def direction(): SortDirection = SortDirection.DESCENDING
 
@@ -776,11 +720,7 @@ class Neo4jQueryServiceTest {
     val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
       Array.empty[Filter],
       PartitionPagination(0, 0, TopN(24, Array(new SortOrder {
-        override def expression(): Expression = new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("rel.since")
-
-          override def describe(): String = "rel.since"
-        }
+        override def expression(): Expression = new DummyNamedReference("rel.since")
 
         override def direction(): SortDirection = SortDirection.DESCENDING
 
@@ -809,11 +749,7 @@ class Neo4jQueryServiceTest {
     val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
       Array.empty[Filter],
       PartitionPagination(0, 0, TopN(24, Array(new SortOrder {
-        override def expression(): Expression = new DummyNamedReference {
-          override def fieldNames(): Array[String] = Array("name")
-
-          override def describe(): String = "name"
-        }
+        override def expression(): Expression = new DummyNamedReference("name")
 
         override def direction(): SortDirection = SortDirection.DESCENDING
 
