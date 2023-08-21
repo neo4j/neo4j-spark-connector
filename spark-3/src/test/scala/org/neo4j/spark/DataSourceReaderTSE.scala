@@ -1702,6 +1702,74 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(Set("target.name", "target.id"), df.columns.toSet)
   }
 
+  @Test
+  def test531(): Unit = {
+    val dataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query",
+        """
+          |UNWIND [
+          |  {first: '2022-06-14T10:02:28.192Z', second: null},
+          |  {first: '2022-06-15T10:02:28.192Z', second: '2022-06-16T10:02:28.192Z'}
+          |]AS event
+          |RETURN datetime(event.first) AS first, datetime(event.second) AS second
+          |""".stripMargin)
+      .load()
+
+    assertEquals(
+      StructType(Array(
+        StructField("first", DataTypes.TimestampType),
+        StructField("second", DataTypes.StringType)
+      )),
+      dataFrame.schema
+    )
+
+    assertEquals(
+      List(
+        (Timestamp.from(OffsetDateTime.parse("2022-06-14T10:02:28.192Z").toInstant), null),
+        (Timestamp.from(OffsetDateTime.parse("2022-06-15T10:02:28.192Z").toInstant), "2022-06-16T10:02:28.192Z")
+      ),
+      dataFrame.collect()
+        .map(r => (r.getTimestamp(0), r.getString(1)))
+        .toList
+    )
+  }
+
+  @Test
+  def test531WithSchema(): Unit = {
+    val schema = StructType(Array(
+      StructField("first", DataTypes.TimestampType),
+      StructField("second", DataTypes.TimestampType),
+    ))
+    // dataFrameWithSchema must with the proper data type
+    val dataFrameWithSchema = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query",
+        """
+          |UNWIND [
+          |  {first: '2022-06-14T10:02:28.192Z', second: null},
+          |  {first: '2022-06-15T10:02:28.192Z', second: '2022-06-16T10:02:28.192Z'}
+          |] AS event
+          |RETURN datetime(event.first) AS first, datetime(event.second) AS second
+          |""".stripMargin)
+      .schema(schema)
+      .load()
+    assertEquals(
+      schema,
+      dataFrameWithSchema.schema
+    )
+    assertEquals(
+      List(
+        (Timestamp.from(OffsetDateTime.parse("2022-06-14T10:02:28.192Z").toInstant), null),
+        (Timestamp.from(OffsetDateTime.parse("2022-06-15T10:02:28.192Z").toInstant),
+          Timestamp.from(OffsetDateTime.parse("2022-06-16T10:02:28.192Z").toInstant))
+      ),
+      dataFrameWithSchema.collect()
+        .map(r => (r.getTimestamp(0), r.getTimestamp(1)))
+        .toList
+    )
+  }
+
   private def initTest(query: String): DataFrame = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(

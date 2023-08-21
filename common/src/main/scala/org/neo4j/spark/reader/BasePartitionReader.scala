@@ -12,7 +12,6 @@ import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, QueryType}
 import java.io.IOException
 import java.util
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 abstract class BasePartitionReader(private val options: Neo4jOptions,
                                    private val filters: Array[Filter],
