@@ -85,8 +85,8 @@ link:https://neo4j.com/docs/java-manual/current/client-applications/#java-driver
 |Yes
 
 |`authentication.type`
-|The authentication methods to be used: `none`, `basic`, `kerberos`, `custom`.
-More information link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#driver-authentication[here, window=_blank]
+|The authentication methods to be used: `none`, `basic`, `kerberos`, `custom`, `bearer`.
+More information link:https://neo4j.com/docs/java-manual/4.4/client-applications/#java-driver-authentication[here, window=_blank]
 |`basic`
 |No
 
@@ -116,7 +116,12 @@ More information link:https://neo4j.com/docs/driver-manual/4.1/client-applicatio
 |No
 
 |`authentication.custom.realm`
-|This is the "realm": string specifying the authentication provider
+|This is the "realm" string specifying the authentication provider
+|_(Neo4j Driver default)_
+|No
+
+|`authentication.bearer.token`
+|This is the token to provide for the bearer authentication scheme
 |_(Neo4j Driver default)_
 |No
 

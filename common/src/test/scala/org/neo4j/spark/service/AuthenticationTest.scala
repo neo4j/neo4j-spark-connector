@@ -44,4 +44,26 @@ class AuthenticationTest {
 
     assertEquals(neo4jDriverOptions.toNeo4jAuth, argumentCaptor.getValue)
   }
+
+  @Test
+  def testBearerAuthToken(): Unit = {
+    val options = new util.HashMap[String, String]
+    options.put("url", "bolt://localhost:7687")
+    options.put("authentication.type", "bearer")
+    options.put("authentication.bearer.token", BaseEncoding.base64.encode("user:password".getBytes))
+
+    val argumentCaptor = ArgumentCaptor.forClass(classOf[AuthToken])
+    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jDriverOptions = neo4jOptions.connection
+    val driverCache = new DriverCache(neo4jDriverOptions, "jobId")
+
+    PowerMockito.mockStatic(classOf[GraphDatabase])
+
+    driverCache.getOrCreate()
+
+    PowerMockito.verifyStatic(classOf[GraphDatabase], times(1))
+    GraphDatabase.driver(anyString, argumentCaptor.capture, any(classOf[Config]))
+
+    assertEquals(neo4jDriverOptions.toNeo4jAuth, argumentCaptor.getValue)
+  }
 }

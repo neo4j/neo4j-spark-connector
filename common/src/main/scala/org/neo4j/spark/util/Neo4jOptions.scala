@@ -90,6 +90,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     getParameter(AUTH_CUSTOM_CREDENTIALS, DEFAULT_EMPTY),
     getParameter(AUTH_CUSTOM_REALM, DEFAULT_EMPTY),
     getParameter(AUTH_CUSTOM_SCHEME, DEFAULT_EMPTY),
+    getParameter(AUTH_BEARER_TOKEN, DEFAULT_EMPTY),
     getParameter(ENCRYPTION_ENABLED, DEFAULT_ENCRYPTION_ENABLED.toString).toBoolean,
     Option(getParameter(ENCRYPTION_TRUST_STRATEGY, null)),
     getParameter(ENCRYPTION_CA_CERTIFICATE_PATH, DEFAULT_EMPTY),
@@ -280,6 +281,7 @@ case class Neo4jDriverOptions(
                                credentials: String,
                                realm: String,
                                schema: String,
+                               bearerToken: String,
                                encryption: Boolean,
                                trustStrategy: Option[String],
                                certificatePath: String,
@@ -348,6 +350,7 @@ case class Neo4jDriverOptions(
       case "none" => AuthTokens.none()
       case "kerberos" => AuthTokens.kerberos(ticket)
       case "custom" => AuthTokens.custom(principal, credentials, realm, schema)
+      case "bearer" => AuthTokens.bearer(bearerToken)
       case _ => throw new IllegalArgumentException(s"Authentication method '${auth}' is not supported")
     }
   }
@@ -367,6 +370,7 @@ object Neo4jOptions {
   val AUTH_CUSTOM_CREDENTIALS = "authentication.custom.credentials"
   val AUTH_CUSTOM_REALM = "authentication.custom.realm"
   val AUTH_CUSTOM_SCHEME = "authentication.custom.scheme"
+  val AUTH_BEARER_TOKEN = "authentication.bearer.token"
 
   // driver
   val ENCRYPTION_ENABLED = "encryption.enabled"
