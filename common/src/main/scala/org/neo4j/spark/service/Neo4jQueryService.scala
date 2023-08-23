@@ -167,8 +167,6 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     }
     val direction = if (order.direction() == SortDirection.ASCENDING) SortItem.Direction.ASC else SortItem.Direction.DESC
 
-//    Cypher.sort(entity.property(sortExpression), direction)
-
     Cypher.sort(container
       .map(_.property(sortExpression.removeAlias()))
       .getOrElse(Cypher.name(sortExpression.unquote())), direction)
