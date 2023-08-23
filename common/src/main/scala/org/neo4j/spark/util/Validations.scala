@@ -45,10 +45,7 @@ case class ValidateSchemaOptions(neo4jOptions: Neo4jOptions, schema: StructType)
   }
 }
 
-case class ValidateSparkVersion(supportedVersions: String*) extends Validation {
-  private def compare(version: String, toCompare: String): Boolean = (toCompare == "*"
-    || version.toInt >= toCompare.split("\\W").head.toInt)
-
+case class ValidateSparkMinVersion(supportedVersions: String*) extends Validation {
   override def validate(): Unit = {
     val sparkVersion = SparkSession.getActiveSession
       .map(_.version)
@@ -64,10 +61,28 @@ case class ValidateSparkVersion(supportedVersions: String*) extends Validation {
 
   def isSupported(sparkVersion: String): Boolean = {
     val splittedVersion = sparkVersion.split("\\.")
-    val supported = sparkVersion == "UNKNOWN" || supportedVersions
+    if (sparkVersion == "UNKNOWN") return true
+    val versions = supportedVersions
       .flatMap(_.split("\\.").zip(splittedVersion))
-      .forall(t => compare(t._2, t._1))
-    supported
+      .map(t =>
+        try {
+          (t._1.toInt, t._2.toInt)
+        } catch {
+          case _: NumberFormatException => null
+        })
+      .filter(p => p != null)
+    for (t <- versions) {
+      val curr = t._2
+      val supported = t._1
+      if (curr > supported) { // if Spark current version (step) is greater than the supported one
+        return true // we can assume that the current version is a greater version, so it's supported
+      }
+      if (curr < supported) { // if Spark current version (step) is lower than the supported one
+        return false // we can assume that the current version is a greater version, so it's supported
+      }
+      // if the versions are equal we can check the next step
+    }
+    true // this happens if the two versions are equal
   }
 }
 

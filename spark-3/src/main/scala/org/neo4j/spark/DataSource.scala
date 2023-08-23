@@ -5,14 +5,14 @@ import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.sources.{DataSourceRegister, Filter}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, ValidateConnection, ValidateSparkVersion, Validations}
+import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, ValidateConnection, ValidateSparkMinVersion, Validations}
 
 import java.util.UUID
 
 class DataSource extends TableProvider
   with DataSourceRegister {
 
-  Validations.validate(ValidateSparkVersion("3.2.*"))
+  Validations.validate(ValidateSparkMinVersion("3.3.0"))
 
   private val jobId: String = UUID.randomUUID().toString
 
