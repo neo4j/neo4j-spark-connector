@@ -160,6 +160,7 @@ class Neo4jOptionsTest {
     assertEquals(Neo4jOptions.DEFAULT_CONNECTION_MAX_LIFETIME_MSECS, neo4jOptions.connection.lifetime)
     assertEquals(-1, neo4jOptions.connection.acquisitionTimeout)
     assertEquals(-1, neo4jOptions.connection.connectionTimeout)
+    assertEquals(-2, neo4jOptions.connection.fetchSize)
     assertEquals(Neo4jOptions.DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS, neo4jOptions.connection.livenessCheckTimeout)
     assertEquals(RelationshipSaveStrategy.NATIVE, neo4jOptions.relationshipMetadata.saveStrategy)
 
@@ -219,5 +220,16 @@ class Neo4jOptionsTest {
       "graphName" -> "myGraph",
       "configuration" -> Map("concurrency" -> 2).asJava
     ).asJava, neo4jOptions.gdsMetadata.parameters)
+  }
+
+  @Test
+  def testFetchSize(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783")
+    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH n RETURN n")
+    val size = "50"
+    options.put(Neo4jOptions.FETCH_SIZE, size)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+    assertEquals(size.toLong, neo4jOptions.connection.fetchSize)
   }
 }

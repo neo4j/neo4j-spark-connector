@@ -98,7 +98,8 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     getParameter(CONNECTION_MAX_LIFETIME_MSECS, DEFAULT_CONNECTION_MAX_LIFETIME_MSECS.toString).toInt,
     getParameter(CONNECTION_ACQUISITION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt,
     getParameter(CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS, DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS.toString).toInt,
-    getParameter(CONNECTION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt
+    getParameter(CONNECTION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt,
+    getParameter(FETCH_SIZE, DEFAULT_FETCH_SIZE.toString).toLong
   )
 
   val session: Neo4jSessionOptions = Neo4jSessionOptions(
@@ -289,7 +290,8 @@ case class Neo4jDriverOptions(
                                lifetime: Int,
                                acquisitionTimeout: Int,
                                livenessCheckTimeout: Int,
-                               connectionTimeout: Int
+                               connectionTimeout: Int,
+                               fetchSize: Long,
                              ) extends Serializable {
 
   def toDriverConfig: Config = {
@@ -301,6 +303,7 @@ case class Neo4jDriverOptions(
     if (acquisitionTimeout > -1) builder.withConnectionAcquisitionTimeout(acquisitionTimeout, TimeUnit.MILLISECONDS)
     if (livenessCheckTimeout > -1) builder.withConnectionLivenessCheckTimeout(livenessCheckTimeout, TimeUnit.MILLISECONDS)
     if (connectionTimeout > -1) builder.withConnectionTimeout(connectionTimeout, TimeUnit.MILLISECONDS)
+    if (fetchSize > -2) builder.withFetchSize(fetchSize)
 
     val (primaryUrl, resolvers) = connectionUrls
 
@@ -378,6 +381,7 @@ object Neo4jOptions {
   val ENCRYPTION_TRUST_STRATEGY = "encryption.trust.strategy"
   val ENCRYPTION_CA_CERTIFICATE_PATH = "encryption.ca.certificate.path"
   val CONNECTION_MAX_LIFETIME_MSECS = "connection.max.lifetime.msecs"
+  val FETCH_SIZE = "fetch.size"
   val CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS = "connection.liveness.timeout.msecs"
   val CONNECTION_ACQUISITION_TIMEOUT_MSECS = "connection.acquisition.timeout.msecs"
   val CONNECTION_TIMEOUT_MSECS = "connection.timeout.msecs"
@@ -468,6 +472,7 @@ object Neo4jOptions {
   val DEFAULT_STREAMING_FROM = StreamingFrom.NOW
   val DEFAULT_STREAMING_CLEAN_STRUCT_TYPE_STORAGE = false
   val DEFAULT_STREAMING_METADATA_STORAGE = StorageType.SPARK
+  val DEFAULT_FETCH_SIZE = -2
 
   // Default values optimizations for Aura please look at: https://aura.support.neo4j.com/hc/en-us/articles/1500002493281-Neo4j-Java-driver-settings-for-Aura
   val DEFAULT_CONNECTION_MAX_LIFETIME_MSECS = Duration.ofMinutes(8).toMillis

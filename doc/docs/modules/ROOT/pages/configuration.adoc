@@ -162,6 +162,11 @@ Available values are: `TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`, `TRUST_CUSTOM_CA_SI
 |_(Neo4j Driver default)_
 |No
 
+|`fetch.size`
+|Connection fetch size
+|_(Neo4j Driver default)_
+|No
+
 4+|*Session options*
 
 |`database`
