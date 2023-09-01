@@ -472,8 +472,9 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     case QueryType.QUERY => countForQuery()
   }
 
-  def skipLimitFromPartition(): Seq[PartitionSkipLimit] = if (options.partitions == 1) {
-    Seq(PartitionSkipLimit.EMPTY)
+  def skipLimitFromPartition(limit: Option[Int]): Seq[PartitionSkipLimit] = if (options.partitions == 1) {
+    val skipLimit = limit.map(l => PartitionSkipLimit(0, 0, l)).getOrElse(PartitionSkipLimit.EMPTY)
+    Seq(skipLimit)
   } else {
     val count: Long = this.count()
     if (count <= 0) {

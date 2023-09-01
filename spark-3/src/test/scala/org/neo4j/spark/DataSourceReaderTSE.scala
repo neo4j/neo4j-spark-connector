@@ -1649,6 +1649,127 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(8L, df.collect().head.get(0))
   }
 
+  @Test
+  def testShouldLimitTheNodeResults(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id, name: 'Product ' + id})
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        (tx: Transaction) => tx.run(fixtureQuery).consume())
+
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Product")
+      .load
+      .limit(10)
+
+    assertEquals(10, df.count())
+    assertEquals(Set("<id>", "<labels>", "name", "id"), df.columns.toSet)
+  }
+
+  @Test
+  def testShouldLimitTheRelationshipResults(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
+         |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+         |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        (tx: Transaction) => tx.run(fixtureQuery).consume())
+
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Product")
+      .load
+      .select("`target.name`", "`target.id`")
+      .limit(10)
+
+    assertEquals(10, df.count())
+    assertEquals(Set("target.name", "target.id"), df.columns.toSet)
+  }
+
+  @Test
+  def test531(): Unit = {
+    val dataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query",
+        """
+          |UNWIND [
+          |  {first: '2022-06-14T10:02:28.192Z', second: null},
+          |  {first: '2022-06-15T10:02:28.192Z', second: '2022-06-16T10:02:28.192Z'}
+          |]AS event
+          |RETURN datetime(event.first) AS first, datetime(event.second) AS second
+          |""".stripMargin)
+      .load()
+
+    assertEquals(
+      StructType(Array(
+        StructField("first", DataTypes.TimestampType),
+        StructField("second", DataTypes.StringType)
+      )),
+      dataFrame.schema
+    )
+
+    assertEquals(
+      List(
+        (Timestamp.from(OffsetDateTime.parse("2022-06-14T10:02:28.192Z").toInstant), null),
+        (Timestamp.from(OffsetDateTime.parse("2022-06-15T10:02:28.192Z").toInstant), "2022-06-16T10:02:28.192Z")
+      ),
+      dataFrame.collect()
+        .map(r => (r.getTimestamp(0), r.getString(1)))
+        .toList
+    )
+  }
+
+  @Test
+  def test531WithSchema(): Unit = {
+    val schema = StructType(Array(
+      StructField("first", DataTypes.TimestampType),
+      StructField("second", DataTypes.TimestampType),
+    ))
+    // dataFrameWithSchema must with the proper data type
+    val dataFrameWithSchema = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query",
+        """
+          |UNWIND [
+          |  {first: '2022-06-14T10:02:28.192Z', second: null},
+          |  {first: '2022-06-15T10:02:28.192Z', second: '2022-06-16T10:02:28.192Z'}
+          |] AS event
+          |RETURN datetime(event.first) AS first, datetime(event.second) AS second
+          |""".stripMargin)
+      .schema(schema)
+      .load()
+    assertEquals(
+      schema,
+      dataFrameWithSchema.schema
+    )
+    assertEquals(
+      List(
+        (Timestamp.from(OffsetDateTime.parse("2022-06-14T10:02:28.192Z").toInstant), null),
+        (Timestamp.from(OffsetDateTime.parse("2022-06-15T10:02:28.192Z").toInstant),
+          Timestamp.from(OffsetDateTime.parse("2022-06-16T10:02:28.192Z").toInstant))
+      ),
+      dataFrameWithSchema.collect()
+        .map(r => (r.getTimestamp(0), r.getTimestamp(1)))
+        .toList
+    )
+  }
+
   private def initTest(query: String): DataFrame = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(

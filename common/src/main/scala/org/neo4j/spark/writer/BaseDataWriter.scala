@@ -135,7 +135,7 @@ abstract class BaseDataWriter(jobId: String,
     ()
   }
 
-  protected def close(): Unit = {
+  def close(): Unit = {
     closeSafety(transaction, log)
     closeSafety(session, log)
   }

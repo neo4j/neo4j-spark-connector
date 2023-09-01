@@ -4,7 +4,7 @@ import org.apache.spark.sql.SparkSession
 import org.junit
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.Test
-import org.neo4j.spark.util.{ValidateSparkVersion, Validations}
+import org.neo4j.spark.util.{ValidateSparkMinVersion, Validations}
 
 class VersionValidationTest extends SparkConnectorScalaBaseTSE {
 
@@ -14,7 +14,7 @@ class VersionValidationTest extends SparkConnectorScalaBaseTSE {
       .map { _.version }
       .getOrElse("UNKNOWN")
     try {
-      Validations.validate(ValidateSparkVersion("2.4"))
+      Validations.validate(ValidateSparkMinVersion("3.10000"))
       fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     } catch {
       case e: IllegalArgumentException =>
@@ -29,26 +29,30 @@ class VersionValidationTest extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testShouldBeValid(): Unit = {
-    val baseVersion = SparkSession
+    val fullVersion = SparkSession
       .getDefaultSession
       .map(_.version)
       .getOrElse("3.2")
+    val baseVersion = fullVersion
       .split("\\.")
       .take(2)
       .mkString(".")
-    Validations.validate(ValidateSparkVersion(baseVersion))
-    Validations.validate(ValidateSparkVersion(s"$baseVersion.*"))
-    Validations.validate(ValidateSparkVersion(s"$baseVersion.0"))
-    Validations.validate(ValidateSparkVersion(s"$baseVersion.1-amzn-0"))
+    Validations.validate(ValidateSparkMinVersion(s"$baseVersion.*"))
+    Validations.validate(ValidateSparkMinVersion(fullVersion))
+    Validations.validate(ValidateSparkMinVersion(s"$fullVersion-amzn-0"))
   }
 
 
   @Test
   def testShouldValidateTheVersion(): Unit = {
-    val version = ValidateSparkVersion("3.2.*")
+    val version = ValidateSparkMinVersion("2.3.0")
+    junit.Assert.assertTrue(version.isSupported("2.3.0-amzn-1"))
+    junit.Assert.assertTrue(version.isSupported("2.3.1-amzn-1"))
     junit.Assert.assertTrue(version.isSupported("3.3.0-amzn-1"))
     junit.Assert.assertTrue(version.isSupported("3.3.0"))
-    junit.Assert.assertFalse(version.isSupported("3.1.0"))
+    junit.Assert.assertTrue(version.isSupported("3.1.0"))
+    junit.Assert.assertTrue(version.isSupported("3.2.0"))
+    junit.Assert.assertFalse(version.isSupported("2.2.10"))
   }
 
 }

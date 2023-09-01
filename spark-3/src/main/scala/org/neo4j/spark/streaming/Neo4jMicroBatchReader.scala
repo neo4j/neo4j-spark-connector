@@ -52,7 +52,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
 
     val partitions = Neo4jUtil.callSchemaService(
       neo4jOptions, jobId, filters,
-      { schemaService => schemaService.skipLimitFromPartition() }
+      { schemaService => schemaService.skipLimitFromPartition(None) }
     )
 
     partitions

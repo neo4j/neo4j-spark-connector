@@ -5,8 +5,8 @@
     <groupId>org.neo4j</groupId>
     <packaging>pom</packaging>
     <version>5.1.0</version>
-    <artifactId>neo4j-connector-apache-spark</artifactId>
-    <name>neo4j-connector-apache-spark</name>
+    <artifactId>neo4j-connector-apache-spark_parent</artifactId>
+    <name>neo4j-connector-apache-spark_parent</name>
     <description>Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
 
     <modules>
@@ -48,18 +48,18 @@
 
     <properties>
         <neo4j.version>4.4.11</neo4j.version>
-        <driver.version>4.4.11</driver.version>
+        <driver.version>4.4.12</driver.version>
         <neo4j.experimental>false</neo4j.experimental>
-        <testcontainers.version>1.18.3</testcontainers.version>
+        <testcontainers.version>1.19.0</testcontainers.version>
         <xbean.version>4.10</xbean.version>
-        <cypherdsl.version>2022.8.5</cypherdsl.version>
+        <cypherdsl.version>2022.9.0</cypherdsl.version>
         <node.version>v12.16.0</node.version>
         <npm.version>6.13.7</npm.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
-        <spark.version>3.3.1</spark.version>
+        <spark.version>3.3.2</spark.version>
         <!-- This is empty because we use it for the deploy process -->
-        <scala.binary.version />
+        <scala.binary.version/>
         <scala-maven-plugin.version>4.8.1</scala-maven-plugin.version>
     </properties>
 
@@ -80,7 +80,7 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <scala.version>2.13.4</scala.version>
+                <scala.version>2.13.9</scala.version>
                 <scala.binary.version>2.13</scala.binary.version>
             </properties>
         </profile>

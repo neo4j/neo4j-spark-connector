@@ -20,6 +20,7 @@ import org.slf4j.Logger
 
 import java.time._
 import java.time.format.DateTimeFormatter
+import java.time.temporal.Temporal
 import java.util.Properties
 import scala.collection.JavaConverters._
 
@@ -68,6 +69,11 @@ object Neo4jUtil {
     override def serialize(entity: Entity,
                            jsonGenerator: JsonGenerator,
                            serializerProvider: SerializerProvider): Unit = jsonGenerator.writeObject(entity.toMap)
+  })
+  module.addSerializer(classOf[Temporal], new JsonSerializer[Temporal]() {
+    override def serialize(entity: Temporal,
+                           jsonGenerator: JsonGenerator,
+                           serializerProvider: SerializerProvider): Unit = jsonGenerator.writeRaw(entity.toString)
   })
   mapper.registerModule(module)
 

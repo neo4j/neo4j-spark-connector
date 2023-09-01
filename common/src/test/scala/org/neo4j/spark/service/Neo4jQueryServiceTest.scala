@@ -46,7 +46,7 @@ class Neo4jQueryServiceTest {
 
     val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(partitionSkipLimit = PartitionSkipLimit(0, 0, 100))).createQuery()
 
-    assertEquals("MATCH (n:`Person`:`Player`:`Midfield`) RETURN n ORDER BY id(n) SKIP 0 LIMIT 100", query)
+    assertEquals("MATCH (n:`Person`:`Player`:`Midfield`) RETURN n LIMIT 100", query)
   }
 
   @Test
@@ -242,8 +242,6 @@ class Neo4jQueryServiceTest {
                    |MATCH (target:`Person`)
                    |MATCH (source)-[rel:`KNOWS`]->(target)
                    |RETURN source.name AS `source.name`, id(source) AS `<source.id>`
-                   |ORDER BY id(rel)
-                   |SKIP 0
                    |LIMIT 100"""
                     .stripMargin
                     .replace(System.lineSeparator(), " "),

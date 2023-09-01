@@ -108,10 +108,10 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
                              jobId: String = "") extends Neo4jQueryStrategy {
   private val renderer: Renderer = Renderer.getDefaultRenderer
 
-  private val hasPartitons: Boolean = partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1
+  private val hasSkipLimit: Boolean = partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1
 
   override def createStatementForQuery(options: Neo4jOptions): String = {
-    val limitedQuery = if (hasPartitons) {
+    val limitedQuery = if (hasSkipLimit) {
       s"""${options.query.value}
          |SKIP ${partitionSkipLimit.skip} LIMIT ${partitionSkipLimit.limit}
          |""".stripMargin
@@ -179,13 +179,14 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
                                         query: StatementBuilder.OngoingReadingWithoutWhere,
                                         entity: PropertyContainer,
                                         fields: Seq[Expression]): Statement = {
-    val ret = if (hasPartitons) {
+    val ret = if (hasSkipLimit) {
       val id = entity match {
         case node: Node => Functions.id(node)
         case rel: Relationship => Functions.id(rel)
       }
       query
         .`with`(entity)
+        // Spark does not push down limits when aggregation is involved
         .orderBy(id)
         .skip(partitionSkipLimit.skip)
         .limit(partitionSkipLimit.limit)
@@ -211,18 +212,30 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
 
     def addSkipLimit(ret: StatementBuilder.TerminalExposesSkip
         with StatementBuilder.TerminalExposesLimit
-        with StatementBuilder.BuildableStatement[_]) = ret
-      .skip(partitionSkipLimit.skip).asInstanceOf[StatementBuilder.TerminalExposesLimit].limit(partitionSkipLimit.limit)
+        with StatementBuilder.BuildableStatement[_]) = {
+
+      if (partitionSkipLimit.skip == 0) {
+        ret.limit(partitionSkipLimit.limit)
+      }
+      else {
+        ret.skip(partitionSkipLimit.skip).asInstanceOf[StatementBuilder.TerminalExposesLimit]
+          .limit(partitionSkipLimit.limit)
+      }
+    }
 
     val ret = if (entity == null) {
-      if (hasPartitons) addSkipLimit(returning) else returning
+      if (hasSkipLimit) addSkipLimit(returning) else returning
     } else {
-      if (hasPartitons) {
+      if (hasSkipLimit) {
         val id = entity match {
           case node: Node => Functions.id(node)
           case rel: Relationship => Functions.id(rel)
         }
-        addSkipLimit(returning.orderBy(id))
+        if (options.partitions == 1) {
+          addSkipLimit(returning)
+        } else {
+          addSkipLimit(returning.orderBy(id))
+        }
       } else {
         val orderByProp = options.orderBy
         if (StringUtils.isBlank(orderByProp)) returning else returning.orderBy(entity.property(orderByProp))

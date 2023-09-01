@@ -49,7 +49,7 @@ jobs:
         env:
           CI: true
         run: |
-          ./mvnw clean package -DskipTests -P scala-${{ matrix.spark-version.scala }} --no-transfer-progress
+          ./maven-release.sh package ${{ matrix.spark-version.scala }}
       - name: Run tests for Spark ${{ matrix.spark-version.ext }} and Neo4j ${{ matrix.neo4j-version }}
         run: |
           cd ./scripts/python

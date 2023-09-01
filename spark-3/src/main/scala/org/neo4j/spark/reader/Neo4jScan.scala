@@ -13,14 +13,13 @@ import java.util.Optional
 
 case class Neo4jPartition(partitionSkipLimit: PartitionSkipLimit) extends InputPartition
 
-class Neo4jScan(
-                  neo4jOptions: Neo4jOptions,
-                  jobId: String,
-                  schema: StructType,
-                  filters: Array[Filter],
-                  requiredColumns: StructType,
-                  aggregateColumns: Array[AggregateFunc]
-                ) extends Scan with Batch {
+class Neo4jScan(neo4jOptions: Neo4jOptions,
+                jobId: String,
+                schema: StructType,
+                filters: Array[Filter],
+                requiredColumns: StructType,
+                aggregateColumns: Array[AggregateFunc],
+                limit: Option[Int]) extends Scan with Batch {
 
   override def toBatch: Batch = this
 
@@ -30,7 +29,7 @@ class Neo4jScan(
     Validations.validate(ValidateReadNotStreaming(neo4jOptions, jobId))
     // we get the skip/limit for each partition and execute the "script"
     val (partitionSkipLimitList, scriptResult) = Neo4jUtil.callSchemaService(neo4jOptions, jobId, filters, { schemaService =>
-      (schemaService.skipLimitFromPartition(), schemaService.execute(neo4jOptions.script))
+      (schemaService.skipLimitFromPartition(limit), schemaService.execute(neo4jOptions.script))
     })
     // we generate a partition for each element
     this.scriptResult = scriptResult
