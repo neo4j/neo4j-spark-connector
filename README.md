@@ -6,20 +6,10 @@ This repository contains the Neo4j Connector for Apache Spark.
 
 This neo4j-connector-apache-spark is Apache 2 Licensed
 
-## Generating Documentation from Source
+## Documentation
 
+The documentation for Neo4j Connector for Apache Spark lives at https://github.com/neo4j/docs-spark repository.
 ```
-cd doc
-# Install NodeJS dependencies
-npm install
-# Generate HTML/CSS from asciidoc
-./node_modules/.bin/antora docs.yml
-# Start local server to browse docs
-npm run start
-```
-
-This will open http://localhost:8000/ which will serve development docs.
-
 ## Building for Spark 3
 
 You can build for Spark 3.x with both Scala 2.12 and Scala 2.13
