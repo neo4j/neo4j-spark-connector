@@ -68,9 +68,7 @@
         <profile>
             <id>scala-2.12</id>
             <properties>
-                <!-- 2.12.15 is the minimum, because of https://github.com/scala/bug/issues/12419) -->
-                <!-- required fix is https://github.com/scala/scala/pull/9676 -->
-                <scala.version>2.13.11</scala.version>
+                <scala.version>2.12.18</scala.version>
                 <scala.binary.version>2.12</scala.binary.version>
             </properties>
         </profile>
@@ -80,7 +78,7 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <scala.version>2.13.11</scala.version>
+                <scala.version>2.13.12</scala.version>
                 <scala.binary.version>2.13</scala.binary.version>
             </properties>
         </profile>
