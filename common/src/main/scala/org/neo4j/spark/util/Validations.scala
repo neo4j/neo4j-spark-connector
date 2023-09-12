@@ -102,9 +102,9 @@ case class ValidateConnection(neo4jOptions: Neo4jOptions,
         throw e
       }
     } finally {
-      Neo4jUtil.closeSafety(session)
+      Neo4jUtil.closeSafely(session)
       if (hasError) {
-        Neo4jUtil.closeSafety(driverCache)
+        Neo4jUtil.closeSafely(driverCache)
       }
     }
   }

@@ -83,8 +83,8 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
   def get: InternalRow = nextRow
 
   def close(): Unit = {
-    Neo4jUtil.closeSafety(transaction, log)
-    Neo4jUtil.closeSafety(session, log)
+    Neo4jUtil.closeSafely(transaction, log)
+    Neo4jUtil.closeSafely(session, log)
     driverCache.close()
   }
 

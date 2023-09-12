@@ -54,5 +54,5 @@ class Neo4jStreamingWriter(val queryId: String,
 
   override def abort(epochId: Long, messages: Array[WriterCommitMessage]): Unit = { }
 
-  def close(): Unit = Neo4jUtil.closeSafety(driverCache)
+  def close(): Unit = Neo4jUtil.closeSafely(driverCache)
 }

@@ -35,8 +35,8 @@ object SparkConnectorAuraTest {
 
   @AfterClass
   def tearDown(): Unit = {
-    TestUtil.closeSafety(neo4j)
-    TestUtil.closeSafety(sparkSession)
+    TestUtil.closeSafely(neo4j)
+    TestUtil.closeSafely(sparkSession)
   }
 }
 

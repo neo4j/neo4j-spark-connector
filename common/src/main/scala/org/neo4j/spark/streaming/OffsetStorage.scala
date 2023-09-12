@@ -89,7 +89,7 @@ class Neo4jAccumulator(private val neo4jOptions: Neo4jOptions,
         case e: Throwable =>
           logDebug(s"Error while updating the metadata state with value $value because of the following exception:", e)
       } finally {
-        Neo4jUtil.closeSafety(session)
+        Neo4jUtil.closeSafely(session)
       }
     }
   }
@@ -113,7 +113,7 @@ class Neo4jAccumulator(private val neo4jOptions: Neo4jOptions,
       case e: Throwable =>
         logDebug(s"Error while cleaning the metadata state because of the following exception:", e)
     } finally {
-      Neo4jUtil.closeSafety(session)
+      Neo4jUtil.closeSafely(session)
       driverCache.close()
     }
   }
@@ -151,7 +151,7 @@ class Neo4jAccumulator(private val neo4jOptions: Neo4jOptions,
         null
       }
     } finally {
-      Neo4jUtil.closeSafety(session)
+      Neo4jUtil.closeSafely(session)
     }
   }
 

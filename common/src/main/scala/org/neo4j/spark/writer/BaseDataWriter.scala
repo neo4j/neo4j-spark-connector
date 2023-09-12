@@ -7,7 +7,7 @@ import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.exceptions.{ClientException, Neo4jException, ServiceUnavailableException, SessionExpiredException, TransientException}
 import org.neo4j.driver.{Bookmark, Session, Transaction, Values}
 import org.neo4j.spark.service._
-import org.neo4j.spark.util.Neo4jUtil.{closeSafety, isRetryableException}
+import org.neo4j.spark.util.Neo4jUtil.{closeSafely, isRetryableException}
 import org.neo4j.spark.util.{DriverCache, Neo4jOptions}
 
 import java.time.Duration
@@ -75,7 +75,7 @@ abstract class BaseDataWriter(jobId: String,
              |""".stripMargin)
       }
       transaction.commit()
-      closeSafety(transaction)
+      closeSafely(transaction)
       batch.clear()
     } catch {
       case neo4jTransientException: Neo4jException =>
@@ -136,7 +136,7 @@ abstract class BaseDataWriter(jobId: String,
   }
 
   def close(): Unit = {
-    closeSafety(transaction, log)
-    closeSafety(session, log)
+    closeSafely(transaction, log)
+    closeSafely(session, log)
   }
 }

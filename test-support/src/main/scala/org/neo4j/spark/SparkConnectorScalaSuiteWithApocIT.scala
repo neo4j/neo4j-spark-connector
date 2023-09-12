@@ -56,10 +56,10 @@ object SparkConnectorScalaSuiteWithApocIT {
 
   @AfterClass
   def tearDownContainer() = {
-    TestUtil.closeSafety(session())
-    TestUtil.closeSafety(driver)
-    TestUtil.closeSafety(server)
-    TestUtil.closeSafety(ss)
+    TestUtil.closeSafely(session())
+    TestUtil.closeSafely(driver)
+    TestUtil.closeSafely(server)
+    TestUtil.closeSafely(ss)
   }
 
   def session(): Session = {

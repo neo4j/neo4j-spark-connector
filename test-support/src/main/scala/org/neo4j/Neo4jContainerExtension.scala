@@ -108,11 +108,11 @@ class Neo4jContainerExtension(imageName: String = s"neo4j${if (TestUtil.experime
               .split(";")
             lines.foreach(line => session.run(line))
           } finally {
-            TestUtil.closeSafety(session)
+            TestUtil.closeSafely(session)
           }
         })
       } finally {
-        TestUtil.closeSafety(driver)
+        TestUtil.closeSafely(driver)
       }
     }
   }

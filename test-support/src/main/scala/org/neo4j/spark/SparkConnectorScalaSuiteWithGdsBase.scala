@@ -56,10 +56,10 @@ object SparkConnectorScalaSuiteWithGdsBase {
 
   @AfterClass
   def tearDownContainer(): Unit = {
-    TestUtil.closeSafety(session())
-    TestUtil.closeSafety(driver)
-    TestUtil.closeSafety(server)
-    TestUtil.closeSafety(ss)
+    TestUtil.closeSafely(session())
+    TestUtil.closeSafely(driver)
+    TestUtil.closeSafely(server)
+    TestUtil.closeSafely(ss)
   }
 
   def session(): Session = {

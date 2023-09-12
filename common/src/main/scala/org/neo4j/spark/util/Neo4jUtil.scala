@@ -44,7 +44,7 @@ object Neo4jUtil {
   private val properties = new Properties()
   properties.load(Thread.currentThread().getContextClassLoader.getResourceAsStream("neo4j-spark-connector.properties"))
 
-  def closeSafety(autoCloseable: AutoCloseable, logger: Logger = null): Unit = {
+  def closeSafely(autoCloseable: AutoCloseable, logger: Logger = null): Unit = {
     try {
       autoCloseable match {
         case s: Session => if (s.isOpen) s.close()

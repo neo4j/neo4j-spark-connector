@@ -6,7 +6,7 @@ class Neo4jUtilTest {
 
   @Test
   def testSafetyCloseShouldNotFailWithNull(): Unit = {
-    Neo4jUtil.closeSafety(null)
+    Neo4jUtil.closeSafely(null)
   }
 
 }

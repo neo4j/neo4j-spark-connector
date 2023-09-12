@@ -737,7 +737,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
   }
 
   override def close(): Unit = {
-    Neo4jUtil.closeSafety(session, log)
+    Neo4jUtil.closeSafely(session, log)
   }
 }
 
