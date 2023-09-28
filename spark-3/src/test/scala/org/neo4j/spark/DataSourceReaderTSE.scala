@@ -1794,7 +1794,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", "Product")
       .load
       .select("`target.name`", "`target.id`")
-      .orderBy(col("`target.name`").desc) // FIXME (generated query is wrong)
+      .orderBy(col("`target.name`").desc)
       .limit(10)
 
     df.show()
