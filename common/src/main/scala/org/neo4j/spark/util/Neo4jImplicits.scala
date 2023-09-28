@@ -27,7 +27,7 @@ object Neo4jImplicits {
     def isQuoted(): Boolean = str.startsWith("`");
 
     def removeAlias(): String = {
-      val splatString = str.split('.')
+      val splatString = str.unquote().split('.')
 
       if (splatString.size > 1) {
         splatString.tail.mkString(".")
