@@ -50,7 +50,7 @@
         <neo4j.version>4.4.11</neo4j.version>
         <driver.version>4.4.12</driver.version>
         <neo4j.experimental>false</neo4j.experimental>
-        <testcontainers.version>1.19.2</testcontainers.version>
+        <testcontainers.version>1.19.3</testcontainers.version>
         <xbean.version>4.10</xbean.version>
         <cypherdsl.version>2022.9.1</cypherdsl.version>
         <node.version>v12.16.0</node.version>
