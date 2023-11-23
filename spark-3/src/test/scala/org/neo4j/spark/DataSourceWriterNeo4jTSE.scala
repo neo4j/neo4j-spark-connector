@@ -2,11 +2,15 @@ package org.neo4j.spark
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.SparkException
+import org.apache.spark.scheduler.{SparkListener, SparkListenerJobEnd, SparkListenerStageCompleted}
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.{Assume, BeforeClass, Test}
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Result, SessionConfig, Transaction, TransactionWork}
+import org.neo4j.spark.writer.DataWriterMetrics
+
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
@@ -570,6 +574,49 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
             |The option key and value might be inverted.""".stripMargin))
       }
       case generic: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead: ${generic.getMessage}")
+    }
+  }
+
+  @Test
+  def `exports write metrics`(): Unit = {
+    val input = List("Ali", "Andrea", "Eugene", "Florent")
+    val query = "CREATE (:Name {name: event.name})-[:STARTS_WITH]->(:Letter {value: left(event.name, 1)})"
+    val expectedMetrics = Map(
+      DataWriterMetrics.RECORDS_WRITTEN_DESCRIPTION -> 4,
+      DataWriterMetrics.RELATIONSHIPS_CREATED_DESCRIPTION -> 4,
+      DataWriterMetrics.NODES_CREATED_DESCRIPTION -> 8,
+      DataWriterMetrics.PROPERTIES_SET_DESCRIPTION -> 8,
+    )
+    val latch = new CountDownLatch(1)
+    sparkSession.sparkContext.addSparkListener(new MetricsListener(expectedMetrics, latch))
+
+    input.toDF("name")
+      .repartition(1)
+      .write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("database", "db1")
+      .option("batch.size", 1) // TODO: remove this when https://issues.apache.org/jira/browse/SPARK-45759 is fixed
+      .option("query", query)
+      .save()
+
+    latch.await(30, TimeUnit.SECONDS)
+  }
+
+  class MetricsListener(expectedMetrics: Map[String, Any], done: CountDownLatch) extends SparkListener {
+    override def onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit = {
+      val actualMetrics = stageCompleted
+        .stageInfo
+        .accumulables
+        .values
+        .filter(metric => metric.name.exists(expectedMetrics.keySet.contains))
+        .map(metric => (metric.name.get, metric.value.get))
+        .toMap
+      if (actualMetrics.nonEmpty) {
+        assertEquals(expectedMetrics, actualMetrics)
+        done.countDown()
+      }
     }
   }
 

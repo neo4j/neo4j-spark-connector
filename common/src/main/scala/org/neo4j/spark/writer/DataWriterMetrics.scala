@@ -47,13 +47,21 @@ class DataWriterMetrics private(
 
 object DataWriterMetrics {
   final val RECORDS_WRITTEN = "recordsWritten"
+  final val RECORDS_WRITTEN_DESCRIPTION = "number of records written"
   final val NODES_CREATED = "nodesCreated"
+  final val NODES_CREATED_DESCRIPTION = "number of nodes created"
   final val NODES_DELETED = "nodesDeleted"
+  final val NODES_DELETED_DESCRIPTION = "number of nodes deleted"
   final val RELATIONSHIPS_CREATED = "relationshipsCreated"
+  final val RELATIONSHIPS_CREATED_DESCRIPTION = "number of relationships created"
   final val RELATIONSHIPS_DELETED = "relationshipsDeleted"
+  final val RELATIONSHIPS_DELETED_DESCRIPTION = "number of relationships deleted"
   final val PROPERTIES_SET = "propertiesSet"
+  final val PROPERTIES_SET_DESCRIPTION = "number of properties set"
   final val LABELS_ADDED = "labelsAdded"
+  final val LABELS_ADDED_DESCRIPTION = "number of labels added"
   final val LABELS_REMOVED = "labelsRemoved"
+  final val LABELS_REMOVED_DESCRIPTION = "number of labels removed"
 
   def apply(): DataWriterMetrics = {
     new DataWriterMetrics(
@@ -86,47 +94,47 @@ object DataWriterMetrics {
 class RecordsWrittenMetric extends CustomSumMetric {
   override def name(): String = DataWriterMetrics.RECORDS_WRITTEN
 
-  override def description(): String = "number of records written"
+  override def description(): String = DataWriterMetrics.RECORDS_WRITTEN_DESCRIPTION
 }
 
 class NodesCreatedMetric extends CustomSumMetric {
   override def name(): String = DataWriterMetrics.NODES_CREATED
 
-  override def description(): String = "number of nodes created"
+  override def description(): String = DataWriterMetrics.NODES_CREATED_DESCRIPTION
 }
 
 class NodesDeletedMetric extends CustomSumMetric {
   override def name(): String = DataWriterMetrics.NODES_DELETED
 
-  override def description(): String = "number of nodes deleted"
+  override def description(): String = DataWriterMetrics.NODES_DELETED_DESCRIPTION
 }
 
 class RelationshipsCreatedMetric extends CustomSumMetric {
   override def name(): String = DataWriterMetrics.RELATIONSHIPS_CREATED
 
-  override def description(): String = "number of relationships created"
+  override def description(): String = DataWriterMetrics.RELATIONSHIPS_CREATED_DESCRIPTION
 }
 
 class RelationshipsDeletedMetric extends CustomSumMetric {
   override def name(): String = DataWriterMetrics.RELATIONSHIPS_DELETED
 
-  override def description(): String = "number of relationships deleted"
+  override def description(): String = DataWriterMetrics.RELATIONSHIPS_DELETED_DESCRIPTION
 }
 
 class PropertiesSetMetric extends CustomSumMetric {
   override def name(): String = DataWriterMetrics.PROPERTIES_SET
 
-  override def description(): String = "number of properties set"
+  override def description(): String = DataWriterMetrics.PROPERTIES_SET_DESCRIPTION
 }
 
 class LabelsAddedMetric extends CustomSumMetric {
   override def name(): String = DataWriterMetrics.LABELS_ADDED
 
-  override def description(): String = "number of labels added"
+  override def description(): String = DataWriterMetrics.LABELS_ADDED_DESCRIPTION
 }
 
 class LabelsRemovedMetric extends CustomSumMetric {
   override def name(): String = DataWriterMetrics.LABELS_REMOVED
 
-  override def description(): String = "number of labels removed"
+  override def description(): String = DataWriterMetrics.LABELS_REMOVED_DESCRIPTION
 }
