@@ -7,9 +7,8 @@ import org.junit.runners.Suite
 @RunWith(classOf[Suite])
 @Suite.SuiteClasses(Array(
   classOf[DataSourceReaderTSE],
-  classOf[DataSourceReaderNeo4j4xTSE],
-  classOf[DataSourceWriterNeo4j4xTSE],
-  classOf[DataSourceReaderNeo4j41xTSE],
+  classOf[DataSourceReaderNeo4jTSE],
+  classOf[DataSourceWriterNeo4jTSE],
   classOf[DataSourceWriterTSE],
   classOf[DefaultConfigTSE],
   classOf[DataSourceStreamingReaderTSE],

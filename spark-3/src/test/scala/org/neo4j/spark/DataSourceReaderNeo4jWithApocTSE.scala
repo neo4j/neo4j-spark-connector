@@ -5,14 +5,7 @@ import org.junit.{Assume, BeforeClass, Test}
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{SessionConfig, Transaction, TransactionWork}
 
-object DataSourceReaderNeo4j4xWithApocTSE {
-  @BeforeClass
-  def checkNeo4jVersion() {
-    Assume.assumeFalse(TestUtil.neo4jVersion().startsWith("3.5"))
-  }
-}
-
-class DataSourceReaderNeo4j4xWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
+class DataSourceReaderNeo4jWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
   @Test
   def testMultiDbJoin(): Unit = {
@@ -54,6 +47,22 @@ class DataSourceReaderNeo4j4xWithApocTSE extends SparkConnectorScalaBaseWithApoc
 
     val dfJoin = df1.join(df2, df1("name") === df2("name"))
     assertEquals(1, dfJoin.count())
+  }
+
+  @Test
+  def testReturnProcedure(): Unit = {
+    val query =
+      """RETURN apoc.convert.toSet([1,1,3]) AS foo, 'bar' AS bar
+        |""".stripMargin
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+      .option("partitions", 1)
+      .option("query", query)
+      .load
+
+    assertEquals(Seq("foo", "bar"), df.columns.toSeq) // ordering should be preserved
+    assertEquals(1, df.count())
   }
 
 }

@@ -8,14 +8,7 @@ import org.junit.{Assume, BeforeClass, Test}
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Result, SessionConfig, Transaction, TransactionWork}
 
-object DataSourceWriterNeo4j4xTSE {
-  @BeforeClass
-  def checkNeo4jVersion() {
-    Assume.assumeFalse(TestUtil.neo4jVersion().startsWith("3.5"))
-  }
-}
-
-class DataSourceWriterNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
+class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   val sparkSession = SparkSession.builder().getOrCreate()
 
