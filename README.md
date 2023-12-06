@@ -9,7 +9,7 @@ This neo4j-connector-apache-spark is Apache 2 Licensed
 ## Documentation
 
 The documentation for Neo4j Connector for Apache Spark lives at https://github.com/neo4j/docs-spark repository.
-```
+
 ## Building for Spark 3
 
 You can build for Spark 3.x with both Scala 2.12 and Scala 2.13
@@ -19,7 +19,6 @@ You can build for Spark 3.x with both Scala 2.12 and Scala 2.13
 ./maven-release.sh package 2.13
 ```
 
-This will generate:
 These commands will generate the corresponding targets
 * `spark-3/target/neo4j-connector-apache-spark_2.12-<version>_for_spark_3.jar`
 * `spark-3/target/neo4j-connector-apache-spark_2.13-<version>_for_spark_3.jar`
