@@ -46,21 +46,21 @@ class DataWriterMetrics private(
 }
 
 object DataWriterMetrics {
-  final val RECORDS_WRITTEN = "recordsWritten"
+  final val RECORDS_WRITTEN = "neo4jMetrics.recordsWritten"
   final val RECORDS_WRITTEN_DESCRIPTION = "number of records written"
-  final val NODES_CREATED = "nodesCreated"
+  final val NODES_CREATED = "neo4jMetrics.nodesCreated"
   final val NODES_CREATED_DESCRIPTION = "number of nodes created"
-  final val NODES_DELETED = "nodesDeleted"
+  final val NODES_DELETED = "neo4jMetrics.nodesDeleted"
   final val NODES_DELETED_DESCRIPTION = "number of nodes deleted"
-  final val RELATIONSHIPS_CREATED = "relationshipsCreated"
+  final val RELATIONSHIPS_CREATED = "neo4jMetrics.relationshipsCreated"
   final val RELATIONSHIPS_CREATED_DESCRIPTION = "number of relationships created"
-  final val RELATIONSHIPS_DELETED = "relationshipsDeleted"
+  final val RELATIONSHIPS_DELETED = "neo4jMetrics.relationshipsDeleted"
   final val RELATIONSHIPS_DELETED_DESCRIPTION = "number of relationships deleted"
-  final val PROPERTIES_SET = "propertiesSet"
+  final val PROPERTIES_SET = "neo4jMetrics.propertiesSet"
   final val PROPERTIES_SET_DESCRIPTION = "number of properties set"
-  final val LABELS_ADDED = "labelsAdded"
+  final val LABELS_ADDED = "neo4jMetrics.labelsAdded"
   final val LABELS_ADDED_DESCRIPTION = "number of labels added"
-  final val LABELS_REMOVED = "labelsRemoved"
+  final val LABELS_REMOVED = "neo4jMetrics.labelsRemoved"
   final val LABELS_REMOVED_DESCRIPTION = "number of labels removed"
 
   def apply(): DataWriterMetrics = {
