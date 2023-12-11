@@ -28,12 +28,6 @@ jobs:
         with:
           java-version: 8
           distribution: 'temurin'
-      - uses: avides/actions-project-version-check@v1.4.0
-        id: version
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          file-to-check: pom.xml
-          only-return-version: true
       - name: Cache Maven packages
         uses: actions/cache@v3
         with:
@@ -52,5 +46,6 @@ jobs:
           ./maven-release.sh package ${{ matrix.spark-version.scala }}
       - name: Run tests for Spark ${{ matrix.spark-version.ext }} and Neo4j ${{ matrix.neo4j-version }}
         run: |
+          project_version="$(mvn help:evaluate -Dexpression="project.version" --quiet -DforceStdout)"
           cd ./scripts/python
-          python test_spark.py "${{ matrix.spark-version.short }}" "${{ matrix.spark-version.scala }}" "${{ matrix.neo4j-version }}" "${{ steps.version.outputs.version }}"
+          python test_spark.py "${{ matrix.spark-version.short }}" "${{ matrix.spark-version.scala }}" "${{ matrix.neo4j-version }}" "${project_version}"
