@@ -27,12 +27,6 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
-      - uses: avides/actions-project-version-check@v1.2.0
-        id: version
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          file-to-check: pom.xml
-          only-return-version: true
       - name: Cache Maven packages
         uses: actions/cache@v1
         with:
@@ -52,5 +46,6 @@ jobs:
       - name: Run tests for Spark ${{ matrix.spark-version.ext }} and Neo4j ${{ matrix.neo4j-version }}
         if: ${{ !(matrix.spark-version.short == 2.4 && matrix.python-version == 3.8) && !(matrix.spark-version.ext == '3.2.2' && matrix.python-version == 3.5) }}
         run: |
+          project_version="$(mvn help:evaluate -Dexpression="project.version" --quiet -DforceStdout)"
           cd ./scripts/python
-          python test_spark.py "${{ matrix.spark-version.short }}" "${{ matrix.spark-version.scala }}" "${{ matrix.neo4j-version }}" "${{ steps.version.outputs.version }}"
+          python test_spark.py "${{ matrix.spark-version.short }}" "${{ matrix.spark-version.scala }}" "${{ matrix.neo4j-version }}" "${project_version}"
