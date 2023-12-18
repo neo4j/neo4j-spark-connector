@@ -10,6 +10,7 @@ import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.internal.value.MapValue
 import org.neo4j.driver.types.Node
 import org.neo4j.driver.{Record, Value, Values}
+import org.neo4j.spark.converter.{Neo4jToSparkDataConverter, SparkToNeo4jDataConverter}
 import org.neo4j.spark.service.Neo4jWriteMappingStrategy.{KEYS, PROPERTIES}
 import org.neo4j.spark.util.{Neo4jNodeMetadata, Neo4jOptions, Neo4jUtil, QueryType, RelationshipSaveStrategy, ValidateSchemaOptions, Validations}
 
@@ -20,6 +21,8 @@ import org.neo4j.spark.util.Neo4jImplicits._
 class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   extends Neo4jMappingStrategy[InternalRow, java.util.Map[String, AnyRef]]
   with Logging {
+
+  private val dataConverter = SparkToNeo4jDataConverter()
 
   override def node(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     Validations.validate(ValidateSchemaOptions(options, schema))
@@ -35,7 +38,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
         override def accept(key: String, value: AnyRef): Unit = if (options.nodeMetadata.nodeKeys.contains(key)) {
           keys.put(options.nodeMetadata.nodeKeys.getOrElse(key, key), value)
         } else {
-          properties.put(options.nodeMetadata.nodeProps.getOrElse(key, key), value)
+          properties.put(options.nodeMetadata.properties.getOrElse(key, key), value)
         }
       })
 
@@ -70,8 +73,8 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     if (nodeMetadata.nodeKeys.contains(key)) {
       nodeMap.get(KEYS).put(nodeMetadata.nodeKeys.getOrElse(key, key), value)
     }
-    if (nodeMetadata.nodeProps.contains(key)) {
-      nodeMap.get(PROPERTIES).put(nodeMetadata.nodeProps.getOrElse(key, key), value)
+    if (nodeMetadata.properties.contains(key)) {
+      nodeMap.get(PROPERTIES).put(nodeMetadata.properties.getOrElse(key, key), value)
     }
   }
 
@@ -83,7 +86,9 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
       addToNodeMap(sourceNodeMap, source, key, value)
       addToNodeMap(targetNodeMap, target, key, value)
 
-      if (options.relationshipMetadata.properties.contains(key)) {
+      if (options.relationshipMetadata.relationshipKeys.contains(key)) {
+        relMap.get(KEYS).put(options.relationshipMetadata.relationshipKeys.getOrElse(key, key), value)
+      } else {
         relMap.get(PROPERTIES).put(options.relationshipMetadata.properties.getOrElse(key, key), value)
       }
     }
@@ -123,7 +128,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     schema.indices
       .flatMap(i => {
         val field = schema(i)
-        val neo4jValue = Neo4jUtil.convertFromSpark(seq(i), field.dataType)
+        val neo4jValue = dataConverter.convert(seq(i), field.dataType)
         neo4jValue match {
           case map: MapValue =>
             map.asMap().asScala.toMap
@@ -139,6 +144,8 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
 }
 
 class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumns: StructType) extends Neo4jMappingStrategy[Record, InternalRow] {
+
+  private val dataConverter = Neo4jToSparkDataConverter()
 
   override def node(record: Record, schema: StructType): InternalRow = {
     if (requiredColumns.nonEmpty) {
@@ -158,7 +165,7 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumn
                                schema: StructType) = InternalRow
     .fromSeq(
       schema.map(
-        field => Neo4jUtil.convertFromNeo4j(map.get(field.name), field.dataType)
+        field => dataConverter.convert(map.get(field.name), field.dataType)
       )
     )
 
@@ -254,6 +261,7 @@ private abstract class MappingBiConsumer extends BiConsumer[String, AnyRef] {
   val sourceNodeMap = new util.HashMap[String, util.Map[String, AnyRef]]()
   val targetNodeMap = new util.HashMap[String, util.Map[String, AnyRef]]()
 
+  relMap.put(KEYS, new util.HashMap[String, AnyRef]())
   relMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
   sourceNodeMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
   sourceNodeMap.put(KEYS, new util.HashMap[String, AnyRef]())

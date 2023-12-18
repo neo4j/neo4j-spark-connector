@@ -6,6 +6,7 @@ import org.junit.runners.MethodSorters
 import org.junit.{Before, FixMethodOrder, Test}
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
+import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.{SparkConnectorScalaBaseTSE, SparkConnectorScalaSuiteIT}
 import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, QueryType}
 
@@ -76,7 +77,7 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("location", SchemaService.pointType))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("location", CypherToSparkTypeConverter.pointType))), schema)
   }
 
   @Test
@@ -109,7 +110,7 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("arrived_at", SchemaService.timeType))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("arrived_at", CypherToSparkTypeConverter.timeType))), schema)
   }
 
   @Test
@@ -153,7 +154,7 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(SchemaService.timeType)))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(CypherToSparkTypeConverter.timeType)))), schema)
   }
 
   @Test
@@ -183,7 +184,7 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(getExpectedStructType(Seq(
       StructField("age", DataTypes.LongType),
-      StructField("location", SchemaService.pointType),
+      StructField("location", CypherToSparkTypeConverter.pointType),
       StructField("name", DataTypes.StringType)
     )), schema)
   }

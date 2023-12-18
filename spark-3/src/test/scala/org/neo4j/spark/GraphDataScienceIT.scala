@@ -120,9 +120,10 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
   def shouldWorkWithMapReturn(): Unit = {
     initForHits()
 
+    val procName = if (TestUtil.neo4jVersionAsDouble() >= 5.13) "gds.hits.stream" else "gds.alpha.hits.stream"
     val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
-      .option("gds", "gds.alpha.hits.stream")
+      .option("gds", procName)
       .option("gds.graphName", "myGraph")
       .option("gds.configuration.hitsIterations", "20")
       .load()
@@ -172,14 +173,16 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
       )
     ), df.schema)
 
+    val (graphNameParam, algoConfigurationParam) = if (TestUtil.neo4jVersionAsDouble() >= 5.13)
+      ("graphName", "configuration") else ("graphNameOrConfiguration", "algoConfiguration")
     val dfEstimate = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
       .option("gds", "gds.shortestPath.yens.stream.estimate")
-      .option("gds.graphNameOrConfiguration", "myGraph")
-      .option("gds.algoConfiguration.sourceNode", sourceId)
-      .option("gds.algoConfiguration.targetNode", targetId)
-      .option("gds.algoConfiguration.k", 3)
-      .option("gds.algoConfiguration.relationshipWeightProperty", "cost")
+      .option(s"gds.$graphNameParam", "myGraph")
+      .option(s"gds.$algoConfigurationParam.sourceNode", sourceId)
+      .option(s"gds.$algoConfigurationParam.targetNode", targetId)
+      .option(s"gds.$algoConfigurationParam.k", 3)
+      .option(s"gds.$algoConfigurationParam.relationshipWeightProperty", "cost")
       .load()
     assertEquals(dfEstimate.count(), 1)
     dfEstimate.show(false)

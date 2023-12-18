@@ -14,9 +14,10 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
+import org.apache.spark.internal.Logging
 
 
-class Neo4jOptions(private val options: java.util.Map[String, String]) extends Serializable {
+class Neo4jOptions(private val options: java.util.Map[String, String]) extends Serializable with Logging {
   import Neo4jOptions._
   import QueryType._
 
@@ -56,10 +57,34 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   val pushdownLimitEnabled: Boolean = getParameter(PUSHDOWN_LIMIT_ENABLED, DEFAULT_PUSHDOWN_LIMIT_ENABLED.toString).toBoolean
   val pushdownTopNEnabled: Boolean = getParameter(PUSHDOWN_TOPN_ENABLED, DEFAULT_PUSHDOWN_TOPN_ENABLED.toString).toBoolean
 
-  val schemaMetadata: Neo4jSchemaMetadata = Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
-    SchemaStrategy.withCaseInsensitiveName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase),
-    OptimizationType.withCaseInsensitiveName(getParameter(SCHEMA_OPTIMIZATION_TYPE, DEFAULT_OPTIMIZATION_TYPE.toString).toUpperCase),
-    getParameter(SCHEMA_MAP_GROUP_DUPLICATE_KEYS, DEFAULT_MAP_GROUP_DUPLICATE_KEYS.toString).toBoolean)
+  val schemaMetadata: Neo4jSchemaMetadata = initSchemaMetadata
+
+  private def initSchemaMetadata = {
+    val deprecatedSchemaOptimization = OptimizationType
+      .withCaseInsensitiveName(getParameter(SCHEMA_OPTIMIZATION_TYPE, DEFAULT_OPTIMIZATION_TYPE.toString).toUpperCase)
+    if (deprecatedSchemaOptimization != OptimizationType.NONE) {
+      logWarning(
+        s"""
+           |Option `$SCHEMA_OPTIMIZATION_TYPE` is deprecated and will be removed in future implementations,
+           |please move to one of the following depending on your use case:
+           |- `$SCHEMA_OPTIMIZATION_NODE_UNIQUE`
+           |- `$SCHEMA_OPTIMIZATION_NODE_KEY`
+           |- `$SCHEMA_OPTIMIZATION_RELATIONSHIP_UNIQUE`
+           |- `$SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY`
+           |- `$SCHEMA_TYPE_CONSTRAINT`
+           |""".stripMargin)
+    }
+    val nodeUniqueOpt = getParameter(SCHEMA_OPTIMIZATION_NODE_UNIQUE, DEFAULT_SCHEMA_OPTIMIZATION_NODE_UNIQUE.toString).toBoolean
+    val nodeKeyOpt = getParameter(SCHEMA_OPTIMIZATION_NODE_KEY, DEFAULT_SCHEMA_OPTIMIZATION_NODE_KEY.toString).toBoolean
+    val relUniqueOpt = getParameter(SCHEMA_OPTIMIZATION_RELATIONSHIP_UNIQUE, DEFAULT_SCHEMA_OPTIMIZATION_RELATIONSHIP_UNIQUE.toString).toBoolean
+    val relKeyOpt = getParameter(SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY, DEFAULT_SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY.toString).toBoolean
+    val typeOpt = getParameter(SCHEMA_TYPE_CONSTRAINT, DEFAULT_SCHEMA_TYPE_CONSTRAINT.toString).toBoolean
+    Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
+      SchemaStrategy.withCaseInsensitiveName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase),
+      deprecatedSchemaOptimization,
+      Neo4jSchemaOptimizations(nodeUniqueOpt, nodeKeyOpt, relUniqueOpt, relKeyOpt, typeOpt),
+      getParameter(SCHEMA_MAP_GROUP_DUPLICATE_KEYS, DEFAULT_MAP_GROUP_DUPLICATE_KEYS.toString).toBoolean)
+  }
 
   val query: Neo4jQueryOptions = (
     getParameter(QUERY.toString.toLowerCase),
@@ -182,7 +207,10 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     val sourceSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(RELATIONSHIP_SOURCE_SAVE_MODE, DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE.toString))
     val targetSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(RELATIONSHIP_TARGET_SAVE_MODE, DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE.toString))
 
-    Neo4jRelationshipMetadata(source, target, sourceSaveMode, targetSaveMode, relProps, query.value, nodeMap, writeStrategy)
+    val relationshipKeys = mapPropsString(getParameter(RELATIONSHIP_KEYS, ""))
+
+    Neo4jRelationshipMetadata(source, target, sourceSaveMode, targetSaveMode,
+      relProps, query.value, nodeMap, writeStrategy, relationshipKeys)
   }
 
   private def initNeo4jQueryMetadata(): Neo4jQueryMetadata = Neo4jQueryMetadata(
@@ -234,13 +262,19 @@ case class Neo4jStreamingOptions(propertyName: String,
 
 case class Neo4jApocConfig(procedureConfigMap: Map[String, AnyRef])
 
+case class Neo4jSchemaOptimizations(nodeUnique: Boolean,
+                                    nodeKey: Boolean,
+                                    relationshipUnique: Boolean,
+                                    relationshipKey: Boolean,
+                                    `type`: Boolean)
 case class Neo4jSchemaMetadata(flattenLimit: Int,
                                strategy: SchemaStrategy.Value,
                                optimizationType: OptimizationType.Value,
+                               optimization: Neo4jSchemaOptimizations,
                                mapGroupDuplicateKeys: Boolean)
 case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int, retryTimeout: Long)
 
-case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String], nodeProps: Map[String, String])
+case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String], properties: Map[String, String])
 case class Neo4jRelationshipMetadata(
                                       source: Neo4jNodeMetadata,
                                       target: Neo4jNodeMetadata,
@@ -249,7 +283,8 @@ case class Neo4jRelationshipMetadata(
                                       properties: Map[String, String],
                                       relationshipType: String,
                                       nodeMap: Boolean,
-                                      saveStrategy: RelationshipSaveStrategy.Value
+                                      saveStrategy: RelationshipSaveStrategy.Value,
+                                      relationshipKeys: Map[String, String]
                                     )
 case class Neo4jQueryMetadata(query: String, queryCount: String)
 
@@ -394,7 +429,14 @@ object Neo4jOptions {
   // schema options
   val SCHEMA_STRATEGY = "schema.strategy"
   val SCHEMA_FLATTEN_LIMIT = "schema.flatten.limit"
+  // deprecated in favor of...
   val SCHEMA_OPTIMIZATION_TYPE = "schema.optimization.type"
+  // ...these options
+  val SCHEMA_OPTIMIZATION_NODE_UNIQUE = "schema.optimization.node.unique"
+  val SCHEMA_OPTIMIZATION_NODE_KEY = "schema.optimization.node.key"
+  val SCHEMA_OPTIMIZATION_RELATIONSHIP_UNIQUE = "schema.optimization.relationship.unique"
+  val SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY = "schema.optimization.relationship.key"
+  val SCHEMA_TYPE_CONSTRAINT = "schema.type.constraint"
   // map aggregation
   val SCHEMA_MAP_GROUP_DUPLICATE_KEYS = "schema.map.group.duplicate.keys"
 
@@ -423,6 +465,7 @@ object Neo4jOptions {
   val RELATIONSHIP_PROPERTIES = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.properties"
   val RELATIONSHIP_NODES_MAP = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.nodes.map"
   val RELATIONSHIP_SAVE_STRATEGY = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.save.strategy"
+  val RELATIONSHIP_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.keys"
 
   // Query metadata
   val QUERY_COUNT = "query.count"
@@ -447,13 +490,17 @@ object Neo4jOptions {
   val DEFAULT_ACCESS_MODE = AccessMode.READ
   val DEFAULT_AUTH_TYPE = "basic"
   val DEFAULT_ENCRYPTION_ENABLED = false
-  val DEFAULT_ENCRYPTION_TRUST_STRATEGY = TrustStrategy.Strategy.TRUST_SYSTEM_CA_SIGNED_CERTIFICATES
   val DEFAULT_SCHEMA_FLATTEN_LIMIT = 10
   val DEFAULT_BATCH_SIZE = 5000
   val DEFAULT_TRANSACTION_RETRIES = 3
   val DEFAULT_TRANSACTION_RETRY_TIMEOUT = 0
   val DEFAULT_RELATIONSHIP_NODES_MAP = false
   val DEFAULT_SCHEMA_STRATEGY = SchemaStrategy.SAMPLE
+  val DEFAULT_SCHEMA_OPTIMIZATION_NODE_UNIQUE = false
+  val DEFAULT_SCHEMA_OPTIMIZATION_NODE_KEY = false
+  val DEFAULT_SCHEMA_OPTIMIZATION_RELATIONSHIP_UNIQUE = false
+  val DEFAULT_SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY = false
+  val DEFAULT_SCHEMA_TYPE_CONSTRAINT = false
   val DEFAULT_RELATIONSHIP_SAVE_STRATEGY: RelationshipSaveStrategy.Value = RelationshipSaveStrategy.NATIVE
   val DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE: NodeSaveMode.Value = NodeSaveMode.Match
   val DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE: NodeSaveMode.Value = NodeSaveMode.Match

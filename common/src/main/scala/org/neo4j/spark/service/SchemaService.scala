@@ -3,17 +3,17 @@ package org.neo4j.spark.service
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
+import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.neo4j.driver.exceptions.ClientException
-import org.neo4j.driver.types.Entity
 import org.neo4j.driver.{Record, Session, Transaction, TransactionWork, Value, Values, summary}
 import org.neo4j.spark.config.TopN
-import org.neo4j.spark.service.SchemaService.{cypherToSparkType, normalizedClassName, normalizedClassNameFromGraphEntity}
-import org.neo4j.spark.util.Neo4jImplicits.{CypherImplicits, EntityImplicits}
+import org.neo4j.spark.converter.{CypherToSparkTypeConverter, SparkToCypherTypeConverter}
+import org.neo4j.spark.service.SchemaService.{normalizedClassName, normalizedClassNameFromGraphEntity}
+import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
 import org.neo4j.spark.util._
 
 import java.util
-import java.util.{Collections, function}
+import java.util.{Collections, Optional, function}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -30,9 +30,15 @@ case class Neo4jVersion(name: String, versions: Seq[String], edition: String)
 class SchemaService(private val options: Neo4jOptions, private val driverCache: DriverCache, private val filters: Array[Filter] = Array.empty)
   extends AutoCloseable with Logging {
 
+  private val emptyStruct: StructType = StructType(Seq.empty)
+
   private val queryReadStrategy = new Neo4jQueryReadStrategy(filters)
 
   private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
+  
+  private val cypherToSparkTypeConverter = CypherToSparkTypeConverter()
+
+  private val sparkToCypherTypeConverter = SparkToCypherTypeConverter()
 
   private def structForNode(labels: Seq[String] = options.nodeMetadata.labels): StructType = {
     val structFields: mutable.Buffer[StructField] = (try {
@@ -91,7 +97,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         }
 
         StructField(record.get("propertyName").asString,
-          cypherToSparkType(fieldType))
+          cypherToSparkTypeConverter.convert(fieldType))
       })
     if (fields.isEmpty) {
       throw new ClientException("Unable to compute the resulting schema from APOC")
@@ -126,7 +132,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
           }
           else {
             val value = t._2.head
-            StructField(t._1, cypherToSparkType(types.head, value))
+            StructField(t._1, cypherToSparkTypeConverter.convert(types.head, value))
           }
         }
         case SchemaStrategy.STRING => StructField(t._1, DataTypes.StringType)
@@ -275,10 +281,9 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         case "DATETIME" => ("DateTime", null)
         case "BOOLEAN" => ("Boolean", null)
         case "LOCALTIME" => ("LocalTime", null)
-        case "LIST OF INTEGER" => ("LongArray", null)
-        case "LIST OF FLOAT" => ("DoubleArray", null)
-        case "LIST OF FLOAT" => ("DoubleArray", null)
-        case "LIST OF STRING" => ("StringArray", null)
+        case "LIST OF INTEGER" | "LIST<INTEGER>" | "LIST<INTEGER NOT NULL>" => ("LongArray", null)
+        case "LIST OF FLOAT" | "LIST<FLOAT>" | "LIST<FLOAT NOT NULL>" => ("DoubleArray", null)
+        case "LIST OF STRING" | "LIST<STRING>" | "LIST<STRING NOT NULL>" => ("StringArray", null)
         case "MAP" =>
           logWarning(
             s"""
@@ -287,7 +292,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
                |We'll coerce it to a Map<String, String>
                |""".stripMargin)
           ("Map", Map("key" -> "").asJava) // dummy value
-        case "LIST OF MAP" =>
+        case "LIST OF MAP" | "LIST<MAP>" | "LIST<MAP NOT NULL>" =>
           logWarning(
             s"""
                |For procedure ${options.query.value}
@@ -298,7 +303,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         case "PATH" => ("Path", null)
         case _ => throw new IllegalArgumentException(s"Neo4j type ${r(1)} not supported")
       }))
-      .map(r => StructField(r._1, cypherToSparkType(r._2._1, r._2._2)))
+      .map(r => StructField(r._1, cypherToSparkTypeConverter.convert(r._2._1, r._2._2)))
       .toSeq
     StructType(fields)
   }
@@ -567,7 +572,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       m("edition").asInstanceOf[String]))
     .result()
 
-
+  @deprecated("use createEntityConstraint instead")
   private def createIndexOrConstraint(action: OptimizationType.Value, label: String, props: Seq[String]): Unit = action match {
     case OptimizationType.NONE => log.info("No optimization type provided")
     case _ => {
@@ -621,57 +626,147 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   }
 
-  def checkIndex(indexType: OptimizationType.Value, label: String, props: Seq[String]): Boolean = try {
-    val isNeo4j5 = neo4jVersion().versions(0).startsWith("5.")
-    val uniqueFieldName = if (isNeo4j5) "owningConstraint" else "uniqueness"
-    val uniqueCondition = indexType match {
-      case OptimizationType.INDEX => if (isNeo4j5) s"$uniqueFieldName = NULL" else s"$uniqueFieldName = 'NONUNIQUE'"
-      case OptimizationType.NODE_CONSTRAINTS => if (isNeo4j5) s"$uniqueFieldName IS NOT NULL" else s"$uniqueFieldName = 'UNIQUE'"
+  private def createEntityConstraint(entityType: String,
+                                     entityIdentifier: String,
+                                     unique: Boolean,
+                                     keys: Map[String, String]): Unit = {
+    val constraintType = if (unique) {
+      "UNIQUE"
+    } else {
+      s"$entityType KEY"
     }
-    val queryCheck =
-      s"""SHOW INDEXES YIELD labelsOrTypes, properties, $uniqueFieldName
-         |WHERE labelsOrTypes = ${'$'}labels
-         |AND properties = ${'$'}properties
-         |AND $uniqueCondition
-         |RETURN count(*) > 0 AS isPresent""".stripMargin
-    val params: util.Map[String, AnyRef] = Map("labels" -> Seq(label).asJava,
-      "properties" -> props.asJava).asJava.asInstanceOf[util.Map[String, AnyRef]]
-    session.run(queryCheck, params)
-      .single()
-      .get("isPresent")
-      .asBoolean()
-  } catch {
-    case e: Throwable => {
-      log.info("Cannot check the index because of the following exception:", e)
-      false
+    val dashSeparatedProps = keys.values.mkString("-")
+    val constraintName = s"spark_${entityType}_${constraintType.replace(s"$entityType ", "")}-CONSTRAINT_${entityIdentifier}_$dashSeparatedProps".quote()
+    val props = keys.values.map(_.quote()).map("e." + _).mkString(", ")
+    val asciiRepresentation: String = createGraphEntityAsciiRepresentation(entityType, entityIdentifier)
+    session.writeTransaction(tx => {
+      tx.run(s"CREATE CONSTRAINT $constraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE ($props) IS $constraintType")
+    })
+  }
+
+  private def createGraphEntityAsciiRepresentation(entityType: String, entityIdentifier: String) = {
+    val asciiRepresentation = entityType match {
+      case "NODE" => s"(e:${entityIdentifier.quote()})"
+      case "RELATIONSHIP" => s"()-[e:${entityIdentifier.quote()}]->()"
+      case _ => throw new IllegalArgumentException(s"$entityType not supported")
+    }
+    asciiRepresentation
+  }
+
+  private def createEntityTypeConstraint(entityType: String,
+                                         entityIdentifier: String,
+                                         properties: Map[String, String],
+                                         struct: StructType): Unit = {
+    val asciiRepresentation: String = createGraphEntityAsciiRepresentation(entityType, entityIdentifier)
+    session.writeTransaction(tx => {
+      properties
+        .filter(t => struct.exists(f => f.name == t._1))
+        .map(t => {
+          val field = struct.find(f => f.name == t._1).get
+          (t._2, sparkToCypherTypeConverter.convert(field.dataType), field.nullable)
+        })
+        .foreach(t => {
+          val prop = t._1.quote()
+          val cypherType = t._2
+          val isNullable = t._3
+          val typeConstraintName = s"spark_$entityType-TYPE-CONSTRAINT-$entityIdentifier-$prop".quote()
+          tx.run(s"CREATE CONSTRAINT $typeConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$prop IS :: $cypherType").consume()
+          if (!isNullable) {
+            val notNullConstraintName = s"spark_$entityType-NOT_NULL-CONSTRAINT-$entityIdentifier-$prop".quote()
+            tx.run(s"CREATE CONSTRAINT $notNullConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$prop IS NOT NULL").consume()
+          }
+        })
+    })
+  }
+
+  private def createOptimizationsForNode(struct: Optional[StructType]): Unit = {
+    if (options.schemaMetadata.optimization.nodeUnique
+        || options.schemaMetadata.optimization.nodeKey
+        || options.schemaMetadata.optimization.`type`) {
+      if (options.schemaMetadata.optimization.nodeUnique
+          || options.schemaMetadata.optimization.nodeKey) {
+        createEntityConstraint("NODE", options.nodeMetadata.labels.head,
+          options.schemaMetadata.optimization.nodeUnique,
+          options.nodeMetadata.nodeKeys)
+      }
+      if (options.schemaMetadata.optimization.`type`) {
+        val structType: StructType = struct.orElse(emptyStruct)
+        val propFromStruct: Map[String, String] = structType
+          .map(f => (f.name, f.name))
+          .toMap
+        val propsFromMeta: Map[String, String] = options.nodeMetadata.nodeKeys ++ options.nodeMetadata.properties
+        createEntityTypeConstraint("NODE", options.nodeMetadata.labels.head,
+          propsFromMeta ++ propFromStruct, structType)
+      }
+    } else { // TODO old behaviour, remove it in the future
+      options.schemaMetadata.optimizationType match {
+        case OptimizationType.INDEX | OptimizationType.NODE_CONSTRAINTS => {
+          createIndexOrConstraint(options.schemaMetadata.optimizationType,
+            options.nodeMetadata.labels.head,
+            options.nodeMetadata.nodeKeys.values.toSeq)
+        }
+        case _ => // do nothing
+      }
     }
   }
 
-  private def createOptimizationsForNode(): Unit = options.schemaMetadata.optimizationType match {
-    case OptimizationType.INDEX | OptimizationType.NODE_CONSTRAINTS => {
-      createIndexOrConstraint(options.schemaMetadata.optimizationType,
-        options.nodeMetadata.labels.head,
-        options.nodeMetadata.nodeKeys.values.toSeq)
+  private def createOptimizationsForRelationship(struct: Optional[StructType]): Unit = {
+    if (options.schemaMetadata.optimization.nodeUnique
+        || options.schemaMetadata.optimization.nodeKey
+        || options.schemaMetadata.optimization.relationshipUnique
+        || options.schemaMetadata.optimization.relationshipKey
+        || options.schemaMetadata.optimization.`type`) {
+      if (options.schemaMetadata.optimization.nodeUnique
+        || options.schemaMetadata.optimization.nodeKey) {
+        createEntityConstraint("NODE", options.relationshipMetadata.source.labels.head,
+          options.schemaMetadata.optimization.nodeUnique,
+          options.relationshipMetadata.source.nodeKeys)
+        createEntityConstraint("NODE", options.relationshipMetadata.target.labels.head,
+          options.schemaMetadata.optimization.nodeUnique,
+          options.relationshipMetadata.target.nodeKeys)
+      }
+      if (options.schemaMetadata.optimization.relationshipUnique
+        || options.schemaMetadata.optimization.relationshipKey) {
+        createEntityConstraint("RELATIONSHIP", options.relationshipMetadata.relationshipType,
+          options.schemaMetadata.optimization.relationshipUnique,
+          options.relationshipMetadata.relationshipKeys)
+      }
+      if (options.schemaMetadata.optimization.`type`) {
+        val sourceNodeProps: Map[String, String] = options.relationshipMetadata.source.nodeKeys ++ options.relationshipMetadata.source.properties
+        val targetNodeProps: Map[String, String] = options.relationshipMetadata.target.nodeKeys ++ options.relationshipMetadata.target.properties
+        val allNodeProps: Map[String, String] = sourceNodeProps ++ targetNodeProps
+        val baseStruct = struct.orElse(emptyStruct)
+        val relStruct: StructType = StructType(baseStruct.filterNot(f => allNodeProps.contains(f.name)))
+        val relFromStruct: Map[String, String] = relStruct
+          .map(f => (f.name, f.name))
+          .toMap
+        val propsFromMeta: Map[String, String] = options.relationshipMetadata.relationshipKeys ++ options.relationshipMetadata.properties
+        createEntityTypeConstraint("RELATIONSHIP",options.relationshipMetadata.relationshipType,
+          propsFromMeta ++ relFromStruct, baseStruct)
+        createEntityTypeConstraint("NODE", options.relationshipMetadata.source.labels.head,
+          sourceNodeProps, baseStruct)
+        createEntityTypeConstraint("NODE", options.relationshipMetadata.target.labels.head,
+          targetNodeProps, baseStruct)
+      }
+    } else { // TODO old behaviour, remove it in the future
+      options.schemaMetadata.optimizationType match {
+        case OptimizationType.INDEX | OptimizationType.NODE_CONSTRAINTS => {
+          createIndexOrConstraint(options.schemaMetadata.optimizationType,
+            options.relationshipMetadata.source.labels.head,
+            options.relationshipMetadata.source.nodeKeys.values.toSeq)
+          createIndexOrConstraint(options.schemaMetadata.optimizationType,
+            options.relationshipMetadata.target.labels.head,
+            options.relationshipMetadata.target.nodeKeys.values.toSeq)
+        }
+        case _ => // do nothing
+      }
     }
-    case _ => // do nothing
   }
 
-  private def createOptimizationsForRelationship(): Unit = options.schemaMetadata.optimizationType match {
-    case OptimizationType.INDEX | OptimizationType.NODE_CONSTRAINTS => {
-      createIndexOrConstraint(options.schemaMetadata.optimizationType,
-        options.relationshipMetadata.source.labels.head,
-        options.relationshipMetadata.source.nodeKeys.values.toSeq)
-      createIndexOrConstraint(options.schemaMetadata.optimizationType,
-        options.relationshipMetadata.target.labels.head,
-        options.relationshipMetadata.target.nodeKeys.values.toSeq)
-    }
-    case _ => // do nothing
-  }
-
-  def createOptimizations(): Unit = {
+  def createOptimizations(struct: Optional[StructType]): Unit = {
     options.query.queryType match {
-      case QueryType.LABELS => createOptimizationsForNode()
-      case QueryType.RELATIONSHIP => createOptimizationsForRelationship()
+      case QueryType.LABELS => createOptimizationsForNode(struct)
+      case QueryType.RELATIONSHIP => createOptimizationsForRelationship(struct)
       case _ => // do nothing
     }
   }
@@ -772,30 +867,6 @@ object SchemaService {
 
   val DURATION_TYPE = "duration"
 
-  val durationType: DataType = DataTypes.createStructType(Array(
-    DataTypes.createStructField("type", DataTypes.StringType, false),
-    DataTypes.createStructField("months", DataTypes.LongType, false),
-    DataTypes.createStructField("days", DataTypes.LongType, false),
-    DataTypes.createStructField("seconds", DataTypes.LongType, false),
-    DataTypes.createStructField("nanoseconds", DataTypes.IntegerType, false),
-    DataTypes.createStructField("value", DataTypes.StringType, false)
-  ))
-
-  val pointType: DataType = DataTypes.createStructType(Array(
-    DataTypes.createStructField("type", DataTypes.StringType, false),
-    DataTypes.createStructField("srid", DataTypes.IntegerType, false),
-    DataTypes.createStructField("x", DataTypes.DoubleType, false),
-    DataTypes.createStructField("y", DataTypes.DoubleType, false),
-    DataTypes.createStructField("z", DataTypes.DoubleType, true)
-  ))
-
-  val timeType: DataType = DataTypes.createStructType(Array(
-    DataTypes.createStructField("type", DataTypes.StringType, false),
-    DataTypes.createStructField("value", DataTypes.StringType, false)
-  ))
-
-  private val cleanTerms: String = "Unmodifiable|Internal|Iso|2D|3D|Offset|Local|Zoned"
-
   def normalizedClassName(value: AnyRef): String = value match {
     case list: java.util.List[_] => "Array"
     case map: java.util.Map[String, _] => "Map"
@@ -808,56 +879,5 @@ object SchemaService {
     case list: java.util.List[_] => s"${list.get(0).getClass.getSimpleName}Array"
     case null => "String"
     case _ => value.getClass.getSimpleName
-  }
-
-  def cypherToSparkType(cypherType: String, value: Any = null): DataType = {
-    cypherType.replaceAll(cleanTerms, "") match {
-      case "Node" | "Relationship" => if (value != null) value.asInstanceOf[Entity].toStruct else DataTypes.NullType
-      case "NodeArray" | "RelationshipArray" => if (value != null) DataTypes.createArrayType(value.asInstanceOf[Entity].toStruct) else DataTypes.NullType
-      case "Boolean" => DataTypes.BooleanType
-      case "Long" => DataTypes.LongType
-      case "Double" => DataTypes.DoubleType
-      case "Point" => pointType
-      case "DateTime" | "ZonedDateTime" | "LocalDateTime" => DataTypes.TimestampType
-      case "Time" => timeType
-      case "Date" => DataTypes.DateType
-      case "Duration" => durationType
-      case "Map" => {
-        val valueType = if (value == null) {
-          DataTypes.NullType
-        } else {
-          val map = value.asInstanceOf[java.util.Map[String, AnyRef]].asScala
-          val types = map.values
-            .map(normalizedClassName)
-            .toSet
-          if (types.size == 1) cypherToSparkType(types.head, map.values.head) else DataTypes.StringType
-        }
-        DataTypes.createMapType(DataTypes.StringType, valueType)
-      }
-      case "Array" => {
-        val valueType = if (value == null) {
-          DataTypes.NullType
-        } else {
-          val list = value.asInstanceOf[java.util.List[AnyRef]].asScala
-          val types = list
-            .map(normalizedClassName)
-            .toSet
-          if (types.size == 1) cypherToSparkType(types.head, list.head) else DataTypes.StringType
-        }
-        DataTypes.createArrayType(valueType)
-      }
-      // These are from APOC
-      case "StringArray" => DataTypes.createArrayType(DataTypes.StringType)
-      case "LongArray" => DataTypes.createArrayType(DataTypes.LongType)
-      case "DoubleArray" => DataTypes.createArrayType(DataTypes.DoubleType)
-      case "BooleanArray" => DataTypes.createArrayType(DataTypes.BooleanType)
-      case "PointArray" => DataTypes.createArrayType(pointType)
-      case "DateTimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
-      case "TimeArray" => DataTypes.createArrayType(timeType)
-      case "DateArray" => DataTypes.createArrayType(DataTypes.DateType)
-      case "DurationArray" => DataTypes.createArrayType(durationType)
-      // Default is String
-      case _ => DataTypes.StringType
-    }
   }
 }

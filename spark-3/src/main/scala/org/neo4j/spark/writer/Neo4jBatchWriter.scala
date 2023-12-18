@@ -6,13 +6,15 @@ import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util.{DriverCache, Neo4jOptions}
 
+import java.util.Optional
+
 class Neo4jBatchWriter(jobId: String,
                        structType: StructType,
                        saveMode: SaveMode,
                        neo4jOptions: Neo4jOptions) extends BatchWrite{
   override def createBatchWriterFactory(physicalWriteInfo: PhysicalWriteInfo): DataWriterFactory = {
     val schemaService = new SchemaService(neo4jOptions, driverCache)
-    schemaService.createOptimizations()
+    schemaService.createOptimizations(Optional.of(structType))
     val scriptResult = schemaService.execute(neo4jOptions.script)
     schemaService.close()
 

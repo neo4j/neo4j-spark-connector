@@ -99,7 +99,7 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <neo4j.version>5.6.0</neo4j.version>
+                <neo4j.version>5.13.0</neo4j.version>
                 <neo4j.experimental>false</neo4j.experimental>
             </properties>
         </profile>

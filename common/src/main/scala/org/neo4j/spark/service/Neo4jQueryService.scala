@@ -73,10 +73,18 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
       ""
     }
 
+    val relKeys = if (options.relationshipMetadata.relationshipKeys.nonEmpty) {
+      options.relationshipMetadata.relationshipKeys
+        .map(t => s"${t._2}: ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.KEYS}.${t._1}")
+        .mkString("{", ", ", "}")
+    } else {
+      ""
+    }
+
     s"""UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$sourceQueryPart$withQueryPart
        |$targetQueryPart
-       |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:$relationship]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
+       |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:$relationship$relKeys]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
        |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} += ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.PROPERTIES}
        |""".stripMargin
   }

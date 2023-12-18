@@ -9,13 +9,16 @@ import org.apache.spark.sql.sources.{AlwaysFalse, AlwaysTrue, And, EqualNullSafe
 import org.apache.spark.sql.types.{DataTypes, MapType, StructField, StructType}
 import org.neo4j.driver.Value
 import org.neo4j.driver.types.{Entity, Node, Relationship}
+import org.neo4j.spark.converter.{CypherToSparkTypeConverter, SparkToNeo4jDataConverter}
 import org.neo4j.spark.service.SchemaService
-import org.neo4j.spark.util.Neo4jUtil.convertFromSpark
 
 import javax.lang.model.SourceVersion
 import scala.collection.JavaConverters._
 
 object Neo4jImplicits {
+  
+  private val sparkToNeo4jDataConverter = SparkToNeo4jDataConverter()
+  private val cypherToSparkTypeConverter = CypherToSparkTypeConverter()
 
   implicit class CypherImplicits(str: String) {
     private def isValidCypherIdentifier() = SourceVersion.isIdentifier(str) && !str.trim.startsWith("$")
@@ -63,7 +66,7 @@ object Neo4jImplicits {
         .map(t => {
           val value = t._2.head._2
           val cypherType = SchemaService.normalizedClassNameFromGraphEntity(value)
-          StructField(t._1, SchemaService.cypherToSparkType(cypherType))
+          StructField(t._1, cypherToSparkTypeConverter.convert(cypherType))
         })
       val entityFields = entity match {
         case _: Node => {
@@ -147,14 +150,14 @@ object Neo4jImplicits {
         .filter(_.isInstanceOf[Literal[_]])
         .map(_.asInstanceOf[Literal[_]])
         .headOption
-        .map(literal => convertFromSpark(literal.value(), literal.dataType()))
+        .map(literal => sparkToNeo4jDataConverter.convert(literal.value(), literal.dataType()))
     }
 
     def rawLiteralValues(): Array[Any] = {
       predicate.children()
         .filter(_.isInstanceOf[Literal[_]])
         .map(_.asInstanceOf[Literal[_]])
-        .map(v => convertFromSpark(v.value(), v.dataType()).asObject())
+        .map(v => sparkToNeo4jDataConverter.convert(v.value(), v.dataType()).asObject())
     }
   }
 

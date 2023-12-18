@@ -4,13 +4,14 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.hamcrest.Matchers
 import org.junit._
-import org.junit.rules.{ExpectedException, TestName}
+import org.junit.rules.TestName
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
 import org.neo4j.spark
 
 import java.util.concurrent.TimeUnit
 import scala.annotation.meta.getter
+import scala.collection.JavaConverters.asScalaBufferConverter
 
 object SparkConnectorScalaBaseTSE {
 
@@ -53,6 +54,20 @@ class SparkConnectorScalaBaseTSE {
       .writeTransaction(new TransactionWork[ResultSummary] {
         override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
       })
+    SparkConnectorScalaSuiteIT.session()
+      .readTransaction(tx => tx.run("SHOW CONSTRAINTS YIELD name RETURN name")
+        .list()
+        .asScala
+        .map(_.get("name").asString()))
+      .foreach(constraint => SparkConnectorScalaSuiteIT.session()
+        .writeTransaction(tx => tx.run(s"DROP CONSTRAINT `$constraint`").consume()))
+    SparkConnectorScalaSuiteIT.session()
+      .readTransaction(tx => tx.run("SHOW INDEXES YIELD name RETURN name")
+        .list()
+        .asScala
+        .map(_.get("name").asString()))
+      .foreach(constraint => SparkConnectorScalaSuiteIT.session()
+        .writeTransaction(tx => tx.run(s"DROP INDEX `$constraint`").consume()))
   }
 
   @After

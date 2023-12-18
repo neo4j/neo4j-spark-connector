@@ -14,6 +14,12 @@ object TestUtil {
 
   def neo4jVersion(): String = properties.getProperty("neo4j.version")
 
+  def neo4jVersionAsDouble(): Double = neo4jVersion()
+    .split("\\.")
+    .slice(0, 2)
+    .mkString(".")
+    .toDouble
+
   def experimental(): Boolean = properties.getProperty("neo4j.experimental", "false").toBoolean
 
   def closeSafely(autoCloseable: AutoCloseable, logger: Logger = null): Unit = {

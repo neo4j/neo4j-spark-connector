@@ -27,7 +27,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
 
   private lazy val scriptResult = {
     val schemaService = new SchemaService(neo4jOptions, driverCache)
-    schemaService.createOptimizations()
+    schemaService.createOptimizations(optionalSchema)
     val scriptResult = schemaService.execute(neo4jOptions.script)
     schemaService.close()
     scriptResult

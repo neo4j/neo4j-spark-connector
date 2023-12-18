@@ -8,6 +8,8 @@ import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil}
 
+import java.util.Optional
+
 class Neo4jStreamingWriter(val queryId: String,
                            val schema: StructType,
                            saveMode: SaveMode,
@@ -34,7 +36,7 @@ class Neo4jStreamingWriter(val queryId: String,
 
   private lazy val scriptResult = {
     val schemaService = new SchemaService(neo4jOptions, driverCache)
-    schemaService.createOptimizations()
+    schemaService.createOptimizations(Optional.of(schema))
     val scriptResult = schemaService.execute(neo4jOptions.script)
     schemaService.close()
     scriptResult
