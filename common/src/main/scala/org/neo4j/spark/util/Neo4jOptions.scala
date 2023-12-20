@@ -295,7 +295,7 @@ case class Neo4jDriverOptions(
 
   def toDriverConfig: Config = {
     val builder = Config.builder()
-      .withUserAgent(s"neo4j-spark-connector/${Neo4jUtil.connectorVersion}")
+      .withUserAgent(s"neo4j-spark-connector/${Neo4jUtil.connectorVersion} ${Neo4jUtil.connectorEnv}")
       .withLogging(Logging.slf4j())
 
     if (lifetime > -1) builder.withMaxConnectionLifetime(lifetime, TimeUnit.MILLISECONDS)

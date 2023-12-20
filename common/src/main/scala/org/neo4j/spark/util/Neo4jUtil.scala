@@ -239,6 +239,11 @@ object Neo4jUtil {
 
   def connectorVersion: String = properties.getOrDefault("version", "UNKNOWN").toString
 
+  def connectorEnv: String = Some(System.getenv("DATABRICKS_RUNTIME_VERSION"))
+    .map(s"Databricks-" + _)
+    .getOrElse("UNKNOWN")
+    .mkString("(", "", ")")
+
   def getCorrectProperty(container: PropertyContainer, attribute: String): Property = {
     container.property(attribute.split('.'): _*)
   }
