@@ -1,5 +1,6 @@
 package org.neo4j.spark.service
 
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
@@ -509,6 +510,41 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       .asBoolean()
   }
 
+  def validateQuery(query: String, expectedQueryTypes: org.neo4j.driver.summary.QueryType*): String = try {
+    val queryType = session.run(s"EXPLAIN $query").consume().queryType()
+    if (expectedQueryTypes.isEmpty || expectedQueryTypes.contains(queryType)) {
+      ""
+    } else {
+      s"Invalid query `${cleanQuery(query)}` because the accepted types are [${expectedQueryTypes.mkString(", ")}], but the actual type is $queryType"
+    }
+  } catch {
+    case e: Throwable => s"Query not compiled for the following exception: ${ExceptionUtils.getMessage(e)}"
+  }
+
+  private def cleanQuery(query: String) = {
+    query
+      .replace(s"WITH {} AS ${Neo4jQueryStrategy.VARIABLE_EVENT}, [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}", "")
+      .replace(s"WITH [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}", "")
+      .replace(s"WITH {} AS ${Neo4jQueryStrategy.VARIABLE_EVENT}", "")
+      .trim
+  }
+
+  def validateQueryCount(query: String): String = try {
+    val resultSummary = session.run(s"EXPLAIN $query").consume()
+    val queryType = resultSummary.queryType()
+    val plan = resultSummary.plan()
+    val expectedQueryTypes = Set(org.neo4j.driver.summary.QueryType.READ_ONLY, org.neo4j.driver.summary.QueryType.SCHEMA_WRITE)
+    val isReadOnly = expectedQueryTypes.contains(queryType)
+    val hasCountIdentifier = plan.identifiers().asScala.toSet == Set("count")
+    if (isReadOnly && hasCountIdentifier) {
+      ""
+    } else {
+      s"Invalid query `${cleanQuery(query)}` because the expected type should be [${expectedQueryTypes.mkString(", ")}], but the actual type is $queryType"
+    }
+  } catch {
+    case e: Throwable => s"Query count not compiled for the following exception: ${ExceptionUtils.getMessage(e)}"
+  }
+
   def isValidQuery(query: String, expectedQueryTypes: org.neo4j.driver.summary.QueryType*): Boolean = try {
     val queryType = session.run(s"EXPLAIN $query").consume().queryType()
     expectedQueryTypes.isEmpty || expectedQueryTypes.contains(queryType)
@@ -518,22 +554,6 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         log.debug("Query not compiled because of the following exception:", e)
       }
       false
-    }
-  }
-
-  def isValidQueryCount(query: String): Boolean = {
-    try {
-      val resultSummary = session.run(s"EXPLAIN $query").consume()
-      val queryType = resultSummary.queryType()
-      val plan = resultSummary.plan()
-      val isReadOnly = queryType == org.neo4j.driver.summary.QueryType.READ_ONLY || queryType == org.neo4j.driver.summary.QueryType.SCHEMA_WRITE
-      val hasCountIdentifier = plan.identifiers().asScala.toSet == Set("count")
-      isReadOnly && hasCountIdentifier
-    } catch {
-      case e: Throwable => {
-        log.error("Query not compiled because of the following exception:", e)
-        false
-      }
     }
   }
 

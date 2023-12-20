@@ -1,15 +1,15 @@
-package org.neo4j.spark
+package org.neo4j.spark.util
 
 import org.apache.spark.sql.SparkSession
 import org.junit
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.Test
-import org.neo4j.spark.util.{ValidateSparkMinVersion, Validations}
+import org.neo4j.spark.SparkConnectorScalaBaseTSE
 
-class VersionValidationTest extends SparkConnectorScalaBaseTSE {
+class ValidationsTest extends SparkConnectorScalaBaseTSE {
 
   @Test
-  def testThrowsExceptionSparkVersionIsNotSupported(): Unit = {
+  def testVersionThrowsExceptionSparkVersionIsNotSupported(): Unit = {
     val sparkVersion = SparkSession.getActiveSession
       .map { _.version }
       .getOrElse("UNKNOWN")
@@ -26,9 +26,8 @@ class VersionValidationTest extends SparkConnectorScalaBaseTSE {
     }
   }
 
-
   @Test
-  def testShouldBeValid(): Unit = {
+  def testVersionShouldBeValid(): Unit = {
     val fullVersion = SparkSession
       .getDefaultSession
       .map(_.version)
@@ -42,9 +41,8 @@ class VersionValidationTest extends SparkConnectorScalaBaseTSE {
     Validations.validate(ValidateSparkMinVersion(s"$fullVersion-amzn-0"))
   }
 
-
   @Test
-  def testShouldValidateTheVersion(): Unit = {
+  def testVersionShouldValidateTheVersion(): Unit = {
     val version = ValidateSparkMinVersion("2.3.0")
     junit.Assert.assertTrue(version.isSupported("2.3.0-amzn-1"))
     junit.Assert.assertTrue(version.isSupported("2.3.1-amzn-1"))

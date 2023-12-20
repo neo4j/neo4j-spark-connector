@@ -135,12 +135,12 @@ case class ValidateWrite(neo4jOptions: Neo4jOptions,
 
       neo4jOptions.query.queryType match {
         case QueryType.QUERY => {
-          ValidationUtil.isTrue(schemaService.isValidQuery(
+          val error = schemaService.validateQuery(
             s"""WITH {} AS ${Neo4jQueryStrategy.VARIABLE_EVENT}, [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
                |${neo4jOptions.query.value}
                |""".stripMargin,
-            org.neo4j.driver.summary.QueryType.WRITE_ONLY, org.neo4j.driver.summary.QueryType.READ_WRITE),
-            "Please provide a valid WRITE query")
+            org.neo4j.driver.summary.QueryType.WRITE_ONLY, org.neo4j.driver.summary.QueryType.READ_WRITE)
+          ValidationUtil.isTrue(error.isEmpty, error)
           neo4jOptions.schemaMetadata.optimizationType match {
             case OptimizationType.NONE => // are valid
             case _ => ValidationUtil.isNotValid(
@@ -215,14 +215,15 @@ case class ValidateRead(neo4jOptions: Neo4jOptions, jobId: String) extends Valid
         case QueryType.QUERY => {
           ValidationUtil.isFalse(neo4jOptions.query.value.matches("(?si).*(LIMIT \\d+|SKIP ?\\d+)\\s*\\z"),
             "SKIP/LIMIT are not allowed at the end of the query")
-          ValidationUtil.isTrue(schemaService.isValidQuery(s"""WITH [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
-                                                              |${neo4jOptions.query.value}
-                                                              |""".stripMargin, org.neo4j.driver.summary.QueryType.READ_ONLY),
-            "Please provide a valid READ query")
+          val queryError = schemaService.validateQuery(
+            s"""WITH [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
+               |${neo4jOptions.query.value}
+               |""".stripMargin, org.neo4j.driver.summary.QueryType.READ_ONLY)
+          ValidationUtil.isTrue(queryError.isEmpty, queryError)
           if (neo4jOptions.queryMetadata.queryCount.nonEmpty) {
             if (!Neo4jUtil.isLong(neo4jOptions.queryMetadata.queryCount)) {
-              ValidationUtil.isTrue(schemaService.isValidQueryCount(neo4jOptions.queryMetadata.queryCount),
-                "Please provide a valid READ query count")
+              val queryCountError = schemaService.validateQueryCount(neo4jOptions.queryMetadata.queryCount)
+              ValidationUtil.isTrue(queryCountError.isEmpty, queryCountError)
             }
           }
         }
@@ -234,8 +235,16 @@ case class ValidateRead(neo4jOptions: Neo4jOptions, jobId: String) extends Valid
           Validations.validate(ValidateGdsMetadata(neo4jOptions.gdsMetadata))
         }
       }
-      neo4jOptions.script.foreach(query => ValidationUtil.isTrue(schemaService.isValidQuery(query),
-        s"The following query inside the `${Neo4jOptions.SCRIPT}` is not valid, please check the syntax: $query"))
+      val scriptErrors = neo4jOptions.script
+        .map(schemaService.validateQuery(_))
+        .filter(_.nonEmpty)
+        .mkString("\n")
+      ValidationUtil.isTrue(scriptErrors.isEmpty,
+        s"""
+           |The following queries inside the `${Neo4jOptions.SCRIPT}` are not valid,
+           |please check their syntax:
+           |$scriptErrors
+           |""".stripMargin)
     } finally {
       schemaService.close()
       cache.close()

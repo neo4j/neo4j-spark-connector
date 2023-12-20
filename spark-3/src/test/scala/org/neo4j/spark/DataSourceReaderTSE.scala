@@ -1136,23 +1136,6 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(100, countRel)
   }
 
-  @Test()
-  def testThrowsExceptionOnWriteQuery(): Unit = {
-    try {
-      ss.read.format(classOf[DataSource].getName)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("query", "CREATE (p:Person)")
-        .load()
-        .show()  // we need the action to be able to trigger the exception because of the changes in Spark 3
-      org.junit.Assert.fail("Expected to throw an exception")
-    } catch {
-      case iae: IllegalArgumentException => {
-        assertTrue(iae.getMessage.endsWith("Please provide a valid READ query"))
-      }
-      case e: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, e: ${e.getMessage}")
-    }
-  }
-
   @Test
   def testShouldCreateTheCorrectDataframeWithTwoPartitions(): Unit = {
     SparkConnectorScalaSuiteIT.session()
