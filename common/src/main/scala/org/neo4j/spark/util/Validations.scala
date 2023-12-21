@@ -5,7 +5,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.neo4j.driver.{AccessMode, Session, summary}
 import org.neo4j.spark.service.{Neo4jQueryStrategy, SchemaService}
-import org.neo4j.spark.streaming.Neo4jAccumulator
 import org.neo4j.spark.util
 import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
 
@@ -346,18 +345,6 @@ case class ValidateReadStreaming(neo4jOptions: Neo4jOptions, jobId: String) exte
     val cache = new DriverCache(neo4jOptions.connection, jobId)
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
-      neo4jOptions.streamingOptions.storageType match {
-        case StorageType.NEO4J => {
-            ValidationUtil.isTrue(schemaService.checkIndex(OptimizationType.NODE_CONSTRAINTS, Neo4jAccumulator.LABEL, Seq(Neo4jAccumulator.KEY)),
-              s"""
-                |The connector need to store intermediate results
-                |for pushing the data into Streaming tables.
-                |Please define a constraint into your Neo4j instance in this way:
-                |`CREATE CONSTRAINT FOR (n:${Neo4jAccumulator.LABEL}) REQUIRE (n.${Neo4jAccumulator.KEY}) IS UNIQUE`
-                |""".stripMargin)
-        }
-        case _ =>
-      }
       ValidationUtil.isTrue(neo4jOptions.partitions == 1, "For Spark Structured Streaming we support only one partition")
       neo4jOptions.query.queryType match {
         case QueryType.QUERY => {

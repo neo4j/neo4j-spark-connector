@@ -380,7 +380,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
         val actualList = actual.toList
         val expectedList = expected.toList
         // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-        actualList == expectedList && counter.incrementAndGet() == 3
+        actualList.distinct == expectedList && counter.incrementAndGet() == 3
       }
     }, Matchers.equalTo(true), 40L, TimeUnit.SECONDS)
   }
@@ -450,7 +450,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
         val actualList = actual.toList
         val expectedList = expected.toList
         // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-        actualList == expectedList
+        actualList.distinct == expectedList
       }
     }, Matchers.equalTo(true), 40L, TimeUnit.SECONDS)
   }

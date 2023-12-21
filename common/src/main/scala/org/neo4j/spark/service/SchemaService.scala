@@ -697,17 +697,17 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   }
 
-  private def lastOffsetForNode(): Long = {
+  private def lastOffsetForNode(): Any = {
     val label = options.nodeMetadata.labels.head
     session.run(
       s"""MATCH (n:$label)
          |RETURN max(n.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin)
       .single()
       .get(options.streamingOptions.propertyName)
-      .asLong(-1)
+      .asObject()
   }
 
-  private def lastOffsetForRelationship(): Long = {
+  private def lastOffsetForRelationship(): Any = {
     val sourceLabel = options.relationshipMetadata.source.labels.head.quote()
     val targetLabel = options.relationshipMetadata.target.labels.head.quote()
     val relType = options.relationshipMetadata.relationshipType.quote()
@@ -717,15 +717,15 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
          |RETURN max(r.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin)
       .single()
       .get(options.streamingOptions.propertyName)
-      .asLong(-1)
+      .asObject()
   }
 
-  private def lastOffsetForQuery(): Long = session.run(options.streamingOptions.queryOffset)
+  private def lastOffsetForQuery(): Any = session.run(options.streamingOptions.queryOffset)
     .single()
     .get(0)
-    .asLong(-1)
+    .asObject()
 
-  def lastOffset(): Long = options.query.queryType match {
+  def lastOffset(): Any = options.query.queryType match {
     case QueryType.LABELS => lastOffsetForNode()
     case QueryType.RELATIONSHIP => lastOffsetForRelationship()
     case QueryType.QUERY => lastOffsetForQuery()

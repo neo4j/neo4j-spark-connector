@@ -18,7 +18,6 @@ class BaseStreamingPartitionReader(private val options: Neo4jOptions,
                                    private val jobId: String,
                                    private val partitionSkipLimit: PartitionPagination,
                                    private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
-                                   private val offsetAccumulator: OffsetStorage[java.lang.Long, java.lang.Long],
                                    private val requiredColumns: StructType,
                                    private val aggregateColumns: Array[AggregateFunc]) extends BasePartitionReader(options,
     filters,
@@ -31,60 +30,19 @@ class BaseStreamingPartitionReader(private val options: Neo4jOptions,
 
   private val streamingPropertyName = Neo4jUtil.getStreamingPropertyName(options)
 
-  private val streamingField = filters.find(f => f.getAttribute
-      .map(name => name == streamingPropertyName).getOrElse(false))
-
-  @volatile
-  private var lastTimestamp: java.lang.Long = _
+  private val streamingField = filters.find(f => f.getAttribute.contains(streamingPropertyName))
 
   logInfo(s"Creating Streaming Partition reader $name")
 
   private lazy val values = {
     val map = new util.HashMap[String, Any](super.getQueryParameters)
-    val value: Long = streamingField
-      .flatMap(f => f.getValue)
-      .getOrElse(StreamingFrom.ALL.value())
-      .asInstanceOf[Long]
+    val value = streamingField
+      .flatMap(_.getValue)
+      .get
     map.put(Neo4jQueryStrategy.VARIABLE_STREAM, Collections.singletonMap("offset", value))
     map
   }
 
-  override def next: Boolean = {
-    val hasNext = super.next
-    if (hasNext) {
-      updateLastTimestamp(super.get)
-    }
-    hasNext
-  }
-
-  override def close(): Unit = {
-    if (!hasError()) {
-      offsetAccumulator.add(getLastTimestamp())
-    }
-    logInfo(s"Closing Partition reader $name ${if (hasError()) "with error " else ""}")
-    super.close()
-  }
-
-  private def updateLastTimestamp(row: InternalRow) = synchronized {
-    try {
-      val fieldIndex = schema.fieldIndex(streamingPropertyName)
-      val currentTimestamp: java.lang.Long = schema(fieldIndex).dataType match {
-        case DataTypes.LongType => row.getLong(fieldIndex)
-        case _ => row.getUTF8String(fieldIndex).toString.toLong
-      }
-      if (lastTimestamp == null || lastTimestamp < currentTimestamp) {
-        lastTimestamp = currentTimestamp
-      }
-    } catch {
-      case t: Throwable => logInfo(
-        s"""
-           |Cannot extract the last timestamp for schema $schema and property $streamingPropertyName,
-           |because of the following exception:
-           |""".stripMargin, t)
-    }
-  }
-
-  def getLastTimestamp() = synchronized { lastTimestamp }
 
   override protected def getQueryParameters: util.Map[String, Any] = values
 

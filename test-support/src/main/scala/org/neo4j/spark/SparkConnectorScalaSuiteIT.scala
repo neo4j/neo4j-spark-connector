@@ -40,8 +40,7 @@ object SparkConnectorScalaSuiteIT {
         .set("spark.driver.host", "127.0.0.1")
       ss = SparkSession.builder.config(conf).getOrCreate()
       if (TestUtil.isCI()) {
-        org.apache.log4j.LogManager.getLogger("org")
-          .setLevel(org.apache.log4j.Level.OFF)
+        ss.sparkContext.setLogLevel("OFF")
       }
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()

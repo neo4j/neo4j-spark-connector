@@ -224,16 +224,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
         .limit(partitionPagination.topN.limit)
         .returning(fields: _*)
     } else {
-      val orderByProp = options.streamingOrderBy
-      if (StringUtils.isBlank(orderByProp)) {
-        query.returning(fields: _*)
-      } else {
-        query
-          .`with`(entity)
-          .orderBy(entity.property(orderByProp))
-          .ascending()
-          .returning(fields: _*)
-      }
+      query.returning(fields: _*)
     }
     ret.build()
   }
@@ -272,8 +263,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
           addSkipLimit(returning.orderBy(id))
         }
       } else {
-        val orderByProp = options.streamingOrderBy
-        if (StringUtils.isBlank(orderByProp)) returning else returning.orderBy(entity.property(orderByProp))
+        returning
       }
     }
     ret.build()

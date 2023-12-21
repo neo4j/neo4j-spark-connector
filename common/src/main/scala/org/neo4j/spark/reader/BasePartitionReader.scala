@@ -83,12 +83,13 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
   def get: InternalRow = nextRow
 
   def close(): Unit = {
+    logInfo(s"Closing Partition reader $name ${if (hasError) "with error " else ""}")
     Neo4jUtil.closeSafely(transaction, log)
     Neo4jUtil.closeSafely(session, log)
     driverCache.close()
   }
 
-  def hasError(): Boolean = error
+  def hasError: Boolean = error
 
   protected def getQueryParameters: util.Map[String, Any] = values
 }
