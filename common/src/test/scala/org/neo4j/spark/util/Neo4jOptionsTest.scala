@@ -6,6 +6,7 @@ import org.neo4j.driver.AccessMode
 import org.neo4j.driver.net.ServerAddress
 
 import java.net.URI
+import scala.annotation.meta.getter
 import scala.collection.JavaConverters._
 
 class Neo4jOptionsTest {
@@ -13,10 +14,8 @@ class Neo4jOptionsTest {
   import org.junit.Rule
   import org.junit.rules.ExpectedException
 
+  @(Rule@getter)
   val _expectedException: ExpectedException = ExpectedException.none
-
-  @Rule
-  def exceptionRule: ExpectedException = _expectedException
 
   @Test
   def testUrlIsRequired(): Unit = {

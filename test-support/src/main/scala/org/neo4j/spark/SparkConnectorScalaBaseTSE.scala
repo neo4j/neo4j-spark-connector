@@ -4,12 +4,13 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.hamcrest.Matchers
 import org.junit._
-import org.junit.rules.TestName
+import org.junit.rules.{ExpectedException, TestName}
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
 import org.neo4j.spark
 
 import java.util.concurrent.TimeUnit
+import scala.annotation.meta.getter
 
 object SparkConnectorScalaBaseTSE {
 
@@ -37,10 +38,8 @@ class SparkConnectorScalaBaseTSE {
   val conf: SparkConf = SparkConnectorScalaSuiteIT.conf
   val ss: SparkSession = SparkConnectorScalaSuiteIT.ss
 
-  val _testName: TestName = new TestName
-
-  @Rule
-  def testName = _testName
+  @(Rule@getter)
+  val testName: TestName = new TestName
 
   @Before
   def before() {

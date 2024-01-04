@@ -11,6 +11,7 @@ import org.neo4j.driver.summary.ResultSummary
 
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
+import scala.annotation.meta.getter
 
 object SparkConnectorScalaSuiteWithGdsBase {
   val server: Neo4jContainerExtension = new Neo4jContainerExtension()
@@ -84,10 +85,8 @@ class SparkConnectorScalaSuiteWithGdsBase {
   val conf: SparkConf = SparkConnectorScalaSuiteWithGdsBase.conf
   val ss: SparkSession = SparkConnectorScalaSuiteWithGdsBase.ss
 
-  val _testName: TestName = new TestName
-
-  @Rule
-  def testName: TestName = _testName
+  @(Rule@getter)
+  val testName: TestName = new TestName
 
   @Before
   def before(): Unit = {

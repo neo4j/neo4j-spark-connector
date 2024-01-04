@@ -7,21 +7,20 @@ import org.neo4j.driver.AccessMode
 import org.neo4j.spark.{SparkConnectorScalaSuiteIT, TestUtil}
 
 import java.util.regex.Pattern
+import scala.annotation.meta.getter
 
 class ValidationsIT extends SparkConnectorScalaSuiteIT {
 
-  val _expectedException: ExpectedException = ExpectedException.none
-
-  @Rule
-  def exceptionRule: ExpectedException = _expectedException
+  @(Rule@getter)
+  val expectedException: ExpectedException = ExpectedException.none
 
   @Test
   def testReadQueryShouldBeSyntacticallyInvalid(): Unit = {
     // then
-    _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage(CoreMatchers.containsString("Query not compiled for the following exception: ClientException: Invalid input "))
+    expectedException.expect(classOf[IllegalArgumentException])
+    expectedException.expectMessage(CoreMatchers.containsString("Query not compiled for the following exception: ClientException: Invalid input "))
     val query = "MATCH (f{) RETURN f"
-    _expectedException.expectMessage(CoreMatchers.containsString(query))
+    expectedException.expectMessage(CoreMatchers.containsString(query))
 
     // given
     val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
@@ -36,8 +35,8 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   def testReadQueryShouldBeSemanticallyInvalid(): Unit = {
     // then
     val query = "MERGE (n:TestNode{id: 1}) RETURN n"
-    _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage(s"Invalid query `$query` because the accepted types are [READ_ONLY], but the actual type is READ_WRITE")
+    expectedException.expect(classOf[IllegalArgumentException])
+    expectedException.expectMessage(s"Invalid query `$query` because the accepted types are [READ_ONLY], but the actual type is READ_WRITE")
 
     // given
     val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
@@ -52,9 +51,9 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   def testReadQueryCountBeSyntacticallyInvalid(): Unit = {
     // then
     val query = "MATCH (f{) RETURN f"
-    _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage(CoreMatchers.containsString("Query count not compiled for the following exception: ClientException: Invalid input "))
-    _expectedException.expectMessage(CoreMatchers.containsString(s"EXPLAIN $query"))
+    expectedException.expect(classOf[IllegalArgumentException])
+    expectedException.expectMessage(CoreMatchers.containsString("Query count not compiled for the following exception: ClientException: Invalid input "))
+    expectedException.expectMessage(CoreMatchers.containsString(s"EXPLAIN $query"))
 
     // given
     val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
@@ -69,10 +68,10 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   @Test
   def testScriptQueryCountShouldContainAnInvalidQuery(): Unit = {
     // then
-    _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage(CoreMatchers.containsString("The following queries inside the `script` are not valid,"))
-    _expectedException.expectMessage(CoreMatchers.containsString("Query not compiled for the following exception: ClientException: Invalid input "))
-    _expectedException.expectMessage(CoreMatchers.containsString("EXPLAIN RETUR 2 AS two"))
+    expectedException.expect(classOf[IllegalArgumentException])
+    expectedException.expectMessage(CoreMatchers.containsString("The following queries inside the `script` are not valid,"))
+    expectedException.expectMessage(CoreMatchers.containsString("Query not compiled for the following exception: ClientException: Invalid input "))
+    expectedException.expectMessage(CoreMatchers.containsString("EXPLAIN RETUR 2 AS two"))
 
     // given
     val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
@@ -88,9 +87,9 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   def testWriteQueryShouldBeSyntacticallyInvalid(): Unit = {
     // then
     val query = "MERGE (f{) RETURN f"
-    _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage(CoreMatchers.containsString("Query not compiled for the following exception: ClientException: Invalid input "))
-    _expectedException.expectMessage(CoreMatchers.containsString(query))
+    expectedException.expect(classOf[IllegalArgumentException])
+    expectedException.expectMessage(CoreMatchers.containsString("Query not compiled for the following exception: ClientException: Invalid input "))
+    expectedException.expectMessage(CoreMatchers.containsString(query))
 
     // given
     val writeOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
@@ -106,8 +105,8 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   def testWriteQueryShouldBeSemanticallyInvalid(): Unit = {
     // then
     val query = "MATCH (n:TestNode{id: 1}) RETURN n"
-    _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage(s"Invalid query `$query` because the accepted types are [WRITE_ONLY, READ_WRITE], but the actual type is READ_ONLY")
+    expectedException.expect(classOf[IllegalArgumentException])
+    expectedException.expectMessage(s"Invalid query `$query` because the accepted types are [WRITE_ONLY, READ_WRITE], but the actual type is READ_ONLY")
 
     // given
     val writeOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()

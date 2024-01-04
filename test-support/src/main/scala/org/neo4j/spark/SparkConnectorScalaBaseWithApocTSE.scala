@@ -10,6 +10,7 @@ import org.neo4j.driver.{Transaction, TransactionWork}
 import org.neo4j.spark
 
 import java.util.concurrent.TimeUnit
+import scala.annotation.meta.getter
 
 object SparkConnectorScalaBaseWithApocTSE {
 
@@ -37,10 +38,8 @@ class SparkConnectorScalaBaseWithApocTSE {
   val conf: SparkConf = SparkConnectorScalaSuiteWithApocIT.conf
   val ss: SparkSession = SparkConnectorScalaSuiteWithApocIT.ss
 
-  val _testName: TestName = new TestName
-
-  @Rule
-  def testName = _testName
+  @(Rule@getter)
+  val testName: TestName = new TestName
 
   @Before
   def before() {
