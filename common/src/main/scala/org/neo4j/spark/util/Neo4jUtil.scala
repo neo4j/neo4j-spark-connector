@@ -21,7 +21,7 @@ import org.slf4j.Logger
 import java.time._
 import java.time.format.DateTimeFormatter
 import java.time.temporal.Temporal
-import java.util.Properties
+import java.util.{Optional, Properties}
 import scala.collection.JavaConverters._
 
 object Neo4jUtil {
@@ -239,10 +239,9 @@ object Neo4jUtil {
 
   def connectorVersion: String = properties.getOrDefault("version", "UNKNOWN").toString
 
-  def connectorEnv: String = Some(System.getenv("DATABRICKS_RUNTIME_VERSION"))
-    .map(s"Databricks-" + _)
-    .getOrElse("UNKNOWN")
-    .mkString("(", "", ")")
+  def connectorEnv: String = Option(System.getenv("DATABRICKS_RUNTIME_VERSION"))
+    .map(_ => "databricks")
+    .getOrElse("spark")
 
   def getCorrectProperty(container: PropertyContainer, attribute: String): Property = {
     container.property(attribute.split('.'): _*)
