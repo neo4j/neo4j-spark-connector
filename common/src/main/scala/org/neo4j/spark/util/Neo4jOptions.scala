@@ -258,15 +258,12 @@ case class Neo4jGdsMetadata(parameters: util.Map[String, Any])
 case class Neo4jQueryOptions(queryType: QueryType.Value, value: String)
 
 case class Neo4jSessionOptions(database: String, accessMode: AccessMode = AccessMode.READ) {
-  def toNeo4jSession(bookmarks: Seq[Bookmark] = Seq.empty): SessionConfig = {
+  def toNeo4jSession(): SessionConfig = {
     val builder = SessionConfig.builder()
       .withDefaultAccessMode(accessMode)
 
     if (database != null && database != "") {
       builder.withDatabase(database)
-    }
-    if (bookmarks.nonEmpty) {
-      builder.withBookmarks(bookmarks.asJava)
     }
 
     builder.build()
