@@ -1,11 +1,12 @@
 package org.neo4j.spark.converter
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{GenericRowWithSchema, UnsafeArrayData, UnsafeMapData, UnsafeRow}
-import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, DateTimeUtils}
+import org.apache.spark.sql.catalyst.expressions.{GenericRow, GenericRowWithSchema, UnsafeRow}
+import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, DateTimeUtils, MapData}
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 import org.neo4j.driver.internal._
+import org.neo4j.driver.types.{IsoDuration, Node, Relationship}
 import org.neo4j.driver.{Value, Values}
 import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util.Neo4jUtil
@@ -45,8 +46,8 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
         val row = new GenericRowWithSchema(unsafeRow.toSeq(structType).toArray, structType)
         convert(row)
       }
-      case struct: GenericRowWithSchema => {
-        def toMap(struct: GenericRowWithSchema): Value = {
+      case struct: GenericRow => {
+        def toMap(struct: GenericRow): Value = {
           Values.value(
             struct.schema.fields.map(
               f => f.name -> convert(struct.getAs(f.name), f.dataType)
@@ -74,7 +75,7 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
           case _: Throwable => toMap(struct)
         }
       }
-      case unsafeArray: UnsafeArrayData => {
+      case unsafeArray: ArrayData => {
         val sparkType = dataType match {
           case arrayType: ArrayType => arrayType.elementType
           case _ => dataType
@@ -84,7 +85,7 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
           .asJava
         Values.value(javaList)
       }
-      case unsafeMapData: UnsafeMapData => { // Neo4j only supports Map[String, AnyRef]
+      case unsafeMapData: MapData => { // Neo4j only supports Map[String, AnyRef]
         val mapType = dataType.asInstanceOf[MapType]
         val map: Map[String, AnyRef] = (0 until unsafeMapData.numElements())
           .map(i => (unsafeMapData.keyArray().getUTF8String(i).toString, unsafeMapData.valueArray().get(i, mapType.valueType)))
@@ -109,7 +110,7 @@ class Neo4jToSparkDataConverter extends DataConverter[Any] {
       convert(Neo4jUtil.mapper.writeValueAsString(value), dataType)
     } else {
       value match {
-        case node: InternalNode => {
+        case node: Node => {
           val map = node.asMap()
           val structType = extractStructType(dataType)
           val fields = structType
@@ -117,7 +118,7 @@ class Neo4jToSparkDataConverter extends DataConverter[Any] {
             .map(field => convert(map.get(field.name), field.dataType))
           InternalRow.fromSeq(Seq(convert(node.id()), convert(node.labels())) ++ fields)
         }
-        case rel: InternalRelationship => {
+        case rel: Relationship => {
           val map = rel.asMap()
           val structType = extractStructType(dataType)
           val fields = structType
@@ -131,7 +132,7 @@ class Neo4jToSparkDataConverter extends DataConverter[Any] {
             convert(rel.startNodeId()),
             convert(rel.endNodeId())) ++ fields)
         }
-        case d: InternalIsoDuration => {
+        case d: IsoDuration => {
           val months = d.months()
           val days = d.days()
           val nanoseconds: Integer = d.nanoseconds()

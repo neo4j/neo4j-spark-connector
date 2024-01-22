@@ -107,12 +107,9 @@ object SparkToCypherTypeConverter {
     DataTypes.DoubleType -> "FLOAT",
     DataTypes.DateType -> "DATE",
     DataTypes.TimestampType -> "LOCAL DATETIME",
-//    DataTypes.TimestampNTZType -> "ZONED DATETIME",
-//    timeType -> "LOCAL TIME",
-//    timeType -> "ZONED TIME",
     durationType -> "DURATION",
     pointType -> "POINT",
-    // Cypher graph entities does not allow null values in arrays
+    // Cypher graph entities do not allow null values in arrays
     DataTypes.createArrayType(DataTypes.BooleanType, false) -> "LIST<BOOLEAN NOT NULL>",
     DataTypes.createArrayType(DataTypes.StringType, false) -> "LIST<STRING NOT NULL>",
     DataTypes.createArrayType(DataTypes.IntegerType, false) -> "LIST<INTEGER NOT NULL>",
@@ -122,9 +119,6 @@ object SparkToCypherTypeConverter {
     DataTypes.createArrayType(DataTypes.DateType, false) -> "LIST<DATE NOT NULL>",
     DataTypes.createArrayType(DataTypes.TimestampType, false) -> "LIST<LOCAL DATETIME NOT NULL>",
     DataTypes.createArrayType(DataTypes.TimestampType, true) -> "LIST<LOCAL DATETIME NOT NULL>",
-//    DataTypes.createArrayType(DataTypes.TimestampNTZType, false) -> "LIST<ZONED DATETIME NOT NULL>",
-//    DataTypes.createArrayType(timeType, false) -> "LIST<LOCAL TIME NOT NULL>",
-//    DataTypes.createArrayType(timeType) -> "LIST<ZONED TIME NOT NULL>",
     DataTypes.createArrayType(durationType, false) -> "LIST<DURATION NOT NULL>",
     DataTypes.createArrayType(pointType, false) -> "LIST<POINT NOT NULL>"
   )

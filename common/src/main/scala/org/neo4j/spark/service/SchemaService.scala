@@ -638,13 +638,13 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val dashSeparatedProps = keys.values.mkString("-")
     val constraintName = s"spark_${entityType}_${constraintType.replace(s"$entityType ", "")}-CONSTRAINT_${entityIdentifier}_$dashSeparatedProps".quote()
     val props = keys.values.map(_.quote()).map("e." + _).mkString(", ")
-    val asciiRepresentation: String = createGraphEntityAsciiRepresentation(entityType, entityIdentifier)
+    val asciiRepresentation: String = createCypherPattern(entityType, entityIdentifier)
     session.writeTransaction(tx => {
       tx.run(s"CREATE CONSTRAINT $constraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE ($props) IS $constraintType")
     })
   }
 
-  private def createGraphEntityAsciiRepresentation(entityType: String, entityIdentifier: String) = {
+  private def createCypherPattern(entityType: String, entityIdentifier: String) = {
     val asciiRepresentation = entityType match {
       case "NODE" => s"(e:${entityIdentifier.quote()})"
       case "RELATIONSHIP" => s"()-[e:${entityIdentifier.quote()}]->()"
@@ -657,7 +657,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
                                          entityIdentifier: String,
                                          properties: Map[String, String],
                                          struct: StructType): Unit = {
-    val asciiRepresentation: String = createGraphEntityAsciiRepresentation(entityType, entityIdentifier)
+    val asciiRepresentation: String = createCypherPattern(entityType, entityIdentifier)
     session.writeTransaction(tx => {
       properties
         .filter(t => struct.exists(f => f.name == t._1))
