@@ -33,7 +33,6 @@ class Neo4jStreamingPartitionReader(
   private val jobId: String,
   private val partitionSkipLimit: PartitionPagination,
   private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
-  private val offsetAccumulator: OffsetStorage[java.lang.Long, java.lang.Long],
   private val requiredColumns: StructType,
   private val aggregateColumns: Array[AggregateFunc]
 ) extends BaseStreamingPartitionReader(
@@ -43,7 +42,6 @@ class Neo4jStreamingPartitionReader(
       jobId,
       partitionSkipLimit,
       scriptResult,
-      offsetAccumulator,
       requiredColumns,
       aggregateColumns
     )

@@ -39,7 +39,6 @@ class BaseStreamingPartitionReader(
   private val jobId: String,
   private val partitionSkipLimit: PartitionPagination,
   private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
-  private val offsetAccumulator: OffsetStorage[java.lang.Long, java.lang.Long],
   private val requiredColumns: StructType,
   private val aggregateColumns: Array[AggregateFunc]
 ) extends BasePartitionReader(
@@ -84,9 +83,9 @@ class BaseStreamingPartitionReader(
   }
 
   override def close(): Unit = {
-    if (!hasError()) {
-      offsetAccumulator.add(getLastTimestamp())
-    }
+//    if (!hasError()) {
+//      offsetAccumulator.add(getLastTimestamp())
+//    }
     logInfo(s"Closing Partition reader $name ${if (hasError()) "with error " else ""}")
     super.close()
   }
