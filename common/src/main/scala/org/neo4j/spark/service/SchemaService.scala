@@ -628,9 +628,9 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
 
   private def createEntityConstraint(entityType: String,
                                      entityIdentifier: String,
-                                     unique: Boolean,
+                                     constraintsOptimizationType: ConstraintsOptimizationType.Value,
                                      keys: Map[String, String]): Unit = {
-    val constraintType = if (unique) {
+    val constraintType = if (constraintsOptimizationType == ConstraintsOptimizationType.UNIQUE) {
       "UNIQUE"
     } else {
       s"$entityType KEY"
@@ -656,7 +656,8 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
   private def createEntityTypeConstraint(entityType: String,
                                          entityIdentifier: String,
                                          properties: Map[String, String],
-                                         struct: StructType): Unit = {
+                                         struct: StructType,
+                                         constraints: Set[SchemaConstraintsOptimizationType.Value]): Unit = {
     val asciiRepresentation: String = createCypherPattern(entityType, entityIdentifier)
     session.writeTransaction(tx => {
       properties
@@ -669,34 +670,37 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
           val prop = t._1.quote()
           val cypherType = t._2
           val isNullable = t._3
-          val typeConstraintName = s"spark_$entityType-TYPE-CONSTRAINT-$entityIdentifier-$prop".quote()
-          tx.run(s"CREATE CONSTRAINT $typeConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$prop IS :: $cypherType").consume()
-          if (!isNullable) {
-            val notNullConstraintName = s"spark_$entityType-NOT_NULL-CONSTRAINT-$entityIdentifier-$prop".quote()
-            tx.run(s"CREATE CONSTRAINT $notNullConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$prop IS NOT NULL").consume()
+          if (constraints.contains(SchemaConstraintsOptimizationType.TYPE)) {
+            val typeConstraintName = s"spark_$entityType-TYPE-CONSTRAINT-$entityIdentifier-$prop".quote()
+            tx.run(s"CREATE CONSTRAINT $typeConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$prop IS :: $cypherType").consume()
+          }
+          if (constraints.contains(SchemaConstraintsOptimizationType.EXISTS)) {
+            if (!isNullable) {
+              val notNullConstraintName = s"spark_$entityType-NOT_NULL-CONSTRAINT-$entityIdentifier-$prop".quote()
+              tx.run(s"CREATE CONSTRAINT $notNullConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$prop IS NOT NULL").consume()
+            }
           }
         })
     })
   }
 
   private def createOptimizationsForNode(struct: Optional[StructType]): Unit = {
-    if (options.schemaMetadata.optimization.nodeUnique
-        || options.schemaMetadata.optimization.nodeKey
-        || options.schemaMetadata.optimization.`type`) {
-      if (options.schemaMetadata.optimization.nodeUnique
-          || options.schemaMetadata.optimization.nodeKey) {
+    val schemaMetadata = options.schemaMetadata.optimization
+    if (schemaMetadata.nodeConstraint != ConstraintsOptimizationType.NONE
+      || schemaMetadata.schemaConstraints != Set(SchemaConstraintsOptimizationType.NONE)) {
+      if (schemaMetadata.nodeConstraint != ConstraintsOptimizationType.NONE) {
         createEntityConstraint("NODE", options.nodeMetadata.labels.head,
-          options.schemaMetadata.optimization.nodeUnique,
+          schemaMetadata.nodeConstraint,
           options.nodeMetadata.nodeKeys)
       }
-      if (options.schemaMetadata.optimization.`type`) {
+      if (schemaMetadata.schemaConstraints.nonEmpty) {
         val structType: StructType = struct.orElse(emptyStruct)
         val propFromStruct: Map[String, String] = structType
           .map(f => (f.name, f.name))
           .toMap
         val propsFromMeta: Map[String, String] = options.nodeMetadata.nodeKeys ++ options.nodeMetadata.properties
         createEntityTypeConstraint("NODE", options.nodeMetadata.labels.head,
-          propsFromMeta ++ propFromStruct, structType)
+          propsFromMeta ++ propFromStruct, structType, schemaMetadata.schemaConstraints)
       }
     } else { // TODO old behaviour, remove it in the future
       options.schemaMetadata.optimizationType match {
@@ -711,42 +715,39 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
   }
 
   private def createOptimizationsForRelationship(struct: Optional[StructType]): Unit = {
-    if (options.schemaMetadata.optimization.nodeUnique
-        || options.schemaMetadata.optimization.nodeKey
-        || options.schemaMetadata.optimization.relationshipUnique
-        || options.schemaMetadata.optimization.relationshipKey
-        || options.schemaMetadata.optimization.`type`) {
-      if (options.schemaMetadata.optimization.nodeUnique
-        || options.schemaMetadata.optimization.nodeKey) {
+    val schemaMetadata = options.schemaMetadata.optimization
+    if (schemaMetadata.nodeConstraint != ConstraintsOptimizationType.NONE
+      || schemaMetadata.relConstraint != ConstraintsOptimizationType.NONE
+      || schemaMetadata.schemaConstraints != Set(SchemaConstraintsOptimizationType.NONE)) {
+      if (schemaMetadata.nodeConstraint != ConstraintsOptimizationType.NONE) {
         createEntityConstraint("NODE", options.relationshipMetadata.source.labels.head,
-          options.schemaMetadata.optimization.nodeUnique,
+          schemaMetadata.nodeConstraint,
           options.relationshipMetadata.source.nodeKeys)
         createEntityConstraint("NODE", options.relationshipMetadata.target.labels.head,
-          options.schemaMetadata.optimization.nodeUnique,
+          schemaMetadata.nodeConstraint,
           options.relationshipMetadata.target.nodeKeys)
       }
-      if (options.schemaMetadata.optimization.relationshipUnique
-        || options.schemaMetadata.optimization.relationshipKey) {
+      if (schemaMetadata.relConstraint != ConstraintsOptimizationType.NONE) {
         createEntityConstraint("RELATIONSHIP", options.relationshipMetadata.relationshipType,
-          options.schemaMetadata.optimization.relationshipUnique,
+          schemaMetadata.relConstraint,
           options.relationshipMetadata.relationshipKeys)
       }
-      if (options.schemaMetadata.optimization.`type`) {
+      if (schemaMetadata.schemaConstraints.nonEmpty) {
         val sourceNodeProps: Map[String, String] = options.relationshipMetadata.source.nodeKeys ++ options.relationshipMetadata.source.properties
         val targetNodeProps: Map[String, String] = options.relationshipMetadata.target.nodeKeys ++ options.relationshipMetadata.target.properties
-        val allNodeProps: Map[String, String] = sourceNodeProps ++ targetNodeProps
         val baseStruct = struct.orElse(emptyStruct)
+        val allNodeProps: Map[String, String] = sourceNodeProps ++ targetNodeProps
         val relStruct: StructType = StructType(baseStruct.filterNot(f => allNodeProps.contains(f.name)))
         val relFromStruct: Map[String, String] = relStruct
           .map(f => (f.name, f.name))
           .toMap
         val propsFromMeta: Map[String, String] = options.relationshipMetadata.relationshipKeys ++ options.relationshipMetadata.properties
         createEntityTypeConstraint("RELATIONSHIP",options.relationshipMetadata.relationshipType,
-          propsFromMeta ++ relFromStruct, baseStruct)
+          propsFromMeta ++ relFromStruct, baseStruct, schemaMetadata.schemaConstraints)
         createEntityTypeConstraint("NODE", options.relationshipMetadata.source.labels.head,
-          sourceNodeProps, baseStruct)
+          sourceNodeProps, baseStruct, schemaMetadata.schemaConstraints)
         createEntityTypeConstraint("NODE", options.relationshipMetadata.target.labels.head,
-          targetNodeProps, baseStruct)
+          targetNodeProps, baseStruct, schemaMetadata.schemaConstraints)
       }
     } else { // TODO old behaviour, remove it in the future
       options.schemaMetadata.optimizationType match {

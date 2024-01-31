@@ -1,10 +1,10 @@
 package org.neo4j.spark
 
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.junit.Assert.assertEquals
 import org.junit.{Assume, BeforeClass, Test}
-import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.{ConstraintsOptimizationType, Neo4jOptions, SchemaConstraintsOptimizationType}
 
 import java.sql.{Date, Timestamp}
 import java.time.{LocalDate, LocalDateTime}
@@ -31,39 +31,20 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     case any: Any => any
   }
 
+  private val schemaOptimization = SchemaConstraintsOptimizationType.values
+    .filterNot(_ == SchemaConstraintsOptimizationType.NONE)
+    .mkString(",")
+
   @Test
   def shouldApplySchemaForNodes(): Unit = {
-    val colNames = Array("string", "int", "boolean", "float", "date", "timestamp",
-      "stringArray", "intArray", "booleanArray", "floatArray", "dateArray", "timestampArray")
-    val row = (
-      "Foo", 1, false, 1.1, Date.valueOf("2023-11-22"), Timestamp.valueOf(s"2020-11-22 11:11:11.11"),
-      Seq("Foo1", "Foo2"),
-      Seq(1, 2),
-      Seq(true, false),
-      Seq(1.1, 2.2),
-      Seq(Date.valueOf("2023-11-22"), Date.valueOf("2023-11-23")),
-      Seq(Timestamp.valueOf("2023-11-22 11:11:11.11"), Timestamp.valueOf("2023-11-23 12:12:12.12"))
-    )
-    val data = Seq(row).toDF(colNames : _*)
-
-    val expectedNode = colNames.zip(row.productIterator.toSeq).toMap
-
-    val schema = StructType(data.schema.map { sf =>
-      sf.name match {
-        case "timestampArray" => StructField(sf.name, DataTypes.createArrayType(DataTypes.TimestampType, false), sf.nullable)
-        case "stringArray" => StructField(sf.name, DataTypes.createArrayType(DataTypes.StringType, false), sf.nullable)
-        case "dateArray" => StructField(sf.name, DataTypes.createArrayType(DataTypes.DateType, false), sf.nullable)
-        case "string" => StructField(sf.name, DataTypes.StringType, false)
-        case _ => sf
-      }
-    })
-    ss.createDataFrame(data.rdd, schema)
+    val (expectedNode: Map[_root_.java.lang.String, Any], df: DataFrame) = createNodesDataFrameWithNotNullColumns
+    df
       .write
       .mode(SaveMode.Append)
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("labels", ":NodeWithSchema")
-      .option(Neo4jOptions.SCHEMA_TYPE_CONSTRAINT, true)
+      .option(Neo4jOptions.SCHEMA_OPTIMIZATION, schemaOptimization)
       .save()
     val count: Long = SparkConnectorScalaSuiteIT.session().run(
       """
@@ -94,8 +75,6 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-timestampArray", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("timestampArray"), "propertyType" -> "LIST<LOCAL DATETIME NOT NULL>")
     )
 
-
-
     val keys = Seq("name", "type", "entityType", "labelsOrTypes", "properties", "propertyType")
     val actualSchema = SparkConnectorScalaSuiteIT.session()
       .run(s"SHOW CONSTRAINTS YIELD ${keys.mkString(", ")} RETURN * ORDER BY name")
@@ -104,7 +83,6 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .map(r => keys.map(key => (key, mapData(r.get(key).asObject()))).toMap)
       .toSeq
     assertEquals(expectedSchema, actualSchema)
-
 
     val actualNode: Map[String, Any] = SparkConnectorScalaSuiteIT.session()
       .readTransaction(tx => tx.run("MATCH (n:NodeWithSchema) RETURN n")
@@ -121,9 +99,105 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def shouldApplySchemaAndNodeKeysForNodes(): Unit = {
+    val (expectedNode: Map[_root_.java.lang.String, Any], df: DataFrame) = createNodesDataFrameWithNotNullColumns
+    df.write
+      .mode(SaveMode.Overwrite)
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":NodeWithSchema")
+      .option(Neo4jOptions.SCHEMA_OPTIMIZATION, schemaOptimization)
+      .option(Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_KEY, ConstraintsOptimizationType.KEY.toString)
+      .option("node.keys", "int,string")
+      .save()
+    val count: Long = SparkConnectorScalaSuiteIT.session().run(
+        """
+          |MATCH (n:NodeWithSchema)
+          |RETURN count(n)
+          |""".stripMargin)
+      .single()
+      .get(0)
+      .asLong()
+    assertEquals(1L, count)
+
+    val expectedSchema = Seq(
+      Map("name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeWithSchema-boolean", "type" -> "NODE_PROPERTY_EXISTENCE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("boolean"), "propertyType" -> null),
+      Map("name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeWithSchema-float", "type" -> "NODE_PROPERTY_EXISTENCE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("float"), "propertyType" -> null),
+      Map("name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeWithSchema-int", "type" -> "NODE_PROPERTY_EXISTENCE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("int"), "propertyType" -> null),
+      Map("name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeWithSchema-string", "type" -> "NODE_PROPERTY_EXISTENCE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("string"), "propertyType" -> null),
+      Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-boolean", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("boolean"), "propertyType" -> "BOOLEAN"),
+      Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-booleanArray", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("booleanArray"), "propertyType" -> "LIST<BOOLEAN NOT NULL>"),
+      Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-date", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("date"), "propertyType" -> "DATE"),
+      Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-dateArray", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("dateArray"), "propertyType" -> "LIST<DATE NOT NULL>"),
+      Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-float", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("float"), "propertyType" -> "FLOAT"),
+      Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-floatArray", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("floatArray"), "propertyType" -> "LIST<FLOAT NOT NULL>"),
+      Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-int", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("int"), "propertyType" -> "INTEGER"),
+      Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-intArray", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("intArray"), "propertyType" -> "LIST<INTEGER NOT NULL>"),
+      Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-string", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("string"), "propertyType" -> "STRING"),
+      Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-stringArray", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("stringArray"), "propertyType" -> "LIST<STRING NOT NULL>"),
+      Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-timestamp", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("timestamp"), "propertyType" -> "LOCAL DATETIME"),
+      Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-timestampArray", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("timestampArray"), "propertyType" -> "LIST<LOCAL DATETIME NOT NULL>"),
+        Map("name" -> "spark_NODE_KEY-CONSTRAINT_NodeWithSchema_int-string", "propertyType" -> null, "properties" -> Seq("int", "string"), "labelsOrTypes" -> Seq("NodeWithSchema"), "entityType" -> "NODE", "type" -> "NODE_KEY")
+    )
+
+    val keys = Seq("name", "type", "entityType", "labelsOrTypes", "properties", "propertyType")
+    val actualSchema = SparkConnectorScalaSuiteIT.session()
+      .run(s"SHOW CONSTRAINTS YIELD ${keys.mkString(", ")} RETURN * ORDER BY name")
+      .list()
+      .asScala
+      .map(r => keys.map(key => (key, mapData(r.get(key).asObject()))).toMap)
+      .toSeq
+    assertEquals(expectedSchema, actualSchema)
+
+    val actualNode: Map[String, Any] = SparkConnectorScalaSuiteIT.session()
+      .readTransaction(tx => tx.run("MATCH (n:NodeWithSchema) RETURN n")
+        .list()
+        .asScala
+        .map(_.get("n").asNode())
+        .map(_.asMap()))
+      .head
+      .asScala
+      .mapValues(mapData)
+      .toMap
+
+    assertEquals(expectedNode, actualNode)
+  }
+
+  private def createNodesDataFrameWithNotNullColumns: (Map[String, Any], DataFrame) = {
+    val colNames = Array("string", "int", "boolean", "float", "date", "timestamp",
+      "stringArray", "intArray", "booleanArray", "floatArray", "dateArray", "timestampArray")
+    val row = (
+      "Foo", 1, false, 1.1, Date.valueOf("2023-11-22"), Timestamp.valueOf(s"2020-11-22 11:11:11.11"),
+      Seq("Foo1", "Foo2"),
+      Seq(1, 2),
+      Seq(true, false),
+      Seq(1.1, 2.2),
+      Seq(Date.valueOf("2023-11-22"), Date.valueOf("2023-11-23")),
+      Seq(Timestamp.valueOf("2023-11-22 11:11:11.11"), Timestamp.valueOf("2023-11-23 12:12:12.12"))
+    )
+    val data = Seq(row).toDF(colNames: _*)
+
+    val expectedNode = colNames.zip(row.productIterator.toSeq).toMap
+
+    val schema = StructType(data.schema.map { sf =>
+      sf.name match {
+        case "timestampArray" => StructField(sf.name, DataTypes.createArrayType(DataTypes.TimestampType, false), sf.nullable)
+        case "stringArray" => StructField(sf.name, DataTypes.createArrayType(DataTypes.StringType, false), sf.nullable)
+        case "dateArray" => StructField(sf.name, DataTypes.createArrayType(DataTypes.DateType, false), sf.nullable)
+        case "string" => StructField(sf.name, DataTypes.StringType, false)
+        case _ => sf
+      }
+    })
+    val df = ss.createDataFrame(data.rdd, schema)
+    (expectedNode, df)
+  }
+
+  @Test
   def shouldApplySchemaForRelationshipsAndNodes(): Unit = {
     val expectedMap = createDatasetForRelationships(
-      Map(Neo4jOptions.SCHEMA_TYPE_CONSTRAINT -> "true")
+      Map(
+        Neo4jOptions.SCHEMA_OPTIMIZATION -> schemaOptimization
+      )
     )
 
     val count: Long = SparkConnectorScalaSuiteIT.session().run(
@@ -242,7 +316,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("labels", ":Person:Customer")
       .option("node.keys", "surname")
-      .option("schema.optimization.node.unique", true)
+      .option(Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_KEY, ConstraintsOptimizationType.UNIQUE.toString)
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
@@ -281,7 +355,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("labels", ":Person:Customer")
       .option("node.keys", "surname")
-      .option("schema.optimization.node.key", true)
+      .option(Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_KEY, ConstraintsOptimizationType.KEY.toString)
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
@@ -311,7 +385,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
   def shouldApplyUniqueConstraintForRelationship(): Unit = {
     val expectedMap = createDatasetForRelationships(
       Map(
-        "schema.optimization.relationship.unique" -> "true",
+        Neo4jOptions.SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY -> ConstraintsOptimizationType.UNIQUE.toString,
         "relationship.keys" -> "string,int"
       )
     )
@@ -343,7 +417,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
   def shouldApplyRelUniqueConstraintForRelationship(): Unit = {
     val expectedMap = createDatasetForRelationships(
       Map(
-        "schema.optimization.relationship.key" -> "true",
+        Neo4jOptions.SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY -> ConstraintsOptimizationType.KEY.toString,
         "relationship.keys" -> "string,int"
       )
     )

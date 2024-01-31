@@ -67,22 +67,26 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
         s"""
            |Option `$SCHEMA_OPTIMIZATION_TYPE` is deprecated and will be removed in future implementations,
            |please move to one of the following depending on your use case:
-           |- `$SCHEMA_OPTIMIZATION_NODE_UNIQUE`
            |- `$SCHEMA_OPTIMIZATION_NODE_KEY`
-           |- `$SCHEMA_OPTIMIZATION_RELATIONSHIP_UNIQUE`
            |- `$SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY`
-           |- `$SCHEMA_TYPE_CONSTRAINT`
            |""".stripMargin)
     }
-    val nodeUniqueOpt = getParameter(SCHEMA_OPTIMIZATION_NODE_UNIQUE, DEFAULT_SCHEMA_OPTIMIZATION_NODE_UNIQUE.toString).toBoolean
-    val nodeKeyOpt = getParameter(SCHEMA_OPTIMIZATION_NODE_KEY, DEFAULT_SCHEMA_OPTIMIZATION_NODE_KEY.toString).toBoolean
-    val relUniqueOpt = getParameter(SCHEMA_OPTIMIZATION_RELATIONSHIP_UNIQUE, DEFAULT_SCHEMA_OPTIMIZATION_RELATIONSHIP_UNIQUE.toString).toBoolean
-    val relKeyOpt = getParameter(SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY, DEFAULT_SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY.toString).toBoolean
-    val typeOpt = getParameter(SCHEMA_TYPE_CONSTRAINT, DEFAULT_SCHEMA_TYPE_CONSTRAINT.toString).toBoolean
+
+    val nodeConstr: ConstraintsOptimizationType.Value = ConstraintsOptimizationType
+      .withCaseInsensitiveName(getParameter(SCHEMA_OPTIMIZATION_NODE_KEY,
+        DEFAULT_SCHEMA_OPTIMIZATION_NODE_KEY.toString).trim)
+    val relConstr: ConstraintsOptimizationType.Value = ConstraintsOptimizationType
+      .withCaseInsensitiveName(getParameter(SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY,
+        DEFAULT_SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY.toString).trim)
+    val schemaConstraints = getParameter(SCHEMA_OPTIMIZATION, DEFAULT_SCHEMA_OPTIMIZATION.toString)
+      .split(",")
+      .map(_.trim)
+      .map(SchemaConstraintsOptimizationType.withCaseInsensitiveName)
+      .toSet
     Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
       SchemaStrategy.withCaseInsensitiveName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase),
       deprecatedSchemaOptimization,
-      Neo4jSchemaOptimizations(nodeUniqueOpt, nodeKeyOpt, relUniqueOpt, relKeyOpt, typeOpt),
+      Neo4jSchemaOptimizations(nodeConstr, relConstr, schemaConstraints),
       getParameter(SCHEMA_MAP_GROUP_DUPLICATE_KEYS, DEFAULT_MAP_GROUP_DUPLICATE_KEYS.toString).toBoolean)
   }
 
@@ -262,11 +266,9 @@ case class Neo4jStreamingOptions(propertyName: String,
 
 case class Neo4jApocConfig(procedureConfigMap: Map[String, AnyRef])
 
-case class Neo4jSchemaOptimizations(nodeUnique: Boolean,
-                                    nodeKey: Boolean,
-                                    relationshipUnique: Boolean,
-                                    relationshipKey: Boolean,
-                                    `type`: Boolean)
+case class Neo4jSchemaOptimizations(nodeConstraint: ConstraintsOptimizationType.Value,
+                                    relConstraint: ConstraintsOptimizationType.Value,
+                                    schemaConstraints: Set[SchemaConstraintsOptimizationType.Value])
 case class Neo4jSchemaMetadata(flattenLimit: Int,
                                strategy: SchemaStrategy.Value,
                                optimizationType: OptimizationType.Value,
@@ -432,11 +434,9 @@ object Neo4jOptions {
   // deprecated in favor of...
   val SCHEMA_OPTIMIZATION_TYPE = "schema.optimization.type"
   // ...these options
-  val SCHEMA_OPTIMIZATION_NODE_UNIQUE = "schema.optimization.node.unique"
-  val SCHEMA_OPTIMIZATION_NODE_KEY = "schema.optimization.node.key"
-  val SCHEMA_OPTIMIZATION_RELATIONSHIP_UNIQUE = "schema.optimization.relationship.unique"
-  val SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY = "schema.optimization.relationship.key"
-  val SCHEMA_TYPE_CONSTRAINT = "schema.type.constraint"
+  val SCHEMA_OPTIMIZATION = "schema.optimization"
+  val SCHEMA_OPTIMIZATION_NODE_KEY = "schema.optimization.node.keys"
+  val SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY = "schema.optimization.relationship.keys"
   // map aggregation
   val SCHEMA_MAP_GROUP_DUPLICATE_KEYS = "schema.map.group.duplicate.keys"
 
@@ -496,11 +496,9 @@ object Neo4jOptions {
   val DEFAULT_TRANSACTION_RETRY_TIMEOUT = 0
   val DEFAULT_RELATIONSHIP_NODES_MAP = false
   val DEFAULT_SCHEMA_STRATEGY = SchemaStrategy.SAMPLE
-  val DEFAULT_SCHEMA_OPTIMIZATION_NODE_UNIQUE = false
-  val DEFAULT_SCHEMA_OPTIMIZATION_NODE_KEY = false
-  val DEFAULT_SCHEMA_OPTIMIZATION_RELATIONSHIP_UNIQUE = false
-  val DEFAULT_SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY = false
-  val DEFAULT_SCHEMA_TYPE_CONSTRAINT = false
+  val DEFAULT_SCHEMA_OPTIMIZATION_NODE_KEY = ConstraintsOptimizationType.NONE
+  val DEFAULT_SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY = ConstraintsOptimizationType.NONE
+  val DEFAULT_SCHEMA_OPTIMIZATION = SchemaConstraintsOptimizationType.NONE
   val DEFAULT_RELATIONSHIP_SAVE_STRATEGY: RelationshipSaveStrategy.Value = RelationshipSaveStrategy.NATIVE
   val DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE: NodeSaveMode.Value = NodeSaveMode.Match
   val DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE: NodeSaveMode.Value = NodeSaveMode.Match
@@ -574,4 +572,12 @@ object SchemaStrategy extends CaseInsensitiveEnumeration {
 
 object OptimizationType extends CaseInsensitiveEnumeration {
   val INDEX, NODE_CONSTRAINTS, NONE = Value
+}
+
+object ConstraintsOptimizationType extends CaseInsensitiveEnumeration {
+  val KEY, UNIQUE, NONE = Value
+}
+
+object SchemaConstraintsOptimizationType extends CaseInsensitiveEnumeration {
+  val TYPE, EXISTS, NONE = Value
 }

@@ -48,35 +48,18 @@ case class ValidateSchemaOptions(neo4jOptions: Neo4jOptions, schema: StructType)
 case class ValidateSchemaMetadataWrite(neo4jOptions: Neo4jOptions, saveMode: SaveMode) extends Validation {
   override def validate(): Unit = {
     val schemaMetadata = neo4jOptions.schemaMetadata
-    if (schemaMetadata.optimizationType != OptimizationType.NONE
-      && (schemaMetadata.optimization.nodeUnique
-      || schemaMetadata.optimization.nodeKey
-      || schemaMetadata.optimization.relationshipUnique
-      || schemaMetadata.optimization.relationshipKey
-      || schemaMetadata.optimization.`type`)) {
+    val hasNodeOptimizations = (schemaMetadata.optimizationType == OptimizationType.NODE_CONSTRAINTS
+      || schemaMetadata.optimization.nodeConstraint != ConstraintsOptimizationType.NONE)
+    val hasOptimizations = (schemaMetadata.optimizationType != OptimizationType.NONE
+      && (schemaMetadata.optimization.nodeConstraint != ConstraintsOptimizationType.NONE
+      || schemaMetadata.optimization.relConstraint != ConstraintsOptimizationType.NONE
+      || schemaMetadata.optimization.schemaConstraints != Set(SchemaConstraintsOptimizationType.NONE)))
+    if (hasOptimizations) {
       throw new IllegalArgumentException(
         s"""You cannot combine `${Neo4jOptions.SCHEMA_OPTIMIZATION_TYPE}` with:
-           |- `${Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_UNIQUE}`
            |- `${Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_KEY}`
-           |- `${Neo4jOptions.SCHEMA_OPTIMIZATION_RELATIONSHIP_UNIQUE}`
            |- `${Neo4jOptions.SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY}`
-           |- `${Neo4jOptions.SCHEMA_TYPE_CONSTRAINT}`
-      """)
-    }
-    if (schemaMetadata.optimization.nodeUnique && schemaMetadata.optimization.nodeKey) {
-      throw new IllegalArgumentException(
-        s"""You cannot combine:
-           |- `${Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_UNIQUE}`
-           |- `${Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_KEY}`
-           |On the same node label
-      """)
-    }
-    if (schemaMetadata.optimization.relationshipUnique && schemaMetadata.optimization.relationshipKey) {
-      throw new IllegalArgumentException(
-        s"""You cannot combine:
-           |- `${Neo4jOptions.SCHEMA_OPTIMIZATION_RELATIONSHIP_UNIQUE}`
-           |- `${Neo4jOptions.SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY}`
-           |On the same relationship type
+           |- `${Neo4jOptions.SCHEMA_OPTIMIZATION}`
       """)
     }
     neo4jOptions.query.queryType match {
@@ -89,23 +72,19 @@ case class ValidateSchemaMetadataWrite(neo4jOptions: Neo4jOptions, saveMode: Sav
                |`${OptimizationType.NONE}`
                |""".stripMargin)
         }
-        if (schemaMetadata.optimization.nodeUnique
-          || schemaMetadata.optimization.nodeKey
-          || schemaMetadata.optimization.relationshipUnique
-          || schemaMetadata.optimization.relationshipKey
-          || schemaMetadata.optimization.`type`) {
+        if (hasOptimizations) {
           throw new IllegalArgumentException(s"With Query Type ${neo4jOptions.query.queryType} you cannot define any optimization")
         }
       }
       case QueryType.LABELS => {
-        if (schemaMetadata.optimization.nodeUnique || schemaMetadata.optimization.nodeKey) {
+        if (hasNodeOptimizations) {
           ValidationUtil.isTrue(saveMode == SaveMode.Overwrite, "This works only with `mode` `SaveMode.Overwrite`")
           ValidationUtil.isNotEmpty(neo4jOptions.nodeMetadata.nodeKeys,
             s"${Neo4jOptions.NODE_KEYS} is required to define the constraints")
         }
       }
       case QueryType.RELATIONSHIP => {
-        if (schemaMetadata.optimization.nodeUnique || schemaMetadata.optimization.nodeKey) {
+        if (hasNodeOptimizations) {
           ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.source.nodeKeys,
             s"${Neo4jOptions.RELATIONSHIP_SOURCE_NODE_KEYS} is required to define the constraints")
           ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.target.nodeKeys,
@@ -115,7 +94,7 @@ case class ValidateSchemaMetadataWrite(neo4jOptions: Neo4jOptions, saveMode: Sav
           ValidationUtil.isTrue(neo4jOptions.relationshipMetadata.targetSaveMode == NodeSaveMode.Overwrite,
             s"This works only with `${Neo4jOptions.RELATIONSHIP_TARGET_SAVE_MODE}` `${NodeSaveMode.Overwrite}`")
         }
-        if (schemaMetadata.optimization.relationshipUnique || schemaMetadata.optimization.relationshipKey) {
+        if (schemaMetadata.optimization.relConstraint != ConstraintsOptimizationType.NONE) {
           ValidationUtil.isTrue(saveMode == SaveMode.Overwrite, s"This works only with `mode` `${SaveMode.Overwrite}`")
           ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.relationshipKeys,
             s"${Neo4jOptions.RELATIONSHIP_KEYS} is required to define the constraints")
