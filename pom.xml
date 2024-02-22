@@ -68,7 +68,7 @@
         <profile>
             <id>scala-2.12</id>
             <properties>
-                <scala.version>2.12.18</scala.version>
+                <scala.version>2.13.13</scala.version>
                 <scala.binary.version>2.12</scala.binary.version>
             </properties>
         </profile>
