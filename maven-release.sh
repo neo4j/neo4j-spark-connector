@@ -65,6 +65,13 @@ sed_i "s/<artifactId>neo4j-connector-apache-spark_parent<\/artifactId>/<artifact
 sed_i "s/<artifactId>neo4j-connector-apache-spark_common<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_common<\/artifactId>/" "spark-3/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark_test-support<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_test-support<\/artifactId>/" "spark-3/pom.xml"
 
+LATEST_SCALA_VERSION="2.13"
+SPARK_PACKAGES_VERSION="$projectVersion"
+if [ "$SCALA_VERSION" != "$LATEST_SCALA_VERSION" ]; then
+    SPARK_PACKAGES_VERSION="$SPARK_PACKAGES_VERSION-s_$SCALA_VERSION"
+fi
+sed_i "s/<spark-packages.version\/>/<spark-packages.version>${SPARK_PACKAGES_VERSION}<\/spark-packages.version>/" "spark-3/pom.xml"
+
 # build
 mvn clean "${GOAL}" -Pscala-"${SCALA_VERSION}" -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
 
