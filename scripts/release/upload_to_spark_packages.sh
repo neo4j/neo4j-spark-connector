@@ -2,7 +2,7 @@
 
 set -eEuxo pipefail
 
-if [[ $# -lt 3 ]] ; then
+if [[ $# -lt 5 ]] ; then
     echo "Usage ./upload_to_spark_packages.sh <USER> <TOKEN> <GIT_HASH> <VERSION> <PATH_TO_PACKAGE_FILE>"
     exit 1
 fi
