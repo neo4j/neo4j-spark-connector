@@ -60,7 +60,7 @@
         <spark.version>3.5.1</spark.version>
         <!-- This is empty because we use it for the deploy process -->
         <scala.binary.version/>
-        <scala-maven-plugin.version>4.8.1</scala-maven-plugin.version>
+        <scala-maven-plugin.version>4.9.0</scala-maven-plugin.version>
     </properties>
 
     <profiles>
