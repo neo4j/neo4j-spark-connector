@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eEux pipefail
+set -eEuo pipefail
 
 if [[ $# -lt 5 ]] ; then
     echo "Usage ./upload_to_spark_packages.sh <USER> <TOKEN> <GIT_HASH> <VERSION> <PATH_TO_PACKAGE_FILE>"
