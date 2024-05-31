@@ -11,7 +11,7 @@ import org.neo4j.driver.internal.types.InternalTypeSystem
 import org.neo4j.driver.internal.{InternalPoint2D, InternalPoint3D}
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.types.{IsoDuration, Type}
-import org.neo4j.driver.{Result, Transaction, TransactionWork}
+import org.neo4j.driver.{Result, Transaction, TransactionWork, Value}
 import org.neo4j.spark.util.Neo4jOptions
 
 import scala.collection.JavaConverters._
@@ -1486,5 +1486,43 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .get(0)
       .asLong()
     junit.Assert.assertEquals(2L, count)
+  }
+
+  @Test
+  def doesNotWriteNodePropertiesToRelationship(): Unit = {
+    val data = Seq(
+      ("john", "The Matrix", "today"),
+      ("jane", "Oppenheimer", "yesterday"),
+      ("şaban", "Hababam Sınıfı", "two days ago")
+    ).toDF("username", "movie_title", "watch_time")
+    data.write
+      .mode(SaveMode.Append)
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "WATCHED")
+      .option("relationship.save.strategy", "keys")
+      .option("relationship.source.save.mode", "Overwrite")
+      .option("relationship.source.labels", ":User")
+      .option("relationship.source.node.keys", "username:name")
+      .option("relationship.target.save.mode", "Overwrite")
+      .option("relationship.target.labels", ":Movie")
+      .option("relationship.target.node.keys", "movie_title:title")
+      .save()
+    val rows = SparkConnectorScalaSuiteIT.session().run(
+        """
+          |MATCH (:User)-[r:WATCHED]->(:Movie)
+          |WITH r
+          |ORDER BY r.watch_time ASC
+          |RETURN collect(r{.*})
+          |""".stripMargin)
+      .single()
+      .get(0)
+      .asList((value: Value) => value.asMap().asScala)
+      .asScala
+    junit.Assert.assertEquals(List(
+      Map("watch_time" -> "today"),
+      Map("watch_time" -> "two days ago"),
+      Map("watch_time" -> "yesterday")
+    ), rows)
   }
 }

@@ -88,7 +88,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
 
       if (options.relationshipMetadata.relationshipKeys.contains(key)) {
         relMap.get(KEYS).put(options.relationshipMetadata.relationshipKeys.getOrElse(key, key), value)
-      } else {
+      } else if (!source.includesProperty(key) && !target.includesProperty(key)) {
         relMap.get(PROPERTIES).put(options.relationshipMetadata.properties.getOrElse(key, key), value)
       }
     }

@@ -276,7 +276,9 @@ case class Neo4jSchemaMetadata(flattenLimit: Int,
                                mapGroupDuplicateKeys: Boolean)
 case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int, retryTimeout: Long)
 
-case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String], properties: Map[String, String])
+case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String], properties: Map[String, String]) {
+  def includesProperty(name: String): Boolean = nodeKeys.contains(name) || properties.contains(name)
+}
 case class Neo4jRelationshipMetadata(
                                       source: Neo4jNodeMetadata,
                                       target: Neo4jNodeMetadata,
