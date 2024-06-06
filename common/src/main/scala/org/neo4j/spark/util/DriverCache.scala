@@ -15,9 +15,7 @@ class DriverCache(private val options: Neo4jDriverOptions, private val jobId: St
   def getOrCreate(): Driver = {
     this.synchronized {
       jobIdCache.add(jobId)
-      cache.computeIfAbsent(options, new function.Function[Neo4jDriverOptions, Driver] {
-        override def apply(t: Neo4jDriverOptions): Driver = GraphDatabase.driver(t.url, t.toNeo4jAuth, t.toDriverConfig)
-      })
+      cache.computeIfAbsent(options, (t: Neo4jDriverOptions) => t.createDriver())
     }
   }
 

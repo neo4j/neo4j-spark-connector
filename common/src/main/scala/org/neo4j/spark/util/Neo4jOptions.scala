@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 import org.apache.spark.internal.Logging
+import org.jetbrains.annotations.TestOnly
 
 
 class Neo4jOptions(private val options: java.util.Map[String, String]) extends Serializable with Logging {
@@ -329,7 +330,12 @@ case class Neo4jDriverOptions(
                                connectionTimeout: Int
                              ) extends Serializable {
 
-  def toDriverConfig: Config = {
+  def createDriver(): Driver = {
+    val (url, _) = connectionUrls
+    GraphDatabase.driver(url, toNeo4jAuth, toDriverConfig)
+  }
+
+  private def toDriverConfig: Config = {
     val builder = Config.builder()
       .withUserAgent(s"neo4j-${Neo4jUtil.connectorEnv}-connector/${Neo4jUtil.connectorVersion}")
       .withLogging(Logging.slf4j())
@@ -370,18 +376,20 @@ case class Neo4jDriverOptions(
   }
 
   // public only for testing purposes
+  @TestOnly
   def connectionUrls: (URI, Set[ServerAddress]) = {
     val urls = url.split(",").toList
-    val extraUrls = urls
+    val resolved = urls
       .drop(1)
       .map(_.trim)
       .map(URI.create)
       .map(uri => ServerAddress.of(uri.getHost, if (uri.getPort > -1) uri.getPort else 7687))
       .toSet
-    (URI.create(urls.head.trim), extraUrls)
+    (URI.create(urls.head.trim), resolved)
   }
 
   // public only for testing purposes
+  @TestOnly
   def toNeo4jAuth: AuthToken = {
     auth match {
       case "basic" => AuthTokens.basic(username, password)

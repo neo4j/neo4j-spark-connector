@@ -195,7 +195,7 @@ class Neo4jOptionsTest {
   @Test
   def testUrls(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783")
+    options.put(Neo4jOptions.URL, "neo4j://localhost, neo4j://foo.bar:7687, neo4j://foo.bar.baz:7783")
 
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
     val (baseUrl, resolvers) = neo4jOptions.connection.connectionUrls

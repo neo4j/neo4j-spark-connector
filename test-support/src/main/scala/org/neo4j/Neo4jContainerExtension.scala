@@ -87,7 +87,7 @@ class Neo4jContainerExtension(imageName: String = s"neo4j${if (TestUtil.experime
     this
   }
 
-  private def createAuth(): AuthToken = if (getAdminPassword.isEmpty) AuthTokens.basic("neo4j", getAdminPassword) else AuthTokens.none()
+  private def createAuth(): AuthToken = if (getAdminPassword.nonEmpty) AuthTokens.basic("neo4j", getAdminPassword) else AuthTokens.none()
 
   override def start(): Unit = {
     if (databases.nonEmpty) {
