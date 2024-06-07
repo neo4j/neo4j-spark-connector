@@ -19,6 +19,7 @@ import org.jetbrains.annotations.TestOnly
 
 
 class Neo4jOptions(private val options: java.util.Map[String, String]) extends Serializable with Logging {
+
   import Neo4jOptions._
   import QueryType._
 
@@ -26,11 +27,12 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
   private def parameters: util.Map[String, String] = {
     val sparkOptions = SparkSession.getActiveSession
-      .map { _.conf
-        .getAll
-        .filterKeys(k => k.startsWith("neo4j."))
-        .map { elem => (elem._1.substring("neo4.".length + 1), elem._2) }
-        .toMap
+      .map {
+        _.conf
+          .getAll
+          .filterKeys(k => k.startsWith("neo4j."))
+          .map { elem => (elem._1.substring("neo4.".length + 1), elem._2) }
+          .toMap
       }
       .getOrElse(Map.empty)
 
@@ -185,9 +187,9 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     val retries = getParameter(TRANSACTION_RETRIES, DEFAULT_TRANSACTION_RETRIES.toString).toInt
     val failOnTransactionCodes = getParameter(TRANSACTION_CODES_FAIL, DEFAULT_EMPTY)
       .split(",")
-        .map(_.trim)
-        .filter(_.nonEmpty)
-        .toSet
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .toSet
     val batchSize = getParameter(BATCH_SIZE, DEFAULT_BATCH_SIZE.toString).toInt
     val retryTimeout = getParameter(TRANSACTION_RETRY_TIMEOUT, DEFAULT_TRANSACTION_RETRY_TIMEOUT.toString).toInt
     Neo4jTransactionMetadata(retries, failOnTransactionCodes, batchSize, retryTimeout)
@@ -270,16 +272,19 @@ case class Neo4jApocConfig(procedureConfigMap: Map[String, AnyRef])
 case class Neo4jSchemaOptimizations(nodeConstraint: ConstraintsOptimizationType.Value,
                                     relConstraint: ConstraintsOptimizationType.Value,
                                     schemaConstraints: Set[SchemaConstraintsOptimizationType.Value])
+
 case class Neo4jSchemaMetadata(flattenLimit: Int,
                                strategy: SchemaStrategy.Value,
                                optimizationType: OptimizationType.Value,
                                optimization: Neo4jSchemaOptimizations,
                                mapGroupDuplicateKeys: Boolean)
+
 case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int, retryTimeout: Long)
 
 case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String], properties: Map[String, String]) {
   def includesProperty(name: String): Boolean = nodeKeys.contains(name) || properties.contains(name)
 }
+
 case class Neo4jRelationshipMetadata(
                                       source: Neo4jNodeMetadata,
                                       target: Neo4jNodeMetadata,
@@ -291,6 +296,7 @@ case class Neo4jRelationshipMetadata(
                                       saveStrategy: RelationshipSaveStrategy.Value,
                                       relationshipKeys: Map[String, String]
                                     )
+
 case class Neo4jQueryMetadata(query: String, queryCount: String)
 
 case class Neo4jGdsMetadata(parameters: util.Map[String, Any])

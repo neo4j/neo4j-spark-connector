@@ -5,8 +5,6 @@ import org.junit.Test
 import org.neo4j.spark.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.SparkConnectorScalaSuiteIT.server
 
-import scala.util.Using
-
 class Neo4jOptionsIT extends SparkConnectorScalaSuiteIT {
 
   @Test
@@ -17,12 +15,12 @@ class Neo4jOptionsIT extends SparkConnectorScalaSuiteIT {
 
     val neo4jOptions = new Neo4jOptions(options)
 
-    Using.Manager { use =>
-      val driver = use(neo4jOptions.connection.createDriver())
+    use(neo4jOptions.connection.createDriver()) { driver =>
       assertNotNull(driver)
 
-      val session = use(driver.session())
-      assertEquals(1, session.run("RETURN 1").single().get(0).asInt())
+      use(driver.session()) { session =>
+        assertEquals(1, session.run("RETURN 1").single().get(0).asInt())
+      }
     }
   }
 
@@ -34,13 +32,19 @@ class Neo4jOptionsIT extends SparkConnectorScalaSuiteIT {
 
     val neo4jOptions = new Neo4jOptions(options)
 
-    Using.Manager { use =>
-      val driver = use(neo4jOptions.connection.createDriver())
+    use(neo4jOptions.connection.createDriver()) { driver =>
       assertNotNull(driver)
 
-      val session = use(driver.session())
-      assertEquals(1, session.run("RETURN 1").single().get(0).asInt())
+      use(driver.session()) { session =>
+        assertEquals(1, session.run("RETURN 1").single().get(0).asInt())
+      }
     }
   }
+
+  def use[A <: AutoCloseable, B](resource: A)(code: A ⇒ B): B =
+    try
+      code(resource)
+    finally
+      resource.close()
 
 }
