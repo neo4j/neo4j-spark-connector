@@ -31,7 +31,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
         _.conf
           .getAll
           .filterKeys(k => k.startsWith("neo4j."))
-          .map { elem => (elem._1.substring("neo4.".length + 1), elem._2) }
+          .map { elem => (elem._1.substring("neo4j.".length), elem._2) }
           .toMap
       }
       .getOrElse(Map.empty)
