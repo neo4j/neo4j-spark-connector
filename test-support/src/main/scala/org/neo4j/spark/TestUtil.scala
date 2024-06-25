@@ -5,6 +5,34 @@ import org.slf4j.Logger
 
 import java.util.Properties
 
+case class Version(major: Int, minor: Int, patch: Int) {
+
+  override def toString: String = s"${major}.${minor}.${patch}"
+}
+
+object Version {
+  implicit val ordering: Ordering[Version] = Ordering.by(v => (v.major, v.minor, v.patch))
+
+  def parse(version: String): Version = {
+    val fields = version.split("\\.")
+      .map(_.toInt)
+      .toList
+
+    Version(fields.head, fields(1), fields(2))
+  }
+
+}
+
+object Versions {
+
+  val GDS_2_4: Version = Version(2, 4, 0)
+  val GDS_2_5: Version = Version(2, 5, 0)
+  val NEO4J_4_4: Version = Version(4, 4, 0)
+  val NEO4J_5: Version = Version(5, 0, 0)
+  val NEO4J_5_13: Version = Version(5, 13, 0)
+
+}
+
 object TestUtil {
 
   private val properties = new Properties()
@@ -12,13 +40,15 @@ object TestUtil {
 
   def isCI(): Boolean = Option(System.getenv("CI")).getOrElse("false").toBoolean
 
-  def neo4jVersion(): String = properties.getProperty("neo4j.version")
+  def neo4jVersion(): Version = Version.parse(properties.getProperty("neo4j.version"))
 
-  def neo4jVersionAsDouble(): Double = neo4jVersion()
-    .split("\\.")
-    .slice(0, 2)
-    .mkString(".")
-    .toDouble
+  def gdsVersion(session: Session): Version = {
+    Version.parse(session.run("CALL gds.debug.sysInfo() YIELD key, value WHERE key = 'gdsVersion' RETURN value").single().get(0).asString())
+  }
+
+  def neo4jVersion(session: Session): Version = {
+    Version.parse(session.run("CALL dbms.components() YIELD name, versions WHERE name = 'Neo4j Kernel' RETURN versions[0]").single().get(0).asString())
+  }
 
   def experimental(): Boolean = properties.getProperty("neo4j.experimental", "false").toBoolean
 

@@ -5,6 +5,8 @@ import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.{After, Assume, Test}
 import org.neo4j.driver.Transaction
 
+import scala.math.Ordering.Implicits.infixOrderingOps
+
 
 class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
 
@@ -91,8 +93,8 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
       Map(
         "gds" -> "gds.pageRank.stream",
         "gds.graphName" -> "myGraph",
-        "gds.configuration.concurrency"-> "2",
-        "partitions"-> "2"
+        "gds.configuration.concurrency" -> "2",
+        "partitions" -> "2"
       ),
       "For GDS queries we support only one partition"
     )
@@ -120,7 +122,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
   def shouldWorkWithMapReturn(): Unit = {
     initForHits()
 
-    val procName = if (TestUtil.neo4jVersionAsDouble() >= 5.13) "gds.hits.stream" else "gds.alpha.hits.stream"
+    val procName = if (TestUtil.gdsVersion(SparkConnectorScalaSuiteWithGdsBase.session()) >= Versions.GDS_2_5) "gds.hits.stream" else "gds.alpha.hits.stream"
     val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
       .option("gds", procName)
@@ -173,7 +175,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
       )
     ), df.schema)
 
-    val (graphNameParam, algoConfigurationParam) = if (TestUtil.neo4jVersionAsDouble() >= 5.13)
+    val (graphNameParam, algoConfigurationParam) = if (TestUtil.gdsVersion(SparkConnectorScalaSuiteWithGdsBase.session()) >= Versions.GDS_2_4)
       ("graphName", "configuration") else ("graphNameOrConfiguration", "algoConfiguration")
     val dfEstimate = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
@@ -189,15 +191,15 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
 
     assertEquals(StructType(
       Array(
-          StructField("requiredMemory", StringType),
-          StructField("treeView", StringType),
-          StructField("mapView", MapType(StringType, StringType)),
-          StructField("bytesMin", LongType),
-          StructField("bytesMax", LongType),
-          StructField("nodeCount", LongType),
-          StructField("relationshipCount", LongType),
-          StructField("heapPercentageMin", DoubleType),
-          StructField("heapPercentageMax", DoubleType)
+        StructField("requiredMemory", StringType),
+        StructField("treeView", StringType),
+        StructField("mapView", MapType(StringType, StringType)),
+        StructField("bytesMin", LongType),
+        StructField("bytesMax", LongType),
+        StructField("nodeCount", LongType),
+        StructField("relationshipCount", LongType),
+        StructField("heapPercentageMin", DoubleType),
+        StructField("heapPercentageMax", DoubleType)
       )
     ), dfEstimate.schema)
   }
@@ -356,19 +358,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
   }
 
   private def initForHits(): Unit = {
-    val isNeo4j4: Boolean = SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction(
-        (tx: Transaction) => {
-          tx.run(
-            """
-              |CALL dbms.components() YIELD versions
-              |RETURN versions[0] starts with "4";
-              |""".stripMargin)
-            .single()
-            .get(0)
-            .asBoolean()
-        })
-    Assume.assumeFalse(isNeo4j4)
+    Assume.assumeTrue(TestUtil.neo4jVersion(SparkConnectorScalaSuiteWithGdsBase.session()) >= Versions.NEO4J_5)
     SparkConnectorScalaSuiteWithGdsBase.session()
       .writeTransaction(
         (tx: Transaction) => {

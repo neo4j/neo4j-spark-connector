@@ -9,11 +9,12 @@ import org.neo4j.spark.util.{ConstraintsOptimizationType, Neo4jOptions, SchemaCo
 import java.sql.{Date, Timestamp}
 import java.time.{LocalDate, LocalDateTime}
 import scala.collection.JavaConverters.{iterableAsScalaIterableConverter, mapAsScalaMapConverter}
+import scala.math.Ordering.Implicits.infixOrderingOps
 
 object DataSourceSchemaWriterTSE {
   @BeforeClass
   def checkNeo4jVersion() {
-    Assume.assumeTrue(TestUtil.neo4jVersionAsDouble() >= 5.13)
+    Assume.assumeTrue(TestUtil.neo4jVersion() >= Versions.NEO4J_5_13)
   }
 }
 
@@ -47,10 +48,10 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .option(Neo4jOptions.SCHEMA_OPTIMIZATION, schemaOptimization)
       .save()
     val count: Long = SparkConnectorScalaSuiteIT.session().run(
-      """
-        |MATCH (n:NodeWithSchema)
-        |RETURN count(n)
-        |""".stripMargin)
+        """
+          |MATCH (n:NodeWithSchema)
+          |RETURN count(n)
+          |""".stripMargin)
       .single()
       .get(0)
       .asLong()
@@ -137,7 +138,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-stringArray", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("stringArray"), "propertyType" -> "LIST<STRING NOT NULL>"),
       Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-timestamp", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("timestamp"), "propertyType" -> "LOCAL DATETIME"),
       Map("name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-timestampArray", "type" -> "NODE_PROPERTY_TYPE", "entityType" -> "NODE", "labelsOrTypes" -> Seq("NodeWithSchema"), "properties" -> Seq("timestampArray"), "propertyType" -> "LIST<LOCAL DATETIME NOT NULL>"),
-        Map("name" -> "spark_NODE_KEY-CONSTRAINT_NodeWithSchema_int-string", "propertyType" -> null, "properties" -> Seq("int", "string"), "labelsOrTypes" -> Seq("NodeWithSchema"), "entityType" -> "NODE", "type" -> "NODE_KEY")
+      Map("name" -> "spark_NODE_KEY-CONSTRAINT_NodeWithSchema_int-string", "propertyType" -> null, "properties" -> Seq("int", "string"), "labelsOrTypes" -> Seq("NodeWithSchema"), "entityType" -> "NODE", "type" -> "NODE_KEY")
     )
 
     val keys = Seq("name", "type", "entityType", "labelsOrTypes", "properties", "propertyType")
