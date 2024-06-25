@@ -7,10 +7,11 @@ import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.{Assume, BeforeClass, Test}
 import org.neo4j.driver.summary.ResultSummary
-import org.neo4j.driver.{Result, SessionConfig, Transaction, TransactionWork}
+import org.neo4j.driver.{Result, Session, SessionConfig, Transaction, TransactionWork}
 import org.neo4j.spark.writer.DataWriterMetrics
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
+import scala.util.Using
 
 class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
@@ -602,6 +603,43 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     latch.await(30, TimeUnit.SECONDS)
+  }
+
+  @Test
+  def `does not create constraint if schema validation fails`(): Unit = {
+    val cities = Seq(
+      (1, "Cherbourg en Cotentin"),
+      (2, "London"),
+      (3, "Malmö"),
+    ).toDF("id", "city")
+
+    try {
+      cities.write
+        .format(classOf[DataSource].getName)
+        .mode(SaveMode.Overwrite)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("labels", ":News")
+        .option("node.keys", "newsId")
+        .option("schema.optimization.node.keys", "UNIQUE")
+        .save()
+    } catch {
+      case _:Exception => {
+      }
+    }
+
+    var session: Session = null
+    try {
+      session = SparkConnectorScalaSuiteIT.driver.session()
+      val result = session.run("SHOW CONSTRAINTS YIELD labelsOrTypes WHERE labelsOrTypes[0] = 'News' RETURN count(*) AS count")
+        .single()
+        .get("count")
+        .asLong()
+      assertEquals(0, result)
+    } finally {
+      if (session != null) {
+        session.close()
+      }
+    }
   }
 
   class MetricsListener(expectedMetrics: Map[String, Any], done: CountDownLatch) extends SparkListener {
