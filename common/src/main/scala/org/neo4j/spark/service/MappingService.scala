@@ -25,8 +25,6 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   private val dataConverter = SparkToNeo4jDataConverter()
 
   override def node(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
-    Validations.validate(ValidateSchemaOptions(options, schema))
-
     val rowMap: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
     val keys: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
     val properties: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
@@ -96,8 +94,6 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
 
   override def relationship(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     val rowMap: java.util.Map[String, AnyRef] = new java.util.HashMap[String, AnyRef]
-
-    Validations.validate(ValidateSchemaOptions(options, schema))
 
     val consumer = options.relationshipMetadata.saveStrategy match {
       case RelationshipSaveStrategy.NATIVE => nativeStrategyConsumer()

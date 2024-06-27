@@ -58,6 +58,6 @@ class Neo4jScan(neo4jOptions: Neo4jOptions,
     optsMap.put(Neo4jOptions.STREAMING_METADATA_STORAGE, StorageType.SPARK.toString)
     val newOpts = new Neo4jOptions(optsMap)
     Validations.validate(ValidateReadStreaming(newOpts, jobId))
-    new Neo4jMicroBatchReader(Optional.of(schema), newOpts, jobId, aggregateColumns)
+    new Neo4jMicroBatchReader(schema, newOpts, jobId, aggregateColumns)
   }
 }

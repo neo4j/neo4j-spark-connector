@@ -14,7 +14,7 @@ import org.neo4j.spark.util._
 import java.lang
 import java.util.Optional
 
-class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
+class Neo4jMicroBatchReader(private val schema: StructType,
                             private val neo4jOptions: Neo4jOptions,
                             private val jobId: String,
                             private val aggregateColumns: Array[AggregateFunc])
@@ -27,7 +27,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
 
   private lazy val scriptResult = {
     val schemaService = new SchemaService(neo4jOptions, driverCache)
-    schemaService.createOptimizations(optionalSchema)
+    schemaService.createOptimizations(schema)
     val scriptResult = schemaService.execute(neo4jOptions.script)
     schemaService.close()
     scriptResult
@@ -108,7 +108,7 @@ class Neo4jMicroBatchReader(private val optionalSchema: Optional[StructType],
 
   override def createReaderFactory(): PartitionReaderFactory = {
     new Neo4jStreamingPartitionReaderFactory(
-      neo4jOptions, optionalSchema.orElse(new StructType()), jobId, scriptResult, offsetAccumulator, aggregateColumns
+      neo4jOptions, schema, jobId, scriptResult, offsetAccumulator, aggregateColumns
     )
   }
 }

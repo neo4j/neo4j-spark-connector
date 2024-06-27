@@ -36,7 +36,7 @@ class Neo4jStreamingWriter(val queryId: String,
 
   private lazy val scriptResult = {
     val schemaService = new SchemaService(neo4jOptions, driverCache)
-    schemaService.createOptimizations(Optional.of(schema))
+    schemaService.createOptimizations(schema)
     val scriptResult = schemaService.execute(neo4jOptions.script)
     schemaService.close()
     scriptResult

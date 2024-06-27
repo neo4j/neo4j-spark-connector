@@ -684,7 +684,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     })
   }
 
-  private def createOptimizationsForNode(struct: Optional[StructType]): Unit = {
+  private def createOptimizationsForNode(struct: StructType): Unit = {
     val schemaMetadata = options.schemaMetadata.optimization
     if (schemaMetadata.nodeConstraint != ConstraintsOptimizationType.NONE
       || schemaMetadata.schemaConstraints != Set(SchemaConstraintsOptimizationType.NONE)) {
@@ -694,13 +694,12 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
           options.nodeMetadata.nodeKeys)
       }
       if (schemaMetadata.schemaConstraints.nonEmpty) {
-        val structType: StructType = struct.orElse(emptyStruct)
-        val propFromStruct: Map[String, String] = structType
+        val propFromStruct: Map[String, String] = struct
           .map(f => (f.name, f.name))
           .toMap
         val propsFromMeta: Map[String, String] = options.nodeMetadata.nodeKeys ++ options.nodeMetadata.properties
         createEntityTypeConstraint("NODE", options.nodeMetadata.labels.head,
-          propsFromMeta ++ propFromStruct, structType, schemaMetadata.schemaConstraints)
+          propsFromMeta ++ propFromStruct, struct, schemaMetadata.schemaConstraints)
       }
     } else { // TODO old behaviour, remove it in the future
       options.schemaMetadata.optimizationType match {
@@ -714,7 +713,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   }
 
-  private def createOptimizationsForRelationship(struct: Optional[StructType]): Unit = {
+  private def createOptimizationsForRelationship(struct: StructType): Unit = {
     val schemaMetadata = options.schemaMetadata.optimization
     if (schemaMetadata.nodeConstraint != ConstraintsOptimizationType.NONE
       || schemaMetadata.relConstraint != ConstraintsOptimizationType.NONE
@@ -735,19 +734,18 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       if (schemaMetadata.schemaConstraints.nonEmpty) {
         val sourceNodeProps: Map[String, String] = options.relationshipMetadata.source.nodeKeys ++ options.relationshipMetadata.source.properties
         val targetNodeProps: Map[String, String] = options.relationshipMetadata.target.nodeKeys ++ options.relationshipMetadata.target.properties
-        val baseStruct = struct.orElse(emptyStruct)
         val allNodeProps: Map[String, String] = sourceNodeProps ++ targetNodeProps
-        val relStruct: StructType = StructType(baseStruct.filterNot(f => allNodeProps.contains(f.name)))
+        val relStruct: StructType = StructType(struct.filterNot(f => allNodeProps.contains(f.name)))
         val relFromStruct: Map[String, String] = relStruct
           .map(f => (f.name, f.name))
           .toMap
         val propsFromMeta: Map[String, String] = options.relationshipMetadata.relationshipKeys ++ options.relationshipMetadata.properties
         createEntityTypeConstraint("RELATIONSHIP",options.relationshipMetadata.relationshipType,
-          propsFromMeta ++ relFromStruct, baseStruct, schemaMetadata.schemaConstraints)
+          propsFromMeta ++ relFromStruct, struct, schemaMetadata.schemaConstraints)
         createEntityTypeConstraint("NODE", options.relationshipMetadata.source.labels.head,
-          sourceNodeProps, baseStruct, schemaMetadata.schemaConstraints)
+          sourceNodeProps, struct, schemaMetadata.schemaConstraints)
         createEntityTypeConstraint("NODE", options.relationshipMetadata.target.labels.head,
-          targetNodeProps, baseStruct, schemaMetadata.schemaConstraints)
+          targetNodeProps, struct, schemaMetadata.schemaConstraints)
       }
     } else { // TODO old behaviour, remove it in the future
       options.schemaMetadata.optimizationType match {
@@ -764,7 +762,8 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   }
 
-  def createOptimizations(struct: Optional[StructType]): Unit = {
+  def createOptimizations(struct: StructType): Unit = {
+    Validations.validate(ValidateSchemaOptions(options, struct))
     options.query.queryType match {
       case QueryType.LABELS => createOptimizationsForNode(struct)
       case QueryType.RELATIONSHIP => createOptimizationsForRelationship(struct)
