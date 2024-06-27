@@ -14,7 +14,7 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
-  val sparkSession = SparkSession.builder().getOrCreate()
+  private val sparkSession = SparkSession.builder().getOrCreate()
 
   import sparkSession.implicits._
 
@@ -496,15 +496,15 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .option("relationship.target.node.keys", "instrument:name")
         .save()
     } catch {
-      case sparkException: SparkException => {
-        val clientException = ExceptionUtils.getRootCause(sparkException)
+      case exception: IllegalArgumentException => {
+        val clientException = ExceptionUtils.getRootCause(exception)
         assertTrue(clientException.getMessage.equals(
           """Write failed due to the following errors:
             | - Schema is missing musician_name from option `relationship.source.node.keys`
             |
             |The option key and value might be inverted.""".stripMargin))
       }
-      case generic: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+      case generic: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, got ${generic.getClass} instead")
     }
   }
 
@@ -533,8 +533,8 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .option("relationship.target.node.keys", "instrument_name:name")
         .save()
     } catch {
-      case sparkException: SparkException => {
-        val clientException = ExceptionUtils.getRootCause(sparkException)
+      case exception: IllegalArgumentException => {
+        val clientException = ExceptionUtils.getRootCause(exception)
         assertTrue(clientException.getMessage.equals(
           """Write failed due to the following errors:
             | - Schema is missing instrument_name from option `relationship.target.node.keys`
@@ -542,7 +542,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
             |
             |The option key and value might be inverted.""".stripMargin))
       }
-      case generic: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+      case generic: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, got ${generic.getClass} instead")
     }
   }
 
@@ -565,15 +565,15 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .option("node.properties", "musician_name:name,another_name:name")
         .save()
     } catch {
-      case sparkException: SparkException => {
-        val clientException = ExceptionUtils.getRootCause(sparkException)
+      case exception: IllegalArgumentException => {
+        val clientException = ExceptionUtils.getRootCause(exception)
         assertTrue(clientException.getMessage.equals(
           """Write failed due to the following errors:
             | - Schema is missing instrument_name from option `node.properties`
             |
             |The option key and value might be inverted.""".stripMargin))
       }
-      case generic: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead: ${generic.getMessage}")
+      case generic: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, got ${generic.getClass} instead: ${generic.getMessage}")
     }
   }
 
