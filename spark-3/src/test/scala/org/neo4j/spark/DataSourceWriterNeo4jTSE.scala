@@ -2,16 +2,15 @@ package org.neo4j.spark
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.SparkException
-import org.apache.spark.scheduler.{SparkListener, SparkListenerJobEnd, SparkListenerStageCompleted}
+import org.apache.spark.scheduler.{SparkListener, SparkListenerStageCompleted}
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.junit.Assert.{assertEquals, assertTrue, fail}
-import org.junit.{Assume, BeforeClass, Test}
+import org.junit.Test
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Result, Session, SessionConfig, Transaction, TransactionWork}
 import org.neo4j.spark.writer.DataWriterMetrics
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-import scala.util.Using
 
 class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
