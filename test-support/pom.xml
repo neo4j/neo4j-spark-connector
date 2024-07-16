@@ -12,6 +12,7 @@
     <name>neo4j-connector-apache-spark-test-support</name>
     <description>Test Utilities for Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
     <properties>
+        <licensing.skip>true</licensing.skip>
         <powermock.version>2.0.9</powermock.version>
     </properties>
     <dependencies>

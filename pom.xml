@@ -67,15 +67,8 @@
         <spark.version>3.5.1</spark.version>
         <spotless-maven-plugin.version>2.43.0</spotless-maven-plugin.version>
         <testcontainers.version>1.19.8</testcontainers.version>
-        <xbean.version>4.10</xbean.version>
     </properties>
     <dependencies>
-        <!-- this is necessary because the version bundled with Apache spark does not support Java 11 -->
-        <dependency>
-            <groupId>org.apache.xbean</groupId>
-            <artifactId>xbean-asm6-shaded</artifactId>
-            <version>${xbean.version}</version>
-        </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-cypher-dsl</artifactId>
@@ -285,29 +278,6 @@
                     </executions>
                 </plugin>
                 <plugin>
-                    <groupId>org.jetbrains.kotlin</groupId>
-                    <artifactId>kotlin-maven-plugin</artifactId>
-                    <version>${kotlin.version}</version>
-                    <configuration>
-                        <args>-Werror</args>
-                        <jvmTarget>${java.version}</jvmTarget>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <id>compile</id>
-                            <goals>
-                                <goal>compile</goal>
-                            </goals>
-                        </execution>
-                        <execution>
-                            <id>test-compile</id>
-                            <goals>
-                                <goal>test-compile</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-                <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>${maven-compiler-plugin.version}</version>
@@ -345,6 +315,36 @@
                     <groupId>com.mycila</groupId>
                     <artifactId>license-maven-plugin</artifactId>
                     <version>${license-maven-plugin.version}</version>
+                    <configuration>
+                        <strictCheck>true</strictCheck>
+                        <licenseSets>
+                            <licenseSet>
+                                <header>/license/neo4j_apache_v2/header.txt</header>
+                                <includes>
+                                    <include>src/**/*.scala</include>
+                                </includes>
+                            </licenseSet>
+                        </licenseSets>
+                        <mapping>
+                            <scala>SLASHSTAR_STYLE</scala>
+                        </mapping>
+                    </configuration>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.neo4j.build</groupId>
+                            <artifactId>resources</artifactId>
+                            <version>${build-resources.version}</version>
+                        </dependency>
+                    </dependencies>
+                    <executions>
+                        <execution>
+                            <id>check-licenses</id>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                            <phase>compile</phase>
+                        </execution>
+                    </executions>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -559,5 +559,27 @@
             </properties>
         </profile>
         <!-- end neo4j profiles -->
+        <!-- Only generate NOTICE and LICENSES files for projects with src/ directory -->
+        <profile>
+            <id>has-sources</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+                <file>
+                    <exists>src</exists>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.neo4j.build.plugins</groupId>
+                        <artifactId>licensing-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.mycila</groupId>
+                        <artifactId>license-maven-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 </project>
