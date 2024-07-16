@@ -1,21 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
-    <artifactId>neo4j-connector-apache-spark_common</artifactId>
-    <name>neo4j-connector-apache-spark-common</name>
-    <description>Common Services for Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
-
-    <packaging>jar</packaging>
-
     <parent>
         <groupId>org.neo4j</groupId>
         <artifactId>neo4j-connector-apache-spark_parent</artifactId>
-        <version>5.3.1</version>
+        <version>5.3-SNAPSHOT</version>
     </parent>
-
+    <artifactId>neo4j-connector-apache-spark_common</artifactId>
+    <packaging>jar</packaging>
+    <name>neo4j-connector-apache-spark-common</name>
+    <description>Common Services for Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
     <dependencies>
         <dependency>
             <groupId>org.neo4j</groupId>
