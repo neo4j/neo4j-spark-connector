@@ -1,9 +1,13 @@
 package org.neo4j.spark.util
 
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
+import org.jetbrains.annotations.TestOnly
 import org.neo4j.driver.Config.TrustStrategy
 import org.neo4j.driver._
-import org.neo4j.driver.net.{ServerAddress, ServerAddressResolver}
+import org.neo4j.driver.net.ServerAddress
+import org.neo4j.driver.net.ServerAddressResolver
 import org.neo4j.spark.util.Neo4jImplicits.StringMapImplicits
 
 import java.io.File
@@ -12,11 +16,9 @@ import java.time.Duration
 import java.util
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
-import org.apache.spark.internal.Logging
-import org.jetbrains.annotations.TestOnly
-
 
 class Neo4jOptions(private val options: java.util.Map[String, String]) extends Serializable with Logging {
 
@@ -36,7 +38,6 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       }
       .getOrElse(Map.empty)
 
-
     (sparkOptions ++ options.asScala).asJava
   }
 
@@ -48,17 +49,28 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     parameters.get(parameter)
   }
 
-  private def getParameter(parameter: String, defaultValue: String = ""): String = Some(parameters.getOrDefault(parameter, defaultValue))
-    .flatMap(Option(_)) // to turn null into None
-    .map(_.trim)
-    .getOrElse(defaultValue)
+  private def getParameter(parameter: String, defaultValue: String = ""): String =
+    Some(parameters.getOrDefault(parameter, defaultValue))
+      .flatMap(Option(_)) // to turn null into None
+      .map(_.trim)
+      .getOrElse(defaultValue)
 
   val saveMode: String = getParameter(SAVE_MODE, DEFAULT_SAVE_MODE.toString)
-  val pushdownFiltersEnabled: Boolean = getParameter(PUSHDOWN_FILTERS_ENABLED, DEFAULT_PUSHDOWN_FILTERS_ENABLED.toString).toBoolean
-  val pushdownColumnsEnabled: Boolean = getParameter(PUSHDOWN_COLUMNS_ENABLED, DEFAULT_PUSHDOWN_COLUMNS_ENABLED.toString).toBoolean
-  val pushdownAggregateEnabled: Boolean = getParameter(PUSHDOWN_AGGREGATE_ENABLED, DEFAULT_PUSHDOWN_AGGREGATE_ENABLED.toString).toBoolean
-  val pushdownLimitEnabled: Boolean = getParameter(PUSHDOWN_LIMIT_ENABLED, DEFAULT_PUSHDOWN_LIMIT_ENABLED.toString).toBoolean
-  val pushdownTopNEnabled: Boolean = getParameter(PUSHDOWN_TOPN_ENABLED, DEFAULT_PUSHDOWN_TOPN_ENABLED.toString).toBoolean
+
+  val pushdownFiltersEnabled: Boolean =
+    getParameter(PUSHDOWN_FILTERS_ENABLED, DEFAULT_PUSHDOWN_FILTERS_ENABLED.toString).toBoolean
+
+  val pushdownColumnsEnabled: Boolean =
+    getParameter(PUSHDOWN_COLUMNS_ENABLED, DEFAULT_PUSHDOWN_COLUMNS_ENABLED.toString).toBoolean
+
+  val pushdownAggregateEnabled: Boolean =
+    getParameter(PUSHDOWN_AGGREGATE_ENABLED, DEFAULT_PUSHDOWN_AGGREGATE_ENABLED.toString).toBoolean
+
+  val pushdownLimitEnabled: Boolean =
+    getParameter(PUSHDOWN_LIMIT_ENABLED, DEFAULT_PUSHDOWN_LIMIT_ENABLED.toString).toBoolean
+
+  val pushdownTopNEnabled: Boolean =
+    getParameter(PUSHDOWN_TOPN_ENABLED, DEFAULT_PUSHDOWN_TOPN_ENABLED.toString).toBoolean
 
   val schemaMetadata: Neo4jSchemaMetadata = initSchemaMetadata
 
@@ -72,25 +84,35 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
            |please move to one of the following depending on your use case:
            |- `$SCHEMA_OPTIMIZATION_NODE_KEY`
            |- `$SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY`
-           |""".stripMargin)
+           |""".stripMargin
+      )
     }
 
     val nodeConstr: ConstraintsOptimizationType.Value = ConstraintsOptimizationType
-      .withCaseInsensitiveName(getParameter(SCHEMA_OPTIMIZATION_NODE_KEY,
-        DEFAULT_SCHEMA_OPTIMIZATION_NODE_KEY.toString).trim)
+      .withCaseInsensitiveName(getParameter(
+        SCHEMA_OPTIMIZATION_NODE_KEY,
+        DEFAULT_SCHEMA_OPTIMIZATION_NODE_KEY.toString
+      ).trim)
     val relConstr: ConstraintsOptimizationType.Value = ConstraintsOptimizationType
-      .withCaseInsensitiveName(getParameter(SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY,
-        DEFAULT_SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY.toString).trim)
+      .withCaseInsensitiveName(getParameter(
+        SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY,
+        DEFAULT_SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY.toString
+      ).trim)
     val schemaConstraints = getParameter(SCHEMA_OPTIMIZATION, DEFAULT_SCHEMA_OPTIMIZATION.toString)
       .split(",")
       .map(_.trim)
       .map(SchemaConstraintsOptimizationType.withCaseInsensitiveName)
       .toSet
-    Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
-      SchemaStrategy.withCaseInsensitiveName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase),
+    Neo4jSchemaMetadata(
+      getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
+      SchemaStrategy.withCaseInsensitiveName(getParameter(
+        SCHEMA_STRATEGY,
+        DEFAULT_SCHEMA_STRATEGY.toString
+      ).toUpperCase),
       deprecatedSchemaOptimization,
       Neo4jSchemaOptimizations(nodeConstr, relConstr, schemaConstraints),
-      getParameter(SCHEMA_MAP_GROUP_DUPLICATE_KEYS, DEFAULT_MAP_GROUP_DUPLICATE_KEYS.toString).toBoolean)
+      getParameter(SCHEMA_MAP_GROUP_DUPLICATE_KEYS, DEFAULT_MAP_GROUP_DUPLICATE_KEYS.toString).toBoolean
+    )
   }
 
   val query: Neo4jQueryOptions = (
@@ -105,13 +127,13 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       Neo4jQueryOptions(LABELS, parsed)
     }
     case ("", "", relationship, "") => Neo4jQueryOptions(RELATIONSHIP, relationship)
-    case ("", "", "", gds) => Neo4jQueryOptions(GDS, gds)
+    case ("", "", "", gds)          => Neo4jQueryOptions(GDS, gds)
     case _ => throw new IllegalArgumentException(
-      s"You need to specify just one of these options: ${
-        QueryType.values.toSeq.map(value => s"'${value.toString.toLowerCase()}'")
-          .sorted.mkString(", ")
-      }"
-    )
+        s"You need to specify just one of these options: ${
+            QueryType.values.toSeq.map(value => s"'${value.toString.toLowerCase()}'")
+              .sorted.mkString(", ")
+          }"
+      )
   }
 
   val connection: Neo4jDriverOptions = Neo4jDriverOptions(
@@ -130,7 +152,10 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     getParameter(ENCRYPTION_CA_CERTIFICATE_PATH, DEFAULT_EMPTY),
     getParameter(CONNECTION_MAX_LIFETIME_MSECS, DEFAULT_CONNECTION_MAX_LIFETIME_MSECS.toString).toInt,
     getParameter(CONNECTION_ACQUISITION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt,
-    getParameter(CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS, DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS.toString).toInt,
+    getParameter(
+      CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS,
+      DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS.toString
+    ).toInt,
     getParameter(CONNECTION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt
   )
 
@@ -162,9 +187,11 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     })
     .toMap
 
-  private def initNeo4jNodeMetadata(nodeKeysString: String = getParameter(NODE_KEYS, ""),
-                                    labelsString: String = query.value,
-                                    nodePropsString: String = ""): Neo4jNodeMetadata = {
+  private def initNeo4jNodeMetadata(
+    nodeKeysString: String = getParameter(NODE_KEYS, ""),
+    labelsString: String = query.value,
+    nodePropsString: String = ""
+  ): Neo4jNodeMetadata = {
 
     val nodeKeys = mapPropsString(nodeKeysString)
     val nodeProps = mapPropsString(nodePropsString)
@@ -198,30 +225,53 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   val relationshipMetadata: Neo4jRelationshipMetadata = initNeo4jRelationshipMetadata()
 
   private def initNeo4jRelationshipMetadata(): Neo4jRelationshipMetadata = {
-    val source = initNeo4jNodeMetadata(getParameter(RELATIONSHIP_SOURCE_NODE_KEYS, ""),
+    val source = initNeo4jNodeMetadata(
+      getParameter(RELATIONSHIP_SOURCE_NODE_KEYS, ""),
       getParameter(RELATIONSHIP_SOURCE_LABELS, ""),
-      getParameter(RELATIONSHIP_SOURCE_NODE_PROPS, ""))
+      getParameter(RELATIONSHIP_SOURCE_NODE_PROPS, "")
+    )
 
-    val target = initNeo4jNodeMetadata(getParameter(RELATIONSHIP_TARGET_NODE_KEYS, ""),
+    val target = initNeo4jNodeMetadata(
+      getParameter(RELATIONSHIP_TARGET_NODE_KEYS, ""),
       getParameter(RELATIONSHIP_TARGET_LABELS, ""),
-      getParameter(RELATIONSHIP_TARGET_NODE_PROPS, ""))
+      getParameter(RELATIONSHIP_TARGET_NODE_PROPS, "")
+    )
 
     val nodeMap = getParameter(RELATIONSHIP_NODES_MAP, DEFAULT_RELATIONSHIP_NODES_MAP.toString).toBoolean
 
     val relProps = mapPropsString(getParameter(RELATIONSHIP_PROPERTIES))
 
-    val writeStrategy = RelationshipSaveStrategy.withCaseInsensitiveName(getParameter(RELATIONSHIP_SAVE_STRATEGY, DEFAULT_RELATIONSHIP_SAVE_STRATEGY.toString).toUpperCase)
-    val sourceSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(RELATIONSHIP_SOURCE_SAVE_MODE, DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE.toString))
-    val targetSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(RELATIONSHIP_TARGET_SAVE_MODE, DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE.toString))
+    val writeStrategy = RelationshipSaveStrategy.withCaseInsensitiveName(getParameter(
+      RELATIONSHIP_SAVE_STRATEGY,
+      DEFAULT_RELATIONSHIP_SAVE_STRATEGY.toString
+    ).toUpperCase)
+    val sourceSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(
+      RELATIONSHIP_SOURCE_SAVE_MODE,
+      DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE.toString
+    ))
+    val targetSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(
+      RELATIONSHIP_TARGET_SAVE_MODE,
+      DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE.toString
+    ))
 
     val relationshipKeys = mapPropsString(getParameter(RELATIONSHIP_KEYS, ""))
 
-    Neo4jRelationshipMetadata(source, target, sourceSaveMode, targetSaveMode,
-      relProps, query.value, nodeMap, writeStrategy, relationshipKeys)
+    Neo4jRelationshipMetadata(
+      source,
+      target,
+      sourceSaveMode,
+      targetSaveMode,
+      relProps,
+      query.value,
+      nodeMap,
+      writeStrategy,
+      relationshipKeys
+    )
   }
 
   private def initNeo4jQueryMetadata(): Neo4jQueryMetadata = Neo4jQueryMetadata(
-    query.value.trim, getParameter(QUERY_COUNT, "").trim
+    query.value.trim,
+    getParameter(QUERY_COUNT, "").trim
   )
 
   val queryMetadata: Neo4jQueryMetadata = initNeo4jQueryMetadata()
@@ -248,54 +298,70 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   def getTableName: String = query.queryType match {
     case QueryType.LABELS => s"table_${nodeMetadata.labels.mkString("-")}"
     case QueryType.RELATIONSHIP => s"table_${relationshipMetadata.source.labels.mkString("-")}" +
-      s"_${relationshipMetadata.relationshipType}" +
-      s"_${relationshipMetadata.target.labels.mkString("-")}"
+        s"_${relationshipMetadata.relationshipType}" +
+        s"_${relationshipMetadata.target.labels.mkString("-")}"
     case _ => s"table_query_${UUID.randomUUID()}"
   }
 
-  val streamingOptions: Neo4jStreamingOptions = Neo4jStreamingOptions(getParameter(STREAMING_PROPERTY_NAME),
+  val streamingOptions: Neo4jStreamingOptions = Neo4jStreamingOptions(
+    getParameter(STREAMING_PROPERTY_NAME),
     StreamingFrom.withCaseInsensitiveName(getParameter(STREAMING_FROM, DEFAULT_STREAMING_FROM.toString)),
     getParameter(STREAMING_QUERY_OFFSET),
     getParameter(STREAMING_CLEAN_STRUCT_TYPE_STORAGE, DEFAULT_STREAMING_CLEAN_STRUCT_TYPE_STORAGE.toString).toBoolean,
-    StorageType.withCaseInsensitiveName(getParameter(STREAMING_METADATA_STORAGE, DEFAULT_STREAMING_METADATA_STORAGE.toString)))
+    StorageType.withCaseInsensitiveName(getParameter(
+      STREAMING_METADATA_STORAGE,
+      DEFAULT_STREAMING_METADATA_STORAGE.toString
+    ))
+  )
 
 }
 
-case class Neo4jStreamingOptions(propertyName: String,
-                                 from: StreamingFrom.Value,
-                                 queryOffset: String,
-                                 cleanStructTypeStorage: Boolean,
-                                 storageType: StorageType.Value)
+case class Neo4jStreamingOptions(
+  propertyName: String,
+  from: StreamingFrom.Value,
+  queryOffset: String,
+  cleanStructTypeStorage: Boolean,
+  storageType: StorageType.Value
+)
 
 case class Neo4jApocConfig(procedureConfigMap: Map[String, AnyRef])
 
-case class Neo4jSchemaOptimizations(nodeConstraint: ConstraintsOptimizationType.Value,
-                                    relConstraint: ConstraintsOptimizationType.Value,
-                                    schemaConstraints: Set[SchemaConstraintsOptimizationType.Value])
+case class Neo4jSchemaOptimizations(
+  nodeConstraint: ConstraintsOptimizationType.Value,
+  relConstraint: ConstraintsOptimizationType.Value,
+  schemaConstraints: Set[SchemaConstraintsOptimizationType.Value]
+)
 
-case class Neo4jSchemaMetadata(flattenLimit: Int,
-                               strategy: SchemaStrategy.Value,
-                               optimizationType: OptimizationType.Value,
-                               optimization: Neo4jSchemaOptimizations,
-                               mapGroupDuplicateKeys: Boolean)
+case class Neo4jSchemaMetadata(
+  flattenLimit: Int,
+  strategy: SchemaStrategy.Value,
+  optimizationType: OptimizationType.Value,
+  optimization: Neo4jSchemaOptimizations,
+  mapGroupDuplicateKeys: Boolean
+)
 
-case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int, retryTimeout: Long)
+case class Neo4jTransactionMetadata(
+  retries: Int,
+  failOnTransactionCodes: Set[String],
+  batchSize: Int,
+  retryTimeout: Long
+)
 
 case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String], properties: Map[String, String]) {
   def includesProperty(name: String): Boolean = nodeKeys.contains(name) || properties.contains(name)
 }
 
 case class Neo4jRelationshipMetadata(
-                                      source: Neo4jNodeMetadata,
-                                      target: Neo4jNodeMetadata,
-                                      sourceSaveMode: NodeSaveMode.Value,
-                                      targetSaveMode: NodeSaveMode.Value,
-                                      properties: Map[String, String],
-                                      relationshipType: String,
-                                      nodeMap: Boolean,
-                                      saveStrategy: RelationshipSaveStrategy.Value,
-                                      relationshipKeys: Map[String, String]
-                                    )
+  source: Neo4jNodeMetadata,
+  target: Neo4jNodeMetadata,
+  sourceSaveMode: NodeSaveMode.Value,
+  targetSaveMode: NodeSaveMode.Value,
+  properties: Map[String, String],
+  relationshipType: String,
+  nodeMap: Boolean,
+  saveStrategy: RelationshipSaveStrategy.Value,
+  relationshipKeys: Map[String, String]
+)
 
 case class Neo4jQueryMetadata(query: String, queryCount: String)
 
@@ -304,6 +370,7 @@ case class Neo4jGdsMetadata(parameters: util.Map[String, Any])
 case class Neo4jQueryOptions(queryType: QueryType.Value, value: String)
 
 case class Neo4jSessionOptions(database: String, accessMode: AccessMode = AccessMode.READ) {
+
   def toNeo4jSession(): SessionConfig = {
     val builder = SessionConfig.builder()
       .withDefaultAccessMode(accessMode)
@@ -317,24 +384,24 @@ case class Neo4jSessionOptions(database: String, accessMode: AccessMode = Access
 }
 
 case class Neo4jDriverOptions(
-                               url: String,
-                               auth: String,
-                               username: String,
-                               password: String,
-                               ticket: String,
-                               principal: String,
-                               credentials: String,
-                               realm: String,
-                               schema: String,
-                               bearerToken: String,
-                               encryption: Boolean,
-                               trustStrategy: Option[String],
-                               certificatePath: String,
-                               lifetime: Int,
-                               acquisitionTimeout: Int,
-                               livenessCheckTimeout: Int,
-                               connectionTimeout: Int
-                             ) extends Serializable {
+  url: String,
+  auth: String,
+  username: String,
+  password: String,
+  ticket: String,
+  principal: String,
+  credentials: String,
+  realm: String,
+  schema: String,
+  bearerToken: String,
+  encryption: Boolean,
+  trustStrategy: Option[String],
+  certificatePath: String,
+  lifetime: Int,
+  acquisitionTimeout: Int,
+  livenessCheckTimeout: Int,
+  connectionTimeout: Int
+) extends Serializable {
 
   def createDriver(): Driver = {
     val (url, _) = connectionUrls
@@ -348,7 +415,8 @@ case class Neo4jDriverOptions(
 
     if (lifetime > -1) builder.withMaxConnectionLifetime(lifetime, TimeUnit.MILLISECONDS)
     if (acquisitionTimeout > -1) builder.withConnectionAcquisitionTimeout(acquisitionTimeout, TimeUnit.MILLISECONDS)
-    if (livenessCheckTimeout > -1) builder.withConnectionLivenessCheckTimeout(livenessCheckTimeout, TimeUnit.MILLISECONDS)
+    if (livenessCheckTimeout > -1)
+      builder.withConnectionLivenessCheckTimeout(livenessCheckTimeout, TimeUnit.MILLISECONDS)
     if (connectionTimeout > -1) builder.withConnectionTimeout(connectionTimeout, TimeUnit.MILLISECONDS)
 
     val (primaryUrl, resolvers) = connectionUrls
@@ -358,16 +426,16 @@ case class Neo4jDriverOptions(
       case _ => {
         if (!encryption) {
           builder.withoutEncryption()
-        }
-        else {
+        } else {
           builder.withEncryption()
         }
         trustStrategy
           .map(Config.TrustStrategy.Strategy.valueOf)
           .map {
-            case TrustStrategy.Strategy.TRUST_ALL_CERTIFICATES => TrustStrategy.trustAllCertificates()
+            case TrustStrategy.Strategy.TRUST_ALL_CERTIFICATES              => TrustStrategy.trustAllCertificates()
             case TrustStrategy.Strategy.TRUST_SYSTEM_CA_SIGNED_CERTIFICATES => TrustStrategy.trustSystemCertificates()
-            case TrustStrategy.Strategy.TRUST_CUSTOM_CA_SIGNED_CERTIFICATES => TrustStrategy.trustCustomCertificateSignedBy(new File(certificatePath))
+            case TrustStrategy.Strategy.TRUST_CUSTOM_CA_SIGNED_CERTIFICATES =>
+              TrustStrategy.trustCustomCertificateSignedBy(new File(certificatePath))
           }.foreach(builder.withTrustStrategy)
       }
     }
@@ -398,12 +466,12 @@ case class Neo4jDriverOptions(
   @TestOnly
   def toNeo4jAuth: AuthToken = {
     auth match {
-      case "basic" => AuthTokens.basic(username, password)
-      case "none" => AuthTokens.none()
+      case "basic"    => AuthTokens.basic(username, password)
+      case "none"     => AuthTokens.none()
       case "kerberos" => AuthTokens.kerberos(ticket)
-      case "custom" => AuthTokens.custom(principal, credentials, realm, schema)
-      case "bearer" => AuthTokens.bearer(bearerToken)
-      case _ => throw new IllegalArgumentException(s"Authentication method '${auth}' is not supported")
+      case "custom"   => AuthTokens.custom(principal, credentials, realm, schema)
+      case "bearer"   => AuthTokens.bearer(bearerToken)
+      case _          => throw new IllegalArgumentException(s"Authentication method '${auth}' is not supported")
     }
   }
 }
@@ -470,11 +538,14 @@ object Neo4jOptions {
   val SUPPORTED_SAVE_MODES = Seq(SaveMode.Overwrite, SaveMode.ErrorIfExists, SaveMode.Append)
 
   // Relationship Metadata
-  val RELATIONSHIP_SOURCE_LABELS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.${QueryType.LABELS.toString.toLowerCase}"
+  val RELATIONSHIP_SOURCE_LABELS =
+    s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.${QueryType.LABELS.toString.toLowerCase}"
   val RELATIONSHIP_SOURCE_NODE_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.$NODE_KEYS"
   val RELATIONSHIP_SOURCE_NODE_PROPS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.$NODE_PROPS"
   val RELATIONSHIP_SOURCE_SAVE_MODE = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.$SAVE_MODE"
-  val RELATIONSHIP_TARGET_LABELS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.${QueryType.LABELS.toString.toLowerCase}"
+
+  val RELATIONSHIP_TARGET_LABELS =
+    s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.${QueryType.LABELS.toString.toLowerCase}"
   val RELATIONSHIP_TARGET_NODE_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$NODE_KEYS"
   val RELATIONSHIP_TARGET_NODE_PROPS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$NODE_PROPS"
   val RELATIONSHIP_TARGET_SAVE_MODE = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$SAVE_MODE"
@@ -538,9 +609,11 @@ object Neo4jOptions {
 }
 
 class CaseInsensitiveEnumeration extends Enumeration {
+
   def withCaseInsensitiveName(s: String): Value = {
     values.find(_.toString.toLowerCase() == s.toLowerCase).getOrElse(
-      throw new NoSuchElementException(s"No value found for '$s'"))
+      throw new NoSuchElementException(s"No value found for '$s'")
+    )
   }
 }
 
@@ -548,6 +621,7 @@ object StreamingFrom extends CaseInsensitiveEnumeration {
   val ALL, NOW = Value
 
   class StreamingFromValue(value: Value) {
+
     def value(): Long = value match {
       case ALL => -1L
       case NOW => System.currentTimeMillis()
@@ -574,10 +648,10 @@ object NodeSaveMode extends CaseInsensitiveEnumeration {
 
   def fromSaveMode(saveMode: SaveMode): Value = {
     saveMode match {
-      case SaveMode.Overwrite => Overwrite
+      case SaveMode.Overwrite     => Overwrite
       case SaveMode.ErrorIfExists => ErrorIfExists
-      case SaveMode.Append => Append
-      case _ => throw new IllegalArgumentException(s"SaveMode $saveMode not supported")
+      case SaveMode.Append        => Append
+      case _                      => throw new IllegalArgumentException(s"SaveMode $saveMode not supported")
     }
   }
 }

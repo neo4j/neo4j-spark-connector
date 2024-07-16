@@ -2,8 +2,9 @@ package org.neo4j.spark
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.neo4j.driver.Transaction
+import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
-import org.neo4j.driver.{Transaction, TransactionWork}
 
 class DataSourceReaderAggregationTSE extends SparkConnectorScalaBaseTSE {
 
@@ -22,7 +23,8 @@ class DataSourceReaderAggregationTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        })
+        }
+      )
 
     ss.read
       .format(classOf[DataSource].getName)
@@ -33,11 +35,11 @@ class DataSourceReaderAggregationTSE extends SparkConnectorScalaBaseTSE {
       .load
       .createTempView("BOUGHT")
 
-
     val df = ss.sql(
       """SELECT `source.fullName`, SUM(DISTINCT(`target.price`)) AS distinctTotal, SUM(`target.price`) AS total
         |FROM BOUGHT
-        |group by `source.fullName`""".stripMargin)
+        |group by `source.fullName`""".stripMargin
+    )
 
     val rows = df.collect().toList
     assertEquals(1, rows.length)
@@ -62,7 +64,8 @@ class DataSourceReaderAggregationTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        })
+        }
+      )
 
     ss.read
       .format(classOf[DataSource].getName)
@@ -73,11 +76,11 @@ class DataSourceReaderAggregationTSE extends SparkConnectorScalaBaseTSE {
       .load
       .createTempView("BOUGHT")
 
-
     val df = ss.sql(
       """SELECT `source.fullName`, MAX(`target.price`) AS max, MIN(`target.price`) AS min
         |FROM BOUGHT
-        |GROUP BY `source.fullName`""".stripMargin)
+        |GROUP BY `source.fullName`""".stripMargin
+    )
 
     val rows = df.collect().toList
     assertEquals(1, rows.length)
@@ -102,7 +105,8 @@ class DataSourceReaderAggregationTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        })
+        }
+      )
 
     ss.read
       .format(classOf[DataSource].getName)
@@ -116,7 +120,8 @@ class DataSourceReaderAggregationTSE extends SparkConnectorScalaBaseTSE {
     val df = ss.sql(
       """SELECT `source.fullName`, COUNT(DISTINCT(`target.id`)) AS distinctTotal, COUNT(`target.id`) AS total
         |FROM BOUGHT
-        |group by `source.fullName`""".stripMargin)
+        |group by `source.fullName`""".stripMargin
+    )
 
     val rows = df.collect().toList
     assertEquals(1, rows.length)

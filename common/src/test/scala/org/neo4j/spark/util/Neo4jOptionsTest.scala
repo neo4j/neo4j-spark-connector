@@ -6,6 +6,7 @@ import org.neo4j.driver.AccessMode
 import org.neo4j.driver.net.ServerAddress
 
 import java.net.URI
+
 import scala.annotation.meta.getter
 import scala.collection.JavaConverters._
 
@@ -14,7 +15,7 @@ class Neo4jOptionsTest {
   import org.junit.Rule
   import org.junit.rules.ExpectedException
 
-  @(Rule@getter)
+  @(Rule @getter)
   val _expectedException: ExpectedException = ExpectedException.none
 
   @Test
@@ -159,7 +160,10 @@ class Neo4jOptionsTest {
     assertEquals(Neo4jOptions.DEFAULT_CONNECTION_MAX_LIFETIME_MSECS, neo4jOptions.connection.lifetime)
     assertEquals(-1, neo4jOptions.connection.acquisitionTimeout)
     assertEquals(-1, neo4jOptions.connection.connectionTimeout)
-    assertEquals(Neo4jOptions.DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS, neo4jOptions.connection.livenessCheckTimeout)
+    assertEquals(
+      Neo4jOptions.DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS,
+      neo4jOptions.connection.livenessCheckTimeout
+    )
     assertEquals(RelationshipSaveStrategy.NATIVE, neo4jOptions.relationshipMetadata.saveStrategy)
 
     assertTrue(neo4jOptions.pushdownFiltersEnabled)
@@ -173,7 +177,7 @@ class Neo4jOptionsTest {
 
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val expected = Map("apoc.meta.nodeTypeProperties"-> Map(
+    val expected = Map("apoc.meta.nodeTypeProperties" -> Map(
       "nodeLabels" -> Seq("Label").asJava,
       "mandatory" -> false
     ))
@@ -214,9 +218,12 @@ class Neo4jOptionsTest {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
     assertEquals(QueryType.GDS, neo4jOptions.query.queryType)
     assertEquals("gds.pageRank.stream", neo4jOptions.query.value)
-    assertEquals(Map(
-      "graphName" -> "myGraph",
-      "configuration" -> Map("concurrency" -> 2).asJava
-    ).asJava, neo4jOptions.gdsMetadata.parameters)
+    assertEquals(
+      Map(
+        "graphName" -> "myGraph",
+        "configuration" -> Map("concurrency" -> 2).asJava
+      ).asJava,
+      neo4jOptions.gdsMetadata.parameters
+    )
   }
 }

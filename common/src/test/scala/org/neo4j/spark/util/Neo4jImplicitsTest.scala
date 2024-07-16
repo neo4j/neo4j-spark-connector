@@ -1,14 +1,21 @@
 package org.neo4j.spark.util
 
 import org.apache.spark.sql.connector.expressions.NamedReference
-import org.apache.spark.sql.connector.expressions.aggregate.{Aggregation, Sum}
-import org.apache.spark.sql.sources.{And, EqualTo}
-import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
+import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
+import org.apache.spark.sql.connector.expressions.aggregate.Sum
+import org.apache.spark.sql.sources.And
+import org.apache.spark.sql.sources.EqualTo
+import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
+import org.junit.Assert
 import org.junit.Assert._
-import org.junit.{Assert, Test}
+import org.junit.Test
 import org.neo4j.spark.util.Neo4jImplicits._
 
-import scala.collection.JavaConverters.{mapAsJavaMapConverter, mapAsScalaMapConverter, seqAsJavaListConverter}
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.JavaConverters.mapAsScalaMapConverter
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.immutable.ListMap
 
 class Neo4jImplicitsTest {
@@ -99,16 +106,19 @@ class Neo4jImplicitsTest {
 
   @Test
   def `struct should return true if contains fields`: Unit = {
-    val struct = StructType(Seq(StructField("is_hero", DataTypes.BooleanType),
+    val struct = StructType(Seq(
+      StructField("is_hero", DataTypes.BooleanType),
       StructField("name", DataTypes.StringType),
-      StructField("fi``(╯°□°)╯︵ ┻━┻eld", DataTypes.StringType)))
+      StructField("fi``(╯°□°)╯︵ ┻━┻eld", DataTypes.StringType)
+    ))
 
     assertEquals(0, struct.getMissingFields(Set("is_hero", "name", "fi``(╯°□°)╯︵ ┻━┻eld")).size)
   }
 
   @Test
   def `struct should return false if not contains fields`: Unit = {
-    val struct = StructType(Seq(StructField("is_hero", DataTypes.BooleanType), StructField("name", DataTypes.StringType)))
+    val struct =
+      StructType(Seq(StructField("is_hero", DataTypes.BooleanType), StructField("name", DataTypes.StringType)))
 
     assertEquals(Set[String]("hero_name"), struct.getMissingFields(Set("is_hero", "hero_name")))
   }
@@ -123,7 +133,13 @@ class Neo4jImplicitsTest {
       StructField("fi``(╯°□°)╯︵ ┻━┻eld", DataTypes.StringType)
     ))
 
-    val result = struct.getMissingFields(Set("im.aMap", "`im.also.a`.field", "`im.a`.map", "`im.not.a.map`", "fi``(╯°□°)╯︵ ┻━┻eld"))
+    val result = struct.getMissingFields(Set(
+      "im.aMap",
+      "`im.also.a`.field",
+      "`im.a`.map",
+      "`im.not.a.map`",
+      "fi``(╯°□°)╯︵ ┻━┻eld"
+    ))
 
     assertEquals(Set("im.aMap"), result)
   }
@@ -243,7 +259,7 @@ class Neo4jImplicitsTest {
     val ucActual = Map(
       "graphName" -> "myGraph",
       "nodeProjection" -> "Website",
-      "relationshipProjection.LINK.indexInverse" -> "true",
+      "relationshipProjection.LINK.indexInverse" -> "true"
     ).toNestedJavaMap
     val ucExpected: java.util.Map[String, Object] = Map(
       "graphName" -> "myGraph",

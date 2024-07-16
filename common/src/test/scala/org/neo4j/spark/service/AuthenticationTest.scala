@@ -5,8 +5,11 @@ import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito.times
-import org.neo4j.driver.{AuthTokens, Config, GraphDatabase}
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions}
+import org.neo4j.driver.AuthTokens
+import org.neo4j.driver.Config
+import org.neo4j.driver.GraphDatabase
+import org.neo4j.spark.util.DriverCache
+import org.neo4j.spark.util.Neo4jOptions
 import org.powermock.api.mockito.PowerMockito
 import org.powermock.core.classloader.annotations.PrepareForTest
 import org.powermock.modules.junit4.PowerMockRunner
@@ -37,7 +40,7 @@ class AuthenticationTest {
     driverCache.getOrCreate()
 
     PowerMockito.verifyStatic(classOf[GraphDatabase], times(1))
-    GraphDatabase.driver(any[URI](), ArgumentMatchers.eq(AuthTokens.custom("", token, "", "")) , any(classOf[Config]))
+    GraphDatabase.driver(any[URI](), ArgumentMatchers.eq(AuthTokens.custom("", token, "", "")), any(classOf[Config]))
   }
 
   @Test

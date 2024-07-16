@@ -2,7 +2,8 @@ package org.neo4j.spark
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.neo4j.driver.{Transaction, TransactionWork}
+import org.neo4j.driver.Transaction
+import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
 
 class DefaultConfigTSE extends SparkConnectorScalaBaseTSE {
@@ -14,7 +15,8 @@ class DefaultConfigTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run("CREATE (p:Person {name: 'Foobar'})").consume()
-        })
+        }
+      )
 
     ss.conf.set("neo4j.url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
 

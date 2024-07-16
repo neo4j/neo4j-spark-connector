@@ -1,19 +1,30 @@
 package org.neo4j.spark
 
-import java.time.{LocalTime, OffsetTime, ZoneOffset}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.SparkException
-import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 import org.junit
 import org.junit.Assert._
-import org.junit.{Ignore, Test}
+import org.junit.Ignore
+import org.junit.Test
+import org.neo4j.driver.Result
+import org.neo4j.driver.Transaction
+import org.neo4j.driver.TransactionWork
+import org.neo4j.driver.Value
 import org.neo4j.driver.exceptions.ClientException
+import org.neo4j.driver.internal.InternalPoint2D
+import org.neo4j.driver.internal.InternalPoint3D
 import org.neo4j.driver.internal.types.InternalTypeSystem
-import org.neo4j.driver.internal.{InternalPoint2D, InternalPoint3D}
 import org.neo4j.driver.summary.ResultSummary
-import org.neo4j.driver.types.{IsoDuration, Type}
-import org.neo4j.driver.{Result, Transaction, TransactionWork, Value}
+import org.neo4j.driver.types.IsoDuration
+import org.neo4j.driver.types.Type
 import org.neo4j.spark.util.Neo4jOptions
+
+import java.time.LocalTime
+import java.time.OffsetTime
+import java.time.ZoneOffset
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.ListMap
@@ -23,28 +34,16 @@ import scala.util.Random
 
 abstract class Neo4jType(`type`: String)
 
-case class Duration(`type`: String = "duration",
-                    months: Long,
-                    days: Long,
-                    seconds: Long,
-                    nanoseconds: Long) extends Neo4jType(`type`)
+case class Duration(`type`: String = "duration", months: Long, days: Long, seconds: Long, nanoseconds: Long)
+    extends Neo4jType(`type`)
 
-case class Point2d(`type`: String = "point-2d",
-                   srid: Int,
-                   x: Double,
-                   y: Double) extends Neo4jType(`type`)
+case class Point2d(`type`: String = "point-2d", srid: Int, x: Double, y: Double) extends Neo4jType(`type`)
 
-case class Point3d(`type`: String = "point-3d",
-                   srid: Int,
-                   x: Double,
-                   y: Double,
-                   z: Double) extends Neo4jType(`type`)
+case class Point3d(`type`: String = "point-3d", srid: Int, x: Double, y: Double, z: Double) extends Neo4jType(`type`)
 
-case class Time(`type`: String = "offset-time",
-                value: String) extends Neo4jType(`type`)
+case class Time(`type`: String = "offset-time", value: String) extends Neo4jType(`type`)
 
-case class LocalTimeValue(`type`: String = "local-time",
-                          value: String) extends Neo4jType(`type`)
+case class LocalTimeValue(`type`: String = "local-time", value: String) extends Neo4jType(`type`)
 
 case class Person(name: String, surname: String, age: Int, livesIn: Point3d)
 
@@ -68,22 +67,25 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:MyNode:MyLabel)
-          |RETURN p.foo AS foo
-          |""".stripMargin).list().asScala
+      """MATCH (p:MyNode:MyLabel)
+        |RETURN p.foo AS foo
+        |""".stripMargin
+    ).list().asScala
       .filter(r => r.get("foo").hasType(neo4jType))
       .map(r => r.asMap().asScala)
       .toSet
     val expected = ds.collect()
-      .map(row => Map("foo" -> {
-        val foo = row.getAs[T]("foo")
-        foo match {
-          case sqlDate: java.sql.Date => sqlDate
-            .toLocalDate
-          case sqlTimestamp: java.sql.Timestamp => sqlTimestamp.toLocalDateTime
-          case _ => foo
-        }
-      }))
+      .map(row =>
+        Map("foo" -> {
+          val foo = row.getAs[T]("foo")
+          foo match {
+            case sqlDate: java.sql.Date => sqlDate
+                .toLocalDate
+            case sqlTimestamp: java.sql.Timestamp => sqlTimestamp.toLocalDateTime
+            case _                                => foo
+          }
+        })
+      )
       .toSet
     assertEquals(expected, records)
   }
@@ -97,9 +99,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:MyNode:MyLabel)
-          |RETURN p.foo AS foo
-          |""".stripMargin).list().asScala
+      """MATCH (p:MyNode:MyLabel)
+        |RETURN p.foo AS foo
+        |""".stripMargin
+    ).list().asScala
       .filter(r => r.get("foo").hasType(InternalTypeSystem.TYPE_SYSTEM.LIST()))
       .map(r => r.get("foo").asList())
       .toSet
@@ -133,7 +136,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         .load() // we need the action to be able to trigger the exception because of the changes in Spark 3
     } catch {
       case e: IllegalArgumentException =>
-        assertEquals("You need to specify just one of these options: 'gds', 'labels', 'query', 'relationship'", e.getMessage)
+        assertEquals(
+          "You need to specify just one of these options: 'gds', 'labels', 'query', 'relationship'",
+          e.getMessage
+        )
       case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
@@ -149,7 +155,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         .load() // we need the action to be able to trigger the exception because of the changes in Spark 3
     } catch {
       case e: IllegalArgumentException =>
-        assertEquals("You need to specify just one of these options: 'gds', 'labels', 'query', 'relationship'", e.getMessage)
+        assertEquals(
+          "You need to specify just one of these options: 'gds', 'labels', 'query', 'relationship'",
+          e.getMessage
+        )
       case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
@@ -231,9 +240,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:MyNode:MyLabel)
-          |RETURN p.data AS data
-          |""".stripMargin).list().asScala
+      """MATCH (p:MyNode:MyLabel)
+        |RETURN p.data AS data
+        |""".stripMargin
+    ).list().asScala
       .filter(r => r.get("data").hasType(InternalTypeSystem.TYPE_SYSTEM.POINT()))
       .map(r => {
         val point = r.get("data").asPoint()
@@ -250,8 +260,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def `should write nodes with point-2d array values into Neo4j`(): Unit = {
     val total = 10
     val ds = (1 to total)
-      .map(i => EmptyRow(Seq(Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble()),
-        Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble()))))
+      .map(i =>
+        EmptyRow(Seq(
+          Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble()),
+          Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble())
+        ))
+      )
       .toDS()
 
     ds.write
@@ -262,14 +276,17 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:MyNode:MyLabel)
-          |RETURN p.data AS data
-          |""".stripMargin).list().asScala
+      """MATCH (p:MyNode:MyLabel)
+        |RETURN p.data AS data
+        |""".stripMargin
+    ).list().asScala
       .filter(r => r.get("data").hasType(InternalTypeSystem.TYPE_SYSTEM.LIST()))
-      .map(r => r.get("data")
-        .asList.asScala
-        .map(_.asInstanceOf[InternalPoint2D])
-        .map(point => (point.srid(), point.x(), point.y())))
+      .map(r =>
+        r.get("data")
+          .asList.asScala
+          .map(_.asInstanceOf[InternalPoint2D])
+          .map(point => (point.srid(), point.x(), point.y()))
+      )
       .toSet
     val expected = ds.collect()
       .map(row => row.data.map(p => (p.srid, p.x, p.y)))
@@ -281,7 +298,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def `should write nodes with point-3d values into Neo4j`(): Unit = {
     val total = 10
     val ds = (1 to total)
-      .map(i => EmptyRow(Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble())))
+      .map(i =>
+        EmptyRow(Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble()))
+      )
       .toDS()
 
     ds.write
@@ -292,9 +311,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:MyNode:MyLabel)
-          |RETURN p.data AS data
-          |""".stripMargin).list().asScala
+      """MATCH (p:MyNode:MyLabel)
+        |RETURN p.data AS data
+        |""".stripMargin
+    ).list().asScala
       .filter(r => r.get("data").hasType(InternalTypeSystem.TYPE_SYSTEM.POINT()))
       .map(r => {
         val point = r.get("data").asPoint()
@@ -311,8 +331,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def `should write nodes with point-3d array values into Neo4j`(): Unit = {
     val total = 10
     val ds = (1 to total)
-      .map(i => EmptyRow(Seq(Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble()),
-        Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble()))))
+      .map(i =>
+        EmptyRow(Seq(
+          Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble()),
+          Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble())
+        ))
+      )
       .toDS()
 
     ds.write
@@ -323,14 +347,17 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:MyNode:MyLabel)
-          |RETURN p.data AS data
-          |""".stripMargin).list().asScala
+      """MATCH (p:MyNode:MyLabel)
+        |RETURN p.data AS data
+        |""".stripMargin
+    ).list().asScala
       .filter(r => r.get("data").hasType(InternalTypeSystem.TYPE_SYSTEM.LIST()))
-      .map(r => r.get("data")
-        .asList.asScala
-        .map(_.asInstanceOf[InternalPoint3D])
-        .map(point => (point.srid(), point.x(), point.y(), point.z())))
+      .map(r =>
+        r.get("data")
+          .asList.asScala
+          .map(_.asInstanceOf[InternalPoint3D])
+          .map(point => (point.srid(), point.x(), point.y(), point.z()))
+      )
       .toSet
     val expected = ds.collect()
       .map(row => row.data.map(p => (p.srid, p.x, p.y, p.z)))
@@ -353,9 +380,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:MyNode:MyLabel)
-          |RETURN p
-          |""".stripMargin).list().asScala
+      """MATCH (p:MyNode:MyLabel)
+        |RETURN p
+        |""".stripMargin
+    ).list().asScala
       .filter(r => r.get("p").hasType(InternalTypeSystem.TYPE_SYSTEM.MAP()))
       .map(r => r.get("p").asMap().asScala)
       .toSet
@@ -381,9 +409,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:BeanWithDuration)
-          |RETURN p.data AS data
-          |""".stripMargin).list().asScala
+      """MATCH (p:BeanWithDuration)
+        |RETURN p.data AS data
+        |""".stripMargin
+    ).list().asScala
       .map(r => r.get("data").asIsoDuration())
       .map(data => (data.months, data.days, data.seconds, data.nanoseconds))
       .toSet
@@ -400,8 +429,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val total = 10
     val ds = (1 to total)
       .map(i => i.toLong)
-      .map(i => EmptyRow(Seq(Duration(months = i, days = i, seconds = i, nanoseconds = i),
-        Duration(months = i, days = i, seconds = i, nanoseconds = i))))
+      .map(i =>
+        EmptyRow(Seq(
+          Duration(months = i, days = i, seconds = i, nanoseconds = i),
+          Duration(months = i, days = i, seconds = i, nanoseconds = i)
+        ))
+      )
       .toDS()
 
     ds.write
@@ -412,13 +445,16 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:BeanWithDuration)
-          |RETURN p.data AS data
-          |""".stripMargin).list().asScala
-      .map(r => r.get("data")
-        .asList.asScala
-        .map(_.asInstanceOf[IsoDuration])
-        .map(data => (data.months, data.days, data.seconds, data.nanoseconds)))
+      """MATCH (p:BeanWithDuration)
+        |RETURN p.data AS data
+        |""".stripMargin
+    ).list().asScala
+      .map(r =>
+        r.get("data")
+          .asList.asScala
+          .map(_.asInstanceOf[IsoDuration])
+          .map(data => (data.months, data.days, data.seconds, data.nanoseconds))
+      )
       .toSet
 
     val expected = ds.collect()
@@ -433,8 +469,14 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val total = 10
     val rand = Random
     val ds = (1 to total)
-      .map(i => Person(name = "Andrea " + i, "Santurbano " + i, rand.nextInt(100),
-        Point3d(srid = 4979, x = 12.5811776, y = 41.9579492, z = 1.3))).toDS()
+      .map(i =>
+        Person(
+          name = "Andrea " + i,
+          "Santurbano " + i,
+          rand.nextInt(100),
+          Point3d(srid = 4979, x = 12.5811776, y = 41.9579492, z = 1.3)
+        )
+      ).toDS()
 
     ds.write
       .format(classOf[DataSource].getName)
@@ -448,22 +490,24 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         |WHERE p.name STARTS WITH 'Andrea'
         |AND p.surname STARTS WITH 'Santurbano'
         |RETURN count(p) AS count
-        |""".stripMargin).single().get("count").asInt()
+        |""".stripMargin
+    ).single().get("count").asInt()
     assertEquals(total, count)
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:Person:Customer)
-          |WHERE p.name STARTS WITH 'Andrea'
-          |AND p.surname STARTS WITH 'Santurbano'
-          |RETURN p.name AS name, p.surname AS surname, p.age AS age,
-          | p.bornIn AS bornIn, p.livesIn AS livesIn
-          |""".stripMargin).list().asScala
+      """MATCH (p:Person:Customer)
+        |WHERE p.name STARTS WITH 'Andrea'
+        |AND p.surname STARTS WITH 'Santurbano'
+        |RETURN p.name AS name, p.surname AS surname, p.age AS age,
+        | p.bornIn AS bornIn, p.livesIn AS livesIn
+        |""".stripMargin
+    ).list().asScala
       .filter(r => {
         val map: java.util.Map[String, Object] = r.asMap()
         (map.get("name").isInstanceOf[String]
-          && map.get("surname").isInstanceOf[String]
-          && map.get("livesIn").isInstanceOf[InternalPoint3D]
-          && map.get("age").isInstanceOf[Long])
+        && map.get("surname").isInstanceOf[String]
+        && map.get("livesIn").isInstanceOf[InternalPoint3D]
+        && map.get("age").isInstanceOf[Long])
       })
     assertEquals(total, records.size)
   }
@@ -473,7 +517,13 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val total = 1
     val rand = Random
     val ds = (1 to total)
-      .map(i => Person_TimeAndLocalTime(name = "Andrea", time = Time(value = "12:50:35.556000000+01:00"), localTime = LocalTimeValue(value = "12:50:35.556000000"))).toDS()
+      .map(i =>
+        Person_TimeAndLocalTime(
+          name = "Andrea",
+          time = Time(value = "12:50:35.556000000+01:00"),
+          localTime = LocalTimeValue(value = "12:50:35.556000000")
+        )
+      ).toDS()
 
     ds.write
       .format(classOf[DataSource].getName)
@@ -487,33 +537,36 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       """MATCH (p:Person_TimeAndLocalTime)
         |WHERE p.name STARTS WITH 'Andrea'        
         |RETURN count(p) AS count
-        |""".stripMargin).single().get("count").asInt()
+        |""".stripMargin
+    ).single().get("count").asInt()
     assertEquals(total, count)
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:Person_TimeAndLocalTime)
-          |WHERE p.name STARTS WITH 'Andrea'
-          |RETURN p.name AS name, p.time AS time, p.localTime AS localTime
-          |""".stripMargin).list().asScala
+      """MATCH (p:Person_TimeAndLocalTime)
+        |WHERE p.name STARTS WITH 'Andrea'
+        |RETURN p.name AS name, p.time AS time, p.localTime AS localTime
+        |""".stripMargin
+    ).list().asScala
       .filter(r => {
         val map: java.util.Map[String, Object] = r.asMap()
         (map.get("name").isInstanceOf[String]
-          && map.get("time").isInstanceOf[OffsetTime]
-          && map.get("localTime").isInstanceOf[LocalTime])
+        && map.get("time").isInstanceOf[OffsetTime]
+        && map.get("localTime").isInstanceOf[LocalTime])
       })
     assertEquals(total, records.size)
   }
-
 
   @Test(expected = classOf[SparkException])
   def `should throw an error because the node already exists`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE")
+        override def execute(transaction: Transaction): Result =
+          transaction.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE")
       })
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("CREATE (p:Person{name: 'Andrea', surname: 'Santurbano'})")
+        override def execute(transaction: Transaction): Result =
+          transaction.run("CREATE (p:Person{name: 'Andrea', surname: 'Santurbano'})")
       })
 
     val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
@@ -530,10 +583,13 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         val clientException = ExceptionUtils.getRootCause(sparkException)
         assertNotNull(clientException)
         assertTrue(clientException.isInstanceOf[ClientException])
-        assertTrue(clientException.asInstanceOf[ClientException].code() == "Neo.ClientError.Schema.ConstraintValidationFailed")
+        assertTrue(
+          clientException.asInstanceOf[ClientException].code() == "Neo.ClientError.Schema.ConstraintValidationFailed"
+        )
         throw sparkException
       }
-      case e: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName} but is ${e.getClass.getSimpleName}")
+      case e: Throwable =>
+        fail(s"should be thrown a ${classOf[SparkException].getName} but is ${e.getClass.getSimpleName}")
     } finally {
       SparkConnectorScalaSuiteIT.session()
         .writeTransaction(new TransactionWork[Result] {
@@ -546,11 +602,13 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def `should update the node that already exists`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE")
+        override def execute(transaction: Transaction): Result =
+          transaction.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE")
       })
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("CREATE (p:Person{name: 'Federico', surname: 'Santurbano'})")
+        override def execute(transaction: Transaction): Result =
+          transaction.run("CREATE (p:Person{name: 'Federico', surname: 'Santurbano'})")
       })
 
     val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
@@ -567,12 +625,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .run(
         """MATCH (n:Person{surname: 'Santurbano'})
           |RETURN n
-          |""".stripMargin)
+          |""".stripMargin
+      )
       .list()
       .asScala
     assertEquals(1, nodeList.size)
     assertEquals("Andrea", nodeList.head.get("n").asNode().get("name").asString())
-
 
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
@@ -595,7 +653,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .run(
         """MATCH (n:Person{name: 'Andrea'})
           |RETURN n
-          |""".stripMargin)
+          |""".stripMargin
+      )
       .list()
       .asScala
     assertEquals(1, nodeList.size)
@@ -615,9 +674,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
     } catch {
       case illegalArgumentException: IllegalArgumentException => {
-        assertTrue(illegalArgumentException.getMessage.equals(s"${Neo4jOptions.NODE_KEYS} is required when Save Mode is Overwrite"))
+        assertTrue(illegalArgumentException.getMessage.equals(
+          s"${Neo4jOptions.NODE_KEYS} is required when Save Mode is Overwrite"
+        ))
       }
-      case e: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName} but is ${e.getClass.getSimpleName}")
+      case e: Throwable =>
+        fail(s"should be thrown a ${classOf[IllegalArgumentException].getName} but is ${e.getClass.getSimpleName}")
     }
   }
 
@@ -640,7 +702,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         |WHERE p.name STARTS WITH 'Andrea'
         |AND p.surname STARTS WITH 'Santurbano'
         |RETURN count(p) AS count
-        |""".stripMargin).single().get("count").asInt()
+        |""".stripMargin
+    ).single().get("count").asInt()
     assertEquals(100, count)
 
     val keys = SparkConnectorScalaSuiteIT.session().run(
@@ -649,7 +712,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         |WHERE p.name STARTS WITH 'Andrea'
         |AND p.surname STARTS WITH 'Santurbano'
         |RETURN DISTINCT keys(p) AS keys
-        |""".stripMargin).single().get("keys").asList()
+        |""".stripMargin
+    ).single().get("keys").asList()
     assertEquals(Set("name", "surname", "age"), keys.asScala.toSet)
   }
 
@@ -667,8 +731,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         .option("batch.size", "11")
         .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
     } catch {
-      case illegalArgumentException: IllegalArgumentException => assertTrue(illegalArgumentException.getMessage.equals("Please provide a valid WRITE query"))
-      case t: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, but it's ${t.getClass.getSimpleName}: ${t.getMessage}")
+      case illegalArgumentException: IllegalArgumentException =>
+        assertTrue(illegalArgumentException.getMessage.equals("Please provide a valid WRITE query"))
+      case t: Throwable => fail(
+          s"should be thrown a ${classOf[IllegalArgumentException].getName}, but it's ${t.getClass.getSimpleName}: ${t.getMessage}"
+        )
     }
   }
 
@@ -691,7 +758,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         |AND p.fullName CONTAINS 'Santurbano'
         |AND p.age = 26
         |RETURN count(p) AS count
-        |""".stripMargin).single().get("count").asLong()
+        |""".stripMargin
+    ).single().get("count").asLong()
     assertEquals(ds.count(), count)
   }
 
@@ -699,7 +767,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def `should handle unusual column names`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT instrument_name FOR (i:Instrument) REQUIRE i.name IS UNIQUE")
+        override def execute(transaction: Transaction): Result =
+          transaction.run("CREATE CONSTRAINT instrument_name FOR (i:Instrument) REQUIRE i.name IS UNIQUE")
       })
 
     val musicDf = Seq(
@@ -783,8 +852,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     } catch {
       case sparkException: SparkException => {
         val clientException = ExceptionUtils.getRootCause(sparkException)
-        assertTrue(clientException.getMessage.equals("NATIVE write strategy requires a schema like: rel.[props], source.[props], target.[props]. " +
-          "All of this columns are empty in the current schema."))
+        assertTrue(clientException.getMessage.equals(
+          "NATIVE write strategy requires a schema like: rel.[props], source.[props], target.[props]. " +
+            "All of this columns are empty in the current schema."
+        ))
         throw sparkException
       }
       case _: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}")
@@ -863,8 +934,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         .option("relationship.target.labels", ":Instrument")
         .option("relationship.target.node.keys", "instrument:name")
         .save()
-    }
-    catch {
+    } catch {
       case e: IllegalArgumentException =>
         assertEquals("Save mode 'ErrorIfExists' is not supported on Spark 3.0, use 'Append' instead.", e.getMessage)
       case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
@@ -973,7 +1043,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        })
+        }
+      )
 
     val musicDf = Seq(
       (1, 12, "John Henry Bonham", "Drums"),
@@ -1031,9 +1102,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:Person:Customer)
-          |RETURN p.surname AS surname
-          |""".stripMargin).list().asScala
+      """MATCH (p:Person:Customer)
+        |RETURN p.surname AS surname
+        |""".stripMargin
+    ).list().asScala
       .map(r => r.asMap().asScala)
       .toSet
     val expected = ds.collect().map(row => Map("surname" -> row.getAs[String]("surname")))
@@ -1041,7 +1113,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(expected, records)
 
     val indexCount = SparkConnectorScalaSuiteIT.session().run(
-        getIndexQueryCount)
+      getIndexQueryCount
+    )
       .single()
       .get("count")
       .asLong()
@@ -1092,9 +1165,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:Person:Customer)
-          |RETURN p.surname AS surname
-          |""".stripMargin).list().asScala
+      """MATCH (p:Person:Customer)
+        |RETURN p.surname AS surname
+        |""".stripMargin
+    ).list().asScala
       .map(r => r.asMap().asScala)
       .toSet
     val expected = ds.collect().map(row => Map("surname" -> row.getAs[String]("surname")))
@@ -1102,7 +1176,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(expected, records)
 
     val constraintCount = SparkConnectorScalaSuiteIT.session().run(
-        getConstraintQueryCount)
+      getConstraintQueryCount
+    )
       .single()
       .get("count")
       .asLong()
@@ -1112,7 +1187,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should not create constraint when insert nodes because they already exist`(): Unit = {
-    SparkConnectorScalaSuiteIT.session().run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE (p.surname) IS UNIQUE")
+    SparkConnectorScalaSuiteIT.session().run(
+      "CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE (p.surname) IS UNIQUE"
+    )
     val total = 10
     val ds = (1 to total)
       .map(i => i.toString)
@@ -1128,9 +1205,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:Person:Customer)
-          |RETURN p.surname AS surname
-          |""".stripMargin).list().asScala
+      """MATCH (p:Person:Customer)
+        |RETURN p.surname AS surname
+        |""".stripMargin
+    ).list().asScala
       .map(r => r.asMap().asScala)
       .toSet
     val expected = ds.collect().map(row => Map("surname" -> row.getAs[String]("surname")))
@@ -1138,7 +1216,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(expected, records)
 
     val constraintCount = SparkConnectorScalaSuiteIT.session().run(
-        getConstraintQueryCount)
+      getConstraintQueryCount
+    )
       .single()
       .get("count")
       .asLong()
@@ -1171,9 +1250,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:Person:Customer)
-          |RETURN p.surname AS surname
-          |""".stripMargin).list().asScala
+      """MATCH (p:Person:Customer)
+        |RETURN p.surname AS surname
+        |""".stripMargin
+    ).list().asScala
       .map(r => r.asMap().asScala)
       .toSet
     val expected = ds.collect().map(row => Map("surname" -> row.getAs[String]("surname")))
@@ -1199,22 +1279,28 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("query", "CREATE (n:Person{fullName: event.name + ' ' + event.surname, age: scriptResult[0].age[event.name]})")
-      .option("script",
+      .option(
+        "query",
+        "CREATE (n:Person{fullName: event.name + ' ' + event.surname, age: scriptResult[0].age[event.name]})"
+      )
+      .option(
+        "script",
         """CREATE INDEX person_surname FOR (p:Person) ON (p.surname);
           |CREATE CONSTRAINT product_name_sku FOR (p:Product)
           | REQUIRE (p.name, p.sku)
           | IS NODE KEY;
           |RETURN {Andrea: 36, Davide: 32} AS age;
-          |""".stripMargin)
+          |""".stripMargin
+      )
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH (p:Person)
-          |WHERE (p.fullName = 'Andrea Santurbano' AND p.age = 36)
-          |OR (p.fullName = 'Davide Fantuzzi' AND p.age = 32)
-          |RETURN count(p) AS count
-          |""".stripMargin)
+      """MATCH (p:Person)
+        |WHERE (p.fullName = 'Andrea Santurbano' AND p.age = 36)
+        |OR (p.fullName = 'Davide Fantuzzi' AND p.age = 32)
+        |RETURN count(p) AS count
+        |""".stripMargin
+    )
       .single()
       .get("count")
       .asLong()
@@ -1273,8 +1359,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save
 
     val count = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH p = (:Musician)-[:PLAYS]->(:Instrument)
-          |RETURN count(p) AS count""".stripMargin)
+      """MATCH p = (:Musician)-[:PLAYS]->(:Instrument)
+        |RETURN count(p) AS count""".stripMargin
+    )
       .single()
       .get("count")
       .asLong()
@@ -1284,7 +1371,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should work match source node and merge target node`() {
-    SparkConnectorScalaSuiteIT.session().run("CREATE CONSTRAINT musician_name FOR (m:Musician) REQUIRE (m.name) IS UNIQUE")
+    SparkConnectorScalaSuiteIT.session().run(
+      "CREATE CONSTRAINT musician_name FOR (m:Musician) REQUIRE (m.name) IS UNIQUE"
+    )
     val data = Seq(
       (12, "John Bonham", "Drums"),
       (19, "John Mayer", "Guitar"),
@@ -1313,8 +1402,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save
 
     val count = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH p = (:Musician)-[:PLAYS]->(:Instrument)
-          |RETURN count(p) AS count""".stripMargin)
+      """MATCH p = (:Musician)-[:PLAYS]->(:Instrument)
+        |RETURN count(p) AS count""".stripMargin
+    )
       .single()
       .get("count")
       .asLong()
@@ -1349,8 +1439,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save
 
     val count = SparkConnectorScalaSuiteIT.session().run(
-        """MATCH p = (:Musician)-[:PLAYS]->(:Instrument)
-          |RETURN count(p) AS count""".stripMargin)
+      """MATCH p = (:Musician)-[:PLAYS]->(:Instrument)
+        |RETURN count(p) AS count""".stripMargin
+    )
       .single()
       .get("count")
       .asLong()
@@ -1361,14 +1452,25 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def shouldWriteComplexDF(): Unit = {
     val data = Seq(
-      ("Cuba Gooding Jr.", 1, "2022-06-07 00:00:00", Seq(Map("product_id" -> 1, "quantity" -> 2), Map("product_id" -> 2, "quantity" -> 4))),
-      ("Tom Hanks", 2, "2022-07-07 00:00:00", Seq(Map("product_id" -> 11, "quantity" -> 2), Map("product_id" -> 22, "quantity" -> 4)))
+      (
+        "Cuba Gooding Jr.",
+        1,
+        "2022-06-07 00:00:00",
+        Seq(Map("product_id" -> 1, "quantity" -> 2), Map("product_id" -> 2, "quantity" -> 4))
+      ),
+      (
+        "Tom Hanks",
+        2,
+        "2022-07-07 00:00:00",
+        Seq(Map("product_id" -> 11, "quantity" -> 2), Map("product_id" -> 22, "quantity" -> 4))
+      )
     ).toDF("actor_name", "order_id", "order_date", "products")
     data.write
       .mode(SaveMode.Overwrite)
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("query",
+      .option(
+        "query",
         """
           |MERGE (person:Person {name: event.actor_name})
           |CREATE (order:Order {id: event.order_id, date: datetime(replace(event.order_date, ' ', 'T'))})
@@ -1377,30 +1479,40 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
           |UNWIND event.products AS product_order
           |MERGE (product:Product {id: product_order.product_id})
           |CREATE (order)-[:CONTAINS{quantityOrdered: product_order.quantity}]->(product)
-          |""".stripMargin)
+          |""".stripMargin
+      )
       .save()
 
     val actual = SparkConnectorScalaSuiteIT.session().run(
-        """
-          |MATCH (p:Person)-[cr:CREATED]->(o:Order)-[co:CONTAINS]->(pr:Product)
-          |WITH p, pr, o, co
-          |ORDER BY p.name, pr.id
-          |RETURN p.name AS name, o.id AS order, collect({id: pr.id, quantity: co.quantityOrdered}) AS products
-          |""".stripMargin)
+      """
+        |MATCH (p:Person)-[cr:CREATED]->(o:Order)-[co:CONTAINS]->(pr:Product)
+        |WITH p, pr, o, co
+        |ORDER BY p.name, pr.id
+        |RETURN p.name AS name, o.id AS order, collect({id: pr.id, quantity: co.quantityOrdered}) AS products
+        |""".stripMargin
+    )
       .list()
       .asScala
       .map(_.asMap())
       .toSet
       .asJava
     val expected = Set(
-      Map("name" -> "Cuba Gooding Jr.", "order" -> 1L, "products" -> List(
-        Map("id" -> 1L, "quantity" -> 2L).asJava,
-        Map("id" -> 2L, "quantity" -> 4L).asJava
-      ).asJava).asJava,
-      Map("name" -> "Tom Hanks", "order" -> 2L, "products" -> List(
-        Map("id" -> 11L, "quantity" -> 2L).asJava,
-        Map("id" -> 22L, "quantity" -> 4L).asJava
-      ).asJava).asJava
+      Map(
+        "name" -> "Cuba Gooding Jr.",
+        "order" -> 1L,
+        "products" -> List(
+          Map("id" -> 1L, "quantity" -> 2L).asJava,
+          Map("id" -> 2L, "quantity" -> 4L).asJava
+        ).asJava
+      ).asJava,
+      Map(
+        "name" -> "Tom Hanks",
+        "order" -> 2L,
+        "products" -> List(
+          Map("id" -> 11L, "quantity" -> 2L).asJava,
+          Map("id" -> 22L, "quantity" -> 4L).asJava
+        ).asJava
+      ).asJava
     ).asJava
     assertEquals(expected, actual)
   }
@@ -1409,7 +1521,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def shouldFix502(): Unit = {
     val data = Seq(
       ("Foo", 1, Map("inner" -> Map("key" -> "innerValue"))),
-      ("Bar", 1, Map("inner" -> Map("key" -> "innerValue1"))),
+      ("Bar", 1, Map("inner" -> Map("key" -> "innerValue1")))
     ).toDF("id", "time", "table")
     data.write
       .mode(SaveMode.Append)
@@ -1418,14 +1530,15 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("labels", ":MyNodeWithMapFlattend")
       .save()
     val count: Long = SparkConnectorScalaSuiteIT.session().run(
-        """
-          |MATCH (n:MyNodeWithMapFlattend)
-          |WHERE (
-          | properties(n) = {id: 'Foo', time: 1, `table.inner.key`: 'innerValue'}
-          | OR properties(n) = {id: 'Bar', time: 1, `table.inner.key`: 'innerValue1'}
-          |)
-          |RETURN count(n)
-          |""".stripMargin)
+      """
+        |MATCH (n:MyNodeWithMapFlattend)
+        |WHERE (
+        | properties(n) = {id: 'Foo', time: 1, `table.inner.key`: 'innerValue'}
+        | OR properties(n) = {id: 'Bar', time: 1, `table.inner.key`: 'innerValue1'}
+        |)
+        |RETURN count(n)
+        |""".stripMargin
+    )
       .single()
       .get(0)
       .asLong()
@@ -1436,7 +1549,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def shouldFix502WithCollisions(): Unit = {
     val data = Seq(
       ("Foo", 1, ListMap("key.inner" -> Map("key" -> "innerValue"), "key" -> Map("inner.key" -> "value"))),
-      ("Bar", 1, ListMap("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1"))),
+      ("Bar", 1, ListMap("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1")))
     ).toDF("id", "time", "table")
     data.write
       .mode(SaveMode.Append)
@@ -1445,14 +1558,15 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("labels", ":MyNodeWithMapFlattend")
       .save()
     val count: Long = SparkConnectorScalaSuiteIT.session().run(
-        """
-          |MATCH (n:MyNodeWithMapFlattend)
-          |WHERE (
-          | properties(n) = {id: 'Foo', time: 1, `table.key.inner.key`: 'value'}
-          | OR properties(n) = {id: 'Bar', time: 1, `table.key.inner.key`: 'value1'}
-          |)
-          |RETURN count(n)
-          |""".stripMargin)
+      """
+        |MATCH (n:MyNodeWithMapFlattend)
+        |WHERE (
+        | properties(n) = {id: 'Foo', time: 1, `table.key.inner.key`: 'value'}
+        | OR properties(n) = {id: 'Bar', time: 1, `table.key.inner.key`: 'value1'}
+        |)
+        |RETURN count(n)
+        |""".stripMargin
+    )
       .single()
       .get(0)
       .asLong()
@@ -1463,7 +1577,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def shouldFix502WithCollisionsAndAggregateValues(): Unit = {
     val data = Seq(
       ("Foo", 1, ListMap("key.inner" -> Map("key" -> "innerValue"), "key" -> Map("inner.key" -> "value"))),
-      ("Bar", 1, ListMap("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1"))),
+      ("Bar", 1, ListMap("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1")))
     ).toDF("id", "time", "table")
     data.write
       .mode(SaveMode.Append)
@@ -1473,14 +1587,15 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("schema.map.group.duplicate.keys", true)
       .save()
     val count: Long = SparkConnectorScalaSuiteIT.session().run(
-        """
-          |MATCH (n:MyNodeWithMapFlattend)
-          |WHERE (
-          | properties(n) = {id: 'Foo', time: 1, `table.key.inner.key`: ['innerValue', 'value']}
-          | OR properties(n) = {id: 'Bar', time: 1, `table.key.inner.key`: ['innerValue1', 'value1']}
-          |)
-          |RETURN count(n)
-          |""".stripMargin)
+      """
+        |MATCH (n:MyNodeWithMapFlattend)
+        |WHERE (
+        | properties(n) = {id: 'Foo', time: 1, `table.key.inner.key`: ['innerValue', 'value']}
+        | OR properties(n) = {id: 'Bar', time: 1, `table.key.inner.key`: ['innerValue1', 'value1']}
+        |)
+        |RETURN count(n)
+        |""".stripMargin
+    )
       .single()
       .get(0)
       .asLong()
@@ -1508,20 +1623,24 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.node.keys", "movie_title:title")
       .save()
     val rows = SparkConnectorScalaSuiteIT.session().run(
-        """
-          |MATCH (:User)-[r:WATCHED]->(:Movie)
-          |WITH r
-          |ORDER BY r.watch_time ASC
-          |RETURN collect(r{.*})
-          |""".stripMargin)
+      """
+        |MATCH (:User)-[r:WATCHED]->(:Movie)
+        |WITH r
+        |ORDER BY r.watch_time ASC
+        |RETURN collect(r{.*})
+        |""".stripMargin
+    )
       .single()
       .get(0)
       .asList((value: Value) => value.asMap().asScala)
       .asScala
-    junit.Assert.assertEquals(List(
-      Map("watch_time" -> "today"),
-      Map("watch_time" -> "two days ago"),
-      Map("watch_time" -> "yesterday")
-    ), rows)
+    junit.Assert.assertEquals(
+      List(
+        Map("watch_time" -> "today"),
+        Map("watch_time" -> "two days ago"),
+        Map("watch_time" -> "yesterday")
+      ),
+      rows
+    )
   }
 }

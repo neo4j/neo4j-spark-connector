@@ -1,14 +1,20 @@
 package org.neo4j
 
-import org.neo4j.driver.{AuthToken, AuthTokens, GraphDatabase, SessionConfig}
+import org.neo4j.driver.AuthToken
+import org.neo4j.driver.AuthTokens
+import org.neo4j.driver.GraphDatabase
+import org.neo4j.driver.SessionConfig
 import org.neo4j.spark.TestUtil
 import org.rnorth.ducttape.unreliables.Unreliables
 import org.testcontainers.containers.Neo4jContainer
-import org.testcontainers.containers.wait.strategy.{AbstractWaitStrategy, WaitAllStrategy}
+import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy
+import org.testcontainers.containers.wait.strategy.WaitAllStrategy
 import org.testcontainers.utility.DockerImageName
 
 import java.time.Duration
-import java.util.concurrent.{Callable, TimeUnit}
+import java.util.concurrent.Callable
+import java.util.concurrent.TimeUnit
+
 import scala.collection.JavaConverters._
 import scala.io.Source
 
@@ -34,33 +40,38 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
 
     try {
 
-      Unreliables.retryUntilSuccess(startupTimeout.getSeconds.toInt, TimeUnit.SECONDS, new Callable[Boolean] {
-        override def call(): Boolean = {
-          getRateLimiter.doWhenReady(new Runnable {
-            override def run(): Unit = {
-              if (databases.nonEmpty) {
-                val tx = systemSession.beginTransaction()
-                val databasesStatus = try {
-                  tx.run("SHOW DATABASES").list().asScala.map(db => {
-                    (db.get("name").asString(), db.get("currentStatus").asString())
-                  }).toMap
-                } finally {
-                  tx.close()
-                }
+      Unreliables.retryUntilSuccess(
+        startupTimeout.getSeconds.toInt,
+        TimeUnit.SECONDS,
+        new Callable[Boolean] {
+          override def call(): Boolean = {
+            getRateLimiter.doWhenReady(new Runnable {
+              override def run(): Unit = {
+                if (databases.nonEmpty) {
+                  val tx = systemSession.beginTransaction()
+                  val databasesStatus =
+                    try {
+                      tx.run("SHOW DATABASES").list().asScala.map(db => {
+                        (db.get("name").asString(), db.get("currentStatus").asString())
+                      }).toMap
+                    } finally {
+                      tx.close()
+                    }
 
-                val notOnline = databasesStatus.filter(it => {
-                  it._2 != "online"
-                })
+                  val notOnline = databasesStatus.filter(it => {
+                    it._2 != "online"
+                  })
 
-                if (databasesStatus.size < databases.size || notOnline.nonEmpty) {
-                  throw new RuntimeException(s"Cannot started because of the following databases: ${notOnline.keys}")
+                  if (databasesStatus.size < databases.size || notOnline.nonEmpty) {
+                    throw new RuntimeException(s"Cannot started because of the following databases: ${notOnline.keys}")
+                  }
                 }
               }
-            }
-          })
-          true
+            })
+            true
+          }
         }
-      })
+      )
     } finally {
       systemSession.close()
       driver.close()
@@ -69,10 +80,11 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
 }
 
 // docker pull neo4j/neo4j-experimental:4.0.0-rc01-enterprise
-class Neo4jContainerExtension(imageName: String = s"neo4j${if (TestUtil.experimental()) "/neo4j-experimental" else ""}:${TestUtil.neo4jVersion()}-enterprise")
-  extends Neo4jContainer[Neo4jContainerExtension](
-    DockerImageName.parse(imageName).asCompatibleSubstituteFor("neo4j")
-  ) {
+class Neo4jContainerExtension(imageName: String =
+  s"neo4j${if (TestUtil.experimental()) "/neo4j-experimental" else ""}:${TestUtil.neo4jVersion()}-enterprise")
+    extends Neo4jContainer[Neo4jContainerExtension](
+      DockerImageName.parse(imageName).asCompatibleSubstituteFor("neo4j")
+    ) {
   private var databases: Seq[String] = Seq.empty
 
   private var fixture: Set[(String, String)] = Set.empty
@@ -87,12 +99,15 @@ class Neo4jContainerExtension(imageName: String = s"neo4j${if (TestUtil.experime
     this
   }
 
-  private def createAuth(): AuthToken = if (getAdminPassword.nonEmpty) AuthTokens.basic("neo4j", getAdminPassword) else AuthTokens.none()
+  private def createAuth(): AuthToken =
+    if (getAdminPassword.nonEmpty) AuthTokens.basic("neo4j", getAdminPassword) else AuthTokens.none()
 
   override def start(): Unit = {
     if (databases.nonEmpty) {
       val waitAllStrategy = waitStrategy.asInstanceOf[WaitAllStrategy]
-      waitAllStrategy.withStrategy(new DatabasesWaitStrategy(createAuth()).forDatabases(databases).withStartupTimeout(Duration.ofMinutes(2)))
+      waitAllStrategy.withStrategy(
+        new DatabasesWaitStrategy(createAuth()).forDatabases(databases).withStartupTimeout(Duration.ofMinutes(2))
+      )
     }
     addEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     super.start()

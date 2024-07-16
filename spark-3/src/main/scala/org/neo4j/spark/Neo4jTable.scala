@@ -2,21 +2,27 @@ package org.neo4j.spark
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.connector.catalog.{SupportsRead, SupportsWrite, Table, TableCapability}
-import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
+import org.apache.spark.sql.connector.catalog.SupportsRead
+import org.apache.spark.sql.connector.catalog.SupportsWrite
+import org.apache.spark.sql.connector.catalog.Table
+import org.apache.spark.sql.connector.catalog.TableCapability
+import org.apache.spark.sql.connector.write.LogicalWriteInfo
+import org.apache.spark.sql.connector.write.WriteBuilder
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.neo4j.driver.AccessMode
 import org.neo4j.spark.reader.Neo4jScanBuilder
-import org.neo4j.spark.util.{Neo4jOptions, ValidateRead, Validations}
+import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.ValidateRead
+import org.neo4j.spark.util.Validations
 import org.neo4j.spark.writer.Neo4jWriterBuilder
 
 import scala.collection.JavaConverters._
 
 class Neo4jTable(schema: StructType, options: java.util.Map[String, String], jobId: String) extends Table
-  with SupportsRead
-  with SupportsWrite
-  with Logging {
+    with SupportsRead
+    with SupportsWrite
+    with Logging {
 
   private val neo4jOptions = new Neo4jOptions(options)
 

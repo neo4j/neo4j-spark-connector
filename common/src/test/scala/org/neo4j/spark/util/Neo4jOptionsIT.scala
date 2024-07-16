@@ -1,7 +1,9 @@
 package org.neo4j.spark.util
 
-import org.junit.Assert.{assertEquals, assertNotNull}
-import org.junit.{Ignore, Test}
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Ignore
+import org.junit.Test
 import org.neo4j.spark.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.SparkConnectorScalaSuiteIT.server
 
@@ -28,7 +30,10 @@ class Neo4jOptionsIT extends SparkConnectorScalaSuiteIT {
   @Ignore("This requires a fix on driver, ignoring until it is implemented")
   def shouldConstructDriverWithResolver(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, s"neo4j://localhost.localdomain:8888, bolt://localhost.localdomain:9999, ${server.getBoltUrl}")
+    options.put(
+      Neo4jOptions.URL,
+      s"neo4j://localhost.localdomain:8888, bolt://localhost.localdomain:9999, ${server.getBoltUrl}"
+    )
     options.put(Neo4jOptions.AUTH_TYPE, "none")
 
     val neo4jOptions = new Neo4jOptions(options)

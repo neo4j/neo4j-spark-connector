@@ -3,17 +3,29 @@ package org.neo4j.spark.service
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.connector.expressions.{SortDirection, SortOrder}
-import org.apache.spark.sql.connector.expressions.aggregate.{AggregateFunc, Count, CountStar, Max, Min, Sum}
-import org.apache.spark.sql.sources.{And, Filter, Or}
+import org.apache.spark.sql.connector.expressions.SortDirection
+import org.apache.spark.sql.connector.expressions.SortOrder
+import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
+import org.apache.spark.sql.connector.expressions.aggregate.Count
+import org.apache.spark.sql.connector.expressions.aggregate.CountStar
+import org.apache.spark.sql.connector.expressions.aggregate.Max
+import org.apache.spark.sql.connector.expressions.aggregate.Min
+import org.apache.spark.sql.connector.expressions.aggregate.Sum
+import org.apache.spark.sql.sources.And
+import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.sources.Or
 import org.neo4j.cypherdsl.core._
 import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.util.Neo4jImplicits._
-import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, NodeSaveMode, QueryType}
+import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.Neo4jUtil
+import org.neo4j.spark.util.NodeSaveMode
+import org.neo4j.spark.util.QueryType
 
 import scala.collection.JavaConverters._
 
 class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQueryStrategy {
+
   override def createStatementForQuery(options: Neo4jOptions): String =
     s"""WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
        |UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
@@ -29,16 +41,19 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
 
   private def keywordFromSaveMode(saveMode: Any): String = {
     saveMode match {
-      case NodeSaveMode.Overwrite | SaveMode.Overwrite => "MERGE"
+      case NodeSaveMode.Overwrite | SaveMode.Overwrite                                                 => "MERGE"
       case NodeSaveMode.ErrorIfExists | SaveMode.ErrorIfExists | SaveMode.Append | NodeSaveMode.Append => "CREATE"
-      case NodeSaveMode.Match => "MATCH"
+      case NodeSaveMode.Match                                                                          => "MATCH"
       case _ => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")
     }
   }
 
   private def createQueryPart(keyword: String, labels: String, keys: String, alias: String): String = {
-    val setStatement = if (!keyword.equals("MATCH")) s" SET $alias += ${Neo4jQueryStrategy.VARIABLE_EVENT}.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}" else ""
-    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})$setStatement""".stripMargin
+    val setStatement = if (!keyword.equals("MATCH"))
+      s" SET $alias += ${Neo4jQueryStrategy.VARIABLE_EVENT}.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}"
+    else ""
+    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) ""
+      else s"{$keys}"})$setStatement""".stripMargin
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
@@ -75,7 +90,9 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
 
     val relKeys = if (options.relationshipMetadata.relationshipKeys.nonEmpty) {
       options.relationshipMetadata.relationshipKeys
-        .map(t => s"${t._2}: ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.KEYS}.${t._1}")
+        .map(t =>
+          s"${t._2}: ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.KEYS}.${t._1}"
+        )
         .mkString("{", ", ", "}")
     } else {
       ""
@@ -111,11 +128,13 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
     throw new UnsupportedOperationException("Write operations with GDS are currently not supported")
 }
 
-class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
-                             partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
-                             requiredColumns: Seq[String] = Seq.empty,
-                             aggregateColumns: Array[AggregateFunc] = Array.empty,
-                             jobId: String = "") extends Neo4jQueryStrategy with Logging {
+class Neo4jQueryReadStrategy(
+  filters: Array[Filter] = Array.empty[Filter],
+  partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
+  requiredColumns: Seq[String] = Seq.empty,
+  aggregateColumns: Array[AggregateFunc] = Array.empty,
+  jobId: String = ""
+) extends Neo4jQueryStrategy with Logging {
   private val renderer: Renderer = Renderer.getDefaultRenderer
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
@@ -124,8 +143,9 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     if (partitionPagination.topN.orders.nonEmpty) {
       logWarning(
         s"""Top N push-down optimizations with aggregations are not supported for custom queries.
-          |\tThese aggregations are going to be ignored.
-          |\tPlease specify the aggregations in the custom query directly""".stripMargin)
+           |\tThese aggregations are going to be ignored.
+           |\tPlease specify the aggregations in the custom query directly""".stripMargin
+      )
     }
     val limitedQuery = if (hasSkipLimit) {
       s"""${options.query.value}
@@ -146,7 +166,8 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     val relationship = sourceNode.relationshipTo(targetNode, options.relationshipMetadata.relationshipType)
       .named(Neo4jUtil.RELATIONSHIP_ALIAS)
 
-    val matchQuery: StatementBuilder.OngoingReadingWithoutWhere = filterRelationship(sourceNode, targetNode, relationship)
+    val matchQuery: StatementBuilder.OngoingReadingWithoutWhere =
+      filterRelationship(sourceNode, targetNode, relationship)
     val returnExpressions: Seq[Expression] = buildReturnExpression(sourceNode, targetNode, relationship)
     val stmt = if (aggregateColumns.isEmpty) {
       val query = matchQuery.returning(returnExpressions: _*)
@@ -173,55 +194,60 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
         }
       case _ => Some(entity)
     }
-    val direction = if (order.direction() == SortDirection.ASCENDING) SortItem.Direction.ASC else SortItem.Direction.DESC
+    val direction =
+      if (order.direction() == SortDirection.ASCENDING) SortItem.Direction.ASC else SortItem.Direction.DESC
 
-    Cypher.sort(container
-      .map(_.property(sortExpression.removeAlias()))
-      .getOrElse(Cypher.name(sortExpression.unquote())), direction)
+    Cypher.sort(
+      container
+        .map(_.property(sortExpression.removeAlias()))
+        .getOrElse(Cypher.name(sortExpression.unquote())),
+      direction
+    )
   }
 
   private def buildReturnExpression(sourceNode: Node, targetNode: Node, relationship: Relationship): Seq[Expression] = {
     if (requiredColumns.isEmpty) {
-      Seq(relationship.getRequiredSymbolicName, sourceNode.as(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS), targetNode.as(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS))
-    }
-    else {
+      Seq(
+        relationship.getRequiredSymbolicName,
+        sourceNode.as(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS),
+        targetNode.as(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)
+      )
+    } else {
       requiredColumns.map(column => {
         val splatColumn = column.split('.')
         val entityName = splatColumn.head
 
         val entity = if (entityName.contains(Neo4jUtil.RELATIONSHIP_ALIAS)) {
           relationship
-        }
-        else if (entityName.contains(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)) {
+        } else if (entityName.contains(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)) {
           sourceNode
-        }
-        else if (entityName.contains(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)) {
+        } else if (entityName.contains(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)) {
           targetNode
-        }
-        else {
+        } else {
           null
         }
 
         if (entity != null && splatColumn.length == 1) {
           entity match {
-            case n: Node => n.as(entityName.quote())
+            case n: Node         => n.as(entityName.quote())
             case r: Relationship => r.getRequiredSymbolicName
           }
-        }
-        else {
+        } else {
           getCorrectProperty(column, entity)
         }
       })
     }
   }
 
-  private def buildStatementAggregation(options: Neo4jOptions,
-                                        query: StatementBuilder.OngoingReadingWithoutWhere,
-                                        entity: PropertyContainer,
-                                        fields: Seq[Expression]): Statement = {
+  private def buildStatementAggregation(
+    options: Neo4jOptions,
+    query: StatementBuilder.OngoingReadingWithoutWhere,
+    entity: PropertyContainer,
+    fields: Seq[Expression]
+  ): Statement = {
     val ret = if (hasSkipLimit) {
       val id = entity match {
-        case node: Node => Functions.id(node)
+        case node: Node        => Functions.id(node)
         case rel: Relationship => Functions.id(rel)
       }
       query
@@ -246,12 +272,14 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     ret.build()
   }
 
-  private def buildStatement(options: Neo4jOptions,
-                             returning: StatementBuilder.TerminalExposesSkip
-                               with StatementBuilder.TerminalExposesLimit
-                               with StatementBuilder.TerminalExposesOrderBy
-                               with StatementBuilder.BuildableStatement[_],
-                             entity: PropertyContainer = null): Statement = {
+  private def buildStatement(
+    options: Neo4jOptions,
+    returning: StatementBuilder.TerminalExposesSkip
+      with StatementBuilder.TerminalExposesLimit
+      with StatementBuilder.TerminalExposesOrderBy
+      with StatementBuilder.BuildableStatement[_],
+    entity: PropertyContainer = null
+  ): Statement = {
 
     def addSkipLimit(ret: StatementBuilder.TerminalExposesSkip
       with StatementBuilder.TerminalExposesLimit
@@ -259,8 +287,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
 
       if (partitionPagination.skip == 0) {
         ret.limit(partitionPagination.topN.limit)
-      }
-      else {
+      } else {
         ret.skip(partitionPagination.skip)
           .limit(partitionPagination.topN.limit)
       }
@@ -274,7 +301,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
           addSkipLimit(returning.orderBy(partitionPagination.topN.orders.map(order => convertSort(entity, order)): _*))
         } else {
           val id = entity match {
-            case node: Node => Functions.id(node)
+            case node: Node        => Functions.id(node)
             case rel: Relationship => Functions.id(rel)
           }
           addSkipLimit(returning.orderBy(id))
@@ -293,14 +320,11 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     def getContainer(filter: Filter): PropertyContainer = {
       if (filter.isAttribute(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)) {
         sourceNode
-      }
-      else if (filter.isAttribute(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)) {
+      } else if (filter.isAttribute(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)) {
         targetNode
-      }
-      else if (filter.isAttribute(Neo4jUtil.RELATIONSHIP_ALIAS)) {
+      } else if (filter.isAttribute(Neo4jUtil.RELATIONSHIP_ALIAS)) {
         relationship
-      }
-      else {
+      } else {
         throw new IllegalArgumentException(s"Attribute '${filter.getAttribute.get}' is not valid")
       }
     }
@@ -309,8 +333,9 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
       def mapFilter(filter: Filter): Condition = {
         filter match {
           case and: And => mapFilter(and.left).and(mapFilter(and.right))
-          case or: Or => mapFilter(or.left).or(mapFilter(or.right))
-          case filter: Filter => Neo4jUtil.mapSparkFiltersToCypher(filter, getContainer(filter), filter.getAttributeWithoutEntityName)
+          case or: Or   => mapFilter(or.left).or(mapFilter(or.right))
+          case filter: Filter =>
+            Neo4jUtil.mapSparkFiltersToCypher(filter, getContainer(filter), filter.getAttributeWithoutEntityName)
         }
       }
 
@@ -328,13 +353,20 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
 
     column match {
       case Neo4jUtil.INTERNAL_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD)
-      case Neo4jUtil.INTERNAL_REL_ID_FIELD => Functions.id(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_ID_FIELD)
-      case Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD)
-      case Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD)
-      case Neo4jUtil.INTERNAL_REL_TYPE_FIELD => Functions.`type`(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_TYPE_FIELD)
-      case Neo4jUtil.INTERNAL_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_LABELS_FIELD)
-      case Neo4jUtil.INTERNAL_REL_SOURCE_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_SOURCE_LABELS_FIELD)
-      case Neo4jUtil.INTERNAL_REL_TARGET_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_TARGET_LABELS_FIELD)
+      case Neo4jUtil.INTERNAL_REL_ID_FIELD =>
+        Functions.id(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_ID_FIELD)
+      case Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD =>
+        Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD)
+      case Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD =>
+        Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD)
+      case Neo4jUtil.INTERNAL_REL_TYPE_FIELD =>
+        Functions.`type`(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_TYPE_FIELD)
+      case Neo4jUtil.INTERNAL_LABELS_FIELD =>
+        Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_LABELS_FIELD)
+      case Neo4jUtil.INTERNAL_REL_SOURCE_LABELS_FIELD =>
+        Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_SOURCE_LABELS_FIELD)
+      case Neo4jUtil.INTERNAL_REL_TARGET_LABELS_FIELD =>
+        Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_TARGET_LABELS_FIELD)
       case "*" => Asterisk.INSTANCE
       case name => {
         val cleanedName = name.removeAlias()
@@ -397,8 +429,8 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     if (filters.nonEmpty) {
       def mapFilter(filter: Filter): Condition = {
         filter match {
-          case and: And => mapFilter(and.left).and(mapFilter(and.right))
-          case or: Or => mapFilter(or.left).or(mapFilter(or.right))
+          case and: And       => mapFilter(and.left).and(mapFilter(and.right))
+          case or: Or         => mapFilter(or.left).or(mapFilter(or.right))
           case filter: Filter => Neo4jUtil.mapSparkFiltersToCypher(filter, node)
         }
       }
@@ -422,12 +454,16 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     val relationship = sourceNode.relationshipTo(targetNode, options.relationshipMetadata.relationshipType)
       .named(Neo4jUtil.RELATIONSHIP_ALIAS)
 
-    val matchQuery: StatementBuilder.OngoingReadingWithoutWhere = filterRelationship(sourceNode, targetNode, relationship)
+    val matchQuery: StatementBuilder.OngoingReadingWithoutWhere =
+      filterRelationship(sourceNode, targetNode, relationship)
 
     renderer.render(buildStatement(options, matchQuery.returning(Functions.count(sourceNode).as("count"))))
   }
 
-  private def assembleConditionQuery(matchQuery: StatementBuilder.OngoingReadingWithoutWhere, filters: Array[Condition]): StatementBuilder.OngoingReadingWithWhere = {
+  private def assembleConditionQuery(
+    matchQuery: StatementBuilder.OngoingReadingWithoutWhere,
+    filters: Array[Condition]
+  ): StatementBuilder.OngoingReadingWithWhere = {
     matchQuery.where(
       filters.fold(Conditions.noCondition()) { (a, b) => a.and(b) }
     )
@@ -446,8 +482,12 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
   override def createStatementForGDS(options: Neo4jOptions): String = {
     val retCols = requiredColumns.map(column => getCorrectProperty(column, null))
     // we need it in order to parse the field YIELD by the GDS procedure...
-    val (yieldFields, args) = Neo4jUtil.callSchemaService(options, jobId, filters,
-      { ss => (ss.struct().fieldNames, ss.inputForGDSProc(options.query.value)) })
+    val (yieldFields, args) = Neo4jUtil.callSchemaService(
+      options,
+      jobId,
+      filters,
+      { ss => (ss.struct().fieldNames, ss.inputForGDSProc(options.query.value)) }
+    )
 
     val cypherParams = args
       .filter(t => {
@@ -486,17 +526,17 @@ abstract class Neo4jQueryStrategy {
   def createStatementForGDS(options: Neo4jOptions): String
 }
 
-class Neo4jQueryService(private val options: Neo4jOptions,
-                        val strategy: Neo4jQueryStrategy) extends Serializable {
+class Neo4jQueryService(private val options: Neo4jOptions, val strategy: Neo4jQueryStrategy) extends Serializable {
 
   def createQuery(): String = options.query.queryType match {
-    case QueryType.LABELS => strategy.createStatementForNodes(options)
+    case QueryType.LABELS       => strategy.createStatementForNodes(options)
     case QueryType.RELATIONSHIP => strategy.createStatementForRelationships(options)
-    case QueryType.QUERY => strategy.createStatementForQuery(options)
-    case QueryType.GDS => strategy.createStatementForGDS(options)
+    case QueryType.QUERY        => strategy.createStatementForQuery(options)
+    case QueryType.GDS          => strategy.createStatementForGDS(options)
     case _ => throw new UnsupportedOperationException(
-      s"""Query Type not supported.
-         |You provided ${options.query.queryType},
-         |supported types: ${QueryType.values.mkString(",")}""".stripMargin)
+        s"""Query Type not supported.
+           |You provided ${options.query.queryType},
+           |supported types: ${QueryType.values.mkString(",")}""".stripMargin
+      )
   }
 }

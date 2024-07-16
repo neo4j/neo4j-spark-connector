@@ -350,6 +350,37 @@
         </pluginManagement>
         <plugins>
             <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <configuration>
+                    <scala>
+                        <!-- These are the defaults, you can override if you want -->
+                        <includes>
+                            <include>src/main/scala/**/*.scala</include>
+                            <include>src/test/scala/**/*.scala</include>
+                        </includes>
+                        <scalafmt>
+                            <file>scalafmt/scalafmt.conf</file>
+                        </scalafmt>
+                    </scala>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.neo4j.build</groupId>
+                        <artifactId>resources</artifactId>
+                        <version>${build-resources.version}</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <phase>compile</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
                 <version>${maven-enforcer-plugin.version}</version>

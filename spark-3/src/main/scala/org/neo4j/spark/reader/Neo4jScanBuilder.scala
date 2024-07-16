@@ -1,22 +1,34 @@
 package org.neo4j.spark.reader
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.connector.expressions.{Expression, SortOrder}
-import org.apache.spark.sql.connector.expressions.aggregate.{AggregateFunc, Aggregation}
+import org.apache.spark.sql.connector.expressions.Expression
+import org.apache.spark.sql.connector.expressions.SortOrder
+import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
+import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.expressions.filter.Predicate
-import org.apache.spark.sql.connector.read.{Scan, SupportsPushDownAggregates, SupportsPushDownLimit, SupportsPushDownRequiredColumns, SupportsPushDownTopN, SupportsPushDownV2Filters}
-import org.apache.spark.sql.types.{LongType, StructField, StructType}
+import org.apache.spark.sql.connector.read.Scan
+import org.apache.spark.sql.connector.read.SupportsPushDownAggregates
+import org.apache.spark.sql.connector.read.SupportsPushDownLimit
+import org.apache.spark.sql.connector.read.SupportsPushDownRequiredColumns
+import org.apache.spark.sql.connector.read.SupportsPushDownTopN
+import org.apache.spark.sql.connector.read.SupportsPushDownV2Filters
+import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.config.TopN
-import org.neo4j.spark.util.Neo4jImplicits.{AggregationImplicit, CypherImplicits, PredicateImplicit}
-import org.neo4j.spark.util.{Neo4jOptions, QueryType}
+import org.neo4j.spark.util.Neo4jImplicits.AggregationImplicit
+import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
+import org.neo4j.spark.util.Neo4jImplicits.PredicateImplicit
+import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.QueryType
 
 class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: StructType)
-  extends SupportsPushDownV2Filters
-  with SupportsPushDownAggregates
-  with SupportsPushDownRequiredColumns
-  with SupportsPushDownLimit
-  with SupportsPushDownTopN
-  with Logging {
+    extends SupportsPushDownV2Filters
+    with SupportsPushDownAggregates
+    with SupportsPushDownRequiredColumns
+    with SupportsPushDownLimit
+    with SupportsPushDownTopN
+    with Logging {
 
   private var predicates: Array[Predicate] = Array.empty
 
@@ -35,7 +47,8 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
       predicates.flatMap(_.toFilter),
       requiredColumns,
       aggregateColumns,
-      topN.orElse(limit.map((limit: Int) => TopN(limit))))
+      topN.orElse(limit.map((limit: Int) => TopN(limit)))
+    )
   }
 
   override def pushPredicates(predicatesArray: Array[Predicate]): Array[Predicate] = {
@@ -57,7 +70,8 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
   }
 
   override def pushAggregation(aggregation: Aggregation): Boolean = {
-    if (!neo4jOptions.pushdownAggregateEnabled
+    if (
+      !neo4jOptions.pushdownAggregateEnabled
       || aggregation.aggregateExpressions().isEmpty
       || neo4jOptions.query.queryType == QueryType.QUERY
     ) {
@@ -70,15 +84,16 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
     requiredColumns = StructType(requiredSchema.filter(field => groupByColumns.contains(field.name)))
 
     aggregateColumns.foreach(af => {
-      val fields = try {
-        af.children()
-          .toSet[Expression]
-          .map(_.describe())
-          .map(_.unquote())
-      } catch {
-        // for making it compatible with Spark 3.2
-        case noSuchMethodException: NoSuchMethodError => Set(af.describe().unquote())
-      }
+      val fields =
+        try {
+          af.children()
+            .toSet[Expression]
+            .map(_.describe())
+            .map(_.unquote())
+        } catch {
+          // for making it compatible with Spark 3.2
+          case noSuchMethodException: NoSuchMethodError => Set(af.describe().unquote())
+        }
       val dt = if (fields.nonEmpty) {
         requiredSchema.filter(field => fields.contains(field.name))
           .map(_.dataType)
@@ -101,9 +116,10 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
     if (neo4jOptions.partitions > 1) {
       logWarning(
         s"""Disabling pushed down limit support since it conflicts with partitioning.
-          |Set the `${Neo4jOptions.PARTITIONS}` parameter value to 1
-          | or set `${Neo4jOptions.PUSHDOWN_LIMIT_ENABLED}` to false to remove this warning.
-          |""".stripMargin)
+           |Set the `${Neo4jOptions.PARTITIONS}` parameter value to 1
+           | or set `${Neo4jOptions.PUSHDOWN_LIMIT_ENABLED}` to false to remove this warning.
+           |""".stripMargin
+      )
       return false
     }
     if (pushedLimit <= 0) {

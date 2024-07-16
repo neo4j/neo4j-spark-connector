@@ -1,8 +1,8 @@
 package org.neo4j.spark.util
 
 import org.apache.commons.lang3.StringUtils
-import org.junit.Test
 import org.junit.Assert
+import org.junit.Test
 
 class Neo4jUtilTest {
 

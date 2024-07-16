@@ -1,8 +1,12 @@
 package org.neo4j.spark.converter
 
-import org.apache.spark.sql.types.{DataType, DataTypes}
+import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.DataTypes
 import org.neo4j.driver.types.Entity
-import org.neo4j.spark.converter.CypherToSparkTypeConverter.{cleanTerms, durationType, pointType, timeType}
+import org.neo4j.spark.converter.CypherToSparkTypeConverter.cleanTerms
+import org.neo4j.spark.converter.CypherToSparkTypeConverter.durationType
+import org.neo4j.spark.converter.CypherToSparkTypeConverter.pointType
+import org.neo4j.spark.converter.CypherToSparkTypeConverter.timeType
 import org.neo4j.spark.converter.SparkToCypherTypeConverter.mapping
 import org.neo4j.spark.service.SchemaService.normalizedClassName
 import org.neo4j.spark.util.Neo4jImplicits.EntityImplicits
@@ -44,18 +48,20 @@ object CypherToSparkTypeConverter {
 }
 
 class CypherToSparkTypeConverter extends TypeConverter[String, DataType] {
+
   override def convert(sourceType: String, value: Any = null): DataType = sourceType
     .replaceAll(cleanTerms, "") match {
     case "Node" | "Relationship" => if (value != null) value.asInstanceOf[Entity].toStruct else DataTypes.NullType
-    case "NodeArray" | "RelationshipArray" => if (value != null) DataTypes.createArrayType(value.asInstanceOf[Entity].toStruct) else DataTypes.NullType
-    case "Boolean" => DataTypes.BooleanType
-    case "Long" => DataTypes.LongType
-    case "Double" => DataTypes.DoubleType
-    case "Point" => pointType
+    case "NodeArray" | "RelationshipArray" =>
+      if (value != null) DataTypes.createArrayType(value.asInstanceOf[Entity].toStruct) else DataTypes.NullType
+    case "Boolean"                                      => DataTypes.BooleanType
+    case "Long"                                         => DataTypes.LongType
+    case "Double"                                       => DataTypes.DoubleType
+    case "Point"                                        => pointType
     case "DateTime" | "ZonedDateTime" | "LocalDateTime" => DataTypes.TimestampType
-    case "Time" => timeType
-    case "Date" => DataTypes.DateType
-    case "Duration" => durationType
+    case "Time"                                         => timeType
+    case "Date"                                         => DataTypes.DateType
+    case "Duration"                                     => durationType
     case "Map" => {
       val valueType = if (value == null) {
         DataTypes.NullType
@@ -81,14 +87,14 @@ class CypherToSparkTypeConverter extends TypeConverter[String, DataType] {
       DataTypes.createArrayType(valueType)
     }
     // These are from APOC
-    case "StringArray" => DataTypes.createArrayType(DataTypes.StringType)
-    case "LongArray" => DataTypes.createArrayType(DataTypes.LongType)
-    case "DoubleArray" => DataTypes.createArrayType(DataTypes.DoubleType)
-    case "BooleanArray" => DataTypes.createArrayType(DataTypes.BooleanType)
-    case "PointArray" => DataTypes.createArrayType(pointType)
+    case "StringArray"   => DataTypes.createArrayType(DataTypes.StringType)
+    case "LongArray"     => DataTypes.createArrayType(DataTypes.LongType)
+    case "DoubleArray"   => DataTypes.createArrayType(DataTypes.DoubleType)
+    case "BooleanArray"  => DataTypes.createArrayType(DataTypes.BooleanType)
+    case "PointArray"    => DataTypes.createArrayType(pointType)
     case "DateTimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
-    case "TimeArray" => DataTypes.createArrayType(timeType)
-    case "DateArray" => DataTypes.createArrayType(DataTypes.DateType)
+    case "TimeArray"     => DataTypes.createArrayType(timeType)
+    case "DateArray"     => DataTypes.createArrayType(DataTypes.DateType)
     case "DurationArray" => DataTypes.createArrayType(durationType)
     // Default is String
     case _ => DataTypes.StringType

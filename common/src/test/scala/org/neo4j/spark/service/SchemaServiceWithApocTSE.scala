@@ -1,14 +1,23 @@
 package org.neo4j.spark.service
 
-import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
+import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.junit.Assert._
+import org.junit.Before
+import org.junit.FixMethodOrder
+import org.junit.Test
 import org.junit.runners.MethodSorters
-import org.junit.{Before, FixMethodOrder, Test}
+import org.neo4j.driver.Transaction
+import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
-import org.neo4j.driver.{Transaction, TransactionWork}
+import org.neo4j.spark.SparkConnectorScalaBaseWithApocTSE
+import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, QueryType}
-import org.neo4j.spark.{SparkConnectorScalaBaseWithApocTSE, SparkConnectorScalaSuiteWithApocIT}
+import org.neo4j.spark.util.DriverCache
+import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.Neo4jUtil
+import org.neo4j.spark.util.QueryType
 
 import java.util
 import java.util.UUID
@@ -22,7 +31,8 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
-        })
+        }
+      )
   }
 
   @Test
@@ -121,7 +131,10 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("names", DataTypes.createArrayType(DataTypes.StringType)))), schema)
+    assertEquals(
+      getExpectedStructType(Seq(StructField("names", DataTypes.createArrayType(DataTypes.StringType)))),
+      schema
+    )
   }
 
   @Test
@@ -132,7 +145,10 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("names", DataTypes.createArrayType(DataTypes.DateType)))), schema)
+    assertEquals(
+      getExpectedStructType(Seq(StructField("names", DataTypes.createArrayType(DataTypes.DateType)))),
+      schema
+    )
   }
 
   @Test
@@ -143,7 +159,10 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(DataTypes.TimestampType)))), schema)
+    assertEquals(
+      getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(DataTypes.TimestampType)))),
+      schema
+    )
   }
 
   @Test
@@ -154,7 +173,10 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(CypherToSparkTypeConverter.timeType)))), schema)
+    assertEquals(
+      getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(CypherToSparkTypeConverter.timeType)))),
+      schema
+    )
   }
 
   @Test
@@ -175,18 +197,22 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       CREATE (p1:Person {age: 31, name: 'Jane Doe'}),
         (p2:Person {name: 'John Doe', age: 33, location: null}),
         (p3:Person {age: 25, location: point({latitude: 12.12, longitude: 31.13})})
-    """)
+    """
+    )
 
     val options: java.util.Map[String, String] = new util.HashMap[String, String]()
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(
-      StructField("age", DataTypes.LongType),
-      StructField("location", CypherToSparkTypeConverter.pointType),
-      StructField("name", DataTypes.StringType)
-    )), schema)
+    assertEquals(
+      getExpectedStructType(Seq(
+        StructField("age", DataTypes.LongType),
+        StructField("location", CypherToSparkTypeConverter.pointType),
+        StructField("name", DataTypes.StringType)
+      )),
+      schema
+    )
   }
 
   private def getExpectedStructType(structFields: Seq[StructField]): StructType = {
@@ -202,7 +228,8 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(query).consume()
-        })
+        }
+      )
   }
 
   private def getSchema(options: java.util.Map[String, String]): StructType = {
@@ -216,7 +243,6 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val schema: StructType = schemaService.struct()
     schemaService.close()
     driverCache.close()
-
 
     schema
   }

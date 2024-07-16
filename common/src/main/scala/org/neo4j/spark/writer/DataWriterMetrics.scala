@@ -1,23 +1,32 @@
 package org.neo4j.spark.writer
 
-import org.apache.spark.sql.connector.metric.{CustomMetric, CustomSumMetric, CustomTaskMetric}
+import org.apache.spark.sql.connector.metric.CustomMetric
+import org.apache.spark.sql.connector.metric.CustomSumMetric
+import org.apache.spark.sql.connector.metric.CustomTaskMetric
 import org.neo4j.driver.summary.SummaryCounters
-import org.neo4j.spark.writer.DataWriterMetrics.{LABELS_ADDED, LABELS_REMOVED, NODES_CREATED, NODES_DELETED, PROPERTIES_SET, RECORDS_WRITTEN, RELATIONSHIPS_CREATED, RELATIONSHIPS_DELETED}
+import org.neo4j.spark.writer.DataWriterMetrics.LABELS_ADDED
+import org.neo4j.spark.writer.DataWriterMetrics.LABELS_REMOVED
+import org.neo4j.spark.writer.DataWriterMetrics.NODES_CREATED
+import org.neo4j.spark.writer.DataWriterMetrics.NODES_DELETED
+import org.neo4j.spark.writer.DataWriterMetrics.PROPERTIES_SET
+import org.neo4j.spark.writer.DataWriterMetrics.RECORDS_WRITTEN
+import org.neo4j.spark.writer.DataWriterMetrics.RELATIONSHIPS_CREATED
+import org.neo4j.spark.writer.DataWriterMetrics.RELATIONSHIPS_DELETED
 
 import java.util.concurrent.atomic.AtomicLong
 
-case class DataWriterMetric(name: String, value: Long) extends CustomTaskMetric {
-}
+case class DataWriterMetric(name: String, value: Long) extends CustomTaskMetric {}
 
-class DataWriterMetrics private(
-                                 recordsProcessed: AtomicLong,
-                                 nodesCreated: AtomicLong,
-                                 nodesDeleted: AtomicLong,
-                                 relationshipsCreated: AtomicLong,
-                                 relationshipsDeleted: AtomicLong,
-                                 propertiesSet: AtomicLong,
-                                 labelsAdded: AtomicLong,
-                                 labelsRemoved: AtomicLong) {
+class DataWriterMetrics private (
+  recordsProcessed: AtomicLong,
+  nodesCreated: AtomicLong,
+  nodesDeleted: AtomicLong,
+  relationshipsCreated: AtomicLong,
+  relationshipsDeleted: AtomicLong,
+  propertiesSet: AtomicLong,
+  labelsAdded: AtomicLong,
+  labelsRemoved: AtomicLong
+) {
 
   def applyCounters(recordsWritten: Long, counters: SummaryCounters): Unit = {
     this.recordsProcessed.addAndGet(recordsWritten)

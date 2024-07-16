@@ -2,10 +2,16 @@ package org.neo4j.spark
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.DataFrame
-import org.junit.Assert.{assertEquals, assertTrue, fail}
-import org.junit.{Assume, BeforeClass, Test}
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
+import org.junit.Assume
+import org.junit.BeforeClass
+import org.junit.Test
+import org.neo4j.driver.SessionConfig
+import org.neo4j.driver.Transaction
+import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.exceptions.ClientException
-import org.neo4j.driver.{SessionConfig, Transaction, TransactionWork}
 import org.neo4j.driver.summary.ResultSummary
 
 class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
@@ -20,8 +26,10 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       CREATE (p1:Person:Customer {name: 'John Doe'}),
        (p2:Person:Customer {name: 'Mark Brown'}),
        (p3:Person:Customer {name: 'Cindy White'})
-      """).consume()
-        })
+      """
+          ).consume()
+        }
+      )
 
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
       .writeTransaction(
@@ -30,8 +38,10 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
             """
       CREATE (p1:Person:Employee {name: 'Jane Doe'}),
        (p2:Person:Employee {name: 'John Doe'})
-      """).consume()
-        })
+      """
+          ).consume()
+        }
+      )
 
     val df1 = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -65,7 +75,8 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureProduct1Query).consume()
-        })
+        }
+      )
     val fixtureProduct2Query: String =
       """CREATE (pr:Product{id: 2, name: 'Product 2'})
         |WITH pr
@@ -78,14 +89,17 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureProduct2Query).consume()
-        })
+        }
+      )
 
     val partitionedDf = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("query",
+      .option(
+        "query",
         """
           |MATCH (p:Person)-[r:BOUGHT]->(pr:Product)
-          |RETURN p.name AS person, pr.name AS product, r.quantity AS quantity""".stripMargin)
+          |RETURN p.name AS person, pr.name AS product, r.quantity AS quantity""".stripMargin
+      )
       .option("partitions", "5")
       .load()
 
@@ -123,7 +137,8 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        })
+        }
+      )
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -150,7 +165,8 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        })
+        }
+      )
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -179,7 +195,8 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        })
+        }
+      )
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -210,7 +227,8 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        })
+        }
+      )
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -241,7 +259,8 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        })
+        }
+      )
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -270,7 +289,8 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        })
+        }
+      )
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -299,7 +319,8 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        })
+        }
+      )
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -325,14 +346,14 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .option("labels", "MATCH (h:Household) RETURN id(h)")
         .load()
         .show()
-    }
-    catch {
+    } catch {
       case clientException: ClientException => {
         assertTrue(clientException.getMessage.equals(
           "Database does not exist. Database name: 'not_existing_db'."
         ))
       }
-      case generic: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+      case generic: Throwable =>
+        fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
     }
   }
 
@@ -353,8 +374,10 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(
         new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run("CREATE (i1:Instrument{name: 'Drums', id: 1}), (i2:Instrument{name: 'Guitar', id: 2})").consume()
-        })
+          override def execute(tx: Transaction): ResultSummary =
+            tx.run("CREATE (i1:Instrument{name: 'Drums', id: 1}), (i2:Instrument{name: 'Guitar', id: 2})").consume()
+        }
+      )
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -383,13 +406,16 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        })
+        }
+      )
 
     val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("query",
+      .option(
+        "query",
         """MATCH (p:Person)-[b:BOUGHT]->(pr:Product)
-          |RETURN id(p) AS personId, id(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201"} as map2""".stripMargin)
+          |RETURN id(p) AS personId, id(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201"} as map2""".stripMargin
+      )
       .option("schema.strategy", "string")
       .load()
 
@@ -401,9 +427,11 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
   def testComplexReturnStatementNoValues(): Unit = {
     val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("query",
+      .option(
+        "query",
         """MATCH (p:Person)-[b:BOUGHT]->(pr:Product)
-          |RETURN id(p) AS personId, id(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201", and: 1} as map2""".stripMargin)
+          |RETURN id(p) AS personId, id(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201", and: 1} as map2""".stripMargin
+      )
       .option("schema.strategy", "string")
       .load()
 

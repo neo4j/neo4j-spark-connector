@@ -1,33 +1,41 @@
 package org.neo4j.spark
 
-import org.apache.spark.sql.types.{ArrayType, DoubleType, LongType, MapType, StringType, StructField, StructType}
-import org.junit.Assert.{assertEquals, assertTrue, fail}
-import org.junit.{After, Assume, Test}
+import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.types.MapType
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
+import org.junit.Assume
+import org.junit.Test
 import org.neo4j.driver.Transaction
 
 import scala.math.Ordering.Implicits.infixOrderingOps
-
 
 class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
 
   @After
   def cleanData(): Unit = {
     SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction(
-        (tx: Transaction) => {
-          tx.run("MATCH (n) DETACH DELETE n").consume()
-        })
+      .writeTransaction((tx: Transaction) => {
+        tx.run("MATCH (n) DETACH DELETE n").consume()
+      })
     SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction(
-        (tx: Transaction) => {
-          tx.run(
-            """
-              |CALL gds.graph.list() YIELD graphName
-              |WITH graphName AS g
-              |CALL gds.graph.drop(g) YIELD graphName
-              |RETURN *
-              |""".stripMargin).consume()
-        })
+      .writeTransaction((tx: Transaction) => {
+        tx.run(
+          """
+            |CALL gds.graph.list() YIELD graphName
+            |WITH graphName AS g
+            |CALL gds.graph.drop(g) YIELD graphName
+            |RETURN *
+            |""".stripMargin
+        ).consume()
+      })
   }
 
   @Test
@@ -54,19 +62,22 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
     assertEquals(dfEstimate.count(), 1)
     dfEstimate.show(false)
 
-    assertEquals(StructType(
-      Array(
-        StructField("requiredMemory", StringType),
-        StructField("treeView", StringType),
-        StructField("mapView", MapType(StringType, StringType)),
-        StructField("bytesMin", LongType),
-        StructField("bytesMax", LongType),
-        StructField("nodeCount", LongType),
-        StructField("relationshipCount", LongType),
-        StructField("heapPercentageMin", DoubleType),
-        StructField("heapPercentageMax", DoubleType)
-      )
-    ), dfEstimate.schema)
+    assertEquals(
+      StructType(
+        Array(
+          StructField("requiredMemory", StringType),
+          StructField("treeView", StringType),
+          StructField("mapView", MapType(StringType, StringType)),
+          StructField("bytesMin", LongType),
+          StructField("bytesMax", LongType),
+          StructField("nodeCount", LongType),
+          StructField("relationshipCount", LongType),
+          StructField("heapPercentageMin", DoubleType),
+          StructField("heapPercentageMax", DoubleType)
+        )
+      ),
+      dfEstimate.schema
+    )
   }
 
   @Test
@@ -103,7 +114,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
       Map(
         "gds" -> "gds.pageRank.write",
         "gds.graphName" -> "myGraph",
-        "gds.configuration.concurrency" -> "2",
+        "gds.configuration.concurrency" -> "2"
       ),
       "You cannot execute GDS mutate or write procedure in a read query"
     )
@@ -112,7 +123,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
       Map(
         "gds" -> "gds.pageRank.mutate",
         "gds.graphName" -> "myGraph",
-        "gds.configuration.concurrency" -> "2",
+        "gds.configuration.concurrency" -> "2"
       ),
       "You cannot execute GDS mutate or write procedure in a read query"
     )
@@ -122,7 +133,9 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
   def shouldWorkWithMapReturn(): Unit = {
     initForHits()
 
-    val procName = if (TestUtil.gdsVersion(SparkConnectorScalaSuiteWithGdsBase.session()) >= Versions.GDS_2_5) "gds.hits.stream" else "gds.alpha.hits.stream"
+    val procName = if (TestUtil.gdsVersion(SparkConnectorScalaSuiteWithGdsBase.session()) >= Versions.GDS_2_5)
+      "gds.hits.stream"
+    else "gds.alpha.hits.stream"
     val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
       .option("gds", procName)
@@ -132,8 +145,10 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
     assertEquals(df.count(), 9)
     df.show(false)
 
-    assertEquals(StructType(Array(StructField("nodeId", LongType),
-      StructField("values", MapType(StringType, StringType)))), df.schema)
+    assertEquals(
+      StructType(Array(StructField("nodeId", LongType), StructField("values", MapType(StringType, StringType)))),
+      df.schema
+    )
   }
 
   @Test
@@ -148,8 +163,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
       .orderBy("name")
       .collect()
 
-    val (sourceId, targetId) = (sourceTargetNodes(0).getAs[Long]("<id>"),
-      sourceTargetNodes(1).getAs[Long]("<id>"))
+    val (sourceId, targetId) = (sourceTargetNodes(0).getAs[Long]("<id>"), sourceTargetNodes(1).getAs[Long]("<id>"))
 
     val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
@@ -163,20 +177,25 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
     assertEquals(df.count(), 3)
     df.show(false)
 
-    assertEquals(StructType(
-      Array(
-        StructField("index", LongType),
-        StructField("sourceNode", LongType),
-        StructField("targetNode", LongType),
-        StructField("totalCost", DoubleType),
-        StructField("nodeIds", ArrayType(LongType)),
-        StructField("costs", ArrayType(DoubleType)),
-        StructField("path", StringType)
-      )
-    ), df.schema)
+    assertEquals(
+      StructType(
+        Array(
+          StructField("index", LongType),
+          StructField("sourceNode", LongType),
+          StructField("targetNode", LongType),
+          StructField("totalCost", DoubleType),
+          StructField("nodeIds", ArrayType(LongType)),
+          StructField("costs", ArrayType(DoubleType)),
+          StructField("path", StringType)
+        )
+      ),
+      df.schema
+    )
 
-    val (graphNameParam, algoConfigurationParam) = if (TestUtil.gdsVersion(SparkConnectorScalaSuiteWithGdsBase.session()) >= Versions.GDS_2_4)
-      ("graphName", "configuration") else ("graphNameOrConfiguration", "algoConfiguration")
+    val (graphNameParam, algoConfigurationParam) =
+      if (TestUtil.gdsVersion(SparkConnectorScalaSuiteWithGdsBase.session()) >= Versions.GDS_2_4)
+        ("graphName", "configuration")
+      else ("graphNameOrConfiguration", "algoConfiguration")
     val dfEstimate = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
       .option("gds", "gds.shortestPath.yens.stream.estimate")
@@ -189,44 +208,47 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
     assertEquals(dfEstimate.count(), 1)
     dfEstimate.show(false)
 
-    assertEquals(StructType(
-      Array(
-        StructField("requiredMemory", StringType),
-        StructField("treeView", StringType),
-        StructField("mapView", MapType(StringType, StringType)),
-        StructField("bytesMin", LongType),
-        StructField("bytesMax", LongType),
-        StructField("nodeCount", LongType),
-        StructField("relationshipCount", LongType),
-        StructField("heapPercentageMin", DoubleType),
-        StructField("heapPercentageMax", DoubleType)
-      )
-    ), dfEstimate.schema)
+    assertEquals(
+      StructType(
+        Array(
+          StructField("requiredMemory", StringType),
+          StructField("treeView", StringType),
+          StructField("mapView", MapType(StringType, StringType)),
+          StructField("bytesMin", LongType),
+          StructField("bytesMax", LongType),
+          StructField("nodeCount", LongType),
+          StructField("relationshipCount", LongType),
+          StructField("heapPercentageMin", DoubleType),
+          StructField("heapPercentageMax", DoubleType)
+        )
+      ),
+      dfEstimate.schema
+    )
   }
 
   private def initForYens(): Unit = {
     SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction(
-        (tx: Transaction) => {
-          tx.run(
-            """
-              |CREATE (a:Location {name: 'A'}),
-              |       (b:Location {name: 'B'}),
-              |       (c:Location {name: 'C'}),
-              |       (d:Location {name: 'D'}),
-              |       (e:Location {name: 'E'}),
-              |       (f:Location {name: 'F'}),
-              |       (a)-[:ROAD {cost: 50}]->(b),
-              |       (a)-[:ROAD {cost: 50}]->(c),
-              |       (a)-[:ROAD {cost: 100}]->(d),
-              |       (b)-[:ROAD {cost: 40}]->(d),
-              |       (c)-[:ROAD {cost: 40}]->(d),
-              |       (c)-[:ROAD {cost: 80}]->(e),
-              |       (d)-[:ROAD {cost: 30}]->(e),
-              |       (d)-[:ROAD {cost: 80}]->(f),
-              |       (e)-[:ROAD {cost: 40}]->(f);
-              |""".stripMargin).consume()
-        })
+      .writeTransaction((tx: Transaction) => {
+        tx.run(
+          """
+            |CREATE (a:Location {name: 'A'}),
+            |       (b:Location {name: 'B'}),
+            |       (c:Location {name: 'C'}),
+            |       (d:Location {name: 'D'}),
+            |       (e:Location {name: 'E'}),
+            |       (f:Location {name: 'F'}),
+            |       (a)-[:ROAD {cost: 50}]->(b),
+            |       (a)-[:ROAD {cost: 50}]->(c),
+            |       (a)-[:ROAD {cost: 100}]->(d),
+            |       (b)-[:ROAD {cost: 40}]->(d),
+            |       (c)-[:ROAD {cost: 40}]->(d),
+            |       (c)-[:ROAD {cost: 80}]->(e),
+            |       (d)-[:ROAD {cost: 30}]->(e),
+            |       (d)-[:ROAD {cost: 80}]->(f),
+            |       (e)-[:ROAD {cost: 40}]->(f);
+            |""".stripMargin
+        ).consume()
+      })
     ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
       .option("gds", "gds.graph.project")
@@ -241,17 +263,17 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
   @Test
   def shouldWorkWithKNearest(): Unit = {
     SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction(
-        (tx: Transaction) => {
-          tx.run(
-            """
-              |CREATE (alice:Person {name: 'Alice', age: 24, lotteryNumbers: [1, 3], embedding: [1.0, 3.0]})
-              |CREATE (bob:Person {name: 'Bob', age: 73, lotteryNumbers: [1, 2, 3], embedding: [2.1, 1.6]})
-              |CREATE (carol:Person {name: 'Carol', age: 24, lotteryNumbers: [3], embedding: [1.5, 3.1]})
-              |CREATE (dave:Person {name: 'Dave', age: 48, lotteryNumbers: [2, 4], embedding: [0.6, 0.2]})
-              |CREATE (eve:Person {name: 'Eve', age: 67, lotteryNumbers: [1, 5], embedding: [1.8, 2.7]});
-              |""".stripMargin).consume()
-        })
+      .writeTransaction((tx: Transaction) => {
+        tx.run(
+          """
+            |CREATE (alice:Person {name: 'Alice', age: 24, lotteryNumbers: [1, 3], embedding: [1.0, 3.0]})
+            |CREATE (bob:Person {name: 'Bob', age: 73, lotteryNumbers: [1, 2, 3], embedding: [2.1, 1.6]})
+            |CREATE (carol:Person {name: 'Carol', age: 24, lotteryNumbers: [3], embedding: [1.5, 3.1]})
+            |CREATE (dave:Person {name: 'Dave', age: 48, lotteryNumbers: [2, 4], embedding: [0.6, 0.2]})
+            |CREATE (eve:Person {name: 'Eve', age: 67, lotteryNumbers: [1, 5], embedding: [1.8, 2.7]});
+            |""".stripMargin
+        ).consume()
+      })
 
     ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
@@ -277,13 +299,16 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
     assertEquals(df.count(), 5)
     df.show(false)
 
-    assertEquals(StructType(
-      Array(
-        StructField("node1", LongType),
-        StructField("node2", LongType),
-        StructField("similarity", DoubleType),
-      )
-    ), df.schema)
+    assertEquals(
+      StructType(
+        Array(
+          StructField("node1", LongType),
+          StructField("node2", LongType),
+          StructField("similarity", DoubleType)
+        )
+      ),
+      df.schema
+    )
 
     val dfEstimate = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
@@ -299,53 +324,56 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
     assertEquals(dfEstimate.count(), 1)
     dfEstimate.show(false)
 
-    assertEquals(StructType(
-      Array(
-        StructField("requiredMemory", StringType),
-        StructField("treeView", StringType),
-        StructField("mapView", MapType(StringType, StringType)),
-        StructField("bytesMin", LongType),
-        StructField("bytesMax", LongType),
-        StructField("nodeCount", LongType),
-        StructField("relationshipCount", LongType),
-        StructField("heapPercentageMin", DoubleType),
-        StructField("heapPercentageMax", DoubleType)
-      )
-    ), dfEstimate.schema)
+    assertEquals(
+      StructType(
+        Array(
+          StructField("requiredMemory", StringType),
+          StructField("treeView", StringType),
+          StructField("mapView", MapType(StringType, StringType)),
+          StructField("bytesMin", LongType),
+          StructField("bytesMax", LongType),
+          StructField("nodeCount", LongType),
+          StructField("relationshipCount", LongType),
+          StructField("heapPercentageMin", DoubleType),
+          StructField("heapPercentageMax", DoubleType)
+        )
+      ),
+      dfEstimate.schema
+    )
   }
 
   private def initForPageRank(): Unit = {
     SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction(
-        (tx: Transaction) => {
-          tx.run(
-            """
-              |CREATE
-              |  (home:Page {name:'Home'}),
-              |  (about:Page {name:'About'}),
-              |  (product:Page {name:'Product'}),
-              |  (links:Page {name:'Links'}),
-              |  (a:Page {name:'Site A'}),
-              |  (b:Page {name:'Site B'}),
-              |  (c:Page {name:'Site C'}),
-              |  (d:Page {name:'Site D'}),
-              |
-              |  (home)-[:LINKS {weight: 0.2}]->(about),
-              |  (home)-[:LINKS {weight: 0.2}]->(links),
-              |  (home)-[:LINKS {weight: 0.6}]->(product),
-              |  (about)-[:LINKS {weight: 1.0}]->(home),
-              |  (product)-[:LINKS {weight: 1.0}]->(home),
-              |  (a)-[:LINKS {weight: 1.0}]->(home),
-              |  (b)-[:LINKS {weight: 1.0}]->(home),
-              |  (c)-[:LINKS {weight: 1.0}]->(home),
-              |  (d)-[:LINKS {weight: 1.0}]->(home),
-              |  (links)-[:LINKS {weight: 0.8}]->(home),
-              |  (links)-[:LINKS {weight: 0.05}]->(a),
-              |  (links)-[:LINKS {weight: 0.05}]->(b),
-              |  (links)-[:LINKS {weight: 0.05}]->(c),
-              |  (links)-[:LINKS {weight: 0.05}]->(d);
-              |""".stripMargin).consume()
-        })
+      .writeTransaction((tx: Transaction) => {
+        tx.run(
+          """
+            |CREATE
+            |  (home:Page {name:'Home'}),
+            |  (about:Page {name:'About'}),
+            |  (product:Page {name:'Product'}),
+            |  (links:Page {name:'Links'}),
+            |  (a:Page {name:'Site A'}),
+            |  (b:Page {name:'Site B'}),
+            |  (c:Page {name:'Site C'}),
+            |  (d:Page {name:'Site D'}),
+            |
+            |  (home)-[:LINKS {weight: 0.2}]->(about),
+            |  (home)-[:LINKS {weight: 0.2}]->(links),
+            |  (home)-[:LINKS {weight: 0.6}]->(product),
+            |  (about)-[:LINKS {weight: 1.0}]->(home),
+            |  (product)-[:LINKS {weight: 1.0}]->(home),
+            |  (a)-[:LINKS {weight: 1.0}]->(home),
+            |  (b)-[:LINKS {weight: 1.0}]->(home),
+            |  (c)-[:LINKS {weight: 1.0}]->(home),
+            |  (d)-[:LINKS {weight: 1.0}]->(home),
+            |  (links)-[:LINKS {weight: 0.8}]->(home),
+            |  (links)-[:LINKS {weight: 0.05}]->(a),
+            |  (links)-[:LINKS {weight: 0.05}]->(b),
+            |  (links)-[:LINKS {weight: 0.05}]->(c),
+            |  (links)-[:LINKS {weight: 0.05}]->(d);
+            |""".stripMargin
+        ).consume()
+      })
     ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
       .option("gds", "gds.graph.project")
@@ -360,41 +388,41 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
   private def initForHits(): Unit = {
     Assume.assumeTrue(TestUtil.neo4jVersion(SparkConnectorScalaSuiteWithGdsBase.session()) >= Versions.NEO4J_5)
     SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction(
-        (tx: Transaction) => {
-          tx.run(
-            """
+      .writeTransaction((tx: Transaction) => {
+        tx.run(
+          """
               CREATE
-              |  (a:Website {name: 'A'}),
-              |  (b:Website {name: 'B'}),
-              |  (c:Website {name: 'C'}),
-              |  (d:Website {name: 'D'}),
-              |  (e:Website {name: 'E'}),
-              |  (f:Website {name: 'F'}),
-              |  (g:Website {name: 'G'}),
-              |  (h:Website {name: 'H'}),
-              |  (i:Website {name: 'I'}),
-              |
-              |  (a)-[:LINK]->(b),
-              |  (a)-[:LINK]->(c),
-              |  (a)-[:LINK]->(d),
-              |  (b)-[:LINK]->(c),
-              |  (b)-[:LINK]->(d),
-              |  (c)-[:LINK]->(d),
-              |
-              |  (e)-[:LINK]->(b),
-              |  (e)-[:LINK]->(d),
-              |  (e)-[:LINK]->(f),
-              |  (e)-[:LINK]->(h),
-              |
-              |  (f)-[:LINK]->(g),
-              |  (f)-[:LINK]->(i),
-              |  (f)-[:LINK]->(h),
-              |  (g)-[:LINK]->(h),
-              |  (g)-[:LINK]->(i),
-              |  (h)-[:LINK]->(i);
-              |""".stripMargin).consume()
-        })
+            |  (a:Website {name: 'A'}),
+            |  (b:Website {name: 'B'}),
+            |  (c:Website {name: 'C'}),
+            |  (d:Website {name: 'D'}),
+            |  (e:Website {name: 'E'}),
+            |  (f:Website {name: 'F'}),
+            |  (g:Website {name: 'G'}),
+            |  (h:Website {name: 'H'}),
+            |  (i:Website {name: 'I'}),
+            |
+            |  (a)-[:LINK]->(b),
+            |  (a)-[:LINK]->(c),
+            |  (a)-[:LINK]->(d),
+            |  (b)-[:LINK]->(c),
+            |  (b)-[:LINK]->(d),
+            |  (c)-[:LINK]->(d),
+            |
+            |  (e)-[:LINK]->(b),
+            |  (e)-[:LINK]->(d),
+            |  (e)-[:LINK]->(f),
+            |  (e)-[:LINK]->(h),
+            |
+            |  (f)-[:LINK]->(g),
+            |  (f)-[:LINK]->(i),
+            |  (f)-[:LINK]->(h),
+            |  (g)-[:LINK]->(h),
+            |  (g)-[:LINK]->(i),
+            |  (h)-[:LINK]->(i);
+            |""".stripMargin
+        ).consume()
+      })
     ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
       .option("gds", "gds.graph.project")
@@ -405,4 +433,3 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
       .show(false)
   }
 }
-

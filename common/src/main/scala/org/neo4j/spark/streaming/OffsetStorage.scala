@@ -3,37 +3,46 @@ package org.neo4j.spark.streaming
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.util.AccumulatorV2
+import org.neo4j.driver.Session
+import org.neo4j.driver.Transaction
+import org.neo4j.driver.TransactionWork
+import org.neo4j.driver.Values
 import org.neo4j.driver.exceptions.NoSuchRecordException
-import org.neo4j.driver.{Session, Transaction, TransactionWork, Values}
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, StorageType}
+import org.neo4j.spark.util.DriverCache
+import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.Neo4jUtil
+import org.neo4j.spark.util.StorageType
 
 import java.lang
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.UnaryOperator
+
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 object OffsetStorage {
-  def register(jobId: String,
-               initialValue: java.lang.Long = null,
-               options: Neo4jOptions): OffsetStorage[lang.Long, lang.Long] = {
+
+  def register(
+    jobId: String,
+    initialValue: java.lang.Long = null,
+    options: Neo4jOptions
+  ): OffsetStorage[lang.Long, lang.Long] = {
     val accumulator = options.streamingOptions.storageType match {
       case StorageType.SPARK => new SparkAccumulator(initialValue)
       case StorageType.NEO4J => new Neo4jAccumulator(options, jobId, initialValue)
     }
     val sparkSession = SparkSession.getActiveSession
       .getOrElse(throw new RuntimeException(s"""
-           |Cannot register OffsetAccumulator for $jobId,
-           |there is no Spark Session active
-           |""".stripMargin))
+                                               |Cannot register OffsetAccumulator for $jobId,
+                                               |there is no Spark Session active
+                                               |""".stripMargin))
     sparkSession.sparkContext.register(accumulator, jobId)
     accumulator
   }
 }
 
 trait OffsetStorage[IN, OUT] extends AccumulatorV2[IN, OUT]
-  with AutoCloseable
-  with Logging {}
-
+    with AutoCloseable
+    with Logging {}
 
 // N.b. the Neo4jAccumulator has been created as Spark 2.4 doesn't support accumulators
 // from DatasourceV2, so the only way to check the last timestamp read by an Executor
@@ -44,10 +53,12 @@ object Neo4jAccumulator {
   val LAST_TIMESTAMP = "lastTimestamp"
   val GUARDED_BY_LAST_CHECK = "guardedByLastCheck"
 }
-class Neo4jAccumulator(private val neo4jOptions: Neo4jOptions,
-                       private val jobId: String,
-                       private val initialValue: lang.Long = null)
-  extends OffsetStorage[lang.Long, lang.Long] {
+
+class Neo4jAccumulator(
+  private val neo4jOptions: Neo4jOptions,
+  private val jobId: String,
+  private val initialValue: lang.Long = null
+) extends OffsetStorage[lang.Long, lang.Long] {
 
   private lazy val driverCache = new DriverCache(neo4jOptions.connection, jobId)
   add(initialValue)
@@ -74,7 +85,8 @@ class Neo4jAccumulator(private val neo4jOptions: Neo4jOptions,
                  |SET n.${Neo4jAccumulator.GUARDED_BY_LAST_CHECK} = timestamp()
                  |RETURN n.${Neo4jAccumulator.LAST_TIMESTAMP}
                  |""".stripMargin,
-              Map[String, AnyRef]("jobId" -> jobId, "value" -> value).asJava)
+              Map[String, AnyRef]("jobId" -> jobId, "value" -> value).asJava
+            )
               .single()
               .get(0)
               .asLong()
@@ -105,7 +117,8 @@ class Neo4jAccumulator(private val neo4jOptions: Neo4jOptions,
                |MERGE (n:${Neo4jAccumulator.LABEL}{${Neo4jAccumulator.KEY}: ${'$'}jobId})
                |DELETE n
                |""".stripMargin,
-            Map[String, AnyRef]("jobId" -> jobId).asJava)
+            Map[String, AnyRef]("jobId" -> jobId).asJava
+          )
             .consume()
         }
       })
@@ -127,12 +140,13 @@ class Neo4jAccumulator(private val neo4jOptions: Neo4jOptions,
       session.writeTransaction(new TransactionWork[lang.Long] {
         override def execute(tx: Transaction): lang.Long = {
           val currentValue = tx.run(
-              s"""
-                |MATCH (n:${Neo4jAccumulator.LABEL}{${Neo4jAccumulator.KEY}: ${'$'}jobId})
-                |SET n.${Neo4jAccumulator.GUARDED_BY_LAST_CHECK} = timestamp()
-                |RETURN n.${Neo4jAccumulator.LAST_TIMESTAMP}
-                |""".stripMargin,
-              Map[String, AnyRef]("jobId" -> jobId).asJava)
+            s"""
+               |MATCH (n:${Neo4jAccumulator.LABEL}{${Neo4jAccumulator.KEY}: ${'$'}jobId})
+               |SET n.${Neo4jAccumulator.GUARDED_BY_LAST_CHECK} = timestamp()
+               |RETURN n.${Neo4jAccumulator.LAST_TIMESTAMP}
+               |""".stripMargin,
+            Map[String, AnyRef]("jobId" -> jobId).asJava
+          )
             .single()
             .get(0)
           logDebug(s"Retrieved value from metadata state is: ${currentValue.asObject()}")
@@ -161,7 +175,7 @@ class Neo4jAccumulator(private val neo4jOptions: Neo4jOptions,
 }
 
 class SparkAccumulator(private val initialValue: lang.Long = null)
-  extends OffsetStorage[lang.Long, lang.Long] {
+    extends OffsetStorage[lang.Long, lang.Long] {
 
   private val offset = new AtomicReference[lang.Long](initialValue)
 
@@ -169,9 +183,10 @@ class SparkAccumulator(private val initialValue: lang.Long = null)
 
   override def copy(): AccumulatorV2[lang.Long, lang.Long] = new SparkAccumulator(offset.get())
 
-  override def reset(): Unit =  offset.set(null)
+  override def reset(): Unit = offset.set(null)
 
   override def add(newVal: lang.Long): Unit = offset.updateAndGet(new UnaryOperator[lang.Long] {
+
     override def apply(currVal: lang.Long): lang.Long = if (newVal != null && (currVal == null || newVal > currVal)) {
       newVal
     } else {

@@ -3,36 +3,46 @@ package org.neo4j.spark.streaming
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.{DataTypes, StructType}
+import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.reader.BasePartitionReader
-import org.neo4j.spark.service.{Neo4jQueryStrategy, PartitionPagination}
+import org.neo4j.spark.service.Neo4jQueryStrategy
+import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.util.Neo4jImplicits._
-import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, StreamingFrom}
+import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.Neo4jUtil
+import org.neo4j.spark.util.StreamingFrom
 
 import java.util
 import java.util.Collections
 
-class BaseStreamingPartitionReader(private val options: Neo4jOptions,
-                                   private val filters: Array[Filter],
-                                   private val schema: StructType,
-                                   private val jobId: String,
-                                   private val partitionSkipLimit: PartitionPagination,
-                                   private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
-                                   private val offsetAccumulator: OffsetStorage[java.lang.Long, java.lang.Long],
-                                   private val requiredColumns: StructType,
-                                   private val aggregateColumns: Array[AggregateFunc]) extends BasePartitionReader(options,
-    filters,
-    schema,
-    jobId,
-    partitionSkipLimit,
-    scriptResult,
-    requiredColumns,
-    aggregateColumns) {
+class BaseStreamingPartitionReader(
+  private val options: Neo4jOptions,
+  private val filters: Array[Filter],
+  private val schema: StructType,
+  private val jobId: String,
+  private val partitionSkipLimit: PartitionPagination,
+  private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
+  private val offsetAccumulator: OffsetStorage[java.lang.Long, java.lang.Long],
+  private val requiredColumns: StructType,
+  private val aggregateColumns: Array[AggregateFunc]
+) extends BasePartitionReader(
+      options,
+      filters,
+      schema,
+      jobId,
+      partitionSkipLimit,
+      scriptResult,
+      requiredColumns,
+      aggregateColumns
+    ) {
 
   private val streamingPropertyName = Neo4jUtil.getStreamingPropertyName(options)
 
-  private val streamingField = filters.find(f => f.getAttribute
-      .map(name => name == streamingPropertyName).getOrElse(false))
+  private val streamingField = filters.find(f =>
+    f.getAttribute
+      .map(name => name == streamingPropertyName).getOrElse(false)
+  )
 
   @volatile
   private var lastTimestamp: java.lang.Long = _
@@ -70,17 +80,19 @@ class BaseStreamingPartitionReader(private val options: Neo4jOptions,
       val fieldIndex = schema.fieldIndex(streamingPropertyName)
       val currentTimestamp: java.lang.Long = schema(fieldIndex).dataType match {
         case DataTypes.LongType => row.getLong(fieldIndex)
-        case _ => row.getUTF8String(fieldIndex).toString.toLong
+        case _                  => row.getUTF8String(fieldIndex).toString.toLong
       }
       if (lastTimestamp == null || lastTimestamp < currentTimestamp) {
         lastTimestamp = currentTimestamp
       }
     } catch {
       case t: Throwable => logInfo(
-        s"""
-           |Cannot extract the last timestamp for schema $schema and property $streamingPropertyName,
-           |because of the following exception:
-           |""".stripMargin, t)
+          s"""
+             |Cannot extract the last timestamp for schema $schema and property $streamingPropertyName,
+             |because of the following exception:
+             |""".stripMargin,
+          t
+        )
     }
   }
 

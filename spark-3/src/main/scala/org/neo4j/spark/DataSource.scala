@@ -1,16 +1,22 @@
 package org.neo4j.spark
 
-import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
+import org.apache.spark.sql.connector.catalog.Table
+import org.apache.spark.sql.connector.catalog.TableProvider
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.sources.{DataSourceRegister, Filter}
+import org.apache.spark.sql.sources.DataSourceRegister
+import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, ValidateConnection, ValidateSparkMinVersion, Validations}
+import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.Neo4jUtil
+import org.neo4j.spark.util.ValidateConnection
+import org.neo4j.spark.util.ValidateSparkMinVersion
+import org.neo4j.spark.util.Validations
 
 import java.util.UUID
 
 class DataSource extends TableProvider
-  with DataSourceRegister {
+    with DataSourceRegister {
 
   Validations.validate(ValidateSparkMinVersion("3.3.0"))
 
@@ -26,21 +32,26 @@ class DataSource extends TableProvider
     if (schema == null) {
       val neo4jOpts = getNeo4jOptions(caseInsensitiveStringMap)
       Validations.validate(ValidateConnection(neo4jOpts, jobId))
-      schema = Neo4jUtil.callSchemaService(neo4jOpts, jobId, Array.empty[Filter], { schemaService => schemaService.struct() })
+      schema =
+        Neo4jUtil.callSchemaService(neo4jOpts, jobId, Array.empty[Filter], { schemaService => schemaService.struct() })
     }
 
     schema
   }
 
   private def getNeo4jOptions(caseInsensitiveStringMap: CaseInsensitiveStringMap) = {
-    if(neo4jOptions == null) {
+    if (neo4jOptions == null) {
       neo4jOptions = new Neo4jOptions(caseInsensitiveStringMap.asCaseSensitiveMap())
     }
 
     neo4jOptions
   }
 
-  override def getTable(structType: StructType, transforms: Array[Transform], map: java.util.Map[String, String]): Table = {
+  override def getTable(
+    structType: StructType,
+    transforms: Array[Transform],
+    map: java.util.Map[String, String]
+  ): Table = {
     val caseInsensitiveStringMapNeo4jOptions = new CaseInsensitiveStringMap(map)
     val schema = if (structType != null) {
       structType

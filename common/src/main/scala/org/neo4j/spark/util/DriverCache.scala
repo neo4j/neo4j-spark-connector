@@ -1,17 +1,22 @@
 package org.neo4j.spark.util
 
-import org.neo4j.driver.{Driver, GraphDatabase}
-import org.neo4j.spark.util.DriverCache.{cache, jobIdCache}
+import org.neo4j.driver.Driver
+import org.neo4j.driver.GraphDatabase
+import org.neo4j.spark.util.DriverCache.cache
+import org.neo4j.spark.util.DriverCache.jobIdCache
 
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
-import java.util.{Collections, function}
+import java.util.function
 
 object DriverCache {
   private val cache: ConcurrentHashMap[Neo4jDriverOptions, Driver] = new ConcurrentHashMap[Neo4jDriverOptions, Driver]
   private val jobIdCache = Collections.newSetFromMap[String](new ConcurrentHashMap[String, java.lang.Boolean]())
 }
 
-class DriverCache(private val options: Neo4jDriverOptions, private val jobId: String) extends Serializable with AutoCloseable {
+class DriverCache(private val options: Neo4jDriverOptions, private val jobId: String) extends Serializable
+    with AutoCloseable {
+
   def getOrCreate(): Driver = {
     this.synchronized {
       jobIdCache.add(jobId)

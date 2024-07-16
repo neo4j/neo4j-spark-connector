@@ -3,17 +3,25 @@ package org.neo4j.spark
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.hamcrest.Matchers
+import org.junit.After
+import org.junit.AfterClass
+import org.junit.Assume
+import org.junit.Before
+import org.junit.BeforeClass
+import org.junit.Rule
 import org.junit.rules.TestName
-import org.junit.{After, AfterClass, Assume, Before, BeforeClass, Rule}
-import org.neo4j.{Neo4jContainerExtension, spark}
+import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver._
 import org.neo4j.driver.summary.ResultSummary
+import org.neo4j.spark
 
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
+
 import scala.annotation.meta.getter
 
 object SparkConnectorScalaSuiteWithGdsBase {
+
   val server: Neo4jContainerExtension = new Neo4jContainerExtension()
     .withNeo4jConfig("dbms.security.auth_enabled", "false")
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
@@ -71,13 +79,16 @@ object SparkConnectorScalaSuiteWithGdsBase {
   }
 
   def getActiveConnections: Long = session()
-    .readTransaction((tx: Transaction) => tx.run(
-      """|CALL dbms.listConnections() YIELD connectionId, connector
-         |WHERE connector = 'bolt'
-         |RETURN count(*) AS connections""".stripMargin)
-      .single()
-      .get("connections")
-      .asLong())
+    .readTransaction((tx: Transaction) =>
+      tx.run(
+        """|CALL dbms.listConnections() YIELD connectionId, connector
+           |WHERE connector = 'bolt'
+           |RETURN count(*) AS connections""".stripMargin
+      )
+        .single()
+        .get("connections")
+        .asLong()
+    )
 }
 
 class SparkConnectorScalaSuiteWithGdsBase {
@@ -85,7 +96,7 @@ class SparkConnectorScalaSuiteWithGdsBase {
   val conf: SparkConf = SparkConnectorScalaSuiteWithGdsBase.conf
   val ss: SparkSession = SparkConnectorScalaSuiteWithGdsBase.ss
 
-  @(Rule@getter)
+  @(Rule @getter)
   val testName: TestName = new TestName
 
   @Before
@@ -98,16 +109,23 @@ class SparkConnectorScalaSuiteWithGdsBase {
   def after(): Unit = {
     if (!TestUtil.isCI()) {
       try {
-        spark.Assert.assertEventually(new spark.Assert.ThrowingSupplier[Boolean, Exception] {
-          override def get(): Boolean = {
-            val afterConnections = SparkConnectorScalaSuiteWithGdsBase.getActiveConnections
-            SparkConnectorScalaSuiteWithGdsBase.connections == afterConnections
-          }
-        }, Matchers.equalTo(true), 45, TimeUnit.SECONDS)
+        spark.Assert.assertEventually(
+          new spark.Assert.ThrowingSupplier[Boolean, Exception] {
+            override def get(): Boolean = {
+              val afterConnections = SparkConnectorScalaSuiteWithGdsBase.getActiveConnections
+              SparkConnectorScalaSuiteWithGdsBase.connections == afterConnections
+            }
+          },
+          Matchers.equalTo(true),
+          45,
+          TimeUnit.SECONDS
+        )
       } finally {
         val afterConnections = SparkConnectorScalaSuiteWithGdsBase.getActiveConnections
         if (SparkConnectorScalaSuiteWithGdsBase.connections != afterConnections) { // just for debug purposes
-          println(s"For test ${testName.getMethodName.replaceAll("$u0020", " ")} => connections before: ${SparkConnectorScalaSuiteWithGdsBase.connections}, after: $afterConnections")
+          println(
+            s"For test ${testName.getMethodName.replaceAll("$u0020", " ")} => connections before: ${SparkConnectorScalaSuiteWithGdsBase.connections}, after: $afterConnections"
+          )
         }
       }
     }

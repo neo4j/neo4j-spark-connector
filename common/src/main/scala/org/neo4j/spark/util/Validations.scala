@@ -1,10 +1,14 @@
 package org.neo4j.spark.util
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{SaveMode, SparkSession}
-import org.neo4j.driver.{AccessMode, Session, summary}
-import org.neo4j.spark.service.{Neo4jQueryStrategy, SchemaService}
+import org.neo4j.driver.AccessMode
+import org.neo4j.driver.Session
+import org.neo4j.driver.summary
+import org.neo4j.spark.service.Neo4jQueryStrategy
+import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.streaming.Neo4jAccumulator
 import org.neo4j.spark.util
 import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
@@ -17,20 +21,32 @@ object Validations {
 
 trait Validation extends Logging {
   def validate(): Unit
+
   def ignoreOption(ignoredOption: String, primaryOption: String): Unit =
     logWarning(s"Option `$ignoredOption` is not compatible with `$primaryOption` and will be ignored")
 }
 
 case class ValidateSchemaOptions(neo4jOptions: Neo4jOptions, schema: StructType) extends Validation {
+
   override def validate(): Unit = {
     val missingFieldsMap = Map(
       Neo4jOptions.NODE_KEYS -> schema.getMissingFields(neo4jOptions.nodeMetadata.nodeKeys.keySet),
       Neo4jOptions.NODE_PROPS -> schema.getMissingFields(neo4jOptions.nodeMetadata.properties.keySet),
-      Neo4jOptions.RELATIONSHIP_PROPERTIES -> schema.getMissingFields(neo4jOptions.relationshipMetadata.properties.keySet),
-      Neo4jOptions.RELATIONSHIP_SOURCE_NODE_PROPS -> schema.getMissingFields(neo4jOptions.relationshipMetadata.source.properties.keySet),
-      Neo4jOptions.RELATIONSHIP_SOURCE_NODE_KEYS -> schema.getMissingFields(neo4jOptions.relationshipMetadata.source.nodeKeys.keySet),
-      Neo4jOptions.RELATIONSHIP_TARGET_NODE_PROPS -> schema.getMissingFields(neo4jOptions.relationshipMetadata.target.properties.keySet),
-      Neo4jOptions.RELATIONSHIP_TARGET_NODE_KEYS -> schema.getMissingFields(neo4jOptions.relationshipMetadata.target.nodeKeys.keySet)
+      Neo4jOptions.RELATIONSHIP_PROPERTIES -> schema.getMissingFields(
+        neo4jOptions.relationshipMetadata.properties.keySet
+      ),
+      Neo4jOptions.RELATIONSHIP_SOURCE_NODE_PROPS -> schema.getMissingFields(
+        neo4jOptions.relationshipMetadata.source.properties.keySet
+      ),
+      Neo4jOptions.RELATIONSHIP_SOURCE_NODE_KEYS -> schema.getMissingFields(
+        neo4jOptions.relationshipMetadata.source.nodeKeys.keySet
+      ),
+      Neo4jOptions.RELATIONSHIP_TARGET_NODE_PROPS -> schema.getMissingFields(
+        neo4jOptions.relationshipMetadata.target.properties.keySet
+      ),
+      Neo4jOptions.RELATIONSHIP_TARGET_NODE_KEYS -> schema.getMissingFields(
+        neo4jOptions.relationshipMetadata.target.nodeKeys.keySet
+      )
     )
 
     val optionsWithMissingFields = missingFieldsMap.filter(_._2.nonEmpty)
@@ -38,66 +54,86 @@ case class ValidateSchemaOptions(neo4jOptions: Neo4jOptions, schema: StructType)
     if (optionsWithMissingFields.nonEmpty) {
       throw new IllegalArgumentException(
         s"""Write failed due to the following errors:
-           |${optionsWithMissingFields.map(field => s" - Schema is missing ${field._2.mkString(", ")} from option `${field._1}`").mkString("\n")}
+           |${optionsWithMissingFields.map(field =>
+            s" - Schema is missing ${field._2.mkString(", ")} from option `${field._1}`"
+          ).mkString("\n")}
            |
-           |The option key and value might be inverted.""".stripMargin)
+           |The option key and value might be inverted.""".stripMargin
+      )
     }
   }
 }
 
 case class ValidateSchemaMetadataWrite(neo4jOptions: Neo4jOptions, saveMode: SaveMode) extends Validation {
+
   override def validate(): Unit = {
     val schemaMetadata = neo4jOptions.schemaMetadata
     val hasNodeOptimizations = (schemaMetadata.optimizationType == OptimizationType.NODE_CONSTRAINTS
       || schemaMetadata.optimization.nodeConstraint != ConstraintsOptimizationType.NONE)
     val hasOptimizations = (schemaMetadata.optimizationType != OptimizationType.NONE
       && (schemaMetadata.optimization.nodeConstraint != ConstraintsOptimizationType.NONE
-      || schemaMetadata.optimization.relConstraint != ConstraintsOptimizationType.NONE
-      || schemaMetadata.optimization.schemaConstraints != Set(SchemaConstraintsOptimizationType.NONE)))
+        || schemaMetadata.optimization.relConstraint != ConstraintsOptimizationType.NONE
+        || schemaMetadata.optimization.schemaConstraints != Set(SchemaConstraintsOptimizationType.NONE)))
     if (hasOptimizations) {
       throw new IllegalArgumentException(
         s"""You cannot combine `${Neo4jOptions.SCHEMA_OPTIMIZATION_TYPE}` with:
            |- `${Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_KEY}`
            |- `${Neo4jOptions.SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY}`
            |- `${Neo4jOptions.SCHEMA_OPTIMIZATION}`
-      """)
+      """
+      )
     }
     neo4jOptions.query.queryType match {
       case QueryType.QUERY => {
         neo4jOptions.schemaMetadata.optimizationType match {
           case OptimizationType.NONE => // are valid
           case _ => ValidationUtil.isNotValid(
-            s"""With Query Type ${neo4jOptions.query.queryType} you can
-               |only use `${Neo4jOptions.SCHEMA_OPTIMIZATION_TYPE}`
-               |`${OptimizationType.NONE}`
-               |""".stripMargin)
+              s"""With Query Type ${neo4jOptions.query.queryType} you can
+                 |only use `${Neo4jOptions.SCHEMA_OPTIMIZATION_TYPE}`
+                 |`${OptimizationType.NONE}`
+                 |""".stripMargin
+            )
         }
         if (hasOptimizations) {
-          throw new IllegalArgumentException(s"With Query Type ${neo4jOptions.query.queryType} you cannot define any optimization")
+          throw new IllegalArgumentException(
+            s"With Query Type ${neo4jOptions.query.queryType} you cannot define any optimization"
+          )
         }
       }
       case QueryType.LABELS => {
         if (hasNodeOptimizations) {
           ValidationUtil.isTrue(saveMode == SaveMode.Overwrite, "This works only with `mode` `SaveMode.Overwrite`")
-          ValidationUtil.isNotEmpty(neo4jOptions.nodeMetadata.nodeKeys,
-            s"${Neo4jOptions.NODE_KEYS} is required to define the constraints")
+          ValidationUtil.isNotEmpty(
+            neo4jOptions.nodeMetadata.nodeKeys,
+            s"${Neo4jOptions.NODE_KEYS} is required to define the constraints"
+          )
         }
       }
       case QueryType.RELATIONSHIP => {
         if (hasNodeOptimizations) {
-          ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.source.nodeKeys,
-            s"${Neo4jOptions.RELATIONSHIP_SOURCE_NODE_KEYS} is required to define the constraints")
-          ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.target.nodeKeys,
-            s"${Neo4jOptions.RELATIONSHIP_TARGET_NODE_KEYS} is required to define the constraints")
-          ValidationUtil.isTrue(neo4jOptions.relationshipMetadata.sourceSaveMode == NodeSaveMode.Overwrite,
-            s"This works only with `${Neo4jOptions.RELATIONSHIP_SOURCE_SAVE_MODE}` `${NodeSaveMode.Overwrite}`")
-          ValidationUtil.isTrue(neo4jOptions.relationshipMetadata.targetSaveMode == NodeSaveMode.Overwrite,
-            s"This works only with `${Neo4jOptions.RELATIONSHIP_TARGET_SAVE_MODE}` `${NodeSaveMode.Overwrite}`")
+          ValidationUtil.isNotEmpty(
+            neo4jOptions.relationshipMetadata.source.nodeKeys,
+            s"${Neo4jOptions.RELATIONSHIP_SOURCE_NODE_KEYS} is required to define the constraints"
+          )
+          ValidationUtil.isNotEmpty(
+            neo4jOptions.relationshipMetadata.target.nodeKeys,
+            s"${Neo4jOptions.RELATIONSHIP_TARGET_NODE_KEYS} is required to define the constraints"
+          )
+          ValidationUtil.isTrue(
+            neo4jOptions.relationshipMetadata.sourceSaveMode == NodeSaveMode.Overwrite,
+            s"This works only with `${Neo4jOptions.RELATIONSHIP_SOURCE_SAVE_MODE}` `${NodeSaveMode.Overwrite}`"
+          )
+          ValidationUtil.isTrue(
+            neo4jOptions.relationshipMetadata.targetSaveMode == NodeSaveMode.Overwrite,
+            s"This works only with `${Neo4jOptions.RELATIONSHIP_TARGET_SAVE_MODE}` `${NodeSaveMode.Overwrite}`"
+          )
         }
         if (schemaMetadata.optimization.relConstraint != ConstraintsOptimizationType.NONE) {
           ValidationUtil.isTrue(saveMode == SaveMode.Overwrite, s"This works only with `mode` `${SaveMode.Overwrite}`")
-          ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.relationshipKeys,
-            s"${Neo4jOptions.RELATIONSHIP_KEYS} is required to define the constraints")
+          ValidationUtil.isNotEmpty(
+            neo4jOptions.relationshipMetadata.relationshipKeys,
+            s"${Neo4jOptions.RELATIONSHIP_KEYS} is required to define the constraints"
+          )
         }
       }
       case _ => // do nothing
@@ -105,19 +141,25 @@ case class ValidateSchemaMetadataWrite(neo4jOptions: Neo4jOptions, saveMode: Sav
     neo4jOptions.schemaMetadata.optimizationType match {
       case OptimizationType.NONE => // skip it
       case _ => neo4jOptions.query.queryType match {
-        case QueryType.LABELS => ValidationUtil.isTrue(saveMode == SaveMode.Overwrite, "This works only with `mode` `SaveMode.Overwrite`")
-        case QueryType.RELATIONSHIP => {
-          ValidationUtil.isTrue(neo4jOptions.relationshipMetadata.sourceSaveMode == NodeSaveMode.Overwrite,
-            s"This works only with `${Neo4jOptions.RELATIONSHIP_SOURCE_SAVE_MODE}` `Overwrite`")
-          ValidationUtil.isTrue(neo4jOptions.relationshipMetadata.targetSaveMode == NodeSaveMode.Overwrite,
-            s"This works only with `${Neo4jOptions.RELATIONSHIP_TARGET_SAVE_MODE}` `Overwrite`")
+          case QueryType.LABELS =>
+            ValidationUtil.isTrue(saveMode == SaveMode.Overwrite, "This works only with `mode` `SaveMode.Overwrite`")
+          case QueryType.RELATIONSHIP => {
+            ValidationUtil.isTrue(
+              neo4jOptions.relationshipMetadata.sourceSaveMode == NodeSaveMode.Overwrite,
+              s"This works only with `${Neo4jOptions.RELATIONSHIP_SOURCE_SAVE_MODE}` `Overwrite`"
+            )
+            ValidationUtil.isTrue(
+              neo4jOptions.relationshipMetadata.targetSaveMode == NodeSaveMode.Overwrite,
+              s"This works only with `${Neo4jOptions.RELATIONSHIP_TARGET_SAVE_MODE}` `Overwrite`"
+            )
+          }
         }
-      }
     }
   }
 }
 
 case class ValidateSparkMinVersion(supportedVersions: String*) extends Validation {
+
   override def validate(): Unit = {
     val sparkVersion = SparkSession.getActiveSession
       .map(_.version)
@@ -141,7 +183,8 @@ case class ValidateSparkMinVersion(supportedVersions: String*) extends Validatio
           (t._1.toInt, t._2.toInt)
         } catch {
           case _: NumberFormatException => null
-        })
+        }
+      )
       .filter(p => p != null)
     for (t <- versions) {
       val curr = t._2
@@ -158,8 +201,8 @@ case class ValidateSparkMinVersion(supportedVersions: String*) extends Validatio
   }
 }
 
-case class ValidateConnection(neo4jOptions: Neo4jOptions,
-                              jobId: String) extends Validation {
+case class ValidateConnection(neo4jOptions: Neo4jOptions, jobId: String) extends Validation {
+
   override def validate(): Unit = {
     var driverCache: DriverCache = null
     var session: Session = null
@@ -183,22 +226,30 @@ case class ValidateConnection(neo4jOptions: Neo4jOptions,
 }
 
 case class ValidateSaveMode(saveMode: String) extends Validation {
+
   override def validate(): Unit = {
-    ValidationUtil.isTrue(Neo4jOptions.SUPPORTED_SAVE_MODES.contains(SaveMode.valueOf(saveMode)),
+    ValidationUtil.isTrue(
+      Neo4jOptions.SUPPORTED_SAVE_MODES.contains(SaveMode.valueOf(saveMode)),
       s"""Unsupported SaveMode.
          |You provided $saveMode, supported are:
          |${Neo4jOptions.SUPPORTED_SAVE_MODES.mkString(",")}
-         |""".stripMargin)
+         |""".stripMargin
+    )
   }
 }
 
-case class ValidateWrite(neo4jOptions: Neo4jOptions,
-                         jobId: String,
-                         saveMode: SaveMode,
-                         customValidation: Neo4jOptions => Unit = _ => ()) extends Validation {
+case class ValidateWrite(
+  neo4jOptions: Neo4jOptions,
+  jobId: String,
+  saveMode: SaveMode,
+  customValidation: Neo4jOptions => Unit = _ => ()
+) extends Validation {
+
   override def validate(): Unit = {
-    ValidationUtil.isFalse(neo4jOptions.session.accessMode == AccessMode.READ,
-      s"Mode READ not supported for Data Source writer")
+    ValidationUtil.isFalse(
+      neo4jOptions.session.accessMode == AccessMode.READ,
+      s"Mode READ not supported for Data Source writer"
+    )
     val cache = new DriverCache(neo4jOptions.connection, jobId)
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
@@ -212,35 +263,48 @@ case class ValidateWrite(neo4jOptions: Neo4jOptions,
             s"""WITH {} AS ${Neo4jQueryStrategy.VARIABLE_EVENT}, [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
                |${neo4jOptions.query.value}
                |""".stripMargin,
-            org.neo4j.driver.summary.QueryType.WRITE_ONLY, org.neo4j.driver.summary.QueryType.READ_WRITE)
+            org.neo4j.driver.summary.QueryType.WRITE_ONLY,
+            org.neo4j.driver.summary.QueryType.READ_WRITE
+          )
           ValidationUtil.isTrue(error.isEmpty, error)
           neo4jOptions.schemaMetadata.optimizationType match {
             case OptimizationType.NONE => // are valid
             case _ => ValidationUtil.isNotValid(
-              s"""With Query Type ${neo4jOptions.query.queryType} you can
-                 |only use `${Neo4jOptions.SCHEMA_OPTIMIZATION_TYPE}`
-                 |`${OptimizationType.NONE}`
-                 |""".stripMargin)
+                s"""With Query Type ${neo4jOptions.query.queryType} you can
+                   |only use `${Neo4jOptions.SCHEMA_OPTIMIZATION_TYPE}`
+                   |`${OptimizationType.NONE}`
+                   |""".stripMargin
+              )
           }
         }
         case QueryType.LABELS => {
           saveMode match {
             case SaveMode.Overwrite => {
-              ValidationUtil.isNotEmpty(neo4jOptions.nodeMetadata.nodeKeys,
-                s"${Neo4jOptions.NODE_KEYS} is required when Save Mode is Overwrite")
+              ValidationUtil.isNotEmpty(
+                neo4jOptions.nodeMetadata.nodeKeys,
+                s"${Neo4jOptions.NODE_KEYS} is required when Save Mode is Overwrite"
+              )
             }
             case _ => ()
           }
         }
         case QueryType.RELATIONSHIP => {
-          ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.target.labels,
-            s"${Neo4jOptions.RELATIONSHIP_SOURCE_LABELS} is required when Save Mode is Overwrite")
-          ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.target.labels,
-            s"${Neo4jOptions.RELATIONSHIP_TARGET_LABELS} is required when Save Mode is Overwrite")
+          ValidationUtil.isNotEmpty(
+            neo4jOptions.relationshipMetadata.target.labels,
+            s"${Neo4jOptions.RELATIONSHIP_SOURCE_LABELS} is required when Save Mode is Overwrite"
+          )
+          ValidationUtil.isNotEmpty(
+            neo4jOptions.relationshipMetadata.target.labels,
+            s"${Neo4jOptions.RELATIONSHIP_TARGET_LABELS} is required when Save Mode is Overwrite"
+          )
         }
       }
-      neo4jOptions.script.foreach(query => ValidationUtil.isTrue(schemaService.isValidQuery(query),
-        s"The following query inside the `${Neo4jOptions.SCRIPT}` is not valid, please check the syntax: $query"))
+      neo4jOptions.script.foreach(query =>
+        ValidationUtil.isTrue(
+          schemaService.isValidQuery(query),
+          s"The following query inside the `${Neo4jOptions.SCRIPT}` is not valid, please check the syntax: $query"
+        )
+      )
 
       customValidation(neo4jOptions)
     } finally {
@@ -251,6 +315,7 @@ case class ValidateWrite(neo4jOptions: Neo4jOptions,
 }
 
 case class ValidateRead(neo4jOptions: Neo4jOptions, jobId: String) extends Validation {
+
   override def validate(): Unit = {
     val cache = new DriverCache(neo4jOptions.connection, jobId)
     val schemaService = new SchemaService(neo4jOptions, cache)
@@ -260,26 +325,38 @@ case class ValidateRead(neo4jOptions: Neo4jOptions, jobId: String) extends Valid
 
       neo4jOptions.query.queryType match {
         case QueryType.LABELS => {
-          ValidationUtil.isNotEmpty(neo4jOptions.nodeMetadata.labels,
-            s"You need to set the ${QueryType.LABELS.toString.toLowerCase} option")
+          ValidationUtil.isNotEmpty(
+            neo4jOptions.nodeMetadata.labels,
+            s"You need to set the ${QueryType.LABELS.toString.toLowerCase} option"
+          )
         }
         case QueryType.RELATIONSHIP => {
-          ValidationUtil.isNotBlank(neo4jOptions.relationshipMetadata.relationshipType,
-            s"You need to set the ${QueryType.RELATIONSHIP.toString.toLowerCase} option")
+          ValidationUtil.isNotBlank(
+            neo4jOptions.relationshipMetadata.relationshipType,
+            s"You need to set the ${QueryType.RELATIONSHIP.toString.toLowerCase} option"
+          )
 
-          ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.source.labels,
-            s"You need to set the ${Neo4jOptions.RELATIONSHIP_SOURCE_LABELS} option")
+          ValidationUtil.isNotEmpty(
+            neo4jOptions.relationshipMetadata.source.labels,
+            s"You need to set the ${Neo4jOptions.RELATIONSHIP_SOURCE_LABELS} option"
+          )
 
-          ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.target.labels,
-            s"You need to set the ${Neo4jOptions.RELATIONSHIP_TARGET_LABELS} option")
+          ValidationUtil.isNotEmpty(
+            neo4jOptions.relationshipMetadata.target.labels,
+            s"You need to set the ${Neo4jOptions.RELATIONSHIP_TARGET_LABELS} option"
+          )
         }
         case QueryType.QUERY => {
-          ValidationUtil.isFalse(neo4jOptions.query.value.matches("(?si).*(LIMIT \\d+|SKIP ?\\d+)\\s*\\z"),
-            "SKIP/LIMIT are not allowed at the end of the query")
+          ValidationUtil.isFalse(
+            neo4jOptions.query.value.matches("(?si).*(LIMIT \\d+|SKIP ?\\d+)\\s*\\z"),
+            "SKIP/LIMIT are not allowed at the end of the query"
+          )
           val queryError = schemaService.validateQuery(
             s"""WITH [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
                |${neo4jOptions.query.value}
-               |""".stripMargin, org.neo4j.driver.summary.QueryType.READ_ONLY)
+               |""".stripMargin,
+            org.neo4j.driver.summary.QueryType.READ_ONLY
+          )
           ValidationUtil.isTrue(queryError.isEmpty, queryError)
           if (neo4jOptions.queryMetadata.queryCount.nonEmpty) {
             if (!Neo4jUtil.isLong(neo4jOptions.queryMetadata.queryCount)) {
@@ -289,9 +366,14 @@ case class ValidateRead(neo4jOptions: Neo4jOptions, jobId: String) extends Valid
           }
         }
         case QueryType.GDS => {
-          ValidationUtil.isFalse(neo4jOptions.query.value.contains(".mutate") || neo4jOptions.query.value.contains(".write"),
-            "You cannot execute GDS mutate or write procedure in a read query")
-          ValidationUtil.isTrue(schemaService.isGdsProcedure(neo4jOptions.query.value), s"GDS procedure ${neo4jOptions.query.value} does not exist")
+          ValidationUtil.isFalse(
+            neo4jOptions.query.value.contains(".mutate") || neo4jOptions.query.value.contains(".write"),
+            "You cannot execute GDS mutate or write procedure in a read query"
+          )
+          ValidationUtil.isTrue(
+            schemaService.isGdsProcedure(neo4jOptions.query.value),
+            s"GDS procedure ${neo4jOptions.query.value} does not exist"
+          )
           ValidationUtil.isTrue(neo4jOptions.partitions == 1, "For GDS queries we support only one partition")
           Validations.validate(ValidateGdsMetadata(neo4jOptions.gdsMetadata))
         }
@@ -300,12 +382,14 @@ case class ValidateRead(neo4jOptions: Neo4jOptions, jobId: String) extends Valid
         .map(schemaService.validateQuery(_))
         .filter(_.nonEmpty)
         .mkString("\n")
-      ValidationUtil.isTrue(scriptErrors.isEmpty,
+      ValidationUtil.isTrue(
+        scriptErrors.isEmpty,
         s"""
            |The following queries inside the `${Neo4jOptions.SCRIPT}` are not valid,
            |please check their syntax:
            |$scriptErrors
-           |""".stripMargin)
+           |""".stripMargin
+      )
     } finally {
       schemaService.close()
       cache.close()
@@ -314,9 +398,12 @@ case class ValidateRead(neo4jOptions: Neo4jOptions, jobId: String) extends Valid
 }
 
 case class ValidateReadNotStreaming(neo4jOptions: Neo4jOptions, jobId: String) extends Validation {
+
   override def validate(): Unit = {
-    ValidationUtil.isBlank(neo4jOptions.streamingOptions.propertyName,
-      s"You don't need to set the `${Neo4jOptions.STREAMING_PROPERTY_NAME}` option")
+    ValidationUtil.isBlank(
+      neo4jOptions.streamingOptions.propertyName,
+      s"You don't need to set the `${Neo4jOptions.STREAMING_PROPERTY_NAME}` option"
+    )
   }
 }
 
@@ -327,6 +414,7 @@ case class ValidateReadNotStreaming(neo4jOptions: Neo4jOptions, jobId: String) e
  * Plus it throws an exception if no QueryType is provided.
  */
 case class ValidateNeo4jOptionsConsistency(neo4jOptions: Neo4jOptions) extends Validation {
+
   override def validate(): Unit = {
     if (neo4jOptions.query.value.isEmpty) {
       val reqTypes = QueryType.values.map(qt => s"`${qt.toString}`").mkString(", ")
@@ -338,7 +426,7 @@ case class ValidateNeo4jOptionsConsistency(neo4jOptions: Neo4jOptions) extends V
         ignoreQueryMetadata(QueryType.LABELS)
         ignoreRelMetadata(QueryType.LABELS)
         ignoreGdsMetadata(QueryType.LABELS)
-      case QueryType.RELATIONSHIP  =>
+      case QueryType.RELATIONSHIP =>
         ignoreQueryMetadata(QueryType.RELATIONSHIP)
         ignoreNodeMetadata(QueryType.RELATIONSHIP)
         ignoreGdsMetadata(QueryType.RELATIONSHIP)
@@ -403,29 +491,38 @@ case class ValidateNeo4jOptionsConsistency(neo4jOptions: Neo4jOptions) extends V
 }
 
 case class ValidateGdsMetadata(neo4jGdsMetadata: Neo4jGdsMetadata) extends Validation {
+
   override def validate(): Unit = {
     val hasGraphName = neo4jGdsMetadata.parameters.get("graphName") != null
     val hasGraphNameOrConfiguration = neo4jGdsMetadata.parameters.get("graphNameOrConfiguration") != null
-    ValidationUtil.isTrue(hasGraphName || hasGraphNameOrConfiguration,
-      "One between gds.graphName or gds.graphNameOrConfiguration is required")
+    ValidationUtil.isTrue(
+      hasGraphName || hasGraphNameOrConfiguration,
+      "One between gds.graphName or gds.graphNameOrConfiguration is required"
+    )
   }
 }
 
 case class ValidateReadStreaming(neo4jOptions: Neo4jOptions, jobId: String) extends Validation {
+
   override def validate(): Unit = {
     val cache = new DriverCache(neo4jOptions.connection, jobId)
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
-      ValidationUtil.isTrue(neo4jOptions.partitions == 1, "For Spark Structured Streaming we support only one partition")
+      ValidationUtil.isTrue(
+        neo4jOptions.partitions == 1,
+        "For Spark Structured Streaming we support only one partition"
+      )
       neo4jOptions.query.queryType match {
         case QueryType.QUERY => {
-          ValidationUtil.isTrue(schemaService.isValidQuery(neo4jOptions.streamingOptions.queryOffset, summary.QueryType.READ_ONLY),
-          """
+          ValidationUtil.isTrue(
+            schemaService.isValidQuery(neo4jOptions.streamingOptions.queryOffset, summary.QueryType.READ_ONLY),
+            """
               |Please set `streaming.query.offset` with a valid Cypher READ_ONLY query
               |that returns a long value i.e.
               |MATCH (p:MyLabel)
               |RETURN max(p.timestamp)
-              |""".stripMargin)
+              |""".stripMargin
+          )
         }
         case _ =>
       }

@@ -1,14 +1,22 @@
 package org.neo4j.spark.service
 
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.connector.expressions.aggregate.{Count, Max, Min, Sum}
-import org.apache.spark.sql.connector.expressions.{Expression, NullOrdering, SortDirection, SortOrder}
+import org.apache.spark.sql.connector.expressions.Expression
+import org.apache.spark.sql.connector.expressions.NullOrdering
+import org.apache.spark.sql.connector.expressions.SortDirection
+import org.apache.spark.sql.connector.expressions.SortOrder
+import org.apache.spark.sql.connector.expressions.aggregate.Count
+import org.apache.spark.sql.connector.expressions.aggregate.Max
+import org.apache.spark.sql.connector.expressions.aggregate.Min
+import org.apache.spark.sql.connector.expressions.aggregate.Sum
 import org.apache.spark.sql.sources._
 import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.spark.config.TopN
+import org.neo4j.spark.util.DummyNamedReference
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
-import org.neo4j.spark.util.{DummyNamedReference, Neo4jOptions, QueryType}
+import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.QueryType
 
 import scala.collection.immutable.HashMap
 
@@ -45,7 +53,10 @@ class Neo4jQueryServiceTest {
     options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(partitionPagination = PartitionPagination(0, 0, TopN(100)))).createQuery()
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(partitionPagination = PartitionPagination(0, 0, TopN(100)))
+    ).createQuery()
 
     assertEquals("MATCH (n:`Person`:`Player`:`Midfield`) RETURN n LIMIT 100", query)
   }
@@ -134,7 +145,9 @@ class Neo4jQueryServiceTest {
       s"""MATCH (n:`Person`)
          | WHERE (((n.name IS NULL AND $nameParameterName IS NULL)
          | OR n.name = $nameParameterName) AND n.age = $ageParameterName)
-         | RETURN n""".stripMargin.replaceAll("\n", ""), query)
+         | RETURN n""".stripMargin.replaceAll("\n", ""),
+      query
+    )
   }
 
   @Test
@@ -154,7 +167,10 @@ class Neo4jQueryServiceTest {
     val nameParameterName = "$" + "name".toParameterName(null)
     val ageParameterName = "$" + "age".toParameterName(36)
 
-    assertEquals(s"MATCH (n:`Person`) WHERE (((n.name IS NULL AND $nameParameterName IS NULL) OR n.name = $nameParameterName) AND n.age = $ageParameterName) RETURN n", query)
+    assertEquals(
+      s"MATCH (n:`Person`) WHERE (((n.name IS NULL AND $nameParameterName IS NULL) OR n.name = $nameParameterName) AND n.age = $ageParameterName) RETURN n",
+      query
+    )
   }
 
   @Test
@@ -178,7 +194,9 @@ class Neo4jQueryServiceTest {
       s"""MATCH (n:`Person`)
          | WHERE (n.name STARTS WITH $nameOneParameterName
          | AND n.name ENDS WITH $nameTwoParameterName)
-         | RETURN n""".stripMargin.replaceAll("\n", ""), query)
+         | RETURN n""".stripMargin.replaceAll("\n", ""),
+      query
+    )
   }
 
   @Test
@@ -191,15 +209,21 @@ class Neo4jQueryServiceTest {
     options.put("relationship.target.labels", "Person")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
-      Array.empty[Filter],
-      PartitionPagination.EMPTY,
-      List("source.name")
-    )).createQuery()
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        Array.empty[Filter],
+        PartitionPagination.EMPTY,
+        List("source.name")
+      )
+    ).createQuery()
 
-    assertEquals("MATCH (source:`Person`) " +
-      "MATCH (target:`Person`) " +
-      "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`", query)
+    assertEquals(
+      "MATCH (source:`Person`) " +
+        "MATCH (target:`Person`) " +
+        "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`",
+      query
+    )
   }
 
   @Test
@@ -212,15 +236,21 @@ class Neo4jQueryServiceTest {
     options.put("relationship.target.labels", "Person")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
-      Array.empty[Filter],
-      PartitionPagination.EMPTY,
-      List("source.name", "<source.id>")
-    )).createQuery()
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        Array.empty[Filter],
+        PartitionPagination.EMPTY,
+        List("source.name", "<source.id>")
+      )
+    ).createQuery()
 
-    assertEquals("MATCH (source:`Person`) " +
-      "MATCH (target:`Person`) " +
-      "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, id(source) AS `<source.id>`", query)
+    assertEquals(
+      "MATCH (source:`Person`) " +
+        "MATCH (target:`Person`) " +
+        "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, id(source) AS `<source.id>`",
+      query
+    )
   }
 
   @Test
@@ -233,11 +263,14 @@ class Neo4jQueryServiceTest {
     options.put("relationship.target.labels", "Person")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
-      Array.empty[Filter],
-      PartitionPagination(0, 0, TopN(limit = 100)),
-      List("source.name", "<source.id>")
-    )).createQuery()
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        Array.empty[Filter],
+        PartitionPagination(0, 0, TopN(limit = 100)),
+        List("source.name", "<source.id>")
+      )
+    ).createQuery()
 
     assertEquals(
       """MATCH (source:`Person`)
@@ -247,7 +280,8 @@ class Neo4jQueryServiceTest {
         |LIMIT 100"""
         .stripMargin
         .replace(System.lineSeparator(), " "),
-      query)
+      query
+    )
   }
 
   @Test
@@ -260,15 +294,21 @@ class Neo4jQueryServiceTest {
     options.put("relationship.target.labels", "Person")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
-      Array.empty[Filter],
-      PartitionPagination.EMPTY,
-      List("source.name", "source.id", "rel.someprops", "target.date")
-    )).createQuery()
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        Array.empty[Filter],
+        PartitionPagination.EMPTY,
+        List("source.name", "source.id", "rel.someprops", "target.date")
+      )
+    ).createQuery()
 
-    assertEquals("MATCH (source:`Person`) " +
-      "MATCH (target:`Person`) " +
-      "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, source.id AS `source.id`, rel.someprops AS `rel.someprops`, target.date AS `target.date`", query)
+    assertEquals(
+      "MATCH (source:`Person`) " +
+        "MATCH (target:`Person`) " +
+        "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, source.id AS `source.id`, rel.someprops AS `rel.someprops`, target.date AS `target.date`",
+      query
+    )
   }
 
   @Test
@@ -289,9 +329,12 @@ class Neo4jQueryServiceTest {
 
     val parameterName = "$" + "source.name".toParameterName("John Doe")
 
-    assertEquals("MATCH (source:`Person`) " +
-      "MATCH (target:`Person`) " +
-      s"MATCH (source)-[rel:`KNOWS`]->(target) WHERE source.name = $parameterName RETURN rel, source AS source, target AS target", query)
+    assertEquals(
+      "MATCH (source:`Person`) " +
+        "MATCH (target:`Person`) " +
+        s"MATCH (source)-[rel:`KNOWS`]->(target) WHERE source.name = $parameterName RETURN rel, source AS source, target AS target",
+      query
+    )
   }
 
   @Test
@@ -313,9 +356,12 @@ class Neo4jQueryServiceTest {
     val paramOneName = "$" + "source.name".toParameterName("John Doe")
     val paramTwoName = "$" + "target.name".toParameterName("John Doe")
 
-    assertEquals("MATCH (source:`Person`) " +
-      "MATCH (target:`Person`) " +
-      s"MATCH (source)-[rel:`KNOWS`]->(target) WHERE (source.name = $paramOneName OR target.name = $paramTwoName) RETURN rel, source AS source, target AS target", query)
+    assertEquals(
+      "MATCH (source:`Person`) " +
+        "MATCH (target:`Person`) " +
+        s"MATCH (source)-[rel:`KNOWS`]->(target) WHERE (source.name = $paramOneName OR target.name = $paramTwoName) RETURN rel, source AS source, target AS target",
+      query
+    )
   }
 
   @Test
@@ -344,7 +390,9 @@ class Neo4jQueryServiceTest {
          | MATCH (source)-[rel:`KNOWS`]->(target)
          | WHERE (source.id = $sourceIdParameterName AND target.id = $targetIdParameterName)
          | RETURN rel, source AS source, target AS target
-         |""".stripMargin.replaceAll("\n", ""), query)
+         |""".stripMargin.replaceAll("\n", ""),
+      query
+    )
   }
 
   @Test
@@ -376,7 +424,9 @@ class Neo4jQueryServiceTest {
          | WHERE (((n.name = ${parameterNames("name_1")} OR n.name = ${parameterNames("name_2")})
          | AND (n.age = ${parameterNames("age_1")} OR n.age >= ${parameterNames("age_2")}))
          | AND (NOT (n.age = ${parameterNames("age_3")}) OR NOT (n.age < ${parameterNames("age_4")})))
-         | RETURN n""".stripMargin.replaceAll("\n", ""), query)
+         | RETURN n""".stripMargin.replaceAll("\n", ""),
+      query
+    )
   }
 
   @Test
@@ -390,7 +440,10 @@ class Neo4jQueryServiceTest {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val filters: Array[Filter] = Array[Filter](
-      Or(Or(EqualTo("source.name", "John Doe"), EqualTo("target.name", "John Doraemon")), EqualTo("source.name", "Jane Doe")),
+      Or(
+        Or(EqualTo("source.name", "John Doe"), EqualTo("target.name", "John Doraemon")),
+        EqualTo("source.name", "Jane Doe")
+      ),
       Or(EqualTo("target.age", 34), EqualTo("target.age", 18)),
       EqualTo("rel.score", 12)
     )
@@ -410,10 +463,14 @@ class Neo4jQueryServiceTest {
       s"""MATCH (source:`Person`)
          | MATCH (target:`Person`:`Customer`)
          | MATCH (source)-[rel:`KNOWS`]->(target)
-         | WHERE ((source.name = ${parameterNames("source.name_1")} OR target.name = ${parameterNames("target.name_1")} OR source.name = ${parameterNames("source.name_2")})
+         | WHERE ((source.name = ${parameterNames("source.name_1")} OR target.name = ${parameterNames(
+          "target.name_1"
+        )} OR source.name = ${parameterNames("source.name_2")})
          | AND (target.age = ${parameterNames("target.age_1")} OR target.age = ${parameterNames("target.age_2")})
          | AND rel.score = ${parameterNames("rel.score")})
-         | RETURN rel, source AS source, target AS target""".stripMargin.replaceAll("\n", ""), query)
+         | RETURN rel, source AS source, target AS target""".stripMargin.replaceAll("\n", ""),
+      query
+    )
   }
 
   @Test
@@ -427,7 +484,10 @@ class Neo4jQueryServiceTest {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val filters: Array[Filter] = Array[Filter](
-      Or(Or(EqualTo("source.name", "John Doe"), EqualTo("target.name", "John Doraemon")), EqualTo("source.name", "Jane Doe")),
+      Or(
+        Or(EqualTo("source.name", "John Doe"), EqualTo("target.name", "John Doraemon")),
+        EqualTo("source.name", "Jane Doe")
+      ),
       Or(EqualTo("target.age", 34), EqualTo("target.age", 18)),
       EqualTo("rel.score", 12)
     )
@@ -447,11 +507,15 @@ class Neo4jQueryServiceTest {
       s"""MATCH (source:`Person`)
          | MATCH (target:`Person`:`Customer`)
          | MATCH (source)-[rel:`KNOWS`]->(target)
-         | WHERE ((source.name = ${parameterNames("source.name_1")} OR target.name = ${parameterNames("target.name_1")} OR source.name = ${parameterNames("source.name_2")})
+         | WHERE ((source.name = ${parameterNames("source.name_1")} OR target.name = ${parameterNames(
+          "target.name_1"
+        )} OR source.name = ${parameterNames("source.name_2")})
          | AND (target.age = ${parameterNames("target.age_1")} OR target.age = ${parameterNames("target.age_2")})
          | AND rel.score = ${parameterNames("rel.score")})
          | RETURN rel, source AS source, target AS target
-         |""".stripMargin.replaceAll("\n", ""), query)
+         |""".stripMargin.replaceAll("\n", ""),
+      query
+    )
   }
 
   @Test
@@ -462,13 +526,16 @@ class Neo4jQueryServiceTest {
     options.put("node.keys", "LocationName:name,LocationType:type,FeatureID:featureId")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(SaveMode.Overwrite)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(SaveMode.Overwrite)).createQuery()
 
     assertEquals(
       """UNWIND $events AS event
         |MERGE (node:Location {name: event.keys.name, type: event.keys.type, featureId: event.keys.featureId})
         |SET node += event.properties
-        |""".stripMargin, query)
+        |""".stripMargin,
+      query
+    )
   }
 
   @Test
@@ -483,7 +550,8 @@ class Neo4jQueryServiceTest {
 
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(SaveMode.Overwrite)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(SaveMode.Overwrite)).createQuery()
 
     assertEquals(
       """UNWIND $events AS event
@@ -491,7 +559,9 @@ class Neo4jQueryServiceTest {
         |MATCH (target:Product {price: event.target.keys.price, id: event.target.keys.id})
         |MERGE (source)-[rel:BOUGHT]->(target)
         |SET rel += event.rel.properties
-        |""".stripMargin, query.stripMargin)
+        |""".stripMargin,
+      query.stripMargin
+    )
   }
 
   @Test
@@ -508,7 +578,8 @@ class Neo4jQueryServiceTest {
 
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(SaveMode.Overwrite)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(SaveMode.Overwrite)).createQuery()
 
     assertEquals(
       """UNWIND $events AS event
@@ -517,7 +588,9 @@ class Neo4jQueryServiceTest {
         |MATCH (target:Product {price: event.target.keys.price, id: event.target.keys.id})
         |MERGE (source)-[rel:BOUGHT]->(target)
         |SET rel += event.rel.properties
-        |""".stripMargin, query.stripMargin)
+        |""".stripMargin,
+      query.stripMargin
+    )
   }
 
   @Test
@@ -530,40 +603,52 @@ class Neo4jQueryServiceTest {
     val ageField = new DummyNamedReference("age")
     var query: String = new Neo4jQueryService(
       neo4jOptions,
-      new Neo4jQueryReadStrategy(Array.empty[Filter], PartitionPagination.EMPTY, Seq("name",
-        "SUM(DISTINCT age)",
-        "SUM(age)"),
+      new Neo4jQueryReadStrategy(
+        Array.empty[Filter],
+        PartitionPagination.EMPTY,
+        Seq("name", "SUM(DISTINCT age)", "SUM(age)"),
         Array(
           new Sum(ageField, false),
           new Sum(ageField, true)
-        ))
+        )
+      )
     ).createQuery()
 
-    assertEquals("MATCH (n:`Person`) RETURN n.name AS name, sum(DISTINCT n.age) AS `SUM(DISTINCT age)`, sum(n.age) AS `SUM(age)`", query)
+    assertEquals(
+      "MATCH (n:`Person`) RETURN n.name AS name, sum(DISTINCT n.age) AS `SUM(DISTINCT age)`, sum(n.age) AS `SUM(age)`",
+      query
+    )
 
     val nameField = new DummyNamedReference("name")
     query = new Neo4jQueryService(
       neo4jOptions,
-      new Neo4jQueryReadStrategy(Array.empty[Filter], PartitionPagination.EMPTY, Seq("name",
-        "COUNT(DISTINCT name)",
-        "COUNT(name)"),
+      new Neo4jQueryReadStrategy(
+        Array.empty[Filter],
+        PartitionPagination.EMPTY,
+        Seq("name", "COUNT(DISTINCT name)", "COUNT(name)"),
         Array(
           new Count(nameField, false),
           new Count(nameField, true)
-        ))
+        )
+      )
     ).createQuery()
 
-    assertEquals("MATCH (n:`Person`) RETURN n.name AS name, count(DISTINCT n.name) AS `COUNT(DISTINCT name)`, count(n.name) AS `COUNT(name)`", query)
+    assertEquals(
+      "MATCH (n:`Person`) RETURN n.name AS name, count(DISTINCT n.name) AS `COUNT(DISTINCT name)`, count(n.name) AS `COUNT(name)`",
+      query
+    )
 
     query = new Neo4jQueryService(
       neo4jOptions,
-      new Neo4jQueryReadStrategy(Array.empty[Filter], PartitionPagination.EMPTY, Seq("name",
-        "MAX(age)",
-        "MIN(age)"),
+      new Neo4jQueryReadStrategy(
+        Array.empty[Filter],
+        PartitionPagination.EMPTY,
+        Seq("name", "MAX(age)", "MIN(age)"),
         Array(
           new Max(ageField),
           new Min(ageField)
-        ))
+        )
+      )
     ).createQuery()
 
     assertEquals("MATCH (n:`Person`) RETURN n.name AS name, max(n.age) AS `MAX(age)`, min(n.age) AS `MIN(age)`", query)
@@ -580,17 +665,18 @@ class Neo4jQueryServiceTest {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val targetPriceField = new DummyNamedReference("`target.price`")
-    var query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
-      Array.empty,
-      PartitionPagination.EMPTY,
-      List("source.fullName",
-        "SUM(DISTINCT `target.price`)",
-        "SUM(`target.price`)"),
-      Array(
-        new Sum(targetPriceField, false),
-        new Sum(targetPriceField, true)
+    var query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        Array.empty,
+        PartitionPagination.EMPTY,
+        List("source.fullName", "SUM(DISTINCT `target.price`)", "SUM(`target.price`)"),
+        Array(
+          new Sum(targetPriceField, false),
+          new Sum(targetPriceField, true)
+        )
       )
-    )).createQuery()
+    ).createQuery()
 
     assertEquals(
       """MATCH (source:`Person`)
@@ -598,39 +684,45 @@ class Neo4jQueryServiceTest {
         |MATCH (source)-[rel:`BOUGHT`]->(target)
         |RETURN source.fullName AS `source.fullName`, sum(DISTINCT target.price) AS `SUM(DISTINCT ``target.price``)`, sum(target.price) AS `SUM(``target.price``)`"""
         .stripMargin
-        .replaceAll("\n", " "), query)
+        .replaceAll("\n", " "),
+      query
+    )
 
     val targetIdField = new DummyNamedReference("`target.id`")
-    query = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
-      Array.empty,
-      PartitionPagination.EMPTY,
-      List("source.fullName",
-        "COUNT(DISTINCT `target.id`)",
-        "COUNT(`target.id`)"),
-      Array(
-        new Count(targetIdField, false),
-        new Count(targetIdField, true)
+    query = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        Array.empty,
+        PartitionPagination.EMPTY,
+        List("source.fullName", "COUNT(DISTINCT `target.id`)", "COUNT(`target.id`)"),
+        Array(
+          new Count(targetIdField, false),
+          new Count(targetIdField, true)
+        )
       )
-    )).createQuery()
+    ).createQuery()
 
     assertEquals(
       """MATCH (source:`Person`) MATCH (target:`Product`)
         |MATCH (source)-[rel:`BOUGHT`]->(target)
         |RETURN source.fullName AS `source.fullName`, count(DISTINCT target.id) AS `COUNT(DISTINCT ``target.id``)`, count(target.id) AS `COUNT(``target.id``)`"""
         .stripMargin
-        .replaceAll("\n", " "), query)
+        .replaceAll("\n", " "),
+      query
+    )
 
-    query = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
-      Array.empty,
-      PartitionPagination.EMPTY,
-      List("source.fullName",
-        "MAX(`target.price`)",
-        "MIN(`target.price`)"),
-      Array(
-        new Max(targetPriceField),
-        new Min(targetPriceField)
+    query = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        Array.empty,
+        PartitionPagination.EMPTY,
+        List("source.fullName", "MAX(`target.price`)", "MIN(`target.price`)"),
+        Array(
+          new Max(targetPriceField),
+          new Min(targetPriceField)
+        )
       )
-    )).createQuery()
+    ).createQuery()
 
     assertEquals(
       """MATCH (source:`Person`)
@@ -638,7 +730,9 @@ class Neo4jQueryServiceTest {
         |MATCH (source)-[rel:`BOUGHT`]->(target)
         |RETURN source.fullName AS `source.fullName`, max(target.price) AS `MAX(``target.price``)`, min(target.price) AS `MIN(``target.price``)`"""
         .stripMargin
-        .replaceAll("\n", " "), query)
+        .replaceAll("\n", " "),
+      query
+    )
   }
 
   @Test
@@ -648,14 +742,25 @@ class Neo4jQueryServiceTest {
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
-      partitionPagination = PartitionPagination(0, 0, TopN(42, Array(new SortOrder {
-        override def expression(): Expression = new DummyNamedReference("name")
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        partitionPagination = PartitionPagination(
+          0,
+          0,
+          TopN(
+            42,
+            Array(new SortOrder {
+              override def expression(): Expression = new DummyNamedReference("name")
 
-        override def direction(): SortDirection = SortDirection.ASCENDING
+              override def direction(): SortDirection = SortDirection.ASCENDING
 
-        override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
-      }))))).createQuery()
+              override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
+            })
+          )
+        )
+      )
+    ).createQuery()
 
     assertEquals("MATCH (n:`Person`) RETURN n ORDER BY n.name ASC LIMIT 42", query)
   }
@@ -667,15 +772,26 @@ class Neo4jQueryServiceTest {
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
-      requiredColumns = Array("name"),
-      partitionPagination = PartitionPagination(0, 0, TopN(42, Array(new SortOrder {
-        override def expression(): Expression = new DummyNamedReference("name")
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        requiredColumns = Array("name"),
+        partitionPagination = PartitionPagination(
+          0,
+          0,
+          TopN(
+            42,
+            Array(new SortOrder {
+              override def expression(): Expression = new DummyNamedReference("name")
 
-        override def direction(): SortDirection = SortDirection.ASCENDING
+              override def direction(): SortDirection = SortDirection.ASCENDING
 
-        override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
-      }))))).createQuery()
+              override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
+            })
+          )
+        )
+      )
+    ).createQuery()
 
     assertEquals("MATCH (n:`Person`) RETURN n.name AS name ORDER BY n.name ASC LIMIT 42", query)
   }
@@ -690,21 +806,34 @@ class Neo4jQueryServiceTest {
     options.put("relationship.target.labels", "Person")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
-      Array.empty[Filter],
-      PartitionPagination(0, 0, TopN(24, Array(new SortOrder {
-        override def expression(): Expression = new DummyNamedReference("rel.since")
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        Array.empty[Filter],
+        PartitionPagination(
+          0,
+          0,
+          TopN(
+            24,
+            Array(new SortOrder {
+              override def expression(): Expression = new DummyNamedReference("rel.since")
 
-        override def direction(): SortDirection = SortDirection.DESCENDING
+              override def direction(): SortDirection = SortDirection.DESCENDING
 
-        override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
-      }))),
-    )).createQuery()
+              override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
+            })
+          )
+        )
+      )
+    ).createQuery()
 
-    assertEquals("MATCH (source:`Person`) " +
-      "MATCH (target:`Person`) " +
-      "MATCH (source)-[rel:`KNOWS`]->(target) RETURN rel, source AS source, target AS target " +
-      "ORDER BY rel.since DESC LIMIT 24", query)
+    assertEquals(
+      "MATCH (source:`Person`) " +
+        "MATCH (target:`Person`) " +
+        "MATCH (source)-[rel:`KNOWS`]->(target) RETURN rel, source AS source, target AS target " +
+        "ORDER BY rel.since DESC LIMIT 24",
+      query
+    )
   }
 
   @Test
@@ -717,17 +846,27 @@ class Neo4jQueryServiceTest {
     options.put("relationship.target.labels", "Person")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
-      Array.empty[Filter],
-      PartitionPagination(0, 0, TopN(24, Array(new SortOrder {
-        override def expression(): Expression = new DummyNamedReference("rel.since")
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        Array.empty[Filter],
+        PartitionPagination(
+          0,
+          0,
+          TopN(
+            24,
+            Array(new SortOrder {
+              override def expression(): Expression = new DummyNamedReference("rel.since")
 
-        override def direction(): SortDirection = SortDirection.DESCENDING
+              override def direction(): SortDirection = SortDirection.DESCENDING
 
-        override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
-      }))),
-      Array("source.name")
-    )).createQuery()
+              override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
+            })
+          )
+        ),
+        Array("source.name")
+      )
+    ).createQuery()
 
     assertEquals(
       """MATCH (source:`Person`)
@@ -735,9 +874,10 @@ class Neo4jQueryServiceTest {
         |MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`
         |ORDER BY rel.since DESC LIMIT 24"""
         .stripMargin
-        .replaceAll("\n", " "), query)
+        .replaceAll("\n", " "),
+      query
+    )
   }
-
 
   @Test
   def testTopNForCustomQueryIgnoresAggregation(): Unit = {
@@ -746,20 +886,33 @@ class Neo4jQueryServiceTest {
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (p:Person) RETURN p")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
-      Array.empty[Filter],
-      PartitionPagination(0, 0, TopN(24, Array(new SortOrder {
-        override def expression(): Expression = new DummyNamedReference("name")
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        Array.empty[Filter],
+        PartitionPagination(
+          0,
+          0,
+          TopN(
+            24,
+            Array(new SortOrder {
+              override def expression(): Expression = new DummyNamedReference("name")
 
-        override def direction(): SortDirection = SortDirection.DESCENDING
+              override def direction(): SortDirection = SortDirection.DESCENDING
 
-        override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
-      }))),
-    )).createQuery()
+              override def nullOrdering(): NullOrdering = direction().defaultNullOrdering()
+            })
+          )
+        )
+      )
+    ).createQuery()
 
-    assertEquals("""WITH $scriptResult AS scriptResult
-                   |MATCH (p:Person) RETURN p
-                   |SKIP 0 LIMIT 24
-                   |""".stripMargin, query)
+    assertEquals(
+      """WITH $scriptResult AS scriptResult
+        |MATCH (p:Person) RETURN p
+        |SKIP 0 LIMIT 24
+        |""".stripMargin,
+      query
+    )
   }
 }

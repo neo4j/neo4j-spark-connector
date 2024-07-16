@@ -1,9 +1,13 @@
 package org.neo4j.spark
 
 import org.junit.Assert.assertEquals
-import org.junit.{Assume, BeforeClass, Test}
+import org.junit.Assume
+import org.junit.BeforeClass
+import org.junit.Test
+import org.neo4j.driver.SessionConfig
+import org.neo4j.driver.Transaction
+import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
-import org.neo4j.driver.{SessionConfig, Transaction, TransactionWork}
 
 class DataSourceReaderNeo4jWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
@@ -17,8 +21,10 @@ class DataSourceReaderNeo4jWithApocTSE extends SparkConnectorScalaBaseWithApocTS
       CREATE (p1:Person:Customer {name: 'John Doe'}),
        (p2:Person:Customer {name: 'Mark Brown'}),
        (p3:Person:Customer {name: 'Cindy White'})
-      """).consume()
-        })
+      """
+          ).consume()
+        }
+      )
 
     SparkConnectorScalaSuiteWithApocIT.driver.session(SessionConfig.forDatabase("db2"))
       .writeTransaction(
@@ -27,8 +33,10 @@ class DataSourceReaderNeo4jWithApocTSE extends SparkConnectorScalaBaseWithApocTS
             """
       CREATE (p1:Person:Employee {name: 'Jane Doe'}),
        (p2:Person:Employee {name: 'John Doe'})
-      """).consume()
-        })
+      """
+          ).consume()
+        }
+      )
 
     val df1 = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)

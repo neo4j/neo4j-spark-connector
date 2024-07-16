@@ -1,15 +1,28 @@
 package org.neo4j.spark.util
 
 import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.databind.JsonSerializer
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.module.SimpleModule
-import com.fasterxml.jackson.databind.{JsonSerializer, ObjectMapper, SerializerProvider}
 import org.apache.spark.sql.sources._
-import org.neo4j.cypherdsl.core.{Condition, Cypher, Expression, Functions, Property, PropertyContainer}
-import org.neo4j.driver.exceptions.{Neo4jException, ServiceUnavailableException, SessionExpiredException, TransientException}
-import org.neo4j.driver.types.{Entity, Path}
-import org.neo4j.driver.{Session, Transaction}
+import org.neo4j.cypherdsl.core.Condition
+import org.neo4j.cypherdsl.core.Cypher
+import org.neo4j.cypherdsl.core.Expression
+import org.neo4j.cypherdsl.core.Functions
+import org.neo4j.cypherdsl.core.Property
+import org.neo4j.cypherdsl.core.PropertyContainer
+import org.neo4j.driver.Session
+import org.neo4j.driver.Transaction
+import org.neo4j.driver.exceptions.Neo4jException
+import org.neo4j.driver.exceptions.ServiceUnavailableException
+import org.neo4j.driver.exceptions.SessionExpiredException
+import org.neo4j.driver.exceptions.TransientException
+import org.neo4j.driver.types.Entity
+import org.neo4j.driver.types.Path
 import org.neo4j.spark.service.SchemaService
-import org.neo4j.spark.util.Neo4jImplicits.{EntityImplicits, _}
+import org.neo4j.spark.util.Neo4jImplicits.EntityImplicits
+import org.neo4j.spark.util.Neo4jImplicits._
 import org.slf4j.Logger
 
 import java.time.temporal.Temporal
@@ -38,34 +51,52 @@ object Neo4jUtil {
   def closeSafely(autoCloseable: AutoCloseable, logger: Logger = null): Unit = {
     try {
       autoCloseable match {
-        case s: Session => if (s.isOpen) s.close()
+        case s: Session     => if (s.isOpen) s.close()
         case t: Transaction => if (t.isOpen) t.close()
-        case null => ()
-        case _ => autoCloseable.close()
+        case null           => ()
+        case _              => autoCloseable.close()
       }
     } catch {
       case t: Throwable => if (logger != null) logger
-        .warn(s"Cannot close ${autoCloseable.getClass.getSimpleName} because of the following exception:", t)
+          .warn(s"Cannot close ${autoCloseable.getClass.getSimpleName} because of the following exception:", t)
     }
   }
 
   val mapper = new ObjectMapper()
   private val module = new SimpleModule("Neo4jApocSerializer")
-  module.addSerializer(classOf[Path], new JsonSerializer[Path]() {
-    override def serialize(path: Path,
-                           jsonGenerator: JsonGenerator,
-                           serializerProvider: SerializerProvider): Unit = jsonGenerator.writeString(path.toString)
-  })
-  module.addSerializer(classOf[Entity], new JsonSerializer[Entity]() {
-    override def serialize(entity: Entity,
-                           jsonGenerator: JsonGenerator,
-                           serializerProvider: SerializerProvider): Unit = jsonGenerator.writeObject(entity.toMap)
-  })
-  module.addSerializer(classOf[Temporal], new JsonSerializer[Temporal]() {
-    override def serialize(entity: Temporal,
-                           jsonGenerator: JsonGenerator,
-                           serializerProvider: SerializerProvider): Unit = jsonGenerator.writeRaw(entity.toString)
-  })
+
+  module.addSerializer(
+    classOf[Path],
+    new JsonSerializer[Path]() {
+
+      override def serialize(path: Path, jsonGenerator: JsonGenerator, serializerProvider: SerializerProvider): Unit =
+        jsonGenerator.writeString(path.toString)
+    }
+  )
+
+  module.addSerializer(
+    classOf[Entity],
+    new JsonSerializer[Entity]() {
+
+      override def serialize(
+        entity: Entity,
+        jsonGenerator: JsonGenerator,
+        serializerProvider: SerializerProvider
+      ): Unit = jsonGenerator.writeObject(entity.toMap)
+    }
+  )
+
+  module.addSerializer(
+    classOf[Temporal],
+    new JsonSerializer[Temporal]() {
+
+      override def serialize(
+        entity: Temporal,
+        jsonGenerator: JsonGenerator,
+        serializerProvider: SerializerProvider
+      ): Unit = jsonGenerator.writeRaw(entity.toString)
+    }
+  )
   mapper.registerModule(module)
 
   def isLong(str: String): Boolean = {
@@ -77,7 +108,7 @@ object Neo4jUtil {
         true
       } catch {
         case nfe: NumberFormatException => false
-        case t: Throwable => throw t
+        case t: Throwable               => throw t
       }
     }
   }
@@ -101,22 +132,26 @@ object Neo4jUtil {
 
   def toParamValue(value: Any): Any = {
     value match {
-      case date: java.sql.Date => date.toString
+      case date: java.sql.Date           => date.toString
       case timestamp: java.sql.Timestamp => timestamp.toLocalDateTime
-      case _ => value
+      case _                             => value
     }
   }
 
   def valueToCypherExpression(attribute: String, value: Any): Expression = {
     val parameter = Cypher.parameter(attribute.toParameterName(value))
     value match {
-      case d: java.sql.Date => Functions.date(parameter)
+      case d: java.sql.Date      => Functions.date(parameter)
       case t: java.sql.Timestamp => Functions.localdatetime(parameter)
-      case _ => parameter
+      case _                     => parameter
     }
   }
 
-  def mapSparkFiltersToCypher(filter: Filter, container: PropertyContainer, attributeAlias: Option[String] = None): Condition = {
+  def mapSparkFiltersToCypher(
+    filter: Filter,
+    container: PropertyContainer,
+    attributeAlias: Option[String] = None
+  ): Condition = {
     filter match {
       case eqns: EqualNullSafe =>
         val parameter = valueToCypherExpression(eqns.attribute, eqns.value)
@@ -150,22 +185,24 @@ object Neo4jUtil {
       case contains: StringContains =>
         getCorrectProperty(container, attributeAlias.getOrElse(contains.attribute))
           .contains(valueToCypherExpression(contains.attribute, contains.value))
-      case notNull: IsNotNull => getCorrectProperty(container, attributeAlias.getOrElse(notNull.attribute)).isNotNull
-      case isNull: IsNull => getCorrectProperty(container, attributeAlias.getOrElse(isNull.attribute)).isNull
-      case not: Not => mapSparkFiltersToCypher(not.child, container, attributeAlias).not()
-      case filter@(_: Filter) => throw new IllegalArgumentException(s"Filter of type `$filter` is not supported.")
+      case notNull: IsNotNull   => getCorrectProperty(container, attributeAlias.getOrElse(notNull.attribute)).isNotNull
+      case isNull: IsNull       => getCorrectProperty(container, attributeAlias.getOrElse(isNull.attribute)).isNull
+      case not: Not             => mapSparkFiltersToCypher(not.child, container, attributeAlias).not()
+      case filter @ (_: Filter) => throw new IllegalArgumentException(s"Filter of type `$filter` is not supported.")
     }
   }
 
   def getStreamingPropertyName(options: Neo4jOptions): String = options.query.queryType match {
     case QueryType.RELATIONSHIP => s"rel.${options.streamingOptions.propertyName}"
-    case _ => options.streamingOptions.propertyName
+    case _                      => options.streamingOptions.propertyName
   }
 
-  def callSchemaService[T](neo4jOptions: Neo4jOptions,
-                           jobId: String,
-                           filters: Array[Filter],
-                           function: SchemaService => T): T = {
+  def callSchemaService[T](
+    neo4jOptions: Neo4jOptions,
+    jobId: String,
+    filters: Array[Filter],
+    function: SchemaService => T
+  ): T = {
     val driverCache = new DriverCache(neo4jOptions.connection, jobId)
     val schemaService = new SchemaService(neo4jOptions, driverCache, filters)
     var hasError = false
@@ -184,8 +221,9 @@ object Neo4jUtil {
     }
   }
 
-  def isRetryableException(neo4jTransientException: Neo4jException) = (neo4jTransientException.isInstanceOf[SessionExpiredException]
-    || neo4jTransientException.isInstanceOf[TransientException]
-    || neo4jTransientException.isInstanceOf[ServiceUnavailableException])
+  def isRetryableException(neo4jTransientException: Neo4jException) =
+    (neo4jTransientException.isInstanceOf[SessionExpiredException]
+      || neo4jTransientException.isInstanceOf[TransientException]
+      || neo4jTransientException.isInstanceOf[ServiceUnavailableException])
 
 }

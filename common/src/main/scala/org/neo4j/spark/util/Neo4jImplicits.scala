@@ -1,22 +1,49 @@
 package org.neo4j.spark.util
 
-import com.fasterxml.jackson.core.{JsonParseException, JsonParser}
+import com.fasterxml.jackson.core.JsonParseException
+import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.apache.spark.sql.connector.expressions.Expression
+import org.apache.spark.sql.connector.expressions.Literal
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
+import org.apache.spark.sql.connector.expressions.filter
 import org.apache.spark.sql.connector.expressions.filter.Predicate
-import org.apache.spark.sql.connector.expressions.{Expression, Literal, filter}
-import org.apache.spark.sql.sources.{AlwaysFalse, AlwaysTrue, And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
-import org.apache.spark.sql.types.{DataTypes, MapType, StructField, StructType}
+import org.apache.spark.sql.sources.AlwaysFalse
+import org.apache.spark.sql.sources.AlwaysTrue
+import org.apache.spark.sql.sources.And
+import org.apache.spark.sql.sources.EqualNullSafe
+import org.apache.spark.sql.sources.EqualTo
+import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.sources.GreaterThan
+import org.apache.spark.sql.sources.GreaterThanOrEqual
+import org.apache.spark.sql.sources.In
+import org.apache.spark.sql.sources.IsNotNull
+import org.apache.spark.sql.sources.IsNull
+import org.apache.spark.sql.sources.LessThan
+import org.apache.spark.sql.sources.LessThanOrEqual
+import org.apache.spark.sql.sources.Not
+import org.apache.spark.sql.sources.Or
+import org.apache.spark.sql.sources.StringContains
+import org.apache.spark.sql.sources.StringEndsWith
+import org.apache.spark.sql.sources.StringStartsWith
+import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.MapType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.Value
-import org.neo4j.driver.types.{Entity, Node, Relationship}
-import org.neo4j.spark.converter.{CypherToSparkTypeConverter, SparkToNeo4jDataConverter}
+import org.neo4j.driver.types.Entity
+import org.neo4j.driver.types.Node
+import org.neo4j.driver.types.Relationship
+import org.neo4j.spark.converter.CypherToSparkTypeConverter
+import org.neo4j.spark.converter.SparkToNeo4jDataConverter
 import org.neo4j.spark.service.SchemaService
 
-import javax.lang.model.SourceVersion
 import scala.collection.JavaConverters._
 
+import javax.lang.model.SourceVersion
+
 object Neo4jImplicits {
-  
+
   private val sparkToNeo4jDataConverter = SparkToNeo4jDataConverter()
   private val cypherToSparkTypeConverter = CypherToSparkTypeConverter()
 
@@ -34,8 +61,7 @@ object Neo4jImplicits {
 
       if (splatString.size > 1) {
         splatString.tail.mkString(".")
-      }
-      else {
+      } else {
         str
       }
     }
@@ -48,8 +74,7 @@ object Neo4jImplicits {
     def toParameterName(value: Any): String = {
       val attributeValue = if (value == null) {
         "NULL"
-      }
-      else {
+      } else {
         value.toString
       }
 
@@ -60,6 +85,7 @@ object Neo4jImplicits {
   }
 
   implicit class EntityImplicits(entity: Entity) {
+
     def toStruct: StructType = {
       val fields = entity.asMap().asScala
         .groupBy(_._1)
@@ -70,14 +96,22 @@ object Neo4jImplicits {
         })
       val entityFields = entity match {
         case _: Node => {
-          Seq(StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.LongType, nullable = false),
-            StructField(Neo4jUtil.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true))
+          Seq(
+            StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.LongType, nullable = false),
+            StructField(
+              Neo4jUtil.INTERNAL_LABELS_FIELD,
+              DataTypes.createArrayType(DataTypes.StringType),
+              nullable = true
+            )
+          )
         }
         case _: Relationship => {
-          Seq(StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.LongType, nullable = false),
+          Seq(
+            StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.LongType, nullable = false),
             StructField(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, DataTypes.StringType, nullable = false),
             StructField(Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD, DataTypes.LongType, nullable = false),
-            StructField(Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD, DataTypes.LongType, nullable = false))
+            StructField(Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD, DataTypes.LongType, nullable = false)
+          )
         }
       }
 
@@ -88,14 +122,15 @@ object Neo4jImplicits {
       val entityMap = entity.asMap().asScala
       val entityFields = entity match {
         case node: Node => {
-          Map(Neo4jUtil.INTERNAL_ID_FIELD -> node.id(),
-            Neo4jUtil.INTERNAL_LABELS_FIELD -> node.labels())
+          Map(Neo4jUtil.INTERNAL_ID_FIELD -> node.id(), Neo4jUtil.INTERNAL_LABELS_FIELD -> node.labels())
         }
         case relationship: Relationship => {
-          Map(Neo4jUtil.INTERNAL_REL_ID_FIELD -> relationship.id(),
+          Map(
+            Neo4jUtil.INTERNAL_REL_ID_FIELD -> relationship.id(),
             Neo4jUtil.INTERNAL_REL_TYPE_FIELD -> relationship.`type`(),
             Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD -> relationship.startNodeId(),
-            Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD -> relationship.endNodeId())
+            Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD -> relationship.endNodeId()
+          )
         }
       }
       (entityFields ++ entityMap).asJava
@@ -106,37 +141,43 @@ object Neo4jImplicits {
 
     def toFilter: Option[Filter] = {
       predicate.name() match {
-        case "IS_NULL" => Some(IsNull(predicate.rawAttributeName()))
+        case "IS_NULL"     => Some(IsNull(predicate.rawAttributeName()))
         case "IS_NOT_NULL" => Some(IsNotNull(predicate.rawAttributeName()))
-        case "STARTS_WITH" => predicate.rawLiteralValue().map(lit => StringStartsWith(predicate.rawAttributeName(), lit.asString()))
-        case "ENDS_WITH" => predicate.rawLiteralValue().map(lit => StringEndsWith(predicate.rawAttributeName(), lit.asString()))
-        case "CONTAINS" => predicate.rawLiteralValue().map(lit => StringContains(predicate.rawAttributeName(), lit.asString()))
+        case "STARTS_WITH" =>
+          predicate.rawLiteralValue().map(lit => StringStartsWith(predicate.rawAttributeName(), lit.asString()))
+        case "ENDS_WITH" =>
+          predicate.rawLiteralValue().map(lit => StringEndsWith(predicate.rawAttributeName(), lit.asString()))
+        case "CONTAINS" =>
+          predicate.rawLiteralValue().map(lit => StringContains(predicate.rawAttributeName(), lit.asString()))
         case "IN" => Some(In(predicate.rawAttributeName(), predicate.rawLiteralValues()))
-        case "=" => predicate.rawLiteralValue().map(lit => EqualTo(predicate.rawAttributeName(), lit.asObject()))
+        case "="  => predicate.rawLiteralValue().map(lit => EqualTo(predicate.rawAttributeName(), lit.asObject()))
         case "<>" => predicate.rawLiteralValue().map(lit => Not(EqualTo(predicate.rawAttributeName(), lit.asObject())))
-        case "<=>" => predicate.rawLiteralValue().map(lit => EqualNullSafe(predicate.rawAttributeName(), lit.asObject()))
+        case "<=>" =>
+          predicate.rawLiteralValue().map(lit => EqualNullSafe(predicate.rawAttributeName(), lit.asObject()))
         case "<" => predicate.rawLiteralValue().map(lit => LessThan(predicate.rawAttributeName(), lit.asObject()))
-        case "<=" => predicate.rawLiteralValue().map(lit => LessThanOrEqual(predicate.rawAttributeName(), lit.asObject()))
+        case "<=" =>
+          predicate.rawLiteralValue().map(lit => LessThanOrEqual(predicate.rawAttributeName(), lit.asObject()))
         case ">" => predicate.rawLiteralValue().map(lit => GreaterThan(predicate.rawAttributeName(), lit.asObject()))
-        case ">=" => predicate.rawLiteralValue().map(lit => GreaterThanOrEqual(predicate.rawAttributeName(), lit.asObject()))
+        case ">=" =>
+          predicate.rawLiteralValue().map(lit => GreaterThanOrEqual(predicate.rawAttributeName(), lit.asObject()))
         case "AND" =>
           val andPredicate = predicate.asInstanceOf[filter.And]
           (andPredicate.left().toFilter, andPredicate.right().toFilter) match {
-            case (_, None) => None
-            case (None, _) => None
+            case (_, None)                 => None
+            case (None, _)                 => None
             case (Some(left), Some(right)) => Some(And(left, right))
           }
         case "OR" =>
           val andPredicate = predicate.asInstanceOf[filter.Or]
           (andPredicate.left().toFilter, andPredicate.right().toFilter) match {
-            case (_, None) => None
-            case (None, _) => None
+            case (_, None)                 => None
+            case (None, _)                 => None
             case (Some(left), Some(right)) => Some(Or(left, right))
           }
         case "NOT" =>
           val notPredicate = predicate.asInstanceOf[filter.Not]
           notPredicate.child().toFilter.map(Not)
-        case "ALWAYS_TRUE" => Some(AlwaysTrue)
+        case "ALWAYS_TRUE"  => Some(AlwaysTrue)
         case "ALWAYS_FALSE" => Some(AlwaysFalse)
       }
     }
@@ -162,51 +203,53 @@ object Neo4jImplicits {
   }
 
   implicit class FilterImplicit(filter: Filter) {
+
     def flattenFilters: Array[Filter] = {
       filter match {
-        case or: Or => Array(or.left.flattenFilters, or.right.flattenFilters).flatten
-        case and: And => Array(and.left.flattenFilters, and.right.flattenFilters).flatten
+        case or: Or    => Array(or.left.flattenFilters, or.right.flattenFilters).flatten
+        case and: And  => Array(and.left.flattenFilters, and.right.flattenFilters).flatten
         case f: Filter => Array(f)
       }
     }
 
     def getAttribute: Option[String] = Option(filter match {
-      case eqns: EqualNullSafe => eqns.attribute
-      case eq: EqualTo => eq.attribute
-      case gt: GreaterThan => gt.attribute
-      case gte: GreaterThanOrEqual => gte.attribute
-      case lt: LessThan => lt.attribute
-      case lte: LessThanOrEqual => lte.attribute
-      case in: In => in.attribute
-      case notNull: IsNotNull => notNull.attribute
-      case isNull: IsNull => isNull.attribute
+      case eqns: EqualNullSafe         => eqns.attribute
+      case eq: EqualTo                 => eq.attribute
+      case gt: GreaterThan             => gt.attribute
+      case gte: GreaterThanOrEqual     => gte.attribute
+      case lt: LessThan                => lt.attribute
+      case lte: LessThanOrEqual        => lte.attribute
+      case in: In                      => in.attribute
+      case notNull: IsNotNull          => notNull.attribute
+      case isNull: IsNull              => isNull.attribute
       case startWith: StringStartsWith => startWith.attribute
-      case endsWith: StringEndsWith => endsWith.attribute
-      case contains: StringContains => contains.attribute
-      case not: Not => not.child.getAttribute.orNull
-      case _ => null
+      case endsWith: StringEndsWith    => endsWith.attribute
+      case contains: StringContains    => contains.attribute
+      case not: Not                    => not.child.getAttribute.orNull
+      case _                           => null
     })
 
     def getValue: Option[Any] = Option(filter match {
-      case eqns: EqualNullSafe => eqns.value
-      case eq: EqualTo => eq.value
-      case gt: GreaterThan => gt.value
-      case gte: GreaterThanOrEqual => gte.value
-      case lt: LessThan => lt.value
-      case lte: LessThanOrEqual => lte.value
-      case in: In => in.values
+      case eqns: EqualNullSafe         => eqns.value
+      case eq: EqualTo                 => eq.value
+      case gt: GreaterThan             => gt.value
+      case gte: GreaterThanOrEqual     => gte.value
+      case lt: LessThan                => lt.value
+      case lte: LessThanOrEqual        => lte.value
+      case in: In                      => in.values
       case startWith: StringStartsWith => startWith.value
-      case endsWith: StringEndsWith => endsWith.value
-      case contains: StringContains => contains.value
-      case not: Not => not.child.getValue.orNull
-      case _ => null
+      case endsWith: StringEndsWith    => endsWith.value
+      case contains: StringContains    => contains.value
+      case not: Not                    => not.child.getValue.orNull
+      case _                           => null
     })
 
     def isAttribute(entityType: String): Boolean = {
       getAttribute.exists(_.contains(s"$entityType."))
     }
 
-    def getAttributeWithoutEntityName: Option[String] = filter.getAttribute.map(_.unquote().split('.').tail.mkString("."))
+    def getAttributeWithoutEntityName: Option[String] =
+      filter.getAttribute.map(_.unquote().split('.').tail.mkString("."))
 
     /**
      * df: we are not handling AND/OR because they are not actually filters
@@ -216,23 +259,24 @@ object Neo4jImplicits {
      */
     def getAttributeAndValue: Seq[Any] = {
       filter match {
-        case f: EqualNullSafe => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: EqualTo => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: GreaterThan => Seq(f.attribute.toParameterName(f.value), f.value)
+        case f: EqualNullSafe      => Seq(f.attribute.toParameterName(f.value), f.value)
+        case f: EqualTo            => Seq(f.attribute.toParameterName(f.value), f.value)
+        case f: GreaterThan        => Seq(f.attribute.toParameterName(f.value), f.value)
         case f: GreaterThanOrEqual => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: LessThan => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: LessThanOrEqual => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: In => Seq(f.attribute.toParameterName(f.values), f.values)
-        case f: StringStartsWith => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: StringEndsWith => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: StringContains => Seq(f.attribute.toParameterName(f.value), f.value)
-        case f: Not => f.child.getAttributeAndValue
-        case _ => Seq()
+        case f: LessThan           => Seq(f.attribute.toParameterName(f.value), f.value)
+        case f: LessThanOrEqual    => Seq(f.attribute.toParameterName(f.value), f.value)
+        case f: In                 => Seq(f.attribute.toParameterName(f.values), f.values)
+        case f: StringStartsWith   => Seq(f.attribute.toParameterName(f.value), f.value)
+        case f: StringEndsWith     => Seq(f.attribute.toParameterName(f.value), f.value)
+        case f: StringContains     => Seq(f.attribute.toParameterName(f.value), f.value)
+        case f: Not                => f.child.getAttributeAndValue
+        case _                     => Seq()
       }
     }
   }
 
   implicit class StructTypeImplicit(structType: StructType) {
+
     private def isValidMapOrStructField(field: String, structFieldName: String) = {
       val value: String = """(`.*`)|([^\.]*)""".r.findFirstIn(field).getOrElse("")
       structFieldName == value.unquote() || structFieldName == value
@@ -250,9 +294,9 @@ object Neo4jImplicits {
         val maybeField = structType
           .find(structField => {
             structField.dataType match {
-              case _: MapType => isValidMapOrStructField(field, structField.name)
+              case _: MapType    => isValidMapOrStructField(field, structField.name)
               case _: StructType => isValidMapOrStructField(field, structField.name)
-              case _ => structField.name == field.unquote() || structField.name == field
+              case _             => structField.name == field.unquote() || structField.name == field
             }
           })
         field -> maybeField.isDefined
@@ -272,47 +316,47 @@ object Neo4jImplicits {
       .flatMap(t => {
         val key: String = if (prefix != "") s"$prefix.${t._1}" else t._1
         t._2 match {
-          case nestedMap: Map[String, _] => innerFlattenMap(nestedMap, key)
+          case nestedMap: Map[String, _]           => innerFlattenMap(nestedMap, key)
           case nestedMap: java.util.Map[String, _] => innerFlattenMap(nestedMap.asScala.toMap, key)
-          case _ => Seq((key, t._2.asInstanceOf[AnyRef]))
+          case _                                   => Seq((key, t._2.asInstanceOf[AnyRef]))
         }
       })
       .toList
 
-    def flattenMap(prefix: String = "", groupDuplicateKeys: Boolean = false): Map[String, AnyRef] = innerFlattenMap(map, prefix)
-      .groupBy(_._1)
-      .mapValues(seq => if (groupDuplicateKeys && seq.size > 1) seq.map(_._2).asJava else seq.last._2)
-      .toMap
+    def flattenMap(prefix: String = "", groupDuplicateKeys: Boolean = false): Map[String, AnyRef] =
+      innerFlattenMap(map, prefix)
+        .groupBy(_._1)
+        .mapValues(seq => if (groupDuplicateKeys && seq.size > 1) seq.map(_._2).asJava else seq.last._2)
+        .toMap
 
     def flattenKeys(prefix: String = ""): Seq[String] = map
       .flatMap(t => {
         val key: String = if (prefix != "") s"$prefix.${t._1}" else t._1
         t._2 match {
-          case nestedMap: Map[String, _] => nestedMap.flattenKeys(key)
+          case nestedMap: Map[String, _]           => nestedMap.flattenKeys(key)
           case nestedMap: java.util.Map[String, _] => nestedMap.asScala.toMap.flattenKeys(key)
-          case _ => Seq(key)
+          case _                                   => Seq(key)
         }
       })
       .toList
   }
-
 
   implicit class StringMapImplicits(map: Map[String, String]) {
 
     private val propertyMapper = new ObjectMapper()
     propertyMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
 
-
     private def nestingMap(data: Map[String, String]): java.util.Map[String, Any] = {
       val map = new java.util.HashMap[String, Any]();
       data.foreach(t => {
         val splitted = t._1.split("\\.")
         if (splitted.size == 1) {
-          val value = try {
-            propertyMapper.readValue[Any](t._2, classOf[Any])
-          } catch {
-            case _: JsonParseException => t._2
-          }
+          val value =
+            try {
+              propertyMapper.readValue[Any](t._2, classOf[Any])
+            } catch {
+              case _: JsonParseException => t._2
+            }
           map.put(t._1, value)
         } else {
           if (map.containsKey(splitted.head)) {

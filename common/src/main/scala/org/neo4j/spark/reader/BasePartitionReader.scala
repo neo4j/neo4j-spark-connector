@@ -5,30 +5,48 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
-import org.neo4j.driver.{Record, Session, Transaction, Values}
-import org.neo4j.spark.service.{MappingService, Neo4jQueryReadStrategy, Neo4jQueryService, Neo4jQueryStrategy, Neo4jReadMappingStrategy, PartitionPagination}
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, QueryType}
+import org.neo4j.driver.Record
+import org.neo4j.driver.Session
+import org.neo4j.driver.Transaction
+import org.neo4j.driver.Values
+import org.neo4j.spark.service.MappingService
+import org.neo4j.spark.service.Neo4jQueryReadStrategy
+import org.neo4j.spark.service.Neo4jQueryService
+import org.neo4j.spark.service.Neo4jQueryStrategy
+import org.neo4j.spark.service.Neo4jReadMappingStrategy
+import org.neo4j.spark.service.PartitionPagination
+import org.neo4j.spark.util.DriverCache
+import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.Neo4jUtil
+import org.neo4j.spark.util.QueryType
 
 import java.io.IOException
 import java.util
+
 import scala.collection.JavaConverters._
 
-abstract class BasePartitionReader(private val options: Neo4jOptions,
-                                   private val filters: Array[Filter],
-                                   private val schema: StructType,
-                                   private val jobId: String,
-                                   private val partitionSkipLimit: PartitionPagination,
-                                   private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
-                                   private val requiredColumns: StructType,
-                                   private val aggregateColumns: Array[AggregateFunc]) extends Logging {
+abstract class BasePartitionReader(
+  private val options: Neo4jOptions,
+  private val filters: Array[Filter],
+  private val schema: StructType,
+  private val jobId: String,
+  private val partitionSkipLimit: PartitionPagination,
+  private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
+  private val requiredColumns: StructType,
+  private val aggregateColumns: Array[AggregateFunc]
+) extends Logging {
   private var result: Iterator[Record] = _
   private var session: Session = _
   private var transaction: Transaction = _
-  protected val name: String = if (partitionSkipLimit.partitionNumber > 0) s"$jobId-${partitionSkipLimit.partitionNumber}" else jobId
+
+  protected val name: String =
+    if (partitionSkipLimit.partitionNumber > 0) s"$jobId-${partitionSkipLimit.partitionNumber}" else jobId
   protected val driverCache: DriverCache = new DriverCache(options.connection, name)
 
-  private val query: String = new Neo4jQueryService(options,
-    new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.fieldNames, aggregateColumns, jobId))
+  private val query: String = new Neo4jQueryService(
+    options,
+    new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.fieldNames, aggregateColumns, jobId)
+  )
     .createQuery()
 
   private var nextRow: InternalRow = _
@@ -52,33 +70,34 @@ abstract class BasePartitionReader(private val options: Neo4jOptions,
   private var error: Boolean = false
 
   @throws(classOf[IOException])
-  def next: Boolean = try {
-    if (result == null) {
-      session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
-      transaction = session.beginTransaction()
+  def next: Boolean =
+    try {
+      if (result == null) {
+        session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
+        transaction = session.beginTransaction()
 
-      val queryParams = getQueryParameters
+        val queryParams = getQueryParameters
 
-      logInfo(s"Running the following query on Neo4j: $query")
-      logDebug(s"with parameters $queryParams")
+        logInfo(s"Running the following query on Neo4j: $query")
+        logDebug(s"with parameters $queryParams")
 
-      result = transaction.run(query, Values.value(queryParams))
-        .asScala
+        result = transaction.run(query, Values.value(queryParams))
+          .asScala
+      }
+
+      if (result.hasNext) {
+        nextRow = mappingService.convert(result.next(), schema)
+        true
+      } else {
+        false
+      }
+    } catch {
+      case t: Throwable => {
+        error = true
+        logInfo("Error while invoking next:", t)
+        throw new IOException(t)
+      }
     }
-
-    if (result.hasNext) {
-      nextRow = mappingService.convert(result.next(), schema)
-      true
-    } else {
-      false
-    }
-  } catch {
-    case t: Throwable => {
-      error = true
-      logInfo("Error while invoking next:", t)
-      throw new IOException(t)
-    }
-  }
 
   def get: InternalRow = nextRow
 

@@ -1,6 +1,7 @@
 package org.neo4j.spark
 
-import org.neo4j.driver.{Session, Transaction}
+import org.neo4j.driver.Session
+import org.neo4j.driver.Transaction
 import org.slf4j.Logger
 
 import java.util.Properties
@@ -36,18 +37,25 @@ object Versions {
 object TestUtil {
 
   private val properties = new Properties()
-  properties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("neo4j-spark-connector.properties"))
+
+  properties.load(
+    Thread.currentThread().getContextClassLoader().getResourceAsStream("neo4j-spark-connector.properties")
+  )
 
   def isCI(): Boolean = Option(System.getenv("CI")).getOrElse("false").toBoolean
 
   def neo4jVersion(): Version = Version.parse(properties.getProperty("neo4j.version"))
 
   def gdsVersion(session: Session): Version = {
-    Version.parse(session.run("CALL gds.debug.sysInfo() YIELD key, value WHERE key = 'gdsVersion' RETURN value").single().get(0).asString())
+    Version.parse(session.run(
+      "CALL gds.debug.sysInfo() YIELD key, value WHERE key = 'gdsVersion' RETURN value"
+    ).single().get(0).asString())
   }
 
   def neo4jVersion(session: Session): Version = {
-    Version.parse(session.run("CALL dbms.components() YIELD name, versions WHERE name = 'Neo4j Kernel' RETURN versions[0]").single().get(0).asString())
+    Version.parse(session.run(
+      "CALL dbms.components() YIELD name, versions WHERE name = 'Neo4j Kernel' RETURN versions[0]"
+    ).single().get(0).asString())
   }
 
   def experimental(): Boolean = properties.getProperty("neo4j.experimental", "false").toBoolean
@@ -55,16 +63,16 @@ object TestUtil {
   def closeSafely(autoCloseable: AutoCloseable, logger: Logger = null): Unit = {
     try {
       autoCloseable match {
-        case s: Session => if (s.isOpen) s.close()
+        case s: Session     => if (s.isOpen) s.close()
         case t: Transaction => if (t.isOpen) t.close()
-        case null => ()
-        case _ => autoCloseable.close()
+        case null           => ()
+        case _              => autoCloseable.close()
       }
     } catch {
       case t: Throwable => if (logger != null) {
-        t.printStackTrace()
-        logger.warn(s"Cannot close ${autoCloseable.getClass.getSimpleName} because of the following exception:", t)
-      }
+          t.printStackTrace()
+          logger.warn(s"Cannot close ${autoCloseable.getClass.getSimpleName} because of the following exception:", t)
+        }
     }
   }
 
