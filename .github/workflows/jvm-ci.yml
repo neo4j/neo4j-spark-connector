@@ -35,4 +35,4 @@ jobs:
       - name: Build with Maven
         env:
           CI: true
-        run: ./mvnw clean verify -Djava.version=${{ matrix.java-version }} -Pscala-${{ matrix.scala-version }} -Pspark-${{ matrix.spark-version }} -Pneo4j-${{ matrix.neo4j-version }} --no-transfer-progress
+        run: ./mvnw clean verify -Djava.version=${{ matrix.java-version }} -Dscala-${{ matrix.scala-version }} -Pspark-${{ matrix.spark-version }} -Dneo4j-${{ matrix.neo4j-version }} --no-transfer-progress

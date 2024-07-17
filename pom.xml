@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.neo4j</groupId>
     <artifactId>neo4j-connector-apache-spark_parent</artifactId>
@@ -41,6 +41,7 @@
         <cypherdsl.version>2022.9.2</cypherdsl.version>
         <driver.version>4.4.18</driver.version>
         <java.version>1.8</java.version>
+        <junit.version>4.13.2</junit.version>
         <license-maven-plugin.version>4.5</license-maven-plugin.version>
         <licensing-maven-plugin.version>1.7.11</licensing-maven-plugin.version>
         <licensing.prepend.text>/license/neo4j_apache_v2/notice.txt</licensing.prepend.text>
@@ -63,77 +64,80 @@
         <scala-maven-plugin.version>4.9.2</scala-maven-plugin.version>
         <!-- This is empty because we use it for the deploy process -->
         <scala.binary.version/>
+        <slf4j-api.version>1.7.36</slf4j-api.version>
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
         <spark.version>3.5.1</spark.version>
         <spotless-maven-plugin.version>2.43.0</spotless-maven-plugin.version>
         <testcontainers.version>1.19.8</testcontainers.version>
     </properties>
-    <dependencies>
-        <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-cypher-dsl</artifactId>
-            <version>${cypherdsl.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.neo4j.driver</groupId>
-            <artifactId>neo4j-java-driver</artifactId>
-            <version>${driver.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.spark</groupId>
-            <artifactId>spark-core_${scala.binary.version}</artifactId>
-            <version>${spark.version}</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.xbean</groupId>
-                    <artifactId>xbean-asm6-shaded</artifactId>
-                </exclusion>
-                <!-- uncomment for debug -->
-                <!--<exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-log4j12</artifactId>
-                </exclusion>-->
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.spark</groupId>
-            <artifactId>spark-sql_${scala.binary.version}</artifactId>
-            <version>${spark.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-            <version>${scala.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-reflect</artifactId>
-            <version>${scala.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest</artifactId>
-            <version>2.2</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- uncomment for debug -->
-        <!--<dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>1.7.30</version>
-            <scope>test</scope>
-        </dependency>-->
-    </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>${junit.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-sql_${scala.binary.version}</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hamcrest</groupId>
+                <artifactId>hamcrest</artifactId>
+                <version>2.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.neo4j</groupId>
+                <artifactId>neo4j-cypher-dsl</artifactId>
+                <version>${cypherdsl.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.neo4j.driver</groupId>
+                <artifactId>neo4j-java-driver</artifactId>
+                <version>${driver.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.scala-lang</groupId>
+                <artifactId>scala-library</artifactId>
+                <version>${scala.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.scala-lang</groupId>
+                <artifactId>scala-reflect</artifactId>
+                <version>${scala.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-simple</artifactId>
+                <version>${slf4j-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-core_${scala.binary.version}</artifactId>
+                <version>${spark.version}</version>
+                <scope>provided</scope>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.xbean</groupId>
+                        <artifactId>xbean-asm6-shaded</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <build>
         <resources>
             <resource>
@@ -221,7 +225,9 @@
                         <failIfMissing>true</failIfMissing>
                         <plainTextReport>true</plainTextReport>
                         <prependText>${licensing.prepend.text}</prependText>
-                        <excludedGroups>^((org.neo4j){1}|(org.neo4j.connectors){1}|(org.neo4j.connectors.kafka){1}|(org.neo4j.driver){1})$</excludedGroups>
+                        <excludedGroups>
+                            ^((org.neo4j){1}|(org.neo4j.connectors){1}|(org.neo4j.connectors.kafka){1}|(org.neo4j.driver){1})$
+                        </excludedGroups>
                         <includedScopes>compile,runtime</includedScopes>
                     </configuration>
                     <dependencies>
@@ -241,13 +247,17 @@
                             <configuration>
                                 <licensingRequirementFiles>
                                     <!--suppress UnresolvedMavenProperty -->
-                                    <licensingRequirementFile>licensing/licensing-requirements-base.xml</licensingRequirementFile>
+                                    <licensingRequirementFile>licensing/licensing-requirements-base.xml
+                                    </licensingRequirementFile>
                                 </licensingRequirementFiles>
-                                <thirdPartyLicensingFilename>${project.artifactId}-${project.version}-NOTICE.txt</thirdPartyLicensingFilename>
-                                <checkExistingNoticeFile>${project.build.directory}/../NOTICE.txt</checkExistingNoticeFile>
+                                <thirdPartyLicensingFilename>${project.artifactId}-${project.version}-NOTICE.txt
+                                </thirdPartyLicensingFilename>
+                                <checkExistingNoticeFile>${project.build.directory}/../NOTICE.txt
+                                </checkExistingNoticeFile>
                                 <listPrependText>/licensing/list-prefix.txt</listPrependText>
                                 <listReport>${project.artifactId}-${project.version}-LICENSES.txt</listReport>
-                                <checkExistingLicensesFile>${project.build.directory}/../LICENSES.txt</checkExistingLicensesFile>
+                                <checkExistingLicensesFile>${project.build.directory}/../LICENSES.txt
+                                </checkExistingLicensesFile>
                             </configuration>
                         </execution>
                     </executions>
@@ -285,26 +295,45 @@
                         <source>${java.version}</source>
                         <target>${java.version}</target>
                     </configuration>
-                    <executions>
-                        <execution>
-                            <id>default-compile</id>
-                            <phase>none</phase>
-                        </execution>
-                        <execution>
-                            <id>default-testCompile</id>
-                            <phase>none</phase>
-                        </execution>
-                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-failsafe-plugin</artifactId>
                     <version>${maven-failsafe-plugin.version}</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <version>${maven-surefire-plugin.version}</version>
+                    <configuration>
+                        <includes>
+                            <include>**/*IT.*</include>
+                        </includes>
+                        <forkCount>1</forkCount>
+                        <reuseForks>false</reuseForks>
+                        <argLine>-XX:+IgnoreUnrecognizedVMOptions
+                            --add-opens=java.base/java.lang=ALL-UNNAMED
+                            --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+                            --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+                            --add-opens=java.base/java.io=ALL-UNNAMED
+                            --add-opens=java.base/java.net=ALL-UNNAMED
+                            --add-opens=java.base/java.nio=ALL-UNNAMED
+                            --add-opens=java.base/java.util=ALL-UNNAMED
+                            --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+                            --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+                            --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+                            --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
+                            --add-opens=java.base/sun.security.action=ALL-UNNAMED
+                            --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
+                            --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED
+                            -Djdk.reflect.useDirectMethodHandle=false
+                        </argLine>
+                        <useModulePath>false</useModulePath>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>integration-test</goal>
+                                <goal>verify</goal>
+                            </goals>
+                            <phase>integration-test</phase>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -322,6 +351,7 @@
                                 <header>/license/neo4j_apache_v2/header.txt</header>
                                 <includes>
                                     <include>src/**/*.scala</include>
+                                    <include>src/**/*.java</include>
                                 </includes>
                             </licenseSet>
                         </licenseSets>
@@ -343,6 +373,78 @@
                                 <goal>check</goal>
                             </goals>
                             <phase>compile</phase>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>net.alchim31.maven</groupId>
+                    <artifactId>scala-maven-plugin</artifactId>
+                    <version>${scala-maven-plugin.version}</version>
+                    <configuration>
+                        <scalaVersion>${scala.version}</scalaVersion>
+                        <scalaCompatVersion>${scala.binary.version}</scalaCompatVersion>
+                        <args>
+                            <arg>-target:jvm-1.8</arg>
+                        </args>
+                        <jvmArgs>
+                            <jvmArg>-Xms64m</jvmArg>
+                            <jvmArg>-Xmx1024m</jvmArg>
+                        </jvmArgs>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>scala-compile</id>
+                            <goals>
+                                <goal>add-source</goal>
+                                <goal>compile</goal>
+                                <goal>testCompile</goal>
+                                <goal>doc-jar</goal>
+                            </goals>
+                            <phase>process-resources</phase>
+                        </execution>
+                        <execution>
+                            <id>scala-test-compile</id>
+                            <goals>
+                                <goal>testCompile</goal>
+                            </goals>
+                            <phase>test-compile</phase>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <version>3.7.1</version>
+                    <configuration>
+                        <descriptorRefs>
+                            <descriptorRef>jar-with-dependencies</descriptorRef>
+                        </descriptorRefs>
+                        <finalName>${project.artifactId}-${project.version}</finalName>
+                        <appendAssemblyId>false</appendAssemblyId>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>single</goal>
+                            </goals>
+                            <phase>package</phase>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.3.1</version>
+                    <executions>
+                        <execution>
+                            <id>attach-sources</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
                         </execution>
                     </executions>
                 </plugin>
@@ -383,7 +485,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>${maven-enforcer-plugin.version}</version>
             </plugin>
             <plugin>
                 <groupId>com.github.ekryd.sortpom</groupId>
@@ -410,118 +511,17 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.3.0</version>
-                <configuration>
-                    <forkCount>1</forkCount>
-                    <reuseForks>false</reuseForks>
-                    <includes>
-                        <include>**/*Test.*</include>
-                        <include>**/*IT.*</include>
-                    </includes>
-                    <trimStackTrace>false</trimStackTrace>
-                    <!-- copied from https://github.com/apache/spark/blob/3941369d13ad885eac21bd8ac1769aaf1a325c5a/launcher/src/main/java/org/apache/spark/launcher/JavaModuleOptions.java -->
-                    <argLine>-XX:+IgnoreUnrecognizedVMOptions
-                        --add-opens=java.base/java.lang=ALL-UNNAMED
-                        --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
-                        --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
-                        --add-opens=java.base/java.io=ALL-UNNAMED
-                        --add-opens=java.base/java.net=ALL-UNNAMED
-                        --add-opens=java.base/java.nio=ALL-UNNAMED
-                        --add-opens=java.base/java.util=ALL-UNNAMED
-                        --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
-                        --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
-                        --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
-                        --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
-                        --add-opens=java.base/sun.security.action=ALL-UNNAMED
-                        --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
-                        --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED</argLine>
-                </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                    <encoding>UTF-8</encoding>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>net.alchim31.maven</groupId>
-                <artifactId>scala-maven-plugin</artifactId>
-                <version>${scala-maven-plugin.version}</version>
-                <configuration>
-                    <scalaVersion>${scala.version}</scalaVersion>
-                    <scalaCompatVersion>${scala.binary.version}</scalaCompatVersion>
-                    <args>
-                        <arg>-target:jvm-1.8</arg>
-                        <!-- arg>-deprecation</arg -->
-                    </args>
-                    <jvmArgs>
-                        <jvmArg>-Xms64m</jvmArg>
-                        <jvmArg>-Xmx1024m</jvmArg>
-                    </jvmArgs>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>scala-compile</id>
-                        <goals>
-                            <goal>add-source</goal>
-                            <goal>compile</goal>
-                            <goal>testCompile</goal>
-                            <goal>doc-jar</goal>
-                        </goals>
-                        <phase>process-resources</phase>
-                    </execution>
-                    <execution>
-                        <id>scala-test-compile</id>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                        <phase>test-compile</phase>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.7.1</version>
-                <configuration>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                    <finalName>${project.artifactId}-${project.version}</finalName>
-                    <appendAssemblyId>false</appendAssemblyId>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                        <phase>package</phase>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>3.3.1</version>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
     <profiles>
         <!-- scala profiles -->
         <profile>
             <id>scala-2.12</id>
+            <activation>
+                <property>
+                    <name>scala-2.12</name>
+                </property>
+            </activation>
             <properties>
                 <scala.binary.version>2.12</scala.binary.version>
                 <scala.version>2.12.18</scala.version>
@@ -530,7 +530,9 @@
         <profile>
             <id>scala-2.13</id>
             <activation>
-                <activeByDefault>true</activeByDefault>
+                <property>
+                    <name>!scala-2.12</name>
+                </property>
             </activation>
             <properties>
                 <scala.binary.version>2.13</scala.binary.version>
@@ -543,6 +545,11 @@
         <!-- neo4j profiles -->
         <profile>
             <id>neo4j-4.4</id>
+            <activation>
+                <property>
+                    <name>neo4j-4</name>
+                </property>
+            </activation>
             <properties>
                 <neo4j.experimental>false</neo4j.experimental>
                 <neo4j.version>4.4.34</neo4j.version>
@@ -551,7 +558,9 @@
         <profile>
             <id>neo4j-5</id>
             <activation>
-                <activeByDefault>true</activeByDefault>
+                <property>
+                    <name>!neo4j-4</name>
+                </property>
             </activation>
             <properties>
                 <neo4j.experimental>false</neo4j.experimental>
@@ -559,7 +568,6 @@
             </properties>
         </profile>
         <!-- end neo4j profiles -->
-        <!-- Only generate NOTICE and LICENSES files for projects with src/ directory -->
         <profile>
             <id>has-sources</id>
             <activation>
