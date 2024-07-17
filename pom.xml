@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.neo4j</groupId>
     <artifactId>neo4j-connector-apache-spark_parent</artifactId>
@@ -225,9 +225,7 @@
                         <failIfMissing>true</failIfMissing>
                         <plainTextReport>true</plainTextReport>
                         <prependText>${licensing.prepend.text}</prependText>
-                        <excludedGroups>
-                            ^((org.neo4j){1}|(org.neo4j.connectors){1}|(org.neo4j.connectors.kafka){1}|(org.neo4j.driver){1})$
-                        </excludedGroups>
+                        <excludedGroups>^((org.neo4j){1}|(org.neo4j.connectors){1}|(org.neo4j.connectors.kafka){1}|(org.neo4j.driver){1})$</excludedGroups>
                         <includedScopes>compile,runtime</includedScopes>
                     </configuration>
                     <dependencies>
@@ -247,17 +245,13 @@
                             <configuration>
                                 <licensingRequirementFiles>
                                     <!--suppress UnresolvedMavenProperty -->
-                                    <licensingRequirementFile>licensing/licensing-requirements-base.xml
-                                    </licensingRequirementFile>
+                                    <licensingRequirementFile>licensing/licensing-requirements-base.xml</licensingRequirementFile>
                                 </licensingRequirementFiles>
-                                <thirdPartyLicensingFilename>${project.artifactId}-${project.version}-NOTICE.txt
-                                </thirdPartyLicensingFilename>
-                                <checkExistingNoticeFile>${project.build.directory}/../NOTICE.txt
-                                </checkExistingNoticeFile>
+                                <thirdPartyLicensingFilename>${project.artifactId}-${project.version}-NOTICE.txt</thirdPartyLicensingFilename>
+                                <checkExistingNoticeFile>${project.build.directory}/../NOTICE.txt</checkExistingNoticeFile>
                                 <listPrependText>/licensing/list-prefix.txt</listPrependText>
                                 <listReport>${project.artifactId}-${project.version}-LICENSES.txt</listReport>
-                                <checkExistingLicensesFile>${project.build.directory}/../LICENSES.txt
-                                </checkExistingLicensesFile>
+                                <checkExistingLicensesFile>${project.build.directory}/../LICENSES.txt</checkExistingLicensesFile>
                             </configuration>
                         </execution>
                     </executions>
@@ -321,8 +315,7 @@
                             --add-opens=java.base/sun.security.action=ALL-UNNAMED
                             --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
                             --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED
-                            -Djdk.reflect.useDirectMethodHandle=false
-                        </argLine>
+                            -Djdk.reflect.useDirectMethodHandle=false</argLine>
                         <useModulePath>false</useModulePath>
                     </configuration>
                     <executions>
