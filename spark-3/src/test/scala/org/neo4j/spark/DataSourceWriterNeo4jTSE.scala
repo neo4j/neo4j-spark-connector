@@ -17,13 +17,14 @@
 package org.neo4j.spark
 
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.spark.SparkException
 import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.scheduler.SparkListenerStageCompleted
+import org.apache.spark.scheduler.SparkListenerStageSubmitted
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -37,6 +38,7 @@ import org.neo4j.spark.writer.DataWriterMetrics
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
@@ -635,7 +637,8 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       DataWriterMetrics.PROPERTIES_SET_DESCRIPTION -> 8
     )
     val latch = new CountDownLatch(1)
-    sparkSession.sparkContext.addSparkListener(new MetricsListener(expectedMetrics, latch))
+    val metrics = new AtomicReference[Map[String, Any]]()
+    sparkSession.sparkContext.addSparkListener(new MetricsListener(expectedMetrics.keySet, metrics, latch))
 
     input.toDF("name")
       .repartition(1)
@@ -649,6 +652,8 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     latch.await(30, TimeUnit.SECONDS)
+    assertNotNull(metrics.get())
+    assertEquals(metrics.get(), expectedMetrics)
   }
 
   @Test
@@ -688,20 +693,23 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
     }
   }
 
-  class MetricsListener(expectedMetrics: Map[String, Any], done: CountDownLatch) extends SparkListener {
+  class MetricsListener(names: Set[String], captureMetrics: AtomicReference[Map[String, Any]], done: CountDownLatch)
+      extends SparkListener {
+
+    override def onStageSubmitted(stageSubmitted: SparkListenerStageSubmitted): Unit = {
+      stageSubmitted.stageInfo.accumulables.clear()
+    }
 
     override def onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit = {
-      val actualMetrics = stageCompleted
+      captureMetrics.set(stageCompleted
         .stageInfo
         .accumulables
         .values
-        .filter(metric => metric.name.exists(expectedMetrics.keySet.contains))
+        .filter(metric => metric.name.exists(names.contains))
         .map(metric => (metric.name.get, metric.value.get))
-        .toMap
-      if (actualMetrics.nonEmpty) {
-        assertEquals(expectedMetrics, actualMetrics)
-        done.countDown()
-      }
+        .toMap)
+
+      done.countDown()
     }
   }
 
