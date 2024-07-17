@@ -273,7 +273,7 @@
                                         <version>[3.6.3,)</version>
                                     </requireMavenVersion>
                                     <requireJavaVersion>
-                                        <version>11</version>
+                                        <version>8</version>
                                     </requireJavaVersion>
                                     <dependencyConvergence/>
                                 </rules>
