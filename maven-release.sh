@@ -27,6 +27,7 @@ trap exit_script SIGINT SIGTERM
 
 GOAL=$1
 SCALA_VERSION=$2
+SPARK_VERSION=3
 if [[ $# -eq 3 ]] ; then
   ALT_DEPLOYMENT_REPOSITORY="-DaltDeploymentRepository=$3"
 else
@@ -49,10 +50,10 @@ cp common/pom.xml common/pom.xml.bak
 cp test-support/pom.xml test-support/pom.xml.bak
 cp spark-3/pom.xml spark-3/pom.xml.bak
 
+./mvnw versions:set -DnewVersion=${PROJECT_VERSION}_for_spark_${SPARK_VERSION} -DgenerateBackupPoms=false
+
 # replace pom files with target scala version
 sed_i "s/<artifactId>neo4j-connector-apache-spark_parent<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_parent<\/artifactId>/" pom.xml
-sed_i "s/<scala.binary.version \/>/<scala.binary.version>$SCALA_VERSION<\/scala.binary.version>/" pom.xml
-
 sed_i "s/<artifactId>neo4j-connector-apache-spark_parent<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_parent<\/artifactId>/" "test-support/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark_test-support<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_test-support<\/artifactId>/" "test-support/pom.xml"
 
@@ -61,14 +62,13 @@ sed_i "s/<artifactId>neo4j-connector-apache-spark_parent<\/artifactId>/<artifact
 sed_i "s/<artifactId>neo4j-connector-apache-spark_test-support<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_test-support<\/artifactId>/" "common/pom.xml"
 
 sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}<\/artifactId>/" "spark-3/pom.xml"
-sed_i "s/<!-- <version>\${project.parent.version}<\/version> -->/<version>${PROJECT_VERSION}_for_spark_3<\/version>/" "spark-3/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark_parent<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_parent<\/artifactId>/" "spark-3/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark_common<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_common<\/artifactId>/" "spark-3/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark_test-support<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_test-support<\/artifactId>/" "spark-3/pom.xml"
 sed_i "s/<spark-packages.version\/>/<spark-packages.version>${SPARK_PACKAGES_VERSION}<\/spark-packages.version>/" "spark-3/pom.xml"
 
 # build
-mvn clean "${GOAL}" -Pscala-"${SCALA_VERSION}" -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
+./mvnw clean "${GOAL}" -Pscala-"${SCALA_VERSION}" -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
 
 if [ ! ${CI:-false} = true ]; then
   exit_script
