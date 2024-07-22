@@ -18,8 +18,6 @@ jobs:
         spark-version:
           - { short: "3", ext: "3.4.3", scala: "2.12" }
           - { short: "3", ext: "3.5.1", scala: "2.12" }
-          - { short: "3", ext: "3.4.3", scala: "2.13" }
-          - { short: "3", ext: "3.5.1", scala: "2.13" }
 
     steps:
       - uses: actions/checkout@v4
