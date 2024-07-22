@@ -25,6 +25,7 @@ import org.neo4j.driver.Transaction
 import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.spark
+import org.scalatestplus.junit.JUnitSuite
 
 import java.util.concurrent.TimeUnit
 
@@ -52,7 +53,7 @@ object SparkConnectorScalaBaseTSE {
 
 }
 
-class SparkConnectorScalaBaseTSE {
+class SparkConnectorScalaBaseTSE extends JUnitSuite {
 
   val conf: SparkConf = SparkConnectorScalaSuiteIT.conf
   val ss: SparkSession = SparkConnectorScalaSuiteIT.ss

@@ -37,10 +37,13 @@ import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.types.IsoDuration
 import org.neo4j.driver.types.Type
 import org.neo4j.spark.util.Neo4jOptions
+import org.scalatest.matchers.must.Matchers.be
+import org.scalatest.matchers.must.Matchers.include
+import org.scalatest.matchers.must.Matchers.the
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import java.time.LocalTime
 import java.time.OffsetTime
-import java.time.ZoneOffset
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.ListMap
@@ -572,7 +575,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(total, records.size)
   }
 
-  @Test(expected = classOf[SparkException])
+  @Test
   def `should throw an error because the node already exists`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
@@ -588,24 +591,23 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
 
     try {
-      ds.write
-        .format(classOf[DataSource].getName)
-        .mode(SaveMode.Append)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("labels", "Person")
-        .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
-    } catch {
-      case sparkException: SparkException => {
-        val clientException = ExceptionUtils.getRootCause(sparkException)
-        assertNotNull(clientException)
-        assertTrue(clientException.isInstanceOf[ClientException])
-        assertTrue(
-          clientException.asInstanceOf[ClientException].code() == "Neo.ClientError.Schema.ConstraintValidationFailed"
-        )
-        throw sparkException
+      val thrown = the[SparkException] thrownBy {
+        ds.write
+          .format(classOf[DataSource].getName)
+          .mode(SaveMode.Append)
+          .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+          .option("labels", "Person")
+          .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
       }
-      case e: Throwable =>
-        fail(s"should be thrown a ${classOf[SparkException].getName} but is ${e.getClass.getSimpleName}")
+
+      thrown.getMessage should include("org.neo4j.driver.exceptions.ClientException")
+      val rootCause = ExceptionUtils.getRootCause(thrown)
+      // root cause is not always returned as a ClientException so we pass it through pattern matching to remove flakiness
+      rootCause match {
+        case c: ClientException =>
+          c.code() should be("Neo.ClientError.Schema.ConstraintValidationFailed")
+        case _ =>
+      }
     } finally {
       SparkConnectorScalaSuiteIT.session()
         .writeTransaction(new TransactionWork[Result] {
