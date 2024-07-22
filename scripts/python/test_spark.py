@@ -364,7 +364,7 @@ if __name__ == "__main__":
                     .config(
                     "spark.jars",
                     "../../spark-%s/target/neo4j-connector-apache-spark_%s-%s.jar"
-                    % (spark_version, scala_version, spark_version, connector_version)
+                    % (spark_version, scala_version, connector_version)
                 ) \
                     .config("spark.driver.host", "127.0.0.1") \
                     .getOrCreate()
