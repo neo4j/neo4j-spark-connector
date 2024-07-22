@@ -68,7 +68,7 @@ sed_i "s/<artifactId>neo4j-connector-apache-spark_test-support<\/artifactId>/<ar
 sed_i "s/<spark-packages.version\/>/<spark-packages.version>${SPARK_PACKAGES_VERSION}<\/spark-packages.version>/" "spark-3/pom.xml"
 
 # build
-./mvnw clean "${GOAL}" -Pscala-"${SCALA_VERSION}" -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
+./mvnw clean "${GOAL}" -Dscala-"${SCALA_VERSION}" -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
 
 if [ ! ${CI:-false} = true ]; then
   exit_script
