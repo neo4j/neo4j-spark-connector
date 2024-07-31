@@ -697,17 +697,20 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       extends SparkListener {
 
     override def onStageSubmitted(stageSubmitted: SparkListenerStageSubmitted): Unit = {
+      println(s"stage submitted")
       stageSubmitted.stageInfo.accumulables.clear()
     }
 
     override def onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit = {
-      captureMetrics.set(stageCompleted
+      val metrics = stageCompleted
         .stageInfo
         .accumulables
         .values
         .filter(metric => metric.name.exists(names.contains))
         .map(metric => (metric.name.get, metric.value.get))
-        .toMap)
+        .toMap
+      println(s"stage completed with metrics: $metrics")
+      captureMetrics.set(metrics)
 
       done.countDown()
     }

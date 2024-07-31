@@ -64,6 +64,7 @@ class SparkConnectorScalaBaseTSE extends JUnitSuite {
   @Before
   def before() {
     println(s"Running test ${testName.getMethodName().replaceAll("$u0020", " ")}")
+    println(s"Number of connection ${SparkConnectorScalaSuiteIT.getActiveConnections}")
     ss.catalog.listTables()
       .collect()
       .foreach(t => ss.catalog.dropTempView(t.name))
