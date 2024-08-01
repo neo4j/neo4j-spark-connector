@@ -16,7 +16,6 @@ jobs:
       matrix:
         java-version: [8, 11, 17]
         scala-version: [2.12, 2.13]
-        spark-version: ["3"]
         neo4j-version: ["4.4", "5"]
     name: Build with JDK ${{ matrix.java-version }}, Scala ${{ matrix.scala-version }}, Spark ${{ matrix.spark-version }} and Neo4j ${{ matrix.neo4j-version }}
     steps:
@@ -35,4 +34,4 @@ jobs:
       - name: Build with Maven
         env:
           CI: true
-        run: ./mvnw clean verify -Djava.version=${{ matrix.java-version }} -Dscala-${{ matrix.scala-version }} -Pspark-${{ matrix.spark-version }} -Dneo4j-${{ matrix.neo4j-version }} --no-transfer-progress
+        run: ./mvnw clean verify -Djava.version=${{ matrix.java-version }} -Dscala-${{ matrix.scala-version }} -Dneo4j-${{ matrix.neo4j-version }} --no-transfer-progress
