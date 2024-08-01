@@ -636,24 +636,31 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       DataWriterMetrics.NODES_CREATED_DESCRIPTION -> 8,
       DataWriterMetrics.PROPERTIES_SET_DESCRIPTION -> 8
     )
-    val latch = new CountDownLatch(1)
+    // Spark will complete in 2 stages, we need to wait for the latest,
+    // to be sure the final version of metrics is inspected
+    val latch = new CountDownLatch(2)
     val metrics = new AtomicReference[Map[String, Any]]()
-    sparkSession.sparkContext.addSparkListener(new MetricsListener(expectedMetrics.keySet, metrics, latch))
+    val listener = new MetricsListener(expectedMetrics.keySet, metrics, latch)
+    sparkSession.sparkContext.addSparkListener(listener)
 
-    input.toDF("name")
-      .repartition(1)
-      .write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Append)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("database", "db1")
-      .option("batch.size", 1) // TODO: remove this when https://issues.apache.org/jira/browse/SPARK-45759 is fixed
-      .option("query", query)
-      .save()
+    try {
+      input.toDF("name")
+        .repartition(1)
+        .write
+        .format(classOf[DataSource].getName)
+        .mode(SaveMode.Append)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("database", "db1")
+        .option("batch.size", 1) // TODO: remove this when https://issues.apache.org/jira/browse/SPARK-45759 is fixed
+        .option("query", query)
+        .save()
 
-    latch.await(30, TimeUnit.SECONDS)
-    assertNotNull(metrics.get())
-    assertEquals(metrics.get(), expectedMetrics)
+      latch.await(30, TimeUnit.SECONDS)
+      assertNotNull(metrics.get())
+      assertEquals(metrics.get(), expectedMetrics)
+    } finally {
+      sparkSession.sparkContext.removeSparkListener(listener)
+    }
   }
 
   @Test
@@ -697,20 +704,17 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       extends SparkListener {
 
     override def onStageSubmitted(stageSubmitted: SparkListenerStageSubmitted): Unit = {
-      println(s"stage submitted")
       stageSubmitted.stageInfo.accumulables.clear()
     }
 
     override def onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit = {
-      val metrics = stageCompleted
+      captureMetrics.set(stageCompleted
         .stageInfo
         .accumulables
         .values
         .filter(metric => metric.name.exists(names.contains))
         .map(metric => (metric.name.get, metric.value.get))
-        .toMap
-      println(s"stage completed with metrics: $metrics")
-      captureMetrics.set(metrics)
+        .toMap)
 
       done.countDown()
     }
