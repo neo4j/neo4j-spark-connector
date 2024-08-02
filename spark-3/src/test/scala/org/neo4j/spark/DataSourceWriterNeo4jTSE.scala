@@ -661,7 +661,6 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       assertNotNull(metrics.get())
       assertEquals(metrics.get(), expectedMetrics)
 
-      //Thread.sleep(2230000)
     } finally {
       sparkSession.sparkContext.removeSparkListener(listener)
     }
