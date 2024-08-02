@@ -18,15 +18,16 @@ package org.neo4j.spark
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.scheduler.SparkListener
+import org.apache.spark.scheduler.SparkListenerJobEnd
 import org.apache.spark.scheduler.SparkListenerStageCompleted
 import org.apache.spark.scheduler.SparkListenerStageSubmitted
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
+import org.hamcrest.{Matcher, Matchers}
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Test
 import org.neo4j.driver.Result
 import org.neo4j.driver.Session
@@ -36,9 +37,11 @@ import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.spark.writer.DataWriterMetrics
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import scala.jdk.CollectionConverters.MapHasAsJava
 
 class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
@@ -636,11 +639,9 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       DataWriterMetrics.NODES_CREATED_DESCRIPTION -> 8,
       DataWriterMetrics.PROPERTIES_SET_DESCRIPTION -> 8
     )
-    // Spark will complete in 2 stages, we need to wait for the latest,
-    // to be sure the final version of metrics is inspected
-    val latch = new CountDownLatch(2)
+
     val metrics = new AtomicReference[Map[String, Any]]()
-    val listener = new MetricsListener(expectedMetrics.keySet, metrics, latch)
+    val listener = new MetricsListener(expectedMetrics.keySet, metrics)
     sparkSession.sparkContext.addSparkListener(listener)
 
     try {
@@ -655,9 +656,16 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .option("query", query)
         .save()
 
-      latch.await(30, TimeUnit.SECONDS)
+      val db1Session = SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
+      Assert.assertEventually(() => {
+        db1Session.run(
+          "MATCH (:Name)-[r:STARTS_WITH]->(:Letter) RETURN count(r) as cnt"
+        ).single().get("cnt").asLong()
+      }, Matchers.equalTo(4L) , 30L, TimeUnit.SECONDS)
       assertNotNull(metrics.get())
       assertEquals(metrics.get(), expectedMetrics)
+
+      //Thread.sleep(2230000)
     } finally {
       sparkSession.sparkContext.removeSparkListener(listener)
     }
@@ -700,7 +708,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
     }
   }
 
-  class MetricsListener(names: Set[String], captureMetrics: AtomicReference[Map[String, Any]], done: CountDownLatch)
+  class MetricsListener(names: Set[String], captureMetrics: AtomicReference[Map[String, Any]])
       extends SparkListener {
 
     override def onStageSubmitted(stageSubmitted: SparkListenerStageSubmitted): Unit = {
@@ -715,8 +723,6 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .filter(metric => metric.name.exists(names.contains))
         .map(metric => (metric.name.get, metric.value.get))
         .toMap)
-
-      done.countDown()
     }
   }
 
