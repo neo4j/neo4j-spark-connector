@@ -18,13 +18,12 @@ package org.neo4j.spark
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.scheduler.SparkListener
-import org.apache.spark.scheduler.SparkListenerJobEnd
 import org.apache.spark.scheduler.SparkListenerStageCompleted
 import org.apache.spark.scheduler.SparkListenerStageSubmitted
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
-import org.hamcrest.{Matcher, Matchers}
+import org.hamcrest.Matchers
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -37,11 +36,8 @@ import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.spark.writer.DataWriterMetrics
 
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
-import scala.jdk.CollectionConverters.MapHasAsJava
 
 class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
