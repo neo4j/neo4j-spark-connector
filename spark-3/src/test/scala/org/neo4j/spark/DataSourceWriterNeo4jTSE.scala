@@ -653,11 +653,16 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .save()
 
       val db1Session = SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
-      Assert.assertEventually(() => {
-        db1Session.run(
-          "MATCH (:Name)-[r:STARTS_WITH]->(:Letter) RETURN count(r) as cnt"
-        ).single().get("cnt").asLong()
-      }, Matchers.equalTo(4L) , 30L, TimeUnit.SECONDS)
+      Assert.assertEventually(
+        () => {
+          db1Session.run(
+            "MATCH (:Name)-[r:STARTS_WITH]->(:Letter) RETURN count(r) as cnt"
+          ).single().get("cnt").asLong()
+        },
+        Matchers.equalTo(4L),
+        30L,
+        TimeUnit.SECONDS
+      )
       assertNotNull(metrics.get())
       assertEquals(metrics.get(), expectedMetrics)
 
