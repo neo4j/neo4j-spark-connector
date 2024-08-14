@@ -64,7 +64,7 @@
         <scala.binary.version/>
         <slf4j-api.version>1.7.36</slf4j-api.version>
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
-        <spark.version>3.5.1</spark.version>
+        <spark.version>3.5.2</spark.version>
         <spotless-maven-plugin.version>2.43.0</spotless-maven-plugin.version>
         <surefire.jvm.args/>
         <testcontainers.version>1.19.8</testcontainers.version>
