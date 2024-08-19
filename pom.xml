@@ -31,7 +31,7 @@
     <modules>
         <module>common</module>
         <module>test-support</module>
-        <module>spark-3</module>
+        <module>spark-4</module>
     </modules>
     <scm>
         <url>https://github.com/neo4j/neo4j-spark-connector</url>
@@ -40,7 +40,8 @@
         <build-resources.version>2024-07.1</build-resources.version>
         <cypherdsl.version>2022.9.2</cypherdsl.version>
         <driver.version>4.4.18</driver.version>
-        <java.version>1.8</java.version>
+        <jackson.version>2.17.2</jackson.version>
+        <java.version>17</java.version>
         <junit.version>4.13.2</junit.version>
         <license-maven-plugin.version>4.5</license-maven-plugin.version>
         <licensing-maven-plugin.version>1.7.11</licensing-maven-plugin.version>
@@ -64,13 +65,20 @@
         <scala.binary.version/>
         <slf4j-api.version>2.0.16</slf4j-api.version>
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
-        <spark.version>3.5.2</spark.version>
+        <spark.version>4.0.0-preview1</spark.version>
         <spotless-maven-plugin.version>2.43.0</spotless-maven-plugin.version>
         <surefire.jvm.args/>
         <testcontainers.version>1.20.1</testcontainers.version>
     </properties>
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>

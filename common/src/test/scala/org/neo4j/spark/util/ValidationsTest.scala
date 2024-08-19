@@ -31,7 +31,7 @@ class ValidationsTest extends SparkConnectorScalaBaseTSE {
       .map { _.version }
       .getOrElse("UNKNOWN")
     try {
-      Validations.validate(ValidateSparkMinVersion("3.10000"))
+      Validations.validate(ValidateSparkMinVersion("99.99"))
       fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     } catch {
       case e: IllegalArgumentException =>
