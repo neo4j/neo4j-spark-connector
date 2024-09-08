@@ -31,7 +31,13 @@ import org.apache.spark.sql.sources.And
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.Or
 import org.neo4j.cypherdsl.core._
+import org.neo4j.cypherdsl.core.ast.Visitable
+import org.neo4j.cypherdsl.core.ast.Visitor
 import org.neo4j.cypherdsl.core.renderer.Renderer
+import org.neo4j.cypherdsl.core.renderer.Renderer.getDefaultRenderer
+import org.neo4j.cypherdsl.parser.CypherParser
+import org.neo4j.cypherdsl.parser.ExpressionCreatedEventType
+import org.neo4j.cypherdsl.parser.Options
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jUtil
@@ -68,8 +74,10 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
     val setStatement = if (!keyword.equals("MATCH"))
       s" SET $alias += ${Neo4jQueryStrategy.VARIABLE_EVENT}.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}"
     else ""
-    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) ""
-      else s"{$keys}"})$setStatement""".stripMargin
+    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${
+        if (keys.isEmpty) ""
+        else s"{$keys}"
+      })$setStatement""".stripMargin
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
@@ -163,16 +171,54 @@ class Neo4jQueryReadStrategy(
            |\tPlease specify the aggregations in the custom query directly""".stripMargin
       )
     }
-    val limitedQuery = if (hasSkipLimit) {
-      s"""${options.query.value}
-         |SKIP ${partitionPagination.skip} LIMIT ${partitionPagination.topN.limit}
-         |""".stripMargin
-    } else {
-      s"""${options.query.value}
-         |""".stripMargin
+
+    println(s"query: ${options.query.value}")
+    val stmt = CypherParser.parseStatement(
+      options.query.value,
+      Options.newOptions()
+        .build()
+    )
+
+    if (stmt.isInstanceOf[Visitable]) {
+      stmt.asInstanceOf[Visitable].accept(new Visitor() {
+        override def enter(segment: Visitable): Unit = {
+          if (segment.isInstanceOf[PropertyLookup]) {
+            val l = segment.asInstanceOf[PropertyLookup]
+            println(l)
+          }
+          println(segment)
+        }
+      })
     }
-    s"""WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
-       |$limitedQuery""".stripMargin
+
+    println(s"identifiable expressions: ${stmt.getIdentifiableExpressions}")
+    println(s"parameter names: ${stmt.getParameterNames}")
+
+    val streamingProperty = options.streamingOptions.propertyName
+    val boundedQuery = Cypher.`with`(Cypher.parameter("scriptResult").as(Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT))
+      .call(stmt)
+      .`with`(Asterisk.INSTANCE)
+      .where(Cypher.name(streamingProperty).gt(Cypher.parameter("stream.offset"))
+        .and(Cypher.name(streamingProperty).lte(Cypher.parameter("stream.end"))))
+      .returning(Asterisk.INSTANCE)
+      .build()
+
+    return getDefaultRenderer.render(boundedQuery)
+    //    CALL {
+    //      $userQuery
+    //    }
+    //    WHERE $streamingProperty > $stream.offset && $streamingProperty <= $stream.end
+
+    //    val limitedQuery = if (hasSkipLimit) {
+    //      s"""${options.query.value}
+    //         |SKIP ${partitionPagination.skip} LIMIT ${partitionPagination.topN.limit}
+    //         |""".stripMargin
+    //    } else {
+    //      s"""${options.query.value}
+    //         |""".stripMargin
+    //    }
+    //    s"""WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
+    //       |$limitedQuery""".stripMargin
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {

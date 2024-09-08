@@ -25,6 +25,7 @@ import org.apache.spark.sql.connector.read.streaming.MicroBatchStream
 import org.apache.spark.sql.connector.read.streaming.Offset
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.GreaterThan
+import org.apache.spark.sql.sources.LessThanOrEqual
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.LongAccumulator
 import org.neo4j.spark.service.SchemaService
@@ -65,7 +66,10 @@ class Neo4jMicroBatchReader(
     logDebug(s"start and end offset: $start - $end")
     this.filters = if (start.asInstanceOf[Neo4jOffset].offset != StreamingFrom.ALL.value()) {
       val prop = Neo4jUtil.getStreamingPropertyName(neo4jOptions)
-      Array(GreaterThan(prop, start.asInstanceOf[Neo4jOffset].offset))
+      Array(
+        GreaterThan(prop, start.asInstanceOf[Neo4jOffset].offset),
+        LessThanOrEqual(prop, end.asInstanceOf[Neo4jOffset].offset)
+      )
     } else {
       this.filters
     }
@@ -83,62 +87,34 @@ class Neo4jMicroBatchReader(
   }
 
   override def stop(): Unit = {
-    //    offsetAccumulator.close()
     new DriverCache(neo4jOptions.connection, jobId).close()
   }
 
   override def latestOffset(): Offset = {
-    Neo4jOffset(Neo4jUtil.callSchemaService[Long](neo4jOptions, jobId, filters, {
-      schemaService =>
-        try {
-          schemaService.lastOffset()
-        } catch {
-          case _ => -1L
-        }
-    }))
-    //    val lastReadOffset: lang.Long = offsetAccumulator.value
-
-    //    // the current offset is build by the last read offset, if any, or from the last used offset
-    //    var currentOffset: Neo4jOffset = if (lastReadOffset == null) {
-    //      // if the last used offset is not set yet, we use the initial offset
-    //      if (lastUsedOffset == null) {
-    //        lastUsedOffset = initialOffset().asInstanceOf[Neo4jOffset]
-    //      }
-
-    //      lastUsedOffset
-    //    } else {
-    //      Neo4jOffset(lastReadOffset)
-    //    }
-
-    //    // if in the last cycle the partition returned
-    //    // an empty result this means that start will be set equal end,
-    //    // so we check if
-    //    if (lastUsedOffset != null && currentOffset.offset == lastUsedOffset.offset) {
-    //      // there is a database change by invoking the last offset inserted
-    //      val lastNeo4jOffset = Neo4jUtil.callSchemaService[Long](neo4jOptions, jobId, filters, {
-    //        schemaService =>
-    //          try {
-    //            schemaService.lastOffset()
-    //          } catch {
-    //            case _ => -1L
-    //          }
-    //      })
-    //      // if a the last offset into the database is changed
-    //      if (lastNeo4jOffset > currentOffset.offset) {
-    //        // we just increment the end offset in order to push spark to do a new query over the database
-    //        currentOffset = Neo4jOffset(currentOffset.offset + 1)
-    //      }
-    //    }
-
-    //    lastUsedOffset = currentOffset
-    //    currentOffset
+    Neo4jOffset(Neo4jUtil.callSchemaService[Long](
+      neo4jOptions,
+      jobId,
+      filters,
+      {
+        schemaService =>
+          try {
+            schemaService.lastOffset()
+          } catch {
+            case _: Throwable => -1L
+          }
+      }
+    ))
   }
 
   override def initialOffset(): Offset = Neo4jOffset(neo4jOptions.streamingOptions.from.value())
 
   override def createReaderFactory(): PartitionReaderFactory = {
     new Neo4jStreamingPartitionReaderFactory(
-      neo4jOptions, optionalSchema.orElse(new StructType()), jobId, scriptResult, aggregateColumns
+      neo4jOptions,
+      schema,
+      jobId,
+      scriptResult,
+      aggregateColumns
     )
   }
 }

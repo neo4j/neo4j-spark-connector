@@ -31,7 +31,6 @@ import org.neo4j.spark.util.Neo4jOptions
 case class Neo4jStreamingPartition(partitionSkipLimit: PartitionPagination, filters: Array[Filter])
     extends InputPartition
 
-  private val jobId: String,
 class Neo4jStreamingPartitionReaderFactory(
   private val neo4jOptions: Neo4jOptions,
   private val schema: StructType,

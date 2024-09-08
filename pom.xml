@@ -99,6 +99,11 @@
                 <version>${cypherdsl.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.neo4j</groupId>
+                <artifactId>neo4j-cypher-dsl-parser</artifactId>
+                <version>${cypherdsl.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.neo4j.driver</groupId>
                 <artifactId>neo4j-java-driver</artifactId>
                 <version>${driver.version}</version>
