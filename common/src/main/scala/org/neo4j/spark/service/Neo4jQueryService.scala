@@ -19,30 +19,14 @@ package org.neo4j.spark.service
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.connector.expressions.SortDirection
-import org.apache.spark.sql.connector.expressions.SortOrder
-import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
-import org.apache.spark.sql.connector.expressions.aggregate.Count
-import org.apache.spark.sql.connector.expressions.aggregate.CountStar
-import org.apache.spark.sql.connector.expressions.aggregate.Max
-import org.apache.spark.sql.connector.expressions.aggregate.Min
-import org.apache.spark.sql.connector.expressions.aggregate.Sum
-import org.apache.spark.sql.sources.And
-import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.sources.Or
+import org.apache.spark.sql.connector.expressions.{SortDirection, SortOrder}
+import org.apache.spark.sql.connector.expressions.aggregate._
+import org.apache.spark.sql.sources.{And, Filter, Or}
 import org.neo4j.cypherdsl.core._
-import org.neo4j.cypherdsl.core.ast.Visitable
-import org.neo4j.cypherdsl.core.ast.Visitor
 import org.neo4j.cypherdsl.core.renderer.Renderer
-import org.neo4j.cypherdsl.core.renderer.Renderer.getDefaultRenderer
-import org.neo4j.cypherdsl.parser.CypherParser
-import org.neo4j.cypherdsl.parser.ExpressionCreatedEventType
-import org.neo4j.cypherdsl.parser.Options
+import org.neo4j.cypherdsl.parser.{CypherParser, ExpressionCreatedEventType, Options}
 import org.neo4j.spark.util.Neo4jImplicits._
-import org.neo4j.spark.util.Neo4jOptions
-import org.neo4j.spark.util.Neo4jUtil
-import org.neo4j.spark.util.NodeSaveMode
-import org.neo4j.spark.util.QueryType
+import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, NodeSaveMode, QueryType}
 
 import scala.collection.JavaConverters._
 
@@ -172,53 +156,56 @@ class Neo4jQueryReadStrategy(
       )
     }
 
-    println(s"query: ${options.query.value}")
-    val stmt = CypherParser.parseStatement(
-      options.query.value,
+    val limitedQuery = if (hasSkipLimit) {
+      s"""${options.query.value}
+         |SKIP ${partitionPagination.skip} LIMIT ${partitionPagination.topN.limit}
+         |""".stripMargin
+    } else {
+      s"""${options.query.value}
+         |""".stripMargin
+    }
+
+    var isStreaming: Boolean = false
+    val userStmt = CypherParser.parseStatement(
+      limitedQuery,
       Options.newOptions()
+        .withCallback(
+          ExpressionCreatedEventType.ON_NEW_PARAMETER,
+          classOf[Expression],
+          { exp: Expression =>
+            exp match {
+              case p: Parameter[_] =>
+                isStreaming = isStreaming || p.getName.equals("stream")
+              case _ =>
+            }
+            exp
+          }
+        )
         .build()
     )
 
-    if (stmt.isInstanceOf[Visitable]) {
-      stmt.asInstanceOf[Visitable].accept(new Visitor() {
-        override def enter(segment: Visitable): Unit = {
-          if (segment.isInstanceOf[PropertyLookup]) {
-            val l = segment.asInstanceOf[PropertyLookup]
-            println(l)
-          }
-          println(segment)
-        }
-      })
+    val builtStmt = {
+      if (isStreaming) {
+        val streamingProperty = options.streamingOptions.propertyName
+
+        Cypher.`with`(Cypher.parameter("scriptResult").as(Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT))
+          .call(userStmt)
+          .`with`(Asterisk.INSTANCE)
+          .where(Cypher.name(streamingProperty).gt(Cypher.parameter("stream.offset"))
+            .and(Cypher.name(streamingProperty).lte(Cypher.parameter("stream.end"))))
+          .returning(Asterisk.INSTANCE)
+          .build()
+      } else {
+        Cypher.`with`(Cypher.parameter("scriptResult").as(Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT))
+          .call(userStmt)
+          .returning(Asterisk.INSTANCE)
+          .build()
+      }
     }
 
-    println(s"identifiable expressions: ${stmt.getIdentifiableExpressions}")
-    println(s"parameter names: ${stmt.getParameterNames}")
+    println(s"built statement: ${renderer.render(builtStmt)}")
 
-    val streamingProperty = options.streamingOptions.propertyName
-    val boundedQuery = Cypher.`with`(Cypher.parameter("scriptResult").as(Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT))
-      .call(stmt)
-      .`with`(Asterisk.INSTANCE)
-      .where(Cypher.name(streamingProperty).gt(Cypher.parameter("stream.offset"))
-        .and(Cypher.name(streamingProperty).lte(Cypher.parameter("stream.end"))))
-      .returning(Asterisk.INSTANCE)
-      .build()
-
-    return getDefaultRenderer.render(boundedQuery)
-    //    CALL {
-    //      $userQuery
-    //    }
-    //    WHERE $streamingProperty > $stream.offset && $streamingProperty <= $stream.end
-
-    //    val limitedQuery = if (hasSkipLimit) {
-    //      s"""${options.query.value}
-    //         |SKIP ${partitionPagination.skip} LIMIT ${partitionPagination.topN.limit}
-    //         |""".stripMargin
-    //    } else {
-    //      s"""${options.query.value}
-    //         |""".stripMargin
-    //    }
-    //    s"""WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
-    //       |$limitedQuery""".stripMargin
+    renderer.render(builtStmt)
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {

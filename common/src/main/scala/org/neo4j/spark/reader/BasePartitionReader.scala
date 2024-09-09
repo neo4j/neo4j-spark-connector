@@ -93,6 +93,7 @@ abstract class BasePartitionReader(
         transaction = session.beginTransaction()
 
         val queryParams = getQueryParameters
+        println(s"params: $queryParams")
 
         logInfo(s"Running the following query on Neo4j: $query")
         logDebug(s"with parameters $queryParams")

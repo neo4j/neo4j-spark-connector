@@ -323,22 +323,14 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   val streamingOptions: Neo4jStreamingOptions = Neo4jStreamingOptions(
     getParameter(STREAMING_PROPERTY_NAME),
     StreamingFrom.withCaseInsensitiveName(getParameter(STREAMING_FROM, DEFAULT_STREAMING_FROM.toString)),
-    getParameter(STREAMING_QUERY_OFFSET),
-    getParameter(STREAMING_CLEAN_STRUCT_TYPE_STORAGE, DEFAULT_STREAMING_CLEAN_STRUCT_TYPE_STORAGE.toString).toBoolean,
-    StorageType.withCaseInsensitiveName(getParameter(
-      STREAMING_METADATA_STORAGE,
-      DEFAULT_STREAMING_METADATA_STORAGE.toString
-    ))
+    getParameter(STREAMING_QUERY_OFFSET)
   )
-
 }
 
 case class Neo4jStreamingOptions(
   propertyName: String,
   from: StreamingFrom.Value,
-  queryOffset: String,
-  cleanStructTypeStorage: Boolean,
-  storageType: StorageType.Value
+  queryOffset: String
 )
 
 case class Neo4jApocConfig(procedureConfigMap: Map[String, AnyRef])
@@ -591,9 +583,7 @@ object Neo4jOptions {
   // Streaming
   val STREAMING_PROPERTY_NAME = "streaming.property.name"
   val STREAMING_FROM = "streaming.from"
-  val STREAMING_METADATA_STORAGE = "streaming.metadata.storage"
   val STREAMING_QUERY_OFFSET = "streaming.query.offset"
-  val STREAMING_CLEAN_STRUCT_TYPE_STORAGE = "streaming.clean.struct-type.storage"
 
   val SCRIPT = "script"
 
@@ -624,8 +614,6 @@ object Neo4jOptions {
   val DEFAULT_OPTIMIZATION_TYPE = OptimizationType.NONE
   val DEFAULT_SAVE_MODE = SaveMode.Overwrite
   val DEFAULT_STREAMING_FROM = StreamingFrom.NOW
-  val DEFAULT_STREAMING_CLEAN_STRUCT_TYPE_STORAGE = false
-  val DEFAULT_STREAMING_METADATA_STORAGE = StorageType.SPARK
 
   // Default values optimizations for Aura please look at: https://aura.support.neo4j.com/hc/en-us/articles/1500002493281-Neo4j-Java-driver-settings-for-Aura
   val DEFAULT_CONNECTION_MAX_LIFETIME_MSECS = Duration.ofMinutes(8).toMillis
