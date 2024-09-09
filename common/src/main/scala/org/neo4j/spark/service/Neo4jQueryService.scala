@@ -19,14 +19,22 @@ package org.neo4j.spark.service
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.connector.expressions.{SortDirection, SortOrder}
+import org.apache.spark.sql.connector.expressions.SortDirection
+import org.apache.spark.sql.connector.expressions.SortOrder
 import org.apache.spark.sql.connector.expressions.aggregate._
-import org.apache.spark.sql.sources.{And, Filter, Or}
+import org.apache.spark.sql.sources.And
+import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.sources.Or
 import org.neo4j.cypherdsl.core._
 import org.neo4j.cypherdsl.core.renderer.Renderer
-import org.neo4j.cypherdsl.parser.{CypherParser, ExpressionCreatedEventType, Options}
+import org.neo4j.cypherdsl.parser.CypherParser
+import org.neo4j.cypherdsl.parser.ExpressionCreatedEventType
+import org.neo4j.cypherdsl.parser.Options
 import org.neo4j.spark.util.Neo4jImplicits._
-import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, NodeSaveMode, QueryType}
+import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.Neo4jUtil
+import org.neo4j.spark.util.NodeSaveMode
+import org.neo4j.spark.util.QueryType
 
 import scala.collection.JavaConverters._
 

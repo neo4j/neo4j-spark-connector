@@ -31,6 +31,8 @@ import org.neo4j.spark.util.StreamingFrom
 
 import java.util
 
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+
 class BaseStreamingPartitionReader(
   private val options: Neo4jOptions,
   private val filters: Array[Filter],
@@ -71,7 +73,7 @@ class BaseStreamingPartitionReader(
       .flatMap(f => f.getValue)
       .get // TODO: test this with emptied-after-checkpoint database (max(timestamp) would return NULL for the end)
       .asInstanceOf[Long]
-    map.put(Neo4jQueryStrategy.VARIABLE_STREAM, java.util.Map.of("offset", start, "end", end))
+    map.put(Neo4jQueryStrategy.VARIABLE_STREAM, Map("offset" -> start, "end" -> end).asJava)
     map
   }
 
