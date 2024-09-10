@@ -24,12 +24,8 @@ import org.neo4j.driver.Transaction
 import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
 
-import java.util.List
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
-
-import scala.collection.mutable
 
 class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
@@ -67,9 +63,9 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
     val total = 60
 
-    val expected = (1 to total).map(index =>
+    val expected: Seq[Map[String, Any]] = (1 to total).map(index =>
       Map(
-        "<labels>" -> mutable.WrappedArray.make(Array("Test1_Movie")),
+        "<labels>" -> Seq("Test1_Movie"),
         "title" -> s"My movie $index"
       )
     )
@@ -90,10 +86,9 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       }
     })
 
-    val counter = new AtomicInteger();
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
+      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
+        override def get(): Seq[Map[String, Any]] = {
           val df = ss.sql("select * from testReadStream order by timestamp")
           val collect = df.collect()
           val actual = if (!df.columns.contains("title")) {
@@ -106,12 +101,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
               )
             )
           }
-          // we test the equality for three times just to be sure that there are no duplications
-          // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-          actual.toList == expected.toList && counter.incrementAndGet() == 3
+          actual.toList
         }
       },
-      Matchers.equalTo(true),
+      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -157,18 +150,16 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       }
     })
 
-    val expected = (0 to total).map(index =>
+    val expected: Seq[Map[String, Any]] = (0 to total).map(index =>
       Map(
-        "<labels>" -> mutable.WrappedArray.make(Array("Test4_Movie")),
+        "<labels>" -> Seq("Test4_Movie"),
         "title" -> s"My movie $index"
       )
     )
 
-    val counter = new AtomicInteger(0)
-
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
+      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
+        override def get(): Seq[Map[String, Any]] = {
           val df = ss.sql("select * from testReadStream order by timestamp")
           val collect = df.collect()
           val actual = if (!df.columns.contains("title")) {
@@ -176,16 +167,15 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
           } else {
             collect.map(row =>
               Map(
-                "<labels>" -> row.getAs[List[String]]("<labels>"),
+                "<labels>" -> row.getAs[java.util.List[String]]("<labels>"),
                 "title" -> row.getAs[String]("title")
               )
             )
           }
-          // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-          actual.toList == expected.toList && counter.incrementAndGet() == 3
+          actual.toList
         }
       },
-      Matchers.equalTo(true),
+      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -222,12 +212,12 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
     val total = 60
 
-    val expected = (1 to total).map(index =>
+    val expected: Seq[Map[String, Any]] = (1 to total).map(index =>
       Map(
         "<rel.type>" -> "LIKES",
-        "<source.labels>" -> mutable.WrappedArray.make(Array("Test2_Person")),
+        "<source.labels>" -> Seq("Test2_Person"),
         "source.age" -> index,
-        "<target.labels>" -> mutable.WrappedArray.make(Array("Test2_Post")),
+        "<target.labels>" -> Seq("Test2_Post"),
         "target.hash" -> s"hash$index",
         "rel.id" -> index
       )
@@ -255,10 +245,9 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       }
     })
 
-    val counter = new AtomicInteger();
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
+      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
+        override def get(): Seq[Map[String, Any]] = {
           val df = ss.sql("select * from testReadStream order by `rel.timestamp`")
           val collect = df.collect()
           val actual: Array[Map[String, Any]] =
@@ -277,10 +266,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
               )
             }
           // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-          actual.toList == expected.toList && counter.incrementAndGet() == 3
+          actual.toList
         }
       },
-      Matchers.equalTo(true),
+      Matchers.equalTo(expected),
       40L,
       TimeUnit.SECONDS
     )
@@ -338,21 +327,20 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       }
     })
 
-    val expected = (0 to total).map(index =>
+    val expected: Seq[Map[String, Any]] = (0 to total).map(index =>
       Map(
         "<rel.type>" -> "LIKES",
-        "<source.labels>" -> mutable.WrappedArray.make(Array("Test5_Person")),
+        "<source.labels>" -> Seq("Test5_Person"),
         "source.age" -> index,
-        "<target.labels>" -> mutable.WrappedArray.make(Array("Test5_Post")),
+        "<target.labels>" -> Seq("Test5_Post"),
         "target.hash" -> s"hash$index",
         "rel.id" -> index
       )
     )
 
-    val counter = new AtomicInteger(0)
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
+      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
+        override def get(): Seq[Map[String, Any]] = {
           val df = ss.sql("select * from testReadStream order by `rel.timestamp`")
           val collect = df.collect()
           val actual: Array[Map[String, Any]] =
@@ -370,11 +358,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
                 )
               )
             }
-          // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-          actual.toList == expected.toList && counter.incrementAndGet() == 3
+          actual.toList
         }
       },
-      Matchers.equalTo(true),
+      Matchers.equalTo(expected),
       40L,
       TimeUnit.SECONDS
     )
@@ -419,7 +406,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
     val total = 60
 
-    val expected = (1 to total) // .map(index => Map("age" -> index.toString))
+    val expected: Seq[Int] = (1 to total) // .map(index => Map("age" -> index.toString))
 
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
@@ -437,10 +424,9 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       }
     })
 
-    val counter = new AtomicInteger(0)
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
+      new Assert.ThrowingSupplier[Seq[Int], Exception] {
+        override def get(): Seq[Int] = {
           val df = ss.sql("select * from testReadStream ")
           val collect = df.collect()
           val actual: Array[Int] = if (!df.columns.contains("age")) {
@@ -449,13 +435,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
             collect.map(row => row.getAs[String]("age").toInt)
               .sorted
           }
-          val actualList = actual.toList
-          val expectedList = expected.toList
-          // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-          actualList == expectedList && counter.incrementAndGet() == 3
+          actual.toList
         }
       },
-      Matchers.equalTo(true),
+      Matchers.equalTo(expected),
       40L,
       TimeUnit.SECONDS
     )
@@ -500,7 +483,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
     val total = 60
 
-    val expected = (0 to total) // .map(index => Map("age" -> index.toString))
+    val expected: Seq[Int] = (0 to total) // .map(index => Map("age" -> index.toString))
 
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
@@ -519,8 +502,8 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
+      new Assert.ThrowingSupplier[Seq[Int], Exception] {
+        override def get(): Seq[Int] = {
           val df = ss.sql("select * from testReadStream ")
           val collect = df.collect()
           val actual: Array[Int] = if (!df.columns.contains("age")) {
@@ -529,13 +512,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
             collect.map(row => row.getAs[String]("age").toInt)
               .sorted
           }
-          val actualList = actual.toList
-          val expectedList = expected.toList
-          // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-          actualList == expectedList
+          actual.toList
         }
       },
-      Matchers.equalTo(true),
+      Matchers.equalTo(expected),
       40L,
       TimeUnit.SECONDS
     )
