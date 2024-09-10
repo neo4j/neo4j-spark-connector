@@ -25,8 +25,6 @@ import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.Values
-import org.neo4j.driver.exceptions.ClientException
-import org.neo4j.driver.exceptions.Neo4jException
 import org.neo4j.driver.exceptions.ServiceUnavailableException
 import org.neo4j.spark.service._
 import org.neo4j.spark.util.DriverCache
@@ -40,6 +38,7 @@ import java.util
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.locks.LockSupport
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 abstract class BaseDataWriter(
@@ -76,6 +75,7 @@ abstract class BaseDataWriter(
     }
   }
 
+  @tailrec
   private def writeBatch(): Unit = {
     try {
       if (session == null || !session.isOpen) {
@@ -120,26 +120,25 @@ abstract class BaseDataWriter(
       closeSafely(transaction)
       batch.clear()
     } catch {
-      case neo4jTransientException: Neo4jException =>
-        val code = neo4jTransientException.code()
-        if (
-          isRetryableException(neo4jTransientException)
-          && !options.transactionMetadata.failOnTransactionCodes.contains(code)
-          && retries.getCount > 0
-        ) {
+      case e: Throwable =>
+        if (options.transactionMetadata.shouldFailOn(e)) {
+          log.error("unable to write batch due to explicitly configured failure condition", e)
+          throw e
+        }
+
+        if (isRetryableException(e) && retries.getCount > 0) {
           retries.countDown()
           log.info(
-            s"Matched Neo4j transient exception next retry is ${options.transactionMetadata.retries - retries.getCount}"
+            s"encountered a transient exception while writing batch, retrying ${options.transactionMetadata.retries - retries.getCount} time",
+            e
           )
           close()
           LockSupport.parkNanos(Duration.ofMillis(options.transactionMetadata.retryTimeout).toNanos)
           writeBatch()
         } else {
-          logAndThrowException(neo4jTransientException)
+          logAndThrowException(e)
         }
-      case e: Exception => logAndThrowException(e)
     }
-    ()
   }
 
   /**
@@ -147,18 +146,14 @@ abstract class BaseDataWriter(
    * exception that is thrown when the streaming query is interrupted, we don't want to cause
    * any error in this case. The transaction are rolled back automatically.
    */
-  private def logAndThrowException(e: Exception): Unit = {
+  private def logAndThrowException(e: Throwable): Unit = {
     if (e.isInstanceOf[ServiceUnavailableException] && e.getMessage == STOPPED_THREAD_EXCEPTION_MESSAGE) {
       logWarning(e.getMessage)
     } else {
-      if (e.isInstanceOf[ClientException]) {
-        log.error(s"Cannot commit the transaction because: ${e.getMessage}")
-      } else {
-        log.error("Cannot commit the transaction because the following exception", e)
-      }
-
-      throw e
+      logError("unable to write batch", e)
     }
+
+    throw e
   }
 
   def commit(): Null = {
@@ -176,7 +171,6 @@ abstract class BaseDataWriter(
       }
     }
     close()
-    ()
   }
 
   def close(): Unit = {

@@ -22,6 +22,7 @@ import org.apache.spark.sql.SparkSession
 import org.jetbrains.annotations.TestOnly
 import org.neo4j.driver.Config.TrustStrategy
 import org.neo4j.driver._
+import org.neo4j.driver.exceptions.Neo4jException
 import org.neo4j.driver.net.ServerAddress
 import org.neo4j.driver.net.ServerAddressResolver
 import org.neo4j.spark.util.Neo4jImplicits.StringMapImplicits
@@ -361,7 +362,16 @@ case class Neo4jTransactionMetadata(
   failOnTransactionCodes: Set[String],
   batchSize: Int,
   retryTimeout: Long
-)
+) {
+
+  def shouldFailOn(exception: Throwable): Boolean = {
+    exception match {
+      case e: Neo4jException => failOnTransactionCodes.contains(e.code())
+      case _                 => false
+    }
+  }
+
+}
 
 case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String], properties: Map[String, String]) {
   def includesProperty(name: String): Boolean = nodeKeys.contains(name) || properties.contains(name)

@@ -34,6 +34,8 @@ import org.neo4j.driver.exceptions.Neo4jException
 import org.neo4j.driver.exceptions.ServiceUnavailableException
 import org.neo4j.driver.exceptions.SessionExpiredException
 import org.neo4j.driver.exceptions.TransientException
+import org.neo4j.driver.internal.retry.ExponentialBackoffRetryLogic
+import org.neo4j.driver.internal.retry.RetryLogic
 import org.neo4j.driver.types.Entity
 import org.neo4j.driver.types.Path
 import org.neo4j.spark.service.SchemaService
@@ -237,9 +239,13 @@ object Neo4jUtil {
     }
   }
 
-  def isRetryableException(neo4jTransientException: Neo4jException) =
-    (neo4jTransientException.isInstanceOf[SessionExpiredException]
-      || neo4jTransientException.isInstanceOf[TransientException]
-      || neo4jTransientException.isInstanceOf[ServiceUnavailableException])
+  def isRetryableException(exception: Throwable): Boolean = {
+    if (exception == null) {
+      false
+    } else
+      ExponentialBackoffRetryLogic.isRetryable(exception) || isRetryableException(
+        exception.getCause
+      )
+  }
 
 }
