@@ -62,7 +62,7 @@ abstract class BaseDataWriter(
 
   private val batch: util.List[java.util.Map[String, Object]] = new util.ArrayList[util.Map[String, Object]]()
 
-  private val retries = new CountDownLatch(options.transactionMetadata.retries)
+  private val retries = new CountDownLatch(options.transactionSettings.retries)
 
   private val query: String = new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(saveMode)).createQuery()
 
@@ -70,7 +70,7 @@ abstract class BaseDataWriter(
 
   def write(record: InternalRow): Unit = {
     batch.add(mappingService.convert(record, structType))
-    if (batch.size() == options.transactionMetadata.batchSize) {
+    if (batch.size() == options.transactionSettings.batchSize) {
       writeBatch()
     }
   }
@@ -121,7 +121,7 @@ abstract class BaseDataWriter(
       batch.clear()
     } catch {
       case e: Throwable =>
-        if (options.transactionMetadata.shouldFailOn(e)) {
+        if (options.transactionSettings.shouldFailOn(e)) {
           log.error("unable to write batch due to explicitly configured failure condition", e)
           throw e
         }
@@ -129,11 +129,11 @@ abstract class BaseDataWriter(
         if (isRetryableException(e) && retries.getCount > 0) {
           retries.countDown()
           log.info(
-            s"encountered a transient exception while writing batch, retrying ${options.transactionMetadata.retries - retries.getCount} time",
+            s"encountered a transient exception while writing batch, retrying ${options.transactionSettings.retries - retries.getCount} time",
             e
           )
           close()
-          LockSupport.parkNanos(Duration.ofMillis(options.transactionMetadata.retryTimeout).toNanos)
+          LockSupport.parkNanos(Duration.ofMillis(options.transactionSettings.retryTimeout).toNanos)
           writeBatch()
         } else {
           logAndThrowException(e)

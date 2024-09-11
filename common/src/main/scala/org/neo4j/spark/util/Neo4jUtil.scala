@@ -22,20 +22,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.module.SimpleModule
 import org.apache.spark.sql.sources._
-import org.neo4j.cypherdsl.core.Condition
-import org.neo4j.cypherdsl.core.Cypher
-import org.neo4j.cypherdsl.core.Expression
-import org.neo4j.cypherdsl.core.Functions
-import org.neo4j.cypherdsl.core.Property
-import org.neo4j.cypherdsl.core.PropertyContainer
+import org.neo4j.cypherdsl.core._
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
-import org.neo4j.driver.exceptions.Neo4jException
-import org.neo4j.driver.exceptions.ServiceUnavailableException
-import org.neo4j.driver.exceptions.SessionExpiredException
-import org.neo4j.driver.exceptions.TransientException
 import org.neo4j.driver.internal.retry.ExponentialBackoffRetryLogic
-import org.neo4j.driver.internal.retry.RetryLogic
 import org.neo4j.driver.types.Entity
 import org.neo4j.driver.types.Path
 import org.neo4j.spark.service.SchemaService
@@ -45,6 +35,8 @@ import org.slf4j.Logger
 
 import java.time.temporal.Temporal
 import java.util.Properties
+
+import scala.annotation.tailrec
 
 object Neo4jUtil {
 
@@ -239,6 +231,7 @@ object Neo4jUtil {
     }
   }
 
+  @tailrec
   def isRetryableException(exception: Throwable): Boolean = {
     if (exception == null) {
       false
