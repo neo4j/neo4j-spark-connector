@@ -40,10 +40,6 @@ object SparkConnectorScalaSuiteWithApocIT {
   var ss: SparkSession = _
   var driver: Driver = _
 
-  private var _session: Session = _
-
-  var connections: Long = 0
-
   @BeforeClass
   def setUpContainer(): Unit = {
     Assume.assumeFalse("Neo4j Preview versions doesn't have APOC", TestUtil.experimental())
@@ -59,48 +55,30 @@ object SparkConnectorScalaSuiteWithApocIT {
         .setMaster("local[*]")
         .set("spark.driver.host", "127.0.0.1")
       ss = SparkSession.builder.config(conf).getOrCreate()
-      if (TestUtil.isCI()) {
-        org.apache.log4j.LogManager.getLogger("org")
-          .setLevel(org.apache.log4j.Level.OFF)
-      }
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
         .readTransaction(new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary =
             tx.run("RETURN 1").consume() // we init the session so the count is consistent
         })
-      connections = getActiveConnections
       ()
     }
   }
 
   @AfterClass
   def tearDownContainer() = {
-    TestUtil.closeSafely(session())
     TestUtil.closeSafely(driver)
     TestUtil.closeSafely(server)
     TestUtil.closeSafely(ss)
   }
 
-  def session(): Session = {
-    if (_session == null || !_session.isOpen) {
-      _session = if (driver != null) driver.session else null
+  def session(database: String = ""): Session = {
+    if (database.isEmpty) {
+      driver.session()
+    } else {
+      driver.session(SessionConfig.forDatabase(database))
     }
-    _session
   }
-
-  def getActiveConnections: Long = session()
-    .readTransaction(new TransactionWork[Long] {
-
-      override def execute(tx: Transaction): Long = tx.run(
-        """|CALL dbms.listConnections() YIELD connectionId, connector
-           |WHERE connector = 'bolt'
-           |RETURN count(*) AS connections""".stripMargin
-      )
-        .single()
-        .get("connections")
-        .asLong()
-    })
 }
 
 class SparkConnectorScalaSuiteWithApocIT {}

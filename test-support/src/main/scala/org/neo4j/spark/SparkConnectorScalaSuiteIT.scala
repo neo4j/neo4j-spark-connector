@@ -39,10 +39,6 @@ object SparkConnectorScalaSuiteIT {
   var ss: SparkSession = _
   var driver: Driver = _
 
-  private var _session: Session = _
-
-  var connections: Long = 0
-
   @BeforeClass
   def setUpContainer(): Unit = {
     if (!server.isRunning) {
@@ -57,38 +53,30 @@ object SparkConnectorScalaSuiteIT {
         .setMaster("local[*]")
         .set("spark.driver.host", "127.0.0.1")
       ss = SparkSession.builder.config(conf).getOrCreate()
-      if (TestUtil.isCI()) {
-        org.apache.log4j.LogManager.getLogger("org")
-          .setLevel(org.apache.log4j.Level.OFF)
-      }
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
         .readTransaction(new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary =
             tx.run("RETURN 1").consume() // we init the session so the count is consistent
         })
-      connections = getActiveConnections
       ()
     }
   }
 
   @AfterClass
   def tearDownContainer() = {
-    TestUtil.closeSafely(session())
     TestUtil.closeSafely(driver)
     TestUtil.closeSafely(server)
     TestUtil.closeSafely(ss)
   }
 
-  def session(): Session =
-    try {
-      if (_session == null || !_session.isOpen) {
-        _session = driver.session
-      }
-      _session
-    } catch {
-      case _: Throwable => null
+  def session(database: String = ""): Session = {
+    if (database.isEmpty) {
+      driver.session()
+    } else {
+      driver.session(SessionConfig.forDatabase(database))
     }
+  }
 
   def getActiveConnections = session()
     .readTransaction(new TransactionWork[Long] {

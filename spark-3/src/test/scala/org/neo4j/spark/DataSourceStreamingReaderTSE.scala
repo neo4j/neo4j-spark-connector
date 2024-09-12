@@ -265,7 +265,6 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
                 )
               )
             }
-          // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
           actual.toList
         }
       },
@@ -406,7 +405,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
     val total = 60
 
-    val expected: Seq[Int] = (1 to total) // .map(index => Map("age" -> index.toString))
+    val expected: Seq[Int] = (1 to total).toList
 
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
@@ -483,7 +482,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
     val total = 60
 
-    val expected: Seq[Int] = (0 to total) // .map(index => Map("age" -> index.toString))
+    val expected: Seq[Int] = (0 to total).toList
 
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {

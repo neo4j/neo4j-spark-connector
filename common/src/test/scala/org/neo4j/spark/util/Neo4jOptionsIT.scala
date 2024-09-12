@@ -20,6 +20,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Ignore
 import org.junit.Test
+import org.neo4j.Closeables.use
 import org.neo4j.spark.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.SparkConnectorScalaSuiteIT.server
 
@@ -62,11 +63,5 @@ class Neo4jOptionsIT extends SparkConnectorScalaSuiteIT {
       }
     }
   }
-
-  def use[A <: AutoCloseable, B](resource: A)(code: A ⇒ B): B =
-    try
-      code(resource)
-    finally
-      resource.close()
 
 }

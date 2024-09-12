@@ -58,8 +58,6 @@ object TestUtil {
     Thread.currentThread().getContextClassLoader().getResourceAsStream("neo4j-spark-connector.properties")
   )
 
-  def isCI(): Boolean = Option(System.getenv("CI")).getOrElse("false").toBoolean
-
   def neo4jVersion(): Version = Version.parse(properties.getProperty("neo4j.version"))
 
   def gdsVersion(session: Session): Version = {

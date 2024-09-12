@@ -928,7 +928,7 @@ class Neo4jQueryServiceTest {
     ).createQuery()
 
     assertEquals(
-      "WITH $scriptResult AS scriptResult CALL {MATCH (p:`Person`) RETURN p SKIP 0 LIMIT 24} RETURN *",
+      "WITH $scriptResult AS scriptResult MATCH (p:Person) RETURN p SKIP 0 LIMIT 24",
       query
     )
   }

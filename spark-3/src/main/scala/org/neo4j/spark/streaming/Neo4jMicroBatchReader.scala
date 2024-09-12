@@ -94,8 +94,6 @@ class Neo4jMicroBatchReader(
       }
     ))
 
-    println(s"latest offset: $offset")
-
     offset
   }
 

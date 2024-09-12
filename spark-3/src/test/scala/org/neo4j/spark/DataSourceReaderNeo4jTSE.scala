@@ -24,6 +24,7 @@ import org.junit.Assert.fail
 import org.junit.Assume
 import org.junit.BeforeClass
 import org.junit.Test
+import org.neo4j.Closeables.use
 import org.neo4j.driver.SessionConfig
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.TransactionWork
@@ -418,12 +419,14 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
          |RETURN *
     """.stripMargin
 
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+    use(SparkConnectorScalaSuiteIT.session()) { session =>
+      session
+        .writeTransaction(
+          new TransactionWork[ResultSummary] {
+            override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+          }
+        )
+    }
 
     val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)

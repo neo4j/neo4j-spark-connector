@@ -27,9 +27,6 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.Or
 import org.neo4j.cypherdsl.core._
 import org.neo4j.cypherdsl.core.renderer.Renderer
-import org.neo4j.cypherdsl.parser.CypherParser
-import org.neo4j.cypherdsl.parser.ExpressionCreatedEventType
-import org.neo4j.cypherdsl.parser.Options
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jUtil
@@ -165,55 +162,12 @@ class Neo4jQueryReadStrategy(
     }
 
     val limitedQuery = if (hasSkipLimit) {
-      s"""${options.query.value}
-         |SKIP ${partitionPagination.skip} LIMIT ${partitionPagination.topN.limit}
-         |""".stripMargin
+      s"${options.query.value} SKIP ${partitionPagination.skip} LIMIT ${partitionPagination.topN.limit}"
     } else {
-      s"""${options.query.value}
-         |""".stripMargin
+      s"${options.query.value}"
     }
 
-    var isStreaming: Boolean = false
-    val userStmt = CypherParser.parseStatement(
-      limitedQuery,
-      Options.newOptions()
-        .withCallback(
-          ExpressionCreatedEventType.ON_NEW_PARAMETER,
-          classOf[Expression],
-          { exp: Expression =>
-            exp match {
-              case p: Parameter[_] =>
-                isStreaming = isStreaming || p.getName.equals("stream")
-              case _ =>
-            }
-            exp
-          }
-        )
-        .build()
-    )
-
-    val builtStmt = {
-      if (isStreaming) {
-        val streamingProperty = options.streamingOptions.propertyName
-
-        Cypher.`with`(Cypher.parameter("scriptResult").as(Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT))
-          .call(userStmt)
-          .`with`(Asterisk.INSTANCE)
-          .where(Cypher.name(streamingProperty).gt(Cypher.parameter("stream.offset"))
-            .and(Cypher.name(streamingProperty).lte(Cypher.parameter("stream.end"))))
-          .returning(Asterisk.INSTANCE)
-          .build()
-      } else {
-        Cypher.`with`(Cypher.parameter("scriptResult").as(Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT))
-          .call(userStmt)
-          .returning(Asterisk.INSTANCE)
-          .build()
-      }
-    }
-
-    println(s"built statement: ${renderer.render(builtStmt)}")
-
-    renderer.render(builtStmt)
+    s"WITH $$scriptResult AS scriptResult $limitedQuery"
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
