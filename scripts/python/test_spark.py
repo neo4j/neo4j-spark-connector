@@ -356,7 +356,8 @@ print("Running tests for Connector %s, Neo4j %s, Scala %s, Spark %s, TimeZone %s
       % (connector_version, neo4j_version, scala_version, spark_version, current_time_zone))
 
 if __name__ == "__main__":
-    with (Neo4jContainer('neo4j:' + neo4j_version)
+    with (Neo4jContainer('neo4j:' + neo4j_version + '-enterprise')
+            .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
             .with_env("NEO4J_db_temporal_timezone", current_time_zone)
             .with_env("NEO4JLABS_PLUGINS", "[\"graph-data-science\"]")) as neo4j_container:
         with neo4j_container.get_driver() as neo4j_driver:
