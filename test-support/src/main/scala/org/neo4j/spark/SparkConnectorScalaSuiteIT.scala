@@ -21,10 +21,16 @@ import org.apache.spark.sql.SparkSession
 import org.junit.AfterClass
 import org.junit.Assume
 import org.junit.BeforeClass
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
 import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver._
 import org.neo4j.driver.summary.ResultSummary
 
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.TimeZone
 
 object SparkConnectorScalaSuiteIT {
@@ -38,6 +44,7 @@ object SparkConnectorScalaSuiteIT {
   var conf: SparkConf = _
   var ss: SparkSession = _
   var driver: Driver = _
+  var tmpDir: File = _
 
   @BeforeClass
   def setUpContainer(): Unit = {
@@ -48,10 +55,13 @@ object SparkConnectorScalaSuiteIT {
         case _: Throwable => //
       }
       Assume.assumeTrue("Neo4j container is not started", server.isRunning)
+      tmpDir = Files.createTempDirectory("spark-warehouse").toFile
+      tmpDir.deleteOnExit()
       conf = new SparkConf()
         .setAppName("neoTest")
         .setMaster("local[*]")
         .set("spark.driver.host", "127.0.0.1")
+        .set("spark.sql.warehouse.dir", tmpDir.getAbsolutePath)
       ss = SparkSession.builder.config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
@@ -77,19 +87,6 @@ object SparkConnectorScalaSuiteIT {
       driver.session(SessionConfig.forDatabase(database))
     }
   }
-
-  def getActiveConnections = session()
-    .readTransaction(new TransactionWork[Long] {
-
-      override def execute(tx: Transaction): Long = tx.run(
-        """|CALL dbms.listConnections() YIELD connectionId, connector, userAgent
-           |WHERE connector = 'bolt' AND userAgent STARTS WITH 'neo4j-spark-connector'
-           |RETURN count(*) AS connections""".stripMargin
-      )
-        .single()
-        .get("connections")
-        .asLong()
-    })
 }
 
 class SparkConnectorScalaSuiteIT {}

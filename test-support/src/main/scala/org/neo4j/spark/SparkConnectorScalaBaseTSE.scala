@@ -64,15 +64,19 @@ class SparkConnectorScalaBaseTSE extends JUnitSuite {
 
   @Before
   def before(): Unit = {
+    use(SparkConnectorScalaSuiteIT.session("system")) { session =>
+      session
+        .run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds").consume()
+    }
+  }
+
+  @After
+  def after(): Unit = {
     ss.catalog.listTables()
       .collect()
       .foreach(t => ss.catalog.dropTempView(t.name))
     ss.catalog.listTables()
       .collect()
       .foreach(t => ss.catalog.dropGlobalTempView(t.name))
-    use(SparkConnectorScalaSuiteIT.session("system")) { session =>
-      session
-        .run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds").consume()
-    }
   }
 }
