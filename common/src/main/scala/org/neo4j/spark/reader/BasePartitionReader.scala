@@ -59,12 +59,6 @@ abstract class BasePartitionReader(
     if (partitionSkipLimit.partitionNumber > 0) s"$jobId-${partitionSkipLimit.partitionNumber}" else jobId
   protected val driverCache: DriverCache = new DriverCache(options.connection, name)
 
-  private val query: String = new Neo4jQueryService(
-    options,
-    new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.fieldNames, aggregateColumns, jobId)
-  )
-    .createQuery()
-
   private var nextRow: InternalRow = _
 
   private lazy val values = {
@@ -92,12 +86,13 @@ abstract class BasePartitionReader(
         session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
         transaction = session.beginTransaction()
 
-        val queryParams = getQueryParameters
+        val queryText = query
+        val queryParams = queryParameters
 
-        logInfo(s"Running the following query on Neo4j: $query")
+        logInfo(s"Running the following query on Neo4j: $queryText")
         logDebug(s"with parameters $queryParams")
 
-        result = transaction.run(query, Values.value(queryParams))
+        result = transaction.run(queryText, Values.value(queryParams))
           .asScala
       }
 
@@ -125,5 +120,13 @@ abstract class BasePartitionReader(
 
   def hasError(): Boolean = error
 
-  protected def getQueryParameters: util.Map[String, Any] = values
+  protected def query: String = {
+    new Neo4jQueryService(
+      options,
+      new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.fieldNames, aggregateColumns, jobId)
+    )
+      .createQuery()
+  }
+
+  protected def queryParameters: util.Map[String, Any] = values
 }

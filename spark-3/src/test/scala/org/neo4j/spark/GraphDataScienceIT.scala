@@ -29,6 +29,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Assume
 import org.junit.Test
+import org.neo4j.Closeables.use
 import org.neo4j.driver.Transaction
 
 import scala.math.Ordering.Implicits.infixOrderingOps
@@ -37,21 +38,23 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
 
   @After
   def cleanData(): Unit = {
-    SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction((tx: Transaction) => {
-        tx.run("MATCH (n) DETACH DELETE n").consume()
-      })
-    SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction((tx: Transaction) => {
-        tx.run(
-          """
-            |CALL gds.graph.list() YIELD graphName
-            |WITH graphName AS g
-            |CALL gds.graph.drop(g) YIELD graphName
-            |RETURN *
-            |""".stripMargin
-        ).consume()
-      })
+    use(SparkConnectorScalaSuiteWithGdsBase.session("system")) { session =>
+      session.run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds").consume()
+    }
+
+    use(SparkConnectorScalaSuiteWithGdsBase.session()) { session =>
+      session
+        .writeTransaction((tx: Transaction) => {
+          tx.run(
+            """
+              |CALL gds.graph.list() YIELD graphName
+              |WITH graphName AS g
+              |CALL gds.graph.drop(g) YIELD graphName
+              |RETURN *
+              |""".stripMargin
+          ).consume()
+        })
+    }
   }
 
   @Test

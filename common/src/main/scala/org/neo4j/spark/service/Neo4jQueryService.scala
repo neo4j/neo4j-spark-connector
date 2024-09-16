@@ -21,12 +21,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.connector.expressions.SortDirection
 import org.apache.spark.sql.connector.expressions.SortOrder
-import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
-import org.apache.spark.sql.connector.expressions.aggregate.Count
-import org.apache.spark.sql.connector.expressions.aggregate.CountStar
-import org.apache.spark.sql.connector.expressions.aggregate.Max
-import org.apache.spark.sql.connector.expressions.aggregate.Min
-import org.apache.spark.sql.connector.expressions.aggregate.Sum
+import org.apache.spark.sql.connector.expressions.aggregate._
 import org.apache.spark.sql.sources.And
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.Or
@@ -68,8 +63,10 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
     val setStatement = if (!keyword.equals("MATCH"))
       s" SET $alias += ${Neo4jQueryStrategy.VARIABLE_EVENT}.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}"
     else ""
-    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) ""
-      else s"{$keys}"})$setStatement""".stripMargin
+    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${
+        if (keys.isEmpty) ""
+        else s"{$keys}"
+      })$setStatement""".stripMargin
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
@@ -163,16 +160,14 @@ class Neo4jQueryReadStrategy(
            |\tPlease specify the aggregations in the custom query directly""".stripMargin
       )
     }
+
     val limitedQuery = if (hasSkipLimit) {
-      s"""${options.query.value}
-         |SKIP ${partitionPagination.skip} LIMIT ${partitionPagination.topN.limit}
-         |""".stripMargin
+      s"${options.query.value} SKIP ${partitionPagination.skip} LIMIT ${partitionPagination.topN.limit}"
     } else {
-      s"""${options.query.value}
-         |""".stripMargin
+      s"${options.query.value}"
     }
-    s"""WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
-       |$limitedQuery""".stripMargin
+
+    s"WITH $$scriptResult AS scriptResult $limitedQuery"
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {

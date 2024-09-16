@@ -25,7 +25,6 @@ import org.neo4j.driver.Session
 import org.neo4j.driver.summary
 import org.neo4j.spark.service.Neo4jQueryStrategy
 import org.neo4j.spark.service.SchemaService
-import org.neo4j.spark.streaming.Neo4jAccumulator
 import org.neo4j.spark.util
 import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
 

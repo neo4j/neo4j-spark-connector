@@ -24,6 +24,7 @@ import org.junit.Before
 import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runners.MethodSorters
+import org.neo4j.Closeables.use
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
@@ -43,12 +44,11 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
   @Before
   def beforeEach(): Unit = {
-    SparkConnectorScalaSuiteWithApocIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
-        }
-      )
+    use(SparkConnectorScalaSuiteWithApocIT.session("system")) {
+      session =>
+        session.run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds")
+          .consume()
+    }
   }
 
   @Test

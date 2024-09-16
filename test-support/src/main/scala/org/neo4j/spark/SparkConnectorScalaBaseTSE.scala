@@ -21,6 +21,7 @@ import org.apache.spark.sql.SparkSession
 import org.hamcrest.Matchers
 import org.junit._
 import org.junit.rules.TestName
+import org.neo4j.Closeables.use
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
@@ -62,65 +63,20 @@ class SparkConnectorScalaBaseTSE extends JUnitSuite {
   val testName: TestName = new TestName
 
   @Before
-  def before() {
+  def before(): Unit = {
+    use(SparkConnectorScalaSuiteIT.session("system")) { session =>
+      session
+        .run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds").consume()
+    }
+  }
+
+  @After
+  def after(): Unit = {
     ss.catalog.listTables()
       .collect()
       .foreach(t => ss.catalog.dropTempView(t.name))
     ss.catalog.listTables()
       .collect()
       .foreach(t => ss.catalog.dropGlobalTempView(t.name))
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[ResultSummary] {
-        override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
-      })
-    SparkConnectorScalaSuiteIT.session()
-      .readTransaction(tx =>
-        tx.run("SHOW CONSTRAINTS YIELD name RETURN name")
-          .list()
-          .asScala
-          .map(_.get("name").asString())
-      )
-      .foreach(constraint =>
-        SparkConnectorScalaSuiteIT.session()
-          .writeTransaction(tx => tx.run(s"DROP CONSTRAINT `$constraint`").consume())
-      )
-    SparkConnectorScalaSuiteIT.session()
-      .readTransaction(tx =>
-        tx.run("SHOW INDEXES YIELD name RETURN name")
-          .list()
-          .asScala
-          .map(_.get("name").asString())
-      )
-      .foreach(constraint =>
-        SparkConnectorScalaSuiteIT.session()
-          .writeTransaction(tx => tx.run(s"DROP INDEX `$constraint`").consume())
-      )
   }
-
-  @After
-  def after() {
-    if (!TestUtil.isCI()) {
-      try {
-        spark.Assert.assertEventually(
-          new spark.Assert.ThrowingSupplier[Boolean, Exception] {
-            override def get(): Boolean = {
-              val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
-              SparkConnectorScalaSuiteIT.connections == afterConnections
-            }
-          },
-          Matchers.equalTo(true),
-          45,
-          TimeUnit.SECONDS
-        )
-      } finally {
-        val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
-        if (SparkConnectorScalaSuiteIT.connections != afterConnections) { // just for debug purposes
-          println(
-            s"For test ${testName.getMethodName().replaceAll("$u0020", " ")} => connections before: ${SparkConnectorScalaSuiteIT.connections}, after: $afterConnections"
-          )
-        }
-      }
-    }
-  }
-
 }

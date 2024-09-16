@@ -26,10 +26,12 @@ import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Rule
 import org.junit.rules.TestName
+import org.neo4j.Closeables.use
 import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver._
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.spark
+import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT.driver
 
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
@@ -49,10 +51,6 @@ object SparkConnectorScalaSuiteWithGdsBase {
   var ss: SparkSession = _
   var driver: Driver = _
 
-  private var _session: Session = _
-
-  var connections: Long = 0
-
   @BeforeClass
   def setUpContainer(): Unit = {
     if (!server.isRunning) {
@@ -67,44 +65,27 @@ object SparkConnectorScalaSuiteWithGdsBase {
         .setMaster("local[*]")
         .set("spark.driver.host", "127.0.0.1")
       ss = SparkSession.builder.config(conf).getOrCreate()
-      if (TestUtil.isCI()) {
-        org.apache.log4j.LogManager.getLogger("org")
-          .setLevel(org.apache.log4j.Level.OFF)
-      }
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
         .readTransaction((tx: Transaction) => tx.run("RETURN 1").consume())
-      connections = getActiveConnections
       ()
     }
   }
 
   @AfterClass
   def tearDownContainer(): Unit = {
-    TestUtil.closeSafely(session())
     TestUtil.closeSafely(driver)
     TestUtil.closeSafely(server)
     TestUtil.closeSafely(ss)
   }
 
-  def session(): Session = {
-    if (_session == null || !_session.isOpen) {
-      _session = if (driver != null) driver.session else null
+  def session(database: String = ""): Session = {
+    if (database.isEmpty) {
+      driver.session()
+    } else {
+      driver.session(SessionConfig.forDatabase(database))
     }
-    _session
   }
-
-  def getActiveConnections: Long = session()
-    .readTransaction((tx: Transaction) =>
-      tx.run(
-        """|CALL dbms.listConnections() YIELD connectionId, connector
-           |WHERE connector = 'bolt'
-           |RETURN count(*) AS connections""".stripMargin
-      )
-        .single()
-        .get("connections")
-        .asLong()
-    )
 }
 
 class SparkConnectorScalaSuiteWithGdsBase {
@@ -117,33 +98,10 @@ class SparkConnectorScalaSuiteWithGdsBase {
 
   @Before
   def before(): Unit = {
-    SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction((tx: Transaction) => tx.run("MATCH (n) DETACH DELETE n").consume())
-  }
-
-  @After
-  def after(): Unit = {
-    if (!TestUtil.isCI()) {
-      try {
-        spark.Assert.assertEventually(
-          new spark.Assert.ThrowingSupplier[Boolean, Exception] {
-            override def get(): Boolean = {
-              val afterConnections = SparkConnectorScalaSuiteWithGdsBase.getActiveConnections
-              SparkConnectorScalaSuiteWithGdsBase.connections == afterConnections
-            }
-          },
-          Matchers.equalTo(true),
-          45,
-          TimeUnit.SECONDS
-        )
-      } finally {
-        val afterConnections = SparkConnectorScalaSuiteWithGdsBase.getActiveConnections
-        if (SparkConnectorScalaSuiteWithGdsBase.connections != afterConnections) { // just for debug purposes
-          println(
-            s"For test ${testName.getMethodName.replaceAll("$u0020", " ")} => connections before: ${SparkConnectorScalaSuiteWithGdsBase.connections}, after: $afterConnections"
-          )
-        }
-      }
+    use(SparkConnectorScalaSuiteWithGdsBase.session("system")) {
+      session =>
+        session.run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds")
+          .consume()
     }
   }
 }

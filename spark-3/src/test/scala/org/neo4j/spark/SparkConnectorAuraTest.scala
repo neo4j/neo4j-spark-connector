@@ -24,6 +24,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
+import org.neo4j.Closeables.use
 import org.neo4j.driver._
 import org.neo4j.spark.SparkConnectorAuraTest._
 
@@ -65,14 +66,11 @@ class SparkConnectorAuraTest {
   import ss.implicits._
 
   @Before
-  def setUp() {
-    val session = neo4j.session()
-
-    session.writeTransaction(new TransactionWork[Result] {
-      override def execute(transaction: Transaction): Result = transaction.run("MATCH (n) DETACH DELETE n")
-    })
-
-    session.close()
+  def setUp(): Unit = {
+    use(neo4j.session(SessionConfig.forDatabase("system"))) {
+      session =>
+        session.run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds").consume()
+    }
   }
 
   @Test

@@ -16,24 +16,28 @@
  */
 package org.neo4j.spark
 
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.streaming.StreamingQuery
+import org.apache.spark.sql.streaming.Trigger
 import org.hamcrest.Matchers
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Rule
 import org.junit.Test
-import org.neo4j.driver.Transaction
-import org.neo4j.driver.TransactionWork
-import org.neo4j.driver.summary.ResultSummary
+import org.junit.rules.TemporaryFolder
+import org.neo4j.Closeables.use
 
-import java.util.List
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
-import scala.collection.mutable
+import scala.annotation.meta.getter
 
 class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
-  private var query: StreamingQuery = null
+  @(Rule @getter)
+  val folder: TemporaryFolder = new TemporaryFolder()
+
+  private var query: StreamingQuery = _
 
   @After
   def close(): Unit = {
@@ -44,74 +48,42 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testReadStreamWithLabels(): Unit = {
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = {
-            tx.run(s"CREATE (n:Test1_Movie {title: 'My movie 0', timestamp: timestamp()})").consume()
-          }
-        }
-      )
+    createMovieNodes(0, 1)
 
     val stream = ss.readStream.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", "Test1_Movie")
+      .option("labels", "Movie")
       .option("streaming.property.name", "timestamp")
       .option("streaming.from", "NOW")
       .load()
 
     query = stream.writeStream
       .format("memory")
-      .queryName("testReadStream")
+      .queryName("readStreamWithLabels")
       .start()
 
     val total = 60
-
-    val expected = (1 to total).map(index =>
+    val expected: Seq[Map[String, Any]] = (1 to total).map(index =>
       Map(
-        "<labels>" -> mutable.WrappedArray.make(Array("Test1_Movie")),
+        "<labels>" -> Seq("Movie"),
         "title" -> s"My movie $index"
       )
     )
 
+    // Continue creating nodes in the background
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
-        Thread.sleep(1000)
-        (1 to total).foreach(index => {
-          Thread.sleep(200)
-          SparkConnectorScalaSuiteIT.session()
-            .writeTransaction(new TransactionWork[ResultSummary] {
-              override def execute(tx: Transaction): ResultSummary = {
-                tx.run(s"CREATE (n:Test1_Movie {title: 'My movie $index', timestamp: timestamp()})")
-                  .consume()
-              }
-            })
-        })
+        createMovieNodes(1, total, 1000, 200)
       }
     })
 
-    val counter = new AtomicInteger();
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
-          val df = ss.sql("select * from testReadStream order by timestamp")
-          val collect = df.collect()
-          val actual = if (!df.columns.contains("title")) {
-            Array.empty
-          } else {
-            collect.map(row =>
-              Map(
-                "<labels>" -> row.getAs[java.util.List[String]]("<labels>"),
-                "title" -> row.getAs[String]("title")
-              )
-            )
-          }
-          // we test the equality for three times just to be sure that there are no duplications
-          // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-          actual.toList == expected.toList && counter.incrementAndGet() == 3
+      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
+        override def get(): Seq[Map[String, Any]] = {
+          selectRowsFromTable("select * from readStreamWithLabels order by timestamp", mapMovie)
         }
       },
-      Matchers.equalTo(true),
+      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -119,115 +91,126 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testReadStreamWithLabelsGetAll(): Unit = {
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = {
-            tx.run(s"CREATE (n:Test4_Movie {title: 'My movie 0', timestamp: timestamp()})").consume()
-          }
-        }
-      )
+    createMovieNodes(0, 1)
 
     val stream = ss.readStream.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", "Test4_Movie")
+      .option("labels", "Movie")
       .option("streaming.property.name", "timestamp")
       .option("streaming.from", "ALL")
       .load()
 
     query = stream.writeStream
       .format("memory")
-      .queryName("testReadStream")
+      .queryName("readStreamWithLabelsAll")
       .start()
 
     val total = 60
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
-        Thread.sleep(1000)
-        (1 to total).foreach(index => {
-          Thread.sleep(200)
-          SparkConnectorScalaSuiteIT.session()
-            .writeTransaction(new TransactionWork[ResultSummary] {
-              override def execute(tx: Transaction): ResultSummary = {
-                tx.run(s"CREATE (n:Test4_Movie {title: 'My movie $index', timestamp: timestamp()})")
-                  .consume()
-              }
-            })
-        })
+        createMovieNodes(1, total, 1000, 200)
       }
     })
 
-    val expected = (0 to total).map(index =>
+    val expected: Seq[Map[String, Any]] = (0 to total).map(index =>
       Map(
-        "<labels>" -> mutable.WrappedArray.make(Array("Test4_Movie")),
+        "<labels>" -> Seq("Movie"),
         "title" -> s"My movie $index"
       )
     )
 
-    val counter = new AtomicInteger(0)
-
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
-          val df = ss.sql("select * from testReadStream order by timestamp")
-          val collect = df.collect()
-          val actual = if (!df.columns.contains("title")) {
-            Array.empty
-          } else {
-            collect.map(row =>
-              Map(
-                "<labels>" -> row.getAs[List[String]]("<labels>"),
-                "title" -> row.getAs[String]("title")
-              )
-            )
-          }
-          // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-          actual.toList == expected.toList && counter.incrementAndGet() == 3
+      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
+        override def get(): Seq[Map[String, Any]] = {
+          selectRowsFromTable("select * from readStreamWithLabelsAll order by timestamp", mapMovie)
         }
       },
-      Matchers.equalTo(true),
+      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
   }
 
   @Test
-  def testReadStreamWithRelationship(): Unit = {
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(
-            """
-              |CREATE (person:Test2_Person {age: 0})
-              |CREATE (post:Test2_Post {hash: "hash0"})
-              |CREATE (person)-[:LIKES{id: 0, timestamp: timestamp()}]->(post)
-              |""".stripMargin
-          ).consume()
-        }
+  def testReadStreamWithLabelsResumesFromCheckpoint(): Unit = {
+    createMovieNodes(0, 1)
+
+    val stream = ss.readStream.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Movie")
+      .option("streaming.property.name", "timestamp")
+      .option("streaming.from", "NOW")
+      .load()
+
+    val total = 60
+    val expected: Seq[Map[String, Any]] = (1 to total).map(index =>
+      Map(
+        "<labels>" -> List("Movie"),
+        "title" -> s"My movie $index"
       )
+    )
+
+    val checkpoint = folder.newFolder()
+
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithLabelsCheckpoint")
+      .awaitTermination()
+
+    val partial: Int = total / 2
+    // create partial movies starting from 1
+    createMovieNodes(1, partial, 0, 10)
+
+    // fetch whatever is available
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithLabelsCheckpoint")
+      .awaitTermination()
+
+    // create rest of the movies starting from partial+1
+    createMovieNodes(partial + 1, total - partial, 0, 10)
+
+    // fetch rest of the items from where we left off
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithLabelsCheckpoint")
+      .awaitTermination()
+
+    assertEquals(
+      expected,
+      selectRowsFromTable("select * from readStreamWithLabelsCheckpoint order by timestamp", mapMovie)
+    )
+  }
+
+  @Test
+  def testReadStreamWithRelationship(): Unit = {
+    createLikesRelationships(0, 1)
 
     val stream = ss.readStream.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship", "LIKES")
       .option("streaming.property.name", "timestamp")
       .option("streaming.from", "NOW")
-      .option("relationship.source.labels", "Test2_Person")
-      .option("relationship.target.labels", "Test2_Post")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Post")
       .load()
 
     query = stream.writeStream
       .format("memory")
-      .queryName("testReadStream")
+      .queryName("readStreamWithRelationship")
       .start()
 
     val total = 60
 
-    val expected = (1 to total).map(index =>
+    val expected: Seq[Map[String, Any]] = (1 to total).map(index =>
       Map(
         "<rel.type>" -> "LIKES",
-        "<source.labels>" -> mutable.WrappedArray.make(Array("Test2_Person")),
+        "<source.labels>" -> Seq("Person"),
         "source.age" -> index,
-        "<target.labels>" -> mutable.WrappedArray.make(Array("Test2_Post")),
+        "<target.labels>" -> Seq("Post"),
         "target.hash" -> s"hash$index",
         "rel.id" -> index
       )
@@ -235,161 +218,133 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
-        Thread.sleep(1000)
-        (1 to total).foreach(index => {
-          Thread.sleep(200)
-          SparkConnectorScalaSuiteIT.session()
-            .writeTransaction(new TransactionWork[ResultSummary] {
-              override def execute(tx: Transaction): ResultSummary = {
-                tx.run(
-                  s"""
-                     |CREATE (person:Test2_Person {age: $index})
-                     |CREATE (post:Test2_Post {hash: "hash$index"})
-                     |CREATE (person)-[:LIKES{id: $index, timestamp: timestamp()}]->(post)
-                     |""".stripMargin
-                )
-                  .consume()
-              }
-            })
-        })
+        createLikesRelationships(1, total, 1000, 200)
       }
     })
 
-    val counter = new AtomicInteger();
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
-          val df = ss.sql("select * from testReadStream order by `rel.timestamp`")
-          val collect = df.collect()
-          val actual: Array[Map[String, Any]] =
-            if (!df.columns.contains("source.age") || !df.columns.contains("target.hash")) {
-              Array.empty
-            } else {
-              collect.map(row =>
-                Map(
-                  "<rel.type>" -> row.getAs[String]("<rel.type>"),
-                  "<source.labels>" -> row.getAs[java.util.List[String]]("<source.labels>"),
-                  "source.age" -> row.getAs[Long]("source.age"),
-                  "<target.labels>" -> row.getAs[java.util.List[String]]("<target.labels>"),
-                  "target.hash" -> row.getAs[String]("target.hash"),
-                  "rel.id" -> row.getAs[Long]("rel.id")
-                )
-              )
-            }
-          // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-          actual.toList == expected.toList && counter.incrementAndGet() == 3
+      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
+        override def get(): Seq[Map[String, Any]] = {
+          selectRowsFromTable("select * from readStreamWithRelationship order by `rel.timestamp`", mapLikes)
         }
       },
-      Matchers.equalTo(true),
-      40L,
+      Matchers.equalTo(expected),
+      30L,
       TimeUnit.SECONDS
     )
   }
 
   @Test
   def testReadStreamWithRelationshipGetAll(): Unit = {
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(
-            """
-              |CREATE (person:Test5_Person {age: 0})
-              |CREATE (post:Test5_Post {hash: "hash0"})
-              |CREATE (person)-[:LIKES{id: 0, timestamp: timestamp()}]->(post)
-              |""".stripMargin
-          ).consume()
-        }
-      )
+    createLikesRelationships(0, 1)
 
     val stream = ss.readStream.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship", "LIKES")
       .option("streaming.property.name", "timestamp")
       .option("streaming.from", "ALL")
-      .option("relationship.source.labels", "Test5_Person")
-      .option("relationship.target.labels", "Test5_Post")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Post")
       .load()
 
     query = stream.writeStream
       .format("memory")
-      .queryName("testReadStream")
+      .queryName("readStreamWithRelationshipAll")
       .start()
 
     val total = 60
-    Executors.newSingleThreadExecutor().submit(new Runnable {
-      override def run(): Unit = {
-        Thread.sleep(1000)
-        (1 to total).foreach(index => {
-          Thread.sleep(200)
-          SparkConnectorScalaSuiteIT.session()
-            .writeTransaction(new TransactionWork[ResultSummary] {
-              override def execute(tx: Transaction): ResultSummary = {
-                tx.run(
-                  s"""
-                     |CREATE (person:Test5_Person {age: $index})
-                     |CREATE (post:Test5_Post {hash: "hash$index"})
-                     |CREATE (person)-[:LIKES{id: $index, timestamp: timestamp()}]->(post)
-                     |""".stripMargin
-                )
-                  .consume()
-              }
-            })
-        })
-      }
-    })
-
-    val expected = (0 to total).map(index =>
+    val expected: Seq[Map[String, Any]] = (0 to total).map(index =>
       Map(
         "<rel.type>" -> "LIKES",
-        "<source.labels>" -> mutable.WrappedArray.make(Array("Test5_Person")),
+        "<source.labels>" -> Seq("Person"),
         "source.age" -> index,
-        "<target.labels>" -> mutable.WrappedArray.make(Array("Test5_Post")),
+        "<target.labels>" -> Seq("Post"),
         "target.hash" -> s"hash$index",
         "rel.id" -> index
       )
     )
 
-    val counter = new AtomicInteger(0)
+    Executors.newSingleThreadExecutor().submit(new Runnable {
+      override def run(): Unit = {
+        createLikesRelationships(1, total, 1000, 200)
+      }
+    })
+
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
-          val df = ss.sql("select * from testReadStream order by `rel.timestamp`")
-          val collect = df.collect()
-          val actual: Array[Map[String, Any]] =
-            if (!df.columns.contains("source.age") || !df.columns.contains("target.hash")) {
-              Array.empty
-            } else {
-              collect.map(row =>
-                Map(
-                  "<rel.type>" -> row.getAs[String]("<rel.type>"),
-                  "<source.labels>" -> row.getAs[java.util.List[String]]("<source.labels>"),
-                  "source.age" -> row.getAs[Long]("source.age").toInt,
-                  "<target.labels>" -> row.getAs[java.util.List[String]]("<target.labels>"),
-                  "target.hash" -> row.getAs[String]("target.hash"),
-                  "rel.id" -> row.getAs[Long]("rel.id").toInt
-                )
-              )
-            }
-          // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-          actual.toList == expected.toList && counter.incrementAndGet() == 3
+      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
+        override def get(): Seq[Map[String, Any]] = {
+          selectRowsFromTable("select * from readStreamWithRelationshipAll order by `rel.timestamp`", mapLikes)
         }
       },
-      Matchers.equalTo(true),
-      40L,
+      Matchers.equalTo(expected),
+      30L,
       TimeUnit.SECONDS
     )
   }
 
   @Test
-  def testReadStreamWithQuery(): Unit = {
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx
-            .run("CREATE (person:Test3_Person) SET person.age = 0, person.timestamp = timestamp()")
-            .consume()
-        }
+  def testReadStreamWithRelationshipResumesFromCheckpoint(): Unit = {
+    createLikesRelationships(0, 1)
+
+    val stream = ss.readStream.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "LIKES")
+      .option("streaming.property.name", "timestamp")
+      .option("streaming.from", "ALL")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Post")
+      .load()
+
+    val total = 60
+    val expected: Seq[Map[String, Any]] = (0 to total).map(index =>
+      Map(
+        "<rel.type>" -> "LIKES",
+        "<source.labels>" -> Seq("Person"),
+        "source.age" -> index,
+        "<target.labels>" -> Seq("Post"),
+        "target.hash" -> s"hash$index",
+        "rel.id" -> index
       )
+    )
+
+    val checkpoint = folder.newFolder()
+
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithRelationshipCheckpoint")
+      .awaitTermination()
+
+    val partial: Int = total / 2
+    // create partial number of likes starting from 1
+    createLikesRelationships(1, partial, 0, 10)
+
+    // fetch whatever is available
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithRelationshipCheckpoint")
+      .awaitTermination()
+
+    // create rest of the likes starting from partial+1
+    createLikesRelationships(partial + 1, total - partial, 0, 10)
+
+    // fetch rest of the items from where we left off
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithRelationshipCheckpoint")
+      .awaitTermination()
+
+    assertEquals(
+      expected,
+      selectRowsFromTable("select * from readStreamWithRelationshipCheckpoint order by `rel.timestamp`", mapLikes)
+    )
+  }
+
+  @Test
+  def testReadStreamWithQuery(): Unit = {
+    createPersonNodes(0, 1)
 
     val stream = ss.readStream.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -398,7 +353,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .option(
         "query",
         """
-          |MATCH (p:Test3_Person)
+          |MATCH (p:Person)
           |WHERE p.timestamp > $stream.offset
           |RETURN p.age AS age, p.timestamp AS timestamp
           |""".stripMargin
@@ -406,7 +361,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .option(
         "streaming.query.offset",
         """
-          |MATCH (p:Test3_Person)
+          |MATCH (p:Person)
           |RETURN max(p.timestamp)
           |""".stripMargin
       )
@@ -414,63 +369,37 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
     query = stream.writeStream
       .format("memory")
-      .queryName("testReadStream")
+      .queryName("readStreamWithQuery")
       .start()
 
     val total = 60
-
-    val expected = (1 to total) // .map(index => Map("age" -> index.toString))
+    val expected: Seq[Map[String, Any]] = (1 to total).map(index =>
+      Map(
+        "age" -> s"$index"
+      )
+    )
 
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
-        Thread.sleep(1000)
-        (1 to total).foreach(index => {
-          Thread.sleep(200)
-          SparkConnectorScalaSuiteIT.session()
-            .writeTransaction(new TransactionWork[ResultSummary] {
-              override def execute(tx: Transaction): ResultSummary = {
-                tx.run(s"CREATE (person:Test3_Person) SET person.age = $index, person.timestamp = timestamp()")
-                  .consume()
-              }
-            })
-        })
+        createPersonNodes(1, total, 1000, 200)
       }
     })
 
-    val counter = new AtomicInteger(0)
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
-          val df = ss.sql("select * from testReadStream ")
-          val collect = df.collect()
-          val actual: Array[Int] = if (!df.columns.contains("age")) {
-            Array.empty
-          } else {
-            collect.map(row => row.getAs[String]("age").toInt)
-              .sorted
-          }
-          val actualList = actual.toList
-          val expectedList = expected.toList
-          // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-          actualList == expectedList && counter.incrementAndGet() == 3
+      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
+        override def get(): Seq[Map[String, Any]] = {
+          selectRowsFromTable("select * from readStreamWithQuery order by timestamp", mapPerson)
         }
       },
-      Matchers.equalTo(true),
-      40L,
+      Matchers.equalTo(expected),
+      30L,
       TimeUnit.SECONDS
     )
   }
 
   @Test
   def testReadStreamWithQueryGetAll(): Unit = {
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx
-            .run("CREATE (person:Test3_Person) SET person.age = 0, person.timestamp = timestamp()")
-            .consume()
-        }
-      )
+    createPersonNodes(0, 1)
 
     val stream = ss.readStream.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -479,7 +408,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .option(
         "query",
         """
-          |MATCH (p:Test3_Person)
+          |MATCH (p:Person)
           |WHERE p.timestamp > $stream.offset
           |RETURN p.age AS age, p.timestamp AS timestamp
           |""".stripMargin
@@ -487,7 +416,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .option(
         "streaming.query.offset",
         """
-          |MATCH (p:Test3_Person)
+          |MATCH (p:Person)
           |RETURN max(p.timestamp)
           |""".stripMargin
       )
@@ -495,49 +424,240 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
     query = stream.writeStream
       .format("memory")
-      .queryName("testReadStream")
+      .queryName("readStreamWithQueryAll")
       .start()
 
     val total = 60
-
-    val expected = (0 to total) // .map(index => Map("age" -> index.toString))
+    val expected: Seq[Map[String, Any]] = (0 to total).map(index =>
+      Map(
+        "age" -> s"$index"
+      )
+    ).toList
 
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
-        Thread.sleep(1000)
-        (1 to total).foreach(index => {
-          Thread.sleep(200)
-          SparkConnectorScalaSuiteIT.session()
-            .writeTransaction(new TransactionWork[ResultSummary] {
-              override def execute(tx: Transaction): ResultSummary = {
-                tx.run(s"CREATE (person:Test3_Person) SET person.age = $index, person.timestamp = timestamp()")
-                  .consume()
-              }
-            })
-        })
+        createPersonNodes(1, total, 1000, 200)
       }
     })
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
-          val df = ss.sql("select * from testReadStream ")
-          val collect = df.collect()
-          val actual: Array[Int] = if (!df.columns.contains("age")) {
-            Array.empty
-          } else {
-            collect.map(row => row.getAs[String]("age").toInt)
-              .sorted
-          }
-          val actualList = actual.toList
-          val expectedList = expected.toList
-          // println(s"${actual.size} ${actual.distinct.size} dups ${actual.groupBy(e => e).filter(e => e._2.size > 1).keys} => ${actual.toList == expected.toList} && ${counter.get() + 1 == 3}")
-          actualList == expectedList
+      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
+        override def get(): Seq[Map[String, Any]] = {
+          selectRowsFromTable("select * from readStreamWithQueryAll order by timestamp", mapPerson)
         }
       },
-      Matchers.equalTo(true),
-      40L,
+      Matchers.equalTo(expected),
+      30L,
       TimeUnit.SECONDS
     )
   }
+
+  @Test
+  def testReadStreamWithQueryResumesFromCheckpoint(): Unit = {
+    createPersonNodes(0, 1)
+
+    val stream = ss.readStream.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("streaming.property.name", "timestamp")
+      .option("streaming.from", "ALL")
+      .option(
+        "query",
+        """
+          |MATCH (p:Person)
+          |WHERE p.timestamp > $stream.offset
+          |RETURN p.age AS age, p.timestamp AS timestamp
+          |""".stripMargin
+      )
+      .option(
+        "streaming.query.offset",
+        """
+          |MATCH (p:Person)
+          |RETURN max(p.timestamp)
+          |""".stripMargin
+      )
+      .load()
+
+    val total = 60
+    val expected: Seq[Map[String, Any]] = (0 to total).map(index =>
+      Map(
+        "age" -> s"$index"
+      )
+    ).toList
+
+    val checkpoint = folder.newFolder()
+
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithQueryCheckpoint")
+      .awaitTermination()
+
+    val partial: Int = total / 2
+    // create partial number of persons starting from 1
+    createPersonNodes(1, partial, 0, 10)
+
+    // fetch whatever is available
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithQueryCheckpoint")
+      .awaitTermination()
+
+    // create rest of the persons starting from partial+1
+    createPersonNodes(partial + 1, total - partial, 0, 10)
+
+    // fetch rest of the items from where we left off
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithQueryCheckpoint")
+      .awaitTermination()
+
+    assertEquals(
+      expected,
+      selectRowsFromTable("select * from readStreamWithQueryCheckpoint order by timestamp", mapPerson)
+    )
+  }
+
+  @Test
+  def testReadStreamWithQueryResumesFromCheckpointWithNewParams(): Unit = {
+    createPersonNodes(0, 1)
+
+    val stream = ss.readStream.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("streaming.property.name", "timestamp")
+      .option("streaming.from", "ALL")
+      .option(
+        "query",
+        """
+          |MATCH (p:Person)
+          |WHERE p.timestamp > $stream.from AND p.timestamp <= $stream.to
+          |RETURN p.age AS age, p.timestamp AS timestamp
+          |""".stripMargin
+      )
+      .option(
+        "streaming.query.offset",
+        """
+          |MATCH (p:Person)
+          |RETURN max(p.timestamp)
+          |""".stripMargin
+      )
+      .load()
+
+    val total = 60
+    val expected: Seq[Map[String, Any]] = (0 to total).map(index =>
+      Map(
+        "age" -> s"$index"
+      )
+    ).toList
+
+    val checkpoint = folder.newFolder()
+
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithQueryCheckpointNewParams")
+      .awaitTermination()
+
+    val partial: Int = total / 2
+    // create partial number of persons starting from 1
+    createPersonNodes(1, partial, 0, 10)
+
+    // fetch whatever is available
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithQueryCheckpointNewParams")
+      .awaitTermination()
+
+    // create rest of the persons starting from partial+1
+    createPersonNodes(partial + 1, total - partial, 0, 10)
+
+    // fetch rest of the items from where we left off
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithQueryCheckpointNewParams")
+      .awaitTermination()
+
+    assertEquals(
+      expected,
+      selectRowsFromTable("select * from readStreamWithQueryCheckpointNewParams order by timestamp", mapPerson)
+    )
+  }
+
+  private def createPersonNodes(from: Int, count: Int, delayMs: Int = 0, intervalMs: Int = 0): Unit = {
+    use(SparkConnectorScalaSuiteIT.session()) { session =>
+      Thread.sleep(delayMs)
+      (from until from + count).foreach(index => {
+        Thread.sleep(intervalMs)
+        session.run(
+          s"CREATE (p:Person {age: '$index', timestamp: timestamp()})"
+        ).consume()
+      })
+    }
+  }
+
+  private def createMovieNodes(from: Int, count: Int, delayMs: Int = 0, intervalMs: Int = 0): Unit = {
+    use(SparkConnectorScalaSuiteIT.session()) { session =>
+      Thread.sleep(delayMs)
+      (from until from + count).foreach(index => {
+        Thread.sleep(intervalMs)
+        session.run(
+          s"CREATE (n:Movie {title: 'My movie $index', timestamp: timestamp()})"
+        ).consume()
+      })
+    }
+  }
+
+  private def createLikesRelationships(from: Int, count: Int, delayMs: Int = 0, intervalMs: Int = 0): Unit = {
+    use(SparkConnectorScalaSuiteIT.session()) { session =>
+      Thread.sleep(delayMs)
+      (from until from + count).foreach(index => {
+        Thread.sleep(intervalMs)
+        session.run(
+          s"""
+             |CREATE (person:Person {age: $index})
+             |CREATE (post:Post {hash: "hash$index"})
+             |CREATE (person)-[:LIKES{id: $index, timestamp: timestamp()}]->(post)
+             |""".stripMargin
+        ).consume()
+      })
+    }
+  }
+
+  private def selectRowsFromTable(
+    query: String,
+    mapper: (Row) => Map[String, Any]
+  ): Seq[Map[String, Any]] = {
+    ss.sql(query)
+      .collect()
+      .map(row => mapper(row))
+      .toList
+  }
+
+  private def mapPerson(row: Row): Map[String, Any] = {
+    Map(
+      "age" -> row.getAs[String]("age")
+    )
+  }
+
+  private def mapMovie(row: Row): Map[String, Any] = {
+    Map(
+      "<labels>" -> row.getAs[java.util.List[String]]("<labels>"),
+      "title" -> row.getAs[String]("title")
+    )
+  }
+
+  private def mapLikes(row: Row): Map[String, Any] = {
+    Map(
+      "<rel.type>" -> row.getAs[String]("<rel.type>"),
+      "<source.labels>" -> row.getAs[java.util.List[String]]("<source.labels>"),
+      "source.age" -> row.getAs[Long]("source.age"),
+      "<target.labels>" -> row.getAs[java.util.List[String]]("<target.labels>"),
+      "target.hash" -> row.getAs[String]("target.hash"),
+      "rel.id" -> row.getAs[Long]("rel.id")
+    )
+  }
+
 }

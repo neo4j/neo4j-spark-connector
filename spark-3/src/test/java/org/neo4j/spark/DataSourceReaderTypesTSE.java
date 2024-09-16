@@ -20,6 +20,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.junit.Test;
+import org.neo4j.driver.Session;
 
 import java.sql.Timestamp;
 import java.time.*;
@@ -70,7 +71,7 @@ public class DataSourceReaderTypesTSE extends SparkConnectorScalaBaseTSE {
     @Test
     public void testReadNodeWithTime() {
         TimeZone timezone = TimeZone.getDefault();
-        Dataset<Row> df = initTest("CREATE (p:Person {aTime: time({hour:12, minute: 23, second: 0, millisecond: 294, timezone: '"+timezone.getID()+"'})})");
+        Dataset<Row> df = initTest("CREATE (p:Person {aTime: time({hour:12, minute: 23, second: 0, millisecond: 294, timezone: '" + timezone.getID() + "'})})");
 
         GenericRowWithSchema result = df.select("aTime").collectAsList().get(0).getAs(0);
 
@@ -84,7 +85,7 @@ public class DataSourceReaderTypesTSE extends SparkConnectorScalaBaseTSE {
     @Test
     public void testReadNodeWithLocalDateTime() {
         String localDateTime = "2007-12-03T10:15:30";
-        Dataset<Row> df = initTest("CREATE (p:Person {aTime: localdatetime('"+localDateTime+"')})");
+        Dataset<Row> df = initTest("CREATE (p:Person {aTime: localdatetime('" + localDateTime + "')})");
 
         Timestamp result = df.select("aTime").collectAsList().get(0).getTimestamp(0);
         assertEquals(Timestamp.from(LocalDateTime.parse(localDateTime).toInstant(ZoneOffset.UTC)), result);
@@ -93,7 +94,7 @@ public class DataSourceReaderTypesTSE extends SparkConnectorScalaBaseTSE {
     @Test
     public void testReadNodeWithZonedDateTime() {
         String dateTime = "2015-06-24T12:50:35.556+01:00";
-        Dataset<Row> df = initTest("CREATE (p:Person {aTime: datetime('"+dateTime+"')})");
+        Dataset<Row> df = initTest("CREATE (p:Person {aTime: datetime('" + dateTime + "')})");
 
         Timestamp result = df.select("aTime").collectAsList().get(0).getTimestamp(0);
         assertEquals(Timestamp.from(OffsetDateTime.parse(dateTime).toInstant()), result);
@@ -214,7 +215,7 @@ public class DataSourceReaderTypesTSE extends SparkConnectorScalaBaseTSE {
     public void testReadNodeWithArrayZonedDateTime() {
         String datetime1 = "2015-06-24T12:50:35.556+01:00";
         String datetime2 = "2015-06-23T12:50:35.556+01:00";
-        Dataset<Row> df = initTest("CREATE (p:Person {dates: [datetime('"+datetime1+"'), datetime('"+datetime2+"')]})");
+        Dataset<Row> df = initTest("CREATE (p:Person {dates: [datetime('" + datetime1 + "'), datetime('" + datetime2 + "')]})");
 
         List<Timestamp> res = df.select("dates").collectAsList().get(0).getList(0);
         assertEquals(Timestamp.from(OffsetDateTime.parse(datetime1).toInstant()), res.get(0));
@@ -305,8 +306,9 @@ public class DataSourceReaderTypesTSE extends SparkConnectorScalaBaseTSE {
     }
 
     Dataset<Row> initTest(String query) {
-        SparkConnectorScalaSuiteIT.session()
-                .writeTransaction(transaction -> transaction.run(query).consume());
+        try (Session session = SparkConnectorScalaSuiteIT.session("")) {
+            session.writeTransaction(transaction -> transaction.run(query).consume());
+        }
 
         return ss().read().format(DataSource.class.getName())
                 .option("url", SparkConnectorScalaSuiteIT.server().getBoltUrl())

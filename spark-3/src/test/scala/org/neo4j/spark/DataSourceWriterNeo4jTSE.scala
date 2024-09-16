@@ -28,6 +28,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.neo4j.Closeables.use
 import org.neo4j.driver.Result
 import org.neo4j.driver.Session
 import org.neo4j.driver.SessionConfig
@@ -41,9 +42,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
-  private val sparkSession = SparkSession.builder().getOrCreate()
-
-  import sparkSession.implicits._
+  import ss.implicits._
 
   @Test
   def `should read and write relations with append mode`(): Unit = {
@@ -56,34 +55,26 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
          |RETURN *
     """.stripMargin
 
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
-      .writeTransaction(
-        new TransactionWork[Unit] {
-          override def execute(tx: Transaction): Unit = {
-            tx.run("MATCH (n) DETACH DELETE n")
-            tx.run(fixtureQuery)
-          }
-        }
-      )
+    use(SparkConnectorScalaSuiteIT.session("system")) { session =>
+      session.run("CREATE OR REPLACE DATABASE db1 WAIT 30 seconds").consume()
+      session.run("CREATE OR REPLACE DATABASE db2 WAIT 30 seconds").consume()
+    }
 
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
-      .writeTransaction(
-        new TransactionWork[Unit] {
-          override def execute(tx: Transaction): Unit = {
-            tx.run("MATCH (n) DETACH DELETE n")
-          }
-        }
-      )
+    use(SparkConnectorScalaSuiteIT.session("db1")) { session =>
+      session.run(fixtureQuery).consume()
+    }
 
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
-      .writeTransaction(
-        new TransactionWork[Unit] {
-          override def execute(tx: Transaction): Unit = {
-            tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE")
-            tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE")
+    use(SparkConnectorScalaSuiteIT.session("db2")) { session =>
+      session
+        .writeTransaction(
+          new TransactionWork[Unit] {
+            override def execute(tx: Transaction): Unit = {
+              tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE")
+              tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE")
+            }
           }
-        }
-      )
+        )
+    }
 
     try {
       val dfOriginal: DataFrame = ss.read.format(classOf[DataSource].getName)
@@ -182,33 +173,26 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
          |RETURN *
     """.stripMargin
 
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
-      .writeTransaction(
-        new TransactionWork[Unit] {
-          override def execute(tx: Transaction): Unit = {
-            tx.run("MATCH (n) DETACH DELETE n")
-            tx.run(fixtureQuery)
-          }
-        }
-      )
+    use(SparkConnectorScalaSuiteIT.session("system")) { session =>
+      session.run("CREATE OR REPLACE DATABASE db1 WAIT 30 seconds").consume()
+      session.run("CREATE OR REPLACE DATABASE db2 WAIT 30 seconds").consume()
+    }
 
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
-      .writeTransaction(
-        new TransactionWork[Unit] {
-          override def execute(tx: Transaction): Unit = {
-            tx.run("MATCH (n) DETACH DELETE n")
+    use(SparkConnectorScalaSuiteIT.session("db1")) { session =>
+      session.run(fixtureQuery).consume()
+    }
+
+    use(SparkConnectorScalaSuiteIT.session("db2")) { session =>
+      session
+        .writeTransaction(
+          new TransactionWork[Unit] {
+            override def execute(tx: Transaction): Unit = {
+              tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE")
+              tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE")
+            }
           }
-        }
-      )
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
-      .writeTransaction(
-        new TransactionWork[Unit] {
-          override def execute(tx: Transaction): Unit = {
-            tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE")
-            tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE")
-          }
-        }
-      )
+        )
+    }
 
     try {
       val dfOriginal: DataFrame = ss.read.format(classOf[DataSource].getName)
@@ -304,27 +288,18 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
          |RETURN *
     """.stripMargin
 
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
-      .writeTransaction(
-        new TransactionWork[Unit] {
-          override def execute(tx: Transaction): Unit = {
-            tx.run("MATCH (n) DETACH DELETE n")
-            tx.run(fixtureQuery)
-            tx.commit()
-          }
-        }
-      )
+    use(SparkConnectorScalaSuiteIT.session("system")) { session =>
+      session.run("CREATE OR REPLACE DATABASE db1 WAIT 30 seconds").consume()
+      session.run("CREATE OR REPLACE DATABASE db2 WAIT 30 seconds").consume()
+    }
 
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
-      .writeTransaction(
-        new TransactionWork[Unit] {
-          override def execute(tx: Transaction): Unit = {
-            tx.run("MATCH (n) DETACH DELETE n")
-            tx.run(fixtureQuery)
-            tx.commit()
-          }
-        }
-      )
+    use(SparkConnectorScalaSuiteIT.session("db1")) { session =>
+      session.run(fixtureQuery).consume()
+    }
+
+    use(SparkConnectorScalaSuiteIT.session("db2")) { session =>
+      session.run(fixtureQuery).consume()
+    }
 
     val dfOriginal: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -376,12 +351,6 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should read and write relations with MERGE and node keys`(): Unit = {
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result =
-          transaction.run("CREATE CONSTRAINT instrument_name FOR (i:Instrument) REQUIRE i.name IS UNIQUE")
-      })
-
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
@@ -391,23 +360,14 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
          |RETURN *
     """.stripMargin
 
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
-      .writeTransaction(
-        new TransactionWork[Unit] {
-          override def execute(tx: Transaction): Unit = {
-            tx.run("MATCH (n) DETACH DELETE n")
-            tx.run(fixtureQuery)
-            tx.commit()
-          }
-        }
-      )
+    use(SparkConnectorScalaSuiteIT.session("system")) { session =>
+      session.run("CREATE OR REPLACE DATABASE db1 WAIT 30 seconds").consume()
+      session.run("CREATE OR REPLACE DATABASE db2 WAIT 30 seconds").consume()
+    }
 
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
-        }
-      )
+    use(SparkConnectorScalaSuiteIT.session("db1")) { session =>
+      session.run(fixtureQuery).consume()
+    }
 
     val dfOriginal: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -455,11 +415,6 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         dfCopy.select("`target.id`").collectAsList().get(i).getLong(0)
       )
     }
-
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT instrument_name")
-      })
   }
 
   @Test
@@ -638,7 +593,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
     val metrics = new AtomicReference[Map[String, Any]]()
     val listener = new MetricsListener(expectedMetrics.keySet, metrics)
-    sparkSession.sparkContext.addSparkListener(listener)
+    ss.sparkContext.addSparkListener(listener)
 
     try {
       input.toDF("name")
@@ -667,7 +622,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       assertEquals(metrics.get(), expectedMetrics)
 
     } finally {
-      sparkSession.sparkContext.removeSparkListener(listener)
+      ss.sparkContext.removeSparkListener(listener)
     }
   }
 

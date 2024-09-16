@@ -89,12 +89,7 @@ class Neo4jScan(
   override def readSchema(): StructType = schema
 
   override def toMicroBatchStream(checkpointLocation: String): MicroBatchStream = {
-    // we hardcode the SparkAccumulator as Spark 3.x
-    // support Accumulators from DataSourceV2
-    val optsMap = neo4jOptions.asMap()
-    optsMap.put(Neo4jOptions.STREAMING_METADATA_STORAGE, StorageType.SPARK.toString)
-    val newOpts = new Neo4jOptions(optsMap)
-    Validations.validate(ValidateReadStreaming(newOpts, jobId))
-    new Neo4jMicroBatchReader(schema, newOpts, jobId, aggregateColumns)
+    Validations.validate(ValidateReadStreaming(neo4jOptions, jobId))
+    new Neo4jMicroBatchReader(schema, neo4jOptions, jobId, aggregateColumns)
   }
 }

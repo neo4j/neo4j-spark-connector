@@ -21,10 +21,16 @@ import org.apache.spark.sql.SparkSession
 import org.junit.AfterClass
 import org.junit.Assume
 import org.junit.BeforeClass
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
 import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver._
 import org.neo4j.driver.summary.ResultSummary
 
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.TimeZone
 
 object SparkConnectorScalaSuiteIT {
@@ -38,10 +44,7 @@ object SparkConnectorScalaSuiteIT {
   var conf: SparkConf = _
   var ss: SparkSession = _
   var driver: Driver = _
-
-  private var _session: Session = _
-
-  var connections: Long = 0
+  var tmpDir: File = _
 
   @BeforeClass
   def setUpContainer(): Unit = {
@@ -52,56 +55,38 @@ object SparkConnectorScalaSuiteIT {
         case _: Throwable => //
       }
       Assume.assumeTrue("Neo4j container is not started", server.isRunning)
+      tmpDir = Files.createTempDirectory("spark-warehouse").toFile
+      tmpDir.deleteOnExit()
       conf = new SparkConf()
         .setAppName("neoTest")
         .setMaster("local[*]")
         .set("spark.driver.host", "127.0.0.1")
+        .set("spark.sql.warehouse.dir", tmpDir.getAbsolutePath)
       ss = SparkSession.builder.config(conf).getOrCreate()
-      if (TestUtil.isCI()) {
-        org.apache.log4j.LogManager.getLogger("org")
-          .setLevel(org.apache.log4j.Level.OFF)
-      }
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
         .readTransaction(new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary =
             tx.run("RETURN 1").consume() // we init the session so the count is consistent
         })
-      connections = getActiveConnections
       ()
     }
   }
 
   @AfterClass
   def tearDownContainer() = {
-    TestUtil.closeSafely(session())
     TestUtil.closeSafely(driver)
     TestUtil.closeSafely(server)
     TestUtil.closeSafely(ss)
   }
 
-  def session(): Session =
-    try {
-      if (_session == null || !_session.isOpen) {
-        _session = driver.session
-      }
-      _session
-    } catch {
-      case _: Throwable => null
+  def session(database: String = ""): Session = {
+    if (database.isEmpty) {
+      driver.session()
+    } else {
+      driver.session(SessionConfig.forDatabase(database))
     }
-
-  def getActiveConnections = session()
-    .readTransaction(new TransactionWork[Long] {
-
-      override def execute(tx: Transaction): Long = tx.run(
-        """|CALL dbms.listConnections() YIELD connectionId, connector, userAgent
-           |WHERE connector = 'bolt' AND userAgent STARTS WITH 'neo4j-spark-connector'
-           |RETURN count(*) AS connections""".stripMargin
-      )
-        .single()
-        .get("connections")
-        .asLong()
-    })
+  }
 }
 
 class SparkConnectorScalaSuiteIT {}

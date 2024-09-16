@@ -479,9 +479,11 @@ class Neo4jQueryServiceTest {
       s"""MATCH (source:`Person`)
          | MATCH (target:`Person`:`Customer`)
          | MATCH (source)-[rel:`KNOWS`]->(target)
-         | WHERE ((source.name = ${parameterNames("source.name_1")} OR target.name = ${parameterNames(
-          "target.name_1"
-        )} OR source.name = ${parameterNames("source.name_2")})
+         | WHERE ((source.name = ${parameterNames("source.name_1")} OR target.name = ${
+          parameterNames(
+            "target.name_1"
+          )
+        } OR source.name = ${parameterNames("source.name_2")})
          | AND (target.age = ${parameterNames("target.age_1")} OR target.age = ${parameterNames("target.age_2")})
          | AND rel.score = ${parameterNames("rel.score")})
          | RETURN rel, source AS source, target AS target""".stripMargin.replaceAll("\n", ""),
@@ -523,9 +525,11 @@ class Neo4jQueryServiceTest {
       s"""MATCH (source:`Person`)
          | MATCH (target:`Person`:`Customer`)
          | MATCH (source)-[rel:`KNOWS`]->(target)
-         | WHERE ((source.name = ${parameterNames("source.name_1")} OR target.name = ${parameterNames(
-          "target.name_1"
-        )} OR source.name = ${parameterNames("source.name_2")})
+         | WHERE ((source.name = ${parameterNames("source.name_1")} OR target.name = ${
+          parameterNames(
+            "target.name_1"
+          )
+        } OR source.name = ${parameterNames("source.name_2")})
          | AND (target.age = ${parameterNames("target.age_1")} OR target.age = ${parameterNames("target.age_2")})
          | AND rel.score = ${parameterNames("rel.score")})
          | RETURN rel, source AS source, target AS target
@@ -924,10 +928,7 @@ class Neo4jQueryServiceTest {
     ).createQuery()
 
     assertEquals(
-      """WITH $scriptResult AS scriptResult
-        |MATCH (p:Person) RETURN p
-        |SKIP 0 LIMIT 24
-        |""".stripMargin,
+      "WITH $scriptResult AS scriptResult MATCH (p:Person) RETURN p SKIP 0 LIMIT 24",
       query
     )
   }
