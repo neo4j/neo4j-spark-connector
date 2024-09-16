@@ -108,7 +108,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     val total = 60
     Executors.newSingleThreadExecutor().submit(new Runnable {
       override def run(): Unit = {
-        createMovieNodes(1, 60, 1000, 200)
+        createMovieNodes(1, total, 1000, 200)
       }
     })
 
@@ -158,8 +158,9 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .toTable("readStreamWithLabelsCheckpoint")
       .awaitTermination()
 
-    // create 30 movies starting from 1
-    createMovieNodes(1, 30, 0, 10)
+    val partial: Int = total / 2
+    // create partial movies starting from 1
+    createMovieNodes(1, partial, 0, 10)
 
     // fetch whatever is available
     stream.writeStream
@@ -168,8 +169,8 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .toTable("readStreamWithLabelsCheckpoint")
       .awaitTermination()
 
-    // create another 30 movies starting from 31
-    createMovieNodes(31, 30, 0, 10)
+    // create rest of the movies starting from partial+1
+    createMovieNodes(partial + 1, total - partial, 0, 10)
 
     // fetch rest of the items from where we left off
     stream.writeStream
@@ -314,8 +315,9 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .toTable("readStreamWithRelationshipCheckpoint")
       .awaitTermination()
 
-    // create 30 movies starting from 1
-    createLikesRelationships(1, 30, 0, 10)
+    val partial: Int = total / 2
+    // create partial number of likes starting from 1
+    createLikesRelationships(1, partial, 0, 10)
 
     // fetch whatever is available
     stream.writeStream
@@ -324,8 +326,8 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .toTable("readStreamWithRelationshipCheckpoint")
       .awaitTermination()
 
-    // create another 30 movies starting from 31
-    createLikesRelationships(31, 30, 0, 10)
+    // create rest of the likes starting from partial+1
+    createLikesRelationships(partial + 1, total - partial, 0, 10)
 
     // fetch rest of the items from where we left off
     stream.writeStream
@@ -490,8 +492,9 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .toTable("readStreamWithQueryCheckpoint")
       .awaitTermination()
 
-    // create 30 movies starting from 1
-    createPersonNodes(1, 30, 0, 10)
+    val partial: Int = total / 2
+    // create partial number of persons starting from 1
+    createPersonNodes(1, partial, 0, 10)
 
     // fetch whatever is available
     stream.writeStream
@@ -500,8 +503,8 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .toTable("readStreamWithQueryCheckpoint")
       .awaitTermination()
 
-    // create another 30 movies starting from 31
-    createPersonNodes(31, 30, 0, 10)
+    // create rest of the persons starting from partial+1
+    createPersonNodes(partial + 1, total - partial, 0, 10)
 
     // fetch rest of the items from where we left off
     stream.writeStream
@@ -556,8 +559,9 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .toTable("readStreamWithQueryCheckpointNewParams")
       .awaitTermination()
 
-    // create 30 movies starting from 1
-    createPersonNodes(1, 30, 0, 10)
+    val partial: Int = total / 2
+    // create partial number of persons starting from 1
+    createPersonNodes(1, partial, 0, 10)
 
     // fetch whatever is available
     stream.writeStream
@@ -566,8 +570,8 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       .toTable("readStreamWithQueryCheckpointNewParams")
       .awaitTermination()
 
-    // create another 30 movies starting from 31
-    createPersonNodes(31, 30, 0, 10)
+    // create rest of the persons starting from partial+1
+    createPersonNodes(partial + 1, total - partial, 0, 10)
 
     // fetch rest of the items from where we left off
     stream.writeStream
