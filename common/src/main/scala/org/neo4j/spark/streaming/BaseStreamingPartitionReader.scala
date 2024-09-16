@@ -25,6 +25,7 @@ import org.neo4j.cypherdsl.core.Cypher
 import org.neo4j.spark.reader.BasePartitionReader
 import org.neo4j.spark.service.Neo4jQueryStrategy
 import org.neo4j.spark.service.PartitionPagination
+import org.neo4j.spark.streaming.BaseStreamingPartitionReader.offsetUsagePatterns
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jUtil
@@ -32,6 +33,8 @@ import org.neo4j.spark.util.QueryType._
 import org.neo4j.spark.util.StreamingFrom
 
 import java.util
+import java.util.function.Predicate
+import java.util.regex.Pattern
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
@@ -73,7 +76,7 @@ class BaseStreamingPartitionReader(
       .asInstanceOf[Long]
     val end: Long = streamEnd
       .flatMap(f => f.getValue)
-      .get // TODO: test this with emptied-after-checkpoint database (max(timestamp) would return NULL for the end)
+      .get
       .asInstanceOf[Long]
     map.put(Neo4jQueryStrategy.VARIABLE_STREAM, Map("offset" -> start, "from" -> start, "to" -> end).asJava)
     map
@@ -87,11 +90,20 @@ class BaseStreamingPartitionReader(
   override protected def query: String = {
     options.query.queryType match {
       case QUERY =>
+        val originalQuery = super.query
+
+        if (offsetUsagePatterns.exists(_.test(originalQuery))) {
+          logWarning(
+            "Usage of '$stream.offset' is deprecated in favor of '$stream.from' and '$stream.to' parameters which "
+              + "describes the range of changes the micro batch refers to. Please update your queries accordingly."
+          )
+        }
+
         val property = Cypher.name(streamingPropertyName)
         val stream = Cypher.parameter("stream")
 
         // rewrite query for adding $stream.from and $stream.to filters
-        Cypher.callRawCypher(super.query)
+        Cypher.callRawCypher(originalQuery)
           .`with`(Cypher.asterisk())
           .where(
             property.gt(stream.property("from")).and(property.lte(stream.property("to")))
@@ -109,5 +121,16 @@ class BaseStreamingPartitionReader(
   }
 
   override protected def queryParameters: util.Map[String, Any] = values
+
+}
+
+object BaseStreamingPartitionReader {
+
+  private val offsetUsagePatterns: Seq[Predicate[String]] = Seq(
+    Pattern.compile("\\$stream\\.offset").asPredicate(),
+    Pattern.compile("\\$`stream`\\.offset").asPredicate(),
+    Pattern.compile("\\$stream\\.`offset`").asPredicate(),
+    Pattern.compile("\\$`stream`\\.`offset`").asPredicate()
+  )
 
 }

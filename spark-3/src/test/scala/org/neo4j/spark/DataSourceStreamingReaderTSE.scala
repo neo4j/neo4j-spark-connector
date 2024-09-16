@@ -516,6 +516,72 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     )
   }
 
+  @Test
+  def testReadStreamWithQueryResumesFromCheckpointWithNewParams(): Unit = {
+    createPersonNodes(0, 1)
+
+    val stream = ss.readStream.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("streaming.property.name", "timestamp")
+      .option("streaming.from", "ALL")
+      .option(
+        "query",
+        """
+          |MATCH (p:Person)
+          |WHERE p.timestamp > $stream.from AND p.timestamp <= $stream.to
+          |RETURN p.age AS age, p.timestamp AS timestamp
+          |""".stripMargin
+      )
+      .option(
+        "streaming.query.offset",
+        """
+          |MATCH (p:Person)
+          |RETURN max(p.timestamp)
+          |""".stripMargin
+      )
+      .load()
+
+    val total = 60
+    val expected: Seq[Map[String, Any]] = (0 to total).map(index =>
+      Map(
+        "age" -> s"$index"
+      )
+    ).toList
+
+    val checkpoint = folder.newFolder()
+
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithQueryCheckpointNewParams")
+      .awaitTermination()
+
+    // create 30 movies starting from 1
+    createPersonNodes(1, 30, 0, 10)
+
+    // fetch whatever is available
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithQueryCheckpointNewParams")
+      .awaitTermination()
+
+    // create another 30 movies starting from 31
+    createPersonNodes(31, 30, 0, 10)
+
+    // fetch rest of the items from where we left off
+    stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("readStreamWithQueryCheckpointNewParams")
+      .awaitTermination()
+
+    assertEquals(
+      expected,
+      selectRowsFromTable("select * from readStreamWithQueryCheckpointNewParams order by timestamp", mapPerson)
+    )
+  }
+
   private def createPersonNodes(from: Int, count: Int, delayMs: Int = 0, intervalMs: Int = 0): Unit = {
     use(SparkConnectorScalaSuiteIT.session()) { session =>
       Thread.sleep(delayMs)
