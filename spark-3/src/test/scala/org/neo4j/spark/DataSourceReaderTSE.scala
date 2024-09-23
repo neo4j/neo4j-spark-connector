@@ -998,9 +998,9 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       )
       .load()
 
-    assertEquals(6, partitionedQueryCountDf.rdd.getNumPartitions)
+    assertEquals(5, partitionedQueryCountDf.rdd.getNumPartitions)
     assertEquals(50, partitionedQueryCountDf.collect().map(_.getAs[String]("person")).toSet.size)
-    assertEquals(50, partitionedQueryCountDf.collect().map(_.getAs[String]("person")).size)
+    assertEquals(50, partitionedQueryCountDf.collect().map(_.getAs[String]("person")).length)
 
     val partitionedQueryCountLiteralDf = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -1014,9 +1014,9 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("query.count", "50")
       .load()
 
-    assertEquals(6, partitionedQueryCountLiteralDf.rdd.getNumPartitions)
+    assertEquals(5, partitionedQueryCountLiteralDf.rdd.getNumPartitions)
     assertEquals(50, partitionedQueryCountLiteralDf.collect().map(_.getAs[String]("person")).toSet.size)
-    assertEquals(50, partitionedQueryCountLiteralDf.collect().map(_.getAs[String]("person")).size)
+    assertEquals(50, partitionedQueryCountLiteralDf.collect().map(_.getAs[String]("person")).length)
   }
 
   @Test

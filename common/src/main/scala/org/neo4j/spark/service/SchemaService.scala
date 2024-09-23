@@ -568,15 +568,7 @@ class SchemaService(
         Seq(PartitionPagination.EMPTY)
       } else {
         val partitionSize = Math.ceil(count.toDouble / options.partitions).toInt
-        val partitions = options.query.queryType match {
-          case QueryType.QUERY => if (options.queryMetadata.queryCount.nonEmpty) {
-              options.partitions // for custom query count we overfetch
-            } else {
-              options.partitions - 1
-            }
-          case _ => options.partitions - 1
-        }
-        (0 to partitions)
+        (0 until options.partitions)
           .map(index => PartitionPagination(index, index * partitionSize, TopN(partitionSize, Array.empty)))
       }
     }
