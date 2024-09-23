@@ -224,8 +224,7 @@ case class ValidateConnection(neo4jOptions: Neo4jOptions, jobId: String) extends
     var hasError = false
     try {
       driverCache = new DriverCache(neo4jOptions.connection, jobId)
-      session = driverCache.getOrCreate().session(neo4jOptions.session.toNeo4jSession())
-      session.run("EXPLAIN RETURN 1").consume()
+      driverCache.getOrCreate().verifyConnectivity()
     } catch {
       case e: Throwable => {
         hasError = true
