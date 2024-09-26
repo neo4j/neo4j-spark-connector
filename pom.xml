@@ -42,7 +42,7 @@
         <driver.version>4.4.18</driver.version>
         <java.version>1.8</java.version>
         <junit.version>4.13.2</junit.version>
-        <license-maven-plugin.version>4.5</license-maven-plugin.version>
+        <license-maven-plugin.version>4.6</license-maven-plugin.version>
         <licensing-maven-plugin.version>1.7.11</licensing-maven-plugin.version>
         <licensing.prepend.text>/license/neo4j_apache_v2/notice.txt</licensing.prepend.text>
         <maven-clean-plugin.version>3.4.0</maven-clean-plugin.version>
