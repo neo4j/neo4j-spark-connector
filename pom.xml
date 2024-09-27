@@ -519,7 +519,7 @@
             </activation>
             <properties>
                 <scala.binary.version>2.13</scala.binary.version>
-                <scala.version>2.13.14</scala.version>
+                <scala.version>2.13.15</scala.version>
             </properties>
         </profile>
         <!-- end scala profiles -->
