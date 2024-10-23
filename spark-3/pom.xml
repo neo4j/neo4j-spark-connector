@@ -13,7 +13,7 @@
     <description>Spark ${spark.version} for Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
     <properties>
         <spark-packages.artifactId>neo4j-spark-connector</spark-packages.artifactId>
-        <spark-packages.groupId>neo4j-contrib</spark-packages.groupId>
+        <spark-packages.groupId>neo4j</spark-packages.groupId>
         <spark-packages.packageName>${spark-packages.artifactId}-${spark-packages.version}</spark-packages.packageName>
         <spark-packages.version/>
     </properties>

@@ -32,5 +32,5 @@ curl -X POST 'https://spark-packages.org/api/submit-release' \
   -F "git_commit_sha1=$GIT_HASH" \
   -F "version=$VERSION" \
   -F "license_id=$LICENSE" \
-  -F "name=neo4j-contrib/neo4j-spark-connector" \
-  -F "artifact_zip=@$PATH_TO_PACKAGE_FILE"
+  -F "name=neo4j/neo4j-spark-connector" \
+  -F "artifact_zip=@$PATH_TO_PACKAGE_FILE;type=application/zip"
