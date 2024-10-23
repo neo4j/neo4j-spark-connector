@@ -13,11 +13,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.8", "3.9", "3.10", "3.11", "3.12" ]
+        python-version: [ "3.8", "3.9", "3.10", "3.11", "3.12", "3.13" ]
         neo4j-version: [ "4.4", "5" ]
         spark-version:
           - { short: "3", ext: "3.4.3", scala: "2.12" }
           - { short: "3", ext: "3.5.2", scala: "2.12" }
+        exclude:
+          - python-version: "3.13"
+            spark-version: { short: "3", ext: "3.4.3", scala: "2.12" }
 
     steps:
       - uses: actions/checkout@v4
