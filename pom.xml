@@ -37,7 +37,7 @@
         <url>https://github.com/neo4j/neo4j-spark-connector</url>
     </scm>
     <properties>
-        <build-resources.version>2024-07.1</build-resources.version>
+        <build-resources.version>2024-11.1</build-resources.version>
         <cypherdsl.version>2022.11.0</cypherdsl.version>
         <driver.version>4.4.18</driver.version>
         <java.version>1.8</java.version>
