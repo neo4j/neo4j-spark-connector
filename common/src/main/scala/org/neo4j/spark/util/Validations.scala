@@ -220,7 +220,6 @@ case class ValidateConnection(neo4jOptions: Neo4jOptions, jobId: String) extends
 
   override def validate(): Unit = {
     var driverCache: DriverCache = null
-    var session: Session = null
     var hasError = false
     try {
       driverCache = new DriverCache(neo4jOptions.connection, jobId)
@@ -231,7 +230,6 @@ case class ValidateConnection(neo4jOptions: Neo4jOptions, jobId: String) extends
         throw e
       }
     } finally {
-      Neo4jUtil.closeSafely(session)
       if (hasError) {
         Neo4jUtil.closeSafely(driverCache)
       }
