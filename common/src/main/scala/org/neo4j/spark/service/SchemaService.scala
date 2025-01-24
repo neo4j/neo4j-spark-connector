@@ -666,7 +666,7 @@ class SchemaService(
           val quotedProps = props
             .map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.quote()}")
             .mkString(", ")
-          val isNeo4j5 = neo4jVersion().versions(0).startsWith("5.")
+          val isNeo4j5 = neo4jVersion().versions.head.startsWith("5.") || neo4jVersion().versions.head.startsWith("2025.")
           val uniqueFieldName = if (isNeo4j5) "owningConstraint" else "uniqueness"
           val dashSeparatedProps = props.mkString("-")
           val (querySuffix, uniqueCondition) = action match {
