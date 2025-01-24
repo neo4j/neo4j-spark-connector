@@ -666,20 +666,19 @@ class SchemaService(
           val quotedProps = props
             .map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.quote()}")
             .mkString(", ")
-          val isNeo4j5 =
-            neo4jVersion().versions.head.startsWith("5.") || neo4jVersion().versions.head.startsWith("2025.")
-          val uniqueFieldName = if (isNeo4j5) "owningConstraint" else "uniqueness"
+          val isNeo4j4 = neo4jVersion().versions.head.startsWith("4.")
+          val uniqueFieldName = if (!isNeo4j4) "owningConstraint" else "uniqueness"
           val dashSeparatedProps = props.mkString("-")
           val (querySuffix, uniqueCondition) = action match {
             case OptimizationType.INDEX => (
                 s"FOR (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ON ($quotedProps)",
-                if (isNeo4j5) s"$uniqueFieldName IS NULL" else s"$uniqueFieldName = 'NONUNIQUE'"
+                if (!isNeo4j4) s"$uniqueFieldName IS NULL" else s"$uniqueFieldName = 'NONUNIQUE'"
               )
             case OptimizationType.NODE_CONSTRAINTS => {
               val assertType = if (props.size > 1) "NODE KEY" else "UNIQUE"
               (
                 s"FOR (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) REQUIRE ($quotedProps) IS $assertType",
-                if (isNeo4j5) s"$uniqueFieldName IS NOT NULL" else s"$uniqueFieldName = 'UNIQUE'"
+                if (!isNeo4j4) s"$uniqueFieldName IS NOT NULL" else s"$uniqueFieldName = 'UNIQUE'"
               )
             }
           }
