@@ -58,7 +58,7 @@
         <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
         <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
         <neo4j.experimental>false</neo4j.experimental>
-        <neo4j.version>4.4.11</neo4j.version>
+        <neo4j.version>4.4.19</neo4j.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scala-maven-plugin.version>4.9.2</scala-maven-plugin.version>
         <!-- This is empty because we use it for the deploy process -->
