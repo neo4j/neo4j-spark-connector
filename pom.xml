@@ -467,7 +467,7 @@
                                 <include>src/test/scala/**/*.scala</include>
                             </includes>
                             <scalafmt>
-                                <version>3.7.3</version>
+                                <version>3.8.4-RC3</version>
                                 <file>scalafmt/scalafmt.conf</file>
                                 <scalaMajorVersion>2.12</scalaMajorVersion>
                             </scalafmt>
