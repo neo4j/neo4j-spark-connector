@@ -38,7 +38,7 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
-    new DriverCache(neo4jOptions.connection, "").close()
+    new DriverCache(neo4jOptions.connection).close()
   }
 
   @Test

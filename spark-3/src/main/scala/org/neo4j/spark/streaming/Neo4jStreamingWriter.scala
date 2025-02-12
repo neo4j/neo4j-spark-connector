@@ -54,7 +54,7 @@ class Neo4jStreamingWriter(
   }
   SparkSession.getDefaultSession.get.streams.addListener(listener)
 
-  private val driverCache = new DriverCache(neo4jOptions.connection, queryId)
+  private val driverCache = new DriverCache(neo4jOptions.connection)
 
   private lazy val scriptResult = {
     val schemaService = new SchemaService(neo4jOptions, driverCache)

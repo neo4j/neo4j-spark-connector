@@ -46,7 +46,7 @@ class Neo4jBatchWriter(jobId: String, structType: StructType, saveMode: SaveMode
     )
   }
 
-  private val driverCache = new DriverCache(neo4jOptions.connection, jobId)
+  private val driverCache = new DriverCache(neo4jOptions.connection)
 
   override def commit(messages: Array[WriterCommitMessage]): Unit = {
     driverCache.close()

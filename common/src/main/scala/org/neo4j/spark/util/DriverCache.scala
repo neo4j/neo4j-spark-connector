@@ -17,38 +17,32 @@
 package org.neo4j.spark.util
 
 import org.neo4j.driver.Driver
-import org.neo4j.driver.GraphDatabase
 import org.neo4j.spark.util.DriverCache.cache
-import org.neo4j.spark.util.DriverCache.jobIdCache
 
-import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
-import java.util.function
+import java.util.concurrent.atomic.AtomicInteger
 
 object DriverCache {
-  private val cache: ConcurrentHashMap[Neo4jDriverOptions, Driver] = new ConcurrentHashMap[Neo4jDriverOptions, Driver]
-  private val jobIdCache = Collections.newSetFromMap[String](new ConcurrentHashMap[String, java.lang.Boolean]())
+
+  private val cache: ConcurrentHashMap[Neo4jDriverOptions, (Driver, AtomicInteger)] =
+    new ConcurrentHashMap[Neo4jDriverOptions, (Driver, AtomicInteger)]
 }
 
-class DriverCache(private val options: Neo4jDriverOptions, private val jobId: String) extends Serializable
+class DriverCache(private val options: Neo4jDriverOptions) extends Serializable
     with AutoCloseable {
 
   def getOrCreate(): Driver = {
-    this.synchronized {
-      jobIdCache.add(jobId)
-      cache.computeIfAbsent(options, (t: Neo4jDriverOptions) => t.createDriver())
-    }
+    val (driver, counter) =
+      cache.computeIfAbsent(options, (t: Neo4jDriverOptions) => (t.createDriver(), new AtomicInteger(0)))
+    counter.incrementAndGet()
+    driver
   }
 
   def close(): Unit = {
-    this.synchronized {
-      jobIdCache.remove(jobId)
-      if (jobIdCache.isEmpty) {
-        val driver = cache.remove(options)
-        if (driver != null) {
-          Neo4jUtil.closeSafely(driver)
-        }
-      }
+    val (driver, counter) = cache.get(options)
+    if (counter.decrementAndGet() == 0) {
+      cache.remove(options)
+      Neo4jUtil.closeSafely(driver)
     }
   }
 }

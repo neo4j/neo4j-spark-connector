@@ -37,7 +37,7 @@ class Neo4jMicroBatchReader(
 ) extends MicroBatchStream
     with Logging {
 
-  private val driverCache = new DriverCache(neo4jOptions.connection, jobId)
+  private val driverCache = new DriverCache(neo4jOptions.connection)
 
   private lazy val scriptResult = {
     val schemaService = new SchemaService(neo4jOptions, driverCache)

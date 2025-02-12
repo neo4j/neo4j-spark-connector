@@ -213,7 +213,7 @@ object Neo4jUtil {
     filters: Array[Filter],
     function: SchemaService => T
   ): T = {
-    val driverCache = new DriverCache(neo4jOptions.connection, jobId)
+    val driverCache = new DriverCache(neo4jOptions.connection)
     val schemaService = new SchemaService(neo4jOptions, driverCache, filters)
     var hasError = false
     try {

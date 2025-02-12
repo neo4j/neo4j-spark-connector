@@ -53,7 +53,7 @@ abstract class BaseDataWriter(
   private val STOPPED_THREAD_EXCEPTION_MESSAGE =
     "Connection to the database terminated. Thread interrupted while committing the transaction"
 
-  private val driverCache: DriverCache = new DriverCache(options.connection, jobId)
+  private val driverCache: DriverCache = new DriverCache(options.connection)
 
   private var transaction: Transaction = _
   private var session: Session = _

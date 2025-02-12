@@ -57,7 +57,7 @@ abstract class BasePartitionReader(
 
   protected val name: String =
     if (partitionSkipLimit.partitionNumber > 0) s"$jobId-${partitionSkipLimit.partitionNumber}" else jobId
-  protected val driverCache: DriverCache = new DriverCache(options.connection, name)
+  protected val driverCache: DriverCache = new DriverCache(options.connection)
 
   private var nextRow: InternalRow = _
 

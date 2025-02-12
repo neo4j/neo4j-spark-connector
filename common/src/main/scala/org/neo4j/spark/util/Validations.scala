@@ -222,7 +222,7 @@ case class ValidateConnection(neo4jOptions: Neo4jOptions, jobId: String) extends
     var driverCache: DriverCache = null
     var hasError = false
     try {
-      driverCache = new DriverCache(neo4jOptions.connection, jobId)
+      driverCache = new DriverCache(neo4jOptions.connection)
       driverCache.getOrCreate().verifyConnectivity()
     } catch {
       case e: Throwable => {
@@ -262,7 +262,7 @@ case class ValidateWrite(
       neo4jOptions.session.accessMode == AccessMode.READ,
       s"Mode READ not supported for Data Source writer"
     )
-    val cache = new DriverCache(neo4jOptions.connection, jobId)
+    val cache = new DriverCache(neo4jOptions.connection)
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
       ValidateConnection(neo4jOptions, jobId).validate()
@@ -329,7 +329,7 @@ case class ValidateWrite(
 case class ValidateRead(neo4jOptions: Neo4jOptions, jobId: String) extends Validation {
 
   override def validate(): Unit = {
-    val cache = new DriverCache(neo4jOptions.connection, jobId)
+    val cache = new DriverCache(neo4jOptions.connection)
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
       ValidateConnection(neo4jOptions, jobId).validate()
@@ -517,7 +517,7 @@ case class ValidateGdsMetadata(neo4jGdsMetadata: Neo4jGdsMetadata) extends Valid
 case class ValidateReadStreaming(neo4jOptions: Neo4jOptions, jobId: String) extends Validation {
 
   override def validate(): Unit = {
-    val cache = new DriverCache(neo4jOptions.connection, jobId)
+    val cache = new DriverCache(neo4jOptions.connection)
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
       ValidationUtil.isTrue(
