@@ -25,11 +25,16 @@ import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runners.MethodSorters
 import org.neo4j.Closeables.use
+import org.neo4j.caniuse.Neo4j
+import org.neo4j.caniuse.Neo4jDeploymentType
+import org.neo4j.caniuse.Neo4jEdition
+import org.neo4j.caniuse.Neo4jVersion
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.spark.SparkConnectorScalaBaseTSE
 import org.neo4j.spark.SparkConnectorScalaSuiteIT
+import org.neo4j.spark.SparkConnectorScalaSuiteIT.neo4j
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
@@ -253,7 +258,7 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val driverCache = new DriverCache(neo4jOptions.connection)
-    val schemaService: SchemaService = new SchemaService(neo4jOptions, driverCache)
+    val schemaService: SchemaService = new SchemaService(neo4j, neo4jOptions, driverCache)
 
     val schema: StructType = schemaService.struct()
     schemaService.close()

@@ -14,22 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.spark.writer
+package org.neo4j.spark.cypher
 
-import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.connector.write.DataWriter
-import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.CanIUse.INSTANCE.canIUse
+import org.neo4j.caniuse.Cypher.{INSTANCE => Cypher}
 import org.neo4j.caniuse.Neo4j
-import org.neo4j.spark.util.Neo4jOptions
 
-class Neo4jDataWriter(
-  neo4j: Neo4j,
-  jobId: String,
-  partitionId: Int,
-  schema: StructType,
-  saveMode: SaveMode,
-  options: Neo4jOptions,
-  scriptResult: java.util.List[java.util.Map[String, AnyRef]]
-) extends BaseDataWriter(neo4j, jobId, partitionId, schema, saveMode, options, scriptResult)
-    with DataWriter[InternalRow] {}
+object CypherVersionSelector {
+
+  def selectCypherVersionClause(neo4j: Neo4j): String = {
+    if (canIUse(Cypher.explicitCypher5Selection()).withNeo4j(neo4j)) {
+      "CYPHER 5 "
+    } else {
+      ""
+    }
+  }
+}

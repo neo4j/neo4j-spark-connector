@@ -34,6 +34,14 @@
             <artifactId>hamcrest</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>caniuse-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>caniuse-neo4j-detection</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.neo4j.driver</groupId>
             <artifactId>neo4j-java-driver-slim</artifactId>
         </dependency>
@@ -66,6 +74,12 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jetbrains</groupId>
+                    <artifactId>annotations</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>

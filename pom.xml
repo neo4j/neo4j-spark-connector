@@ -38,6 +38,7 @@
     </scm>
     <properties>
         <build-resources.version>2024-12.1</build-resources.version>
+        <caniuse.version>1.0.1</caniuse.version>
         <commons-compress.version>1.27.1</commons-compress.version>
         <cypherdsl.version>2022.11.0</cypherdsl.version>
         <driver.version>4.4.19</driver.version>
@@ -107,6 +108,16 @@
                 <groupId>org.hamcrest</groupId>
                 <artifactId>hamcrest</artifactId>
                 <version>3.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.neo4j</groupId>
+                <artifactId>caniuse-core</artifactId>
+                <version>${caniuse.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.neo4j</groupId>
+                <artifactId>caniuse-neo4j-detection</artifactId>
+                <version>${caniuse.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.neo4j</groupId>

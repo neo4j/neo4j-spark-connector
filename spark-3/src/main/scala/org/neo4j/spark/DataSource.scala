@@ -23,6 +23,10 @@ import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.neo4j.caniuse.Neo4j
+import org.neo4j.caniuse.Neo4jDetectorKt
+import org.neo4j.spark.util.DriverCache
+import org.neo4j.spark.util.Neo4jDriverOptions
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.ValidateConnection
@@ -38,9 +42,11 @@ class DataSource extends TableProvider
 
   private val jobId: String = UUID.randomUUID().toString
 
-  private var schema: StructType = null
+  private var schema: StructType = _
 
-  private var neo4jOptions: Neo4jOptions = null
+  private var neo4jOptions: Neo4jOptions = _
+
+  private var neo4j: Neo4j = _
 
   override def supportsExternalMetadata(): Boolean = true
 
@@ -48,11 +54,28 @@ class DataSource extends TableProvider
     if (schema == null) {
       val neo4jOpts = getNeo4jOptions(caseInsensitiveStringMap)
       Validations.validate(ValidateConnection(neo4jOpts, jobId))
+      val neo4j = getNeo4jInfo(neo4jOpts.connection)
       schema =
-        Neo4jUtil.callSchemaService(neo4jOpts, jobId, Array.empty[Filter], { schemaService => schemaService.struct() })
+        Neo4jUtil.callSchemaService(
+          neo4j,
+          neo4jOpts,
+          jobId,
+          Array.empty[Filter],
+          { schemaService =>
+            schemaService.struct()
+          }
+        )
     }
 
     schema
+  }
+
+  private def getNeo4jInfo(options: Neo4jDriverOptions): Neo4j = {
+    if (neo4j == null) {
+      val driver = new DriverCache(options).getOrCreate()
+      neo4j = Neo4jDetectorKt.detectedWith(Neo4j.Companion, driver)
+    }
+    neo4j
   }
 
   private def getNeo4jOptions(caseInsensitiveStringMap: CaseInsensitiveStringMap) = {
@@ -74,7 +97,9 @@ class DataSource extends TableProvider
     } else {
       inferSchema(caseInsensitiveStringMapNeo4jOptions)
     }
-    new Neo4jTable(schema, map, jobId)
+    val neo4jOpts = getNeo4jOptions(caseInsensitiveStringMapNeo4jOptions)
+    val neo4jInfo = getNeo4jInfo(neo4jOpts.connection)
+    new Neo4jTable(neo4jInfo, schema, map, jobId)
   }
 
   override def shortName(): String = "neo4j"

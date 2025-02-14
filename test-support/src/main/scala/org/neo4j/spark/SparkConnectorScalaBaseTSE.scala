@@ -18,20 +18,12 @@ package org.neo4j.spark
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.hamcrest.Matchers
 import org.junit._
 import org.junit.rules.TestName
 import org.neo4j.Closeables.use
-import org.neo4j.driver.Transaction
-import org.neo4j.driver.TransactionWork
-import org.neo4j.driver.summary.ResultSummary
-import org.neo4j.spark
 import org.scalatestplus.junit.JUnitSuite
 
-import java.util.concurrent.TimeUnit
-
 import scala.annotation.meta.getter
-import scala.collection.JavaConverters.asScalaBufferConverter
 
 object SparkConnectorScalaBaseTSE {
 

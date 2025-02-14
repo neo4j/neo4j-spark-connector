@@ -872,7 +872,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         val clientException = ExceptionUtils.getRootCause(sparkException)
         assertTrue(clientException.getMessage.equals(
           "NATIVE write strategy requires a schema like: rel.[props], source.[props], target.[props]. " +
-            "All of this columns are empty in the current schema."
+            "All of these columns are empty in the current schema."
         ))
         throw sparkException
       }

@@ -26,6 +26,7 @@ import org.apache.spark.sql.connector.write.LogicalWriteInfo
 import org.apache.spark.sql.connector.write.WriteBuilder
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.AccessMode
 import org.neo4j.spark.reader.Neo4jScanBuilder
 import org.neo4j.spark.util.Neo4jOptions
@@ -35,7 +36,8 @@ import org.neo4j.spark.writer.Neo4jWriterBuilder
 
 import scala.collection.JavaConverters._
 
-class Neo4jTable(schema: StructType, options: java.util.Map[String, String], jobId: String) extends Table
+class Neo4jTable(neo4j: Neo4j, schema: StructType, options: java.util.Map[String, String], jobId: String)
+    extends Table
     with SupportsRead
     with SupportsWrite
     with Logging {
@@ -57,14 +59,14 @@ class Neo4jTable(schema: StructType, options: java.util.Map[String, String], job
   ).asJava
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): Neo4jScanBuilder = {
-    Validations.validate(ValidateRead(neo4jOptions, jobId))
-    new Neo4jScanBuilder(neo4jOptions, jobId, schema())
+    Validations.validate(ValidateRead(neo4j, neo4jOptions, jobId))
+    new Neo4jScanBuilder(neo4j, neo4jOptions, jobId, schema())
   }
 
   override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {
     val mapOptions = new java.util.HashMap[String, String](options)
     mapOptions.put(Neo4jOptions.ACCESS_MODE, AccessMode.WRITE.toString)
     val writeNeo4jOptions = new Neo4jOptions(mapOptions)
-    new Neo4jWriterBuilder(info.queryId(), info.schema(), SaveMode.Append, writeNeo4jOptions)
+    new Neo4jWriterBuilder(neo4j, info.queryId(), info.schema(), SaveMode.Append, writeNeo4jOptions)
   }
 }

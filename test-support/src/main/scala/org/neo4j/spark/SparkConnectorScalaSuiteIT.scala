@@ -21,16 +21,13 @@ import org.apache.spark.sql.SparkSession
 import org.junit.AfterClass
 import org.junit.Assume
 import org.junit.BeforeClass
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
 import org.neo4j.Neo4jContainerExtension
+import org.neo4j.caniuse.Neo4j
+import org.neo4j.caniuse.Neo4jDetectorKt
 import org.neo4j.driver._
-import org.neo4j.driver.summary.ResultSummary
 
 import java.io.File
 import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.TimeZone
 
 object SparkConnectorScalaSuiteIT {
@@ -45,6 +42,7 @@ object SparkConnectorScalaSuiteIT {
   var ss: SparkSession = _
   var driver: Driver = _
   var tmpDir: File = _
+  var neo4j: Neo4j = _
 
   @BeforeClass
   def setUpContainer(): Unit = {
@@ -64,12 +62,7 @@ object SparkConnectorScalaSuiteIT {
         .set("spark.sql.warehouse.dir", tmpDir.getAbsolutePath)
       ss = SparkSession.builder.config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
-      session()
-        .readTransaction(new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary =
-            tx.run("RETURN 1").consume() // we init the session so the count is consistent
-        })
-      ()
+      neo4j = Neo4jDetectorKt.detectedWith(Neo4j.Companion, driver)
     }
   }
 

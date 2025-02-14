@@ -21,6 +21,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.Record
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
@@ -42,6 +43,7 @@ import java.util
 import scala.collection.JavaConverters._
 
 abstract class BasePartitionReader(
+  private val neo4j: Neo4j,
   private val options: Neo4jOptions,
   private val filters: Array[Filter],
   private val schema: StructType,
@@ -86,7 +88,7 @@ abstract class BasePartitionReader(
         session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
         transaction = session.beginTransaction()
 
-        val queryText = query
+        val queryText = query()
         val queryParams = queryParameters
 
         logInfo(s"Running the following query on Neo4j: $queryText")
@@ -120,10 +122,17 @@ abstract class BasePartitionReader(
 
   def hasError(): Boolean = error
 
-  protected def query: String = {
+  protected def query(): String = {
     new Neo4jQueryService(
       options,
-      new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.fieldNames, aggregateColumns, jobId)
+      new Neo4jQueryReadStrategy(
+        neo4j,
+        filters,
+        partitionSkipLimit,
+        requiredColumns.fieldNames,
+        aggregateColumns,
+        jobId
+      )
     )
       .createQuery()
   }

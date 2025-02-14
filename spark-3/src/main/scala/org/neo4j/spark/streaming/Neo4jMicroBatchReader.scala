@@ -26,10 +26,12 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.GreaterThan
 import org.apache.spark.sql.sources.LessThanOrEqual
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util._
 
 class Neo4jMicroBatchReader(
+  private val neo4j: Neo4j,
   private val schema: StructType,
   private val neo4jOptions: Neo4jOptions,
   private val jobId: String,
@@ -40,7 +42,7 @@ class Neo4jMicroBatchReader(
   private val driverCache = new DriverCache(neo4jOptions.connection)
 
   private lazy val scriptResult = {
-    val schemaService = new SchemaService(neo4jOptions, driverCache)
+    val schemaService = new SchemaService(neo4j, neo4jOptions, driverCache)
     schemaService.createOptimizations(schema)
     val scriptResult = schemaService.execute(neo4jOptions.script)
     schemaService.close()
@@ -64,6 +66,7 @@ class Neo4jMicroBatchReader(
       )
 
     val partitions = Neo4jUtil.callSchemaService(
+      neo4j,
       neo4jOptions,
       jobId,
       filters,
@@ -81,6 +84,7 @@ class Neo4jMicroBatchReader(
 
   override def latestOffset(): Offset = {
     val offset = Neo4jOffset(Neo4jUtil.callSchemaService[Long](
+      neo4j,
       neo4jOptions,
       jobId,
       filters,
@@ -101,6 +105,7 @@ class Neo4jMicroBatchReader(
 
   override def createReaderFactory(): PartitionReaderFactory = {
     new Neo4jStreamingPartitionReaderFactory(
+      neo4j,
       neo4jOptions,
       schema,
       jobId,

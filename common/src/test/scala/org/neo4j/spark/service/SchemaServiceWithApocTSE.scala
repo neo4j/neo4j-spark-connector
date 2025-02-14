@@ -25,6 +25,10 @@ import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runners.MethodSorters
 import org.neo4j.Closeables.use
+import org.neo4j.caniuse.Neo4j
+import org.neo4j.caniuse.Neo4jDeploymentType
+import org.neo4j.caniuse.Neo4jEdition
+import org.neo4j.caniuse.Neo4jVersion
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
@@ -253,7 +257,8 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val driverCache = new DriverCache(neo4jOptions.connection)
-    val schemaService: SchemaService = new SchemaService(neo4jOptions, driverCache)
+    val neo4j = new Neo4j(new Neo4jVersion(4, 4, 0), Neo4jEdition.ENTERPRISE, Neo4jDeploymentType.SELF_MANAGED)
+    val schemaService: SchemaService = new SchemaService(neo4j, neo4jOptions, driverCache)
 
     val schema: StructType = schemaService.struct()
     schemaService.close()

@@ -22,6 +22,7 @@ import org.junit.Test
 import org.junit.rules.ExpectedException
 import org.neo4j.driver.AccessMode
 import org.neo4j.spark.SparkConnectorScalaSuiteIT
+import org.neo4j.spark.SparkConnectorScalaSuiteIT.neo4j
 import org.neo4j.spark.TestUtil
 
 import java.util.regex.Pattern
@@ -49,7 +50,7 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
     readOpts.put("query", query)
 
     // when
-    Validations.validate(ValidateRead(new Neo4jOptions(readOpts), "1"))
+    Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
   }
 
   @Test
@@ -67,7 +68,7 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
     readOpts.put("query", query)
 
     // when
-    Validations.validate(ValidateRead(new Neo4jOptions(readOpts), "1"))
+    Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
   }
 
   @Test
@@ -87,7 +88,7 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
     readOpts.put("query.count", query)
 
     // when
-    Validations.validate(ValidateRead(new Neo4jOptions(readOpts), "1"))
+    Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
   }
 
   @Test
@@ -109,7 +110,7 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
     readOpts.put("script", "RETURN 1 AS one; RETUR 2 AS two; RETURN 3 AS three")
 
     // when
-    Validations.validate(ValidateRead(new Neo4jOptions(readOpts), "1"))
+    Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
   }
 
   @Test
@@ -129,7 +130,7 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
     writeOpts.put("query", query)
 
     // when
-    Validations.validate(ValidateWrite(new Neo4jOptions(writeOpts), "1", null))
+    Validations.validate(ValidateWrite(neo4j, new Neo4jOptions(writeOpts), "1", null))
   }
 
   @Test
@@ -148,7 +149,7 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
     writeOpts.put("query", query)
 
     // when
-    Validations.validate(ValidateWrite(new Neo4jOptions(writeOpts), "1", null))
+    Validations.validate(ValidateWrite(neo4j, new Neo4jOptions(writeOpts), "1", null))
   }
 
 }

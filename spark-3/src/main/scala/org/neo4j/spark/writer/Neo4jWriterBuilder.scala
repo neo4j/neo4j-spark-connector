@@ -18,7 +18,6 @@ package org.neo4j.spark.writer
 
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.connector.metric.CustomMetric
-import org.apache.spark.sql.connector.metric.CustomSumMetric
 import org.apache.spark.sql.connector.write.BatchWrite
 import org.apache.spark.sql.connector.write.SupportsOverwrite
 import org.apache.spark.sql.connector.write.SupportsTruncate
@@ -27,6 +26,7 @@ import org.apache.spark.sql.connector.write.WriteBuilder
 import org.apache.spark.sql.connector.write.streaming.StreamingWrite
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.streaming.Neo4jStreamingWriter
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.NodeSaveMode
@@ -35,8 +35,13 @@ import org.neo4j.spark.util.ValidateWrite
 import org.neo4j.spark.util.ValidationUtil
 import org.neo4j.spark.util.Validations
 
-class Neo4jWriterBuilder(queryId: String, schema: StructType, saveMode: SaveMode, neo4jOptions: Neo4jOptions)
-    extends WriteBuilder
+class Neo4jWriterBuilder(
+  neo4j: Neo4j,
+  queryId: String,
+  schema: StructType,
+  saveMode: SaveMode,
+  neo4jOptions: Neo4jOptions
+) extends WriteBuilder
     with SupportsOverwrite
     with SupportsTruncate {
 
@@ -52,6 +57,7 @@ class Neo4jWriterBuilder(queryId: String, schema: StructType, saveMode: SaveMode
 
   def validOptions(actualSaveMode: SaveMode): Neo4jOptions = {
     Validations.validate(ValidateWrite(
+      neo4j,
       neo4jOptions,
       queryId,
       actualSaveMode,
@@ -66,7 +72,8 @@ class Neo4jWriterBuilder(queryId: String, schema: StructType, saveMode: SaveMode
     neo4jOptions
   }
 
-  override def buildForBatch(): BatchWrite = new Neo4jBatchWriter(queryId, schema, saveMode, validOptions(saveMode))
+  override def buildForBatch(): BatchWrite =
+    new Neo4jBatchWriter(neo4j, queryId, schema, saveMode, validOptions(saveMode))
 
   @volatile
   private var streamWriter: Neo4jStreamingWriter = _
@@ -84,6 +91,7 @@ class Neo4jWriterBuilder(queryId: String, schema: StructType, saveMode: SaveMode
 
       val saveMode = SaveMode.valueOf(streamingSaveMode)
       streamWriter = new Neo4jStreamingWriter(
+        neo4j,
         queryId,
         schema,
         saveMode,
@@ -95,6 +103,6 @@ class Neo4jWriterBuilder(queryId: String, schema: StructType, saveMode: SaveMode
   }
 
   override def overwrite(filters: Array[Filter]): WriteBuilder = {
-    new Neo4jWriterBuilder(queryId, schema, SaveMode.Overwrite, neo4jOptions)
+    new Neo4jWriterBuilder(neo4j, queryId, schema, SaveMode.Overwrite, neo4jOptions)
   }
 }

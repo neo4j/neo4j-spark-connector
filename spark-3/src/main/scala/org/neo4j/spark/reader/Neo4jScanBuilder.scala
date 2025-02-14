@@ -31,6 +31,7 @@ import org.apache.spark.sql.connector.read.SupportsPushDownV2Filters
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.config.TopN
 import org.neo4j.spark.util.Neo4jImplicits.AggregationImplicit
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
@@ -38,7 +39,7 @@ import org.neo4j.spark.util.Neo4jImplicits.PredicateImplicit
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.QueryType
 
-class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: StructType)
+class Neo4jScanBuilder(neo4jInfo: Neo4j, neo4jOptions: Neo4jOptions, jobId: String, schema: StructType)
     extends SupportsPushDownV2Filters
     with SupportsPushDownAggregates
     with SupportsPushDownRequiredColumns
@@ -57,6 +58,7 @@ class Neo4jScanBuilder(neo4jOptions: Neo4jOptions, jobId: String, schema: Struct
 
   override def build(): Scan = {
     new Neo4jScan(
+      neo4jInfo,
       neo4jOptions,
       jobId,
       requiredSchema,

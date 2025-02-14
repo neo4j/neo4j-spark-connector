@@ -22,6 +22,9 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.CanIUse.INSTANCE.canIUse
+import org.neo4j.caniuse.Cypher.{INSTANCE => Cypher}
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.Record
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
@@ -33,14 +36,16 @@ import org.neo4j.driver.summary
 import org.neo4j.spark.config.TopN
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.converter.SparkToCypherTypeConverter
+import org.neo4j.spark.cypher.CypherVersionSelector
+import org.neo4j.spark.cypher.CypherVersionSelector.selectCypherVersionClause
 import org.neo4j.spark.service.SchemaService.normalizedClassName
 import org.neo4j.spark.service.SchemaService.normalizedClassNameFromGraphEntity
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
+import org.neo4j.spark.util.OptimizationType
 import org.neo4j.spark.util._
 
 import java.util
 import java.util.Collections
-import java.util.Optional
 import java.util.function
 
 import scala.collection.JavaConverters._
@@ -48,23 +53,19 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object PartitionPagination {
-  val EMPTY = PartitionPagination(0, -1, TopN(-1))
-  val EMPTY_FOR_QUERY = PartitionPagination(0, 0, TopN(0))
+  val EMPTY: PartitionPagination = PartitionPagination(0, -1, TopN(-1))
 }
 
 case class PartitionPagination(partitionNumber: Int, skip: Long, topN: TopN)
 
-case class Neo4jVersion(name: String, versions: Seq[String], edition: String)
-
 class SchemaService(
+  private val neo4j: Neo4j,
   private val options: Neo4jOptions,
   private val driverCache: DriverCache,
   private val filters: Array[Filter] = Array.empty
 ) extends AutoCloseable with Logging {
 
-  private val emptyStruct: StructType = StructType(Seq.empty)
-
-  private val queryReadStrategy = new Neo4jQueryReadStrategy(filters)
+  private val queryReadStrategy = new Neo4jQueryReadStrategy(neo4j, filters)
 
   private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
 
@@ -72,15 +73,15 @@ class SchemaService(
 
   private val sparkToCypherTypeConverter = SparkToCypherTypeConverter()
 
-  private def structForNode(labels: Seq[String] = options.nodeMetadata.labels): StructType = {
+  private def structForNode(labels: Seq[String] = options.nodeMetadata.labels) = {
     val structFields: mutable.Buffer[StructField] = (try {
       val query =
-        """CALL apoc.meta.nodeTypeProperties($config)
-          |YIELD propertyName, propertyTypes
-          |WITH DISTINCT propertyName, propertyTypes
-          |WITH propertyName, collect(propertyTypes) AS propertyTypes
-          |RETURN propertyName, reduce(acc = [], elem IN propertyTypes | acc + elem) AS propertyTypes
-          |""".stripMargin
+        s"""${selectCypherVersionClause(neo4j)}CALL apoc.meta.nodeTypeProperties($$config)
+           |YIELD propertyName, propertyTypes
+           |WITH DISTINCT propertyName, propertyTypes
+           |WITH propertyName, collect(propertyTypes) AS propertyTypes
+           |RETURN propertyName, reduce(acc = [], elem IN propertyTypes | acc + elem) AS propertyTypes
+           |""".stripMargin
       val apocConfig = options.apocConfig.procedureConfigMap
         .getOrElse("apoc.meta.nodeTypeProperties", Map.empty[String, AnyRef])
         .asInstanceOf[Map[String, AnyRef]] ++ Map[String, AnyRef]("includeLabels" -> labels.asJava)
@@ -90,7 +91,7 @@ class SchemaService(
         logResolutionChange("Switching to query schema resolution", e)
         // TODO get back to Cypher DSL when rand function will be available
         val query =
-          s"""MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
+          s"""${selectCypherVersionClause(neo4j)}MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
              |RETURN ${Neo4jUtil.NODE_ALIAS}
              |ORDER BY rand()
              |LIMIT ${options.schemaMetadata.flattenLimit}
@@ -191,7 +192,7 @@ class SchemaService(
     StructField(name, field.dataType, field.nullable, field.metadata)
   }
 
-  def structForRelationship(): StructType = {
+  private def structForRelationship() = {
     val structFields: mutable.Buffer[StructField] = ArrayBuffer(
       StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.LongType, false),
       StructField(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, DataTypes.StringType, false)
@@ -217,12 +218,14 @@ class SchemaService(
 
     structFields ++= (try {
       val query =
-        """CALL apoc.meta.relTypeProperties($config) YIELD sourceNodeLabels, targetNodeLabels,
-          | propertyName, propertyTypes
-          |WITH *
-          |WHERE sourceNodeLabels = $sourceLabels AND targetNodeLabels = $targetLabels
-          |RETURN *
-          |""".stripMargin
+        s"""${selectCypherVersionClause(
+            neo4j
+          )}CALL apoc.meta.relTypeProperties($$config) YIELD sourceNodeLabels, targetNodeLabels,
+           | propertyName, propertyTypes
+           |WITH *
+           |WHERE sourceNodeLabels = $$sourceLabels AND targetNodeLabels = $$targetLabels
+           |RETURN *
+           |""".stripMargin
       val apocConfig = options.apocConfig.procedureConfigMap
         .getOrElse("apoc.meta.relTypeProperties", Map.empty[String, AnyRef])
         .asInstanceOf[Map[String, AnyRef]]
@@ -239,7 +242,9 @@ class SchemaService(
         logResolutionChange("Switching to query schema resolution", e)
         // TODO get back to Cypher DSL when rand function will be available
         val query =
-          s"""MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(
+          s"""${selectCypherVersionClause(
+              neo4j
+            )}MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(
               _.quote()
             ).mkString(":")})
              |MATCH (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}:${options.relationshipMetadata.target.labels.map(
@@ -262,7 +267,7 @@ class SchemaService(
     StructType(structFields.toSeq)
   }
 
-  def structForQuery(): StructType = {
+  private def structForQuery(): StructType = {
     val query = queryReadStrategy.createStatementForQuery(options)
     if (!isValidQuery(query, summary.QueryType.READ_ONLY)) {
       return new StructType()
@@ -321,19 +326,19 @@ class SchemaService(
     StructType(sortedStructFields)
   }
 
-  def structForGDS(): StructType = {
+  private def structForGDS() = {
     val query =
-      """
-        |CALL gds.list() YIELD name, signature, type
-        |WHERE name = $procName AND type = 'procedure'
-        |WITH split(signature, ') :: (')[1] AS fields
-        |WITH substring(fields, 0, size(fields) - 1) AS fields
-        |WITH split(fields, ',') AS fields
-        |WITH [field IN fields | split(field, ' :: ')] AS fields
-        |UNWIND fields AS field
-        |WITH field
-        |RETURN *
-        |""".stripMargin
+      s"""
+         |${selectCypherVersionClause(neo4j)}CALL gds.list() YIELD name, signature, type
+         |WHERE name = $$procName AND type = 'procedure'
+         |WITH split(signature, ') :: (')[1] AS fields
+         |WITH substring(fields, 0, size(fields) - 1) AS fields
+         |WITH split(fields, ',') AS fields
+         |WITH [field IN fields | split(field, ' :: ')] AS fields
+         |UNWIND fields AS field
+         |WITH field
+         |RETURN *
+         |""".stripMargin
     val map: util.Map[String, AnyRef] = Map[String, AnyRef]("procName" -> options.query.value).asJava
     val fields = session.run(query, map).list.asScala
       .map(r => r.get("field").asList((t: Value) => t.asString()).asScala)
@@ -642,20 +647,6 @@ class SchemaService(
       }
     }
 
-  def neo4jVersion() = session
-    .run("CALL dbms.components()")
-    .single()
-    .asMap()
-    .asScala
-    .mapResult[Neo4jVersion](m =>
-      Neo4jVersion(
-        m("name").asInstanceOf[String],
-        m("versions").asInstanceOf[util.List[String]].asScala.toSeq,
-        m("edition").asInstanceOf[String]
-      )
-    )
-    .result()
-
   @deprecated("use createEntityConstraint instead")
   private def createIndexOrConstraint(action: OptimizationType.Value, label: String, props: Seq[String]): Unit =
     action match {
@@ -666,7 +657,7 @@ class SchemaService(
           val quotedProps = props
             .map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.quote()}")
             .mkString(", ")
-          val isNeo4j4 = neo4jVersion().versions.head.startsWith("4.")
+          val isNeo4j4 = neo4j.getVersion.getMajor == 4
           val uniqueFieldName = if (!isNeo4j4) "owningConstraint" else "uniqueness"
           val dashSeparatedProps = props.mkString("-")
           val (querySuffix, uniqueCondition) = action match {
@@ -1005,6 +996,7 @@ class SchemaService(
   override def close(): Unit = {
     Neo4jUtil.closeSafely(session, log)
   }
+
 }
 
 object SchemaService {

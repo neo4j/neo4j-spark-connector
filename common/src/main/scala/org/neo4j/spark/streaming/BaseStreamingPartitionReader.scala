@@ -21,6 +21,7 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.GreaterThan
 import org.apache.spark.sql.sources.LessThanOrEqual
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core.Cypher
 import org.neo4j.spark.reader.BasePartitionReader
 import org.neo4j.spark.service.Neo4jQueryStrategy
@@ -39,6 +40,7 @@ import java.util.regex.Pattern
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 class BaseStreamingPartitionReader(
+  private val neo4j: Neo4j,
   private val options: Neo4jOptions,
   private val filters: Array[Filter],
   private val schema: StructType,
@@ -48,6 +50,7 @@ class BaseStreamingPartitionReader(
   private val requiredColumns: StructType,
   private val aggregateColumns: Array[AggregateFunc]
 ) extends BasePartitionReader(
+      neo4j,
       options,
       filters,
       schema,
@@ -87,10 +90,10 @@ class BaseStreamingPartitionReader(
     super.close()
   }
 
-  override protected def query: String = {
+  override protected def query(): String = {
     options.query.queryType match {
       case QUERY =>
-        val originalQuery = super.query
+        val originalQuery = super.query()
 
         if (offsetUsagePatterns.exists(_.test(originalQuery))) {
           logWarning(
@@ -113,8 +116,8 @@ class BaseStreamingPartitionReader(
           .getCypher
       // we don't need to rewrite the queries for LABELS and RELATIONSHIPS because spark filters already cover our
       // criteria which are added to the query text in Neo4jQueryService
-      case LABELS       => super.query
-      case RELATIONSHIP => super.query
+      case LABELS       => super.query()
+      case RELATIONSHIP => super.query()
       case GDS =>
         throw new UnsupportedOperationException("GDS strategy is not supported in structured streaming use cases.")
     }

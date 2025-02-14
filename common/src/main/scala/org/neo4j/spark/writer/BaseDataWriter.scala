@@ -22,6 +22,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.metric.CustomTaskMetric
 import org.apache.spark.sql.connector.write.DataWriter
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.Values
@@ -42,6 +43,7 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 abstract class BaseDataWriter(
+  neo4j: Neo4j,
   jobId: String,
   partitionId: Int,
   structType: StructType,
@@ -64,7 +66,8 @@ abstract class BaseDataWriter(
 
   private val retries = new CountDownLatch(options.transactionSettings.retries)
 
-  private val query: String = new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(saveMode)).createQuery()
+  private val query: String =
+    new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(neo4j, saveMode)).createQuery()
 
   private val metrics = DataWriterMetrics()
 

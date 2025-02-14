@@ -139,7 +139,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     ) {
       throw new IllegalArgumentException(
         "NATIVE write strategy requires a schema like: rel.[props], source.[props], target.[props]. " +
-          "All of this columns are empty in the current schema."
+          "All of these columns are empty in the current schema."
       )
     }
 

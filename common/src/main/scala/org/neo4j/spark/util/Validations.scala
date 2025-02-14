@@ -20,8 +20,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.AccessMode
-import org.neo4j.driver.Session
 import org.neo4j.driver.summary
 import org.neo4j.spark.service.Neo4jQueryStrategy
 import org.neo4j.spark.service.SchemaService
@@ -251,6 +251,7 @@ case class ValidateSaveMode(saveMode: String) extends Validation {
 }
 
 case class ValidateWrite(
+  neo4j: Neo4j,
   neo4jOptions: Neo4jOptions,
   jobId: String,
   saveMode: SaveMode,
@@ -263,7 +264,7 @@ case class ValidateWrite(
       s"Mode READ not supported for Data Source writer"
     )
     val cache = new DriverCache(neo4jOptions.connection)
-    val schemaService = new SchemaService(neo4jOptions, cache)
+    val schemaService = new SchemaService(neo4j, neo4jOptions, cache)
     try {
       ValidateConnection(neo4jOptions, jobId).validate()
       ValidateNeo4jOptionsConsistency(neo4jOptions).validate()
@@ -326,11 +327,11 @@ case class ValidateWrite(
   }
 }
 
-case class ValidateRead(neo4jOptions: Neo4jOptions, jobId: String) extends Validation {
+case class ValidateRead(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId: String) extends Validation {
 
   override def validate(): Unit = {
     val cache = new DriverCache(neo4jOptions.connection)
-    val schemaService = new SchemaService(neo4jOptions, cache)
+    val schemaService = new SchemaService(neo4j, neo4jOptions, cache)
     try {
       ValidateConnection(neo4jOptions, jobId).validate()
       ValidateNeo4jOptionsConsistency(neo4jOptions).validate()
@@ -514,11 +515,11 @@ case class ValidateGdsMetadata(neo4jGdsMetadata: Neo4jGdsMetadata) extends Valid
   }
 }
 
-case class ValidateReadStreaming(neo4jOptions: Neo4jOptions, jobId: String) extends Validation {
+case class ValidateReadStreaming(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId: String) extends Validation {
 
   override def validate(): Unit = {
     val cache = new DriverCache(neo4jOptions.connection)
-    val schemaService = new SchemaService(neo4jOptions, cache)
+    val schemaService = new SchemaService(neo4j, neo4jOptions, cache)
     try {
       ValidationUtil.isTrue(
         neo4jOptions.partitions == 1,

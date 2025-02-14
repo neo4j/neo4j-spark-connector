@@ -21,10 +21,12 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.write.DataWriter
 import org.apache.spark.sql.connector.write.streaming.StreamingDataWriterFactory
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.writer.Neo4jDataWriter
 
 class Neo4jStreamingDataWriterFactory(
+  neo4j: Neo4j,
   jobId: String,
   schema: StructType,
   saveMode: SaveMode,
@@ -34,6 +36,7 @@ class Neo4jStreamingDataWriterFactory(
 
   override def createWriter(partitionId: Int, taskId: Long, epochId: Long): DataWriter[InternalRow] =
     new Neo4jDataWriter(
+      neo4j,
       jobId,
       partitionId,
       schema,

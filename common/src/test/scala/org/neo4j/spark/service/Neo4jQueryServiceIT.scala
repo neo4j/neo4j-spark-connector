@@ -25,7 +25,12 @@ import org.junit.Assert
 import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runners.MethodSorters
+import org.neo4j.caniuse.Neo4j
+import org.neo4j.caniuse.Neo4jDeploymentType
+import org.neo4j.caniuse.Neo4jEdition
+import org.neo4j.caniuse.Neo4jVersion
 import org.neo4j.spark.SparkConnectorScalaSuiteWithGdsBase
+import org.neo4j.spark.SparkConnectorScalaSuiteWithGdsBase.neo4j
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.DummyNamedReference
 import org.neo4j.spark.util.Neo4jOptions
@@ -52,6 +57,7 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
     val query: String = new Neo4jQueryService(
       neo4jOptions,
       new Neo4jQueryReadStrategy(
+        neo4j,
         Array.empty,
         PartitionPagination.EMPTY,
         List(

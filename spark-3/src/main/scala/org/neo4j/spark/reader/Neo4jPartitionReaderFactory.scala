@@ -23,10 +23,12 @@ import org.apache.spark.sql.connector.read.PartitionReader
 import org.apache.spark.sql.connector.read.PartitionReaderFactory
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.util.Neo4jOptions
 
 class Neo4jPartitionReaderFactory(
+  private val neo4j: Neo4j,
   private val neo4jOptions: Neo4jOptions,
   private val filters: Array[Filter],
   private val schema: StructType,
@@ -37,6 +39,7 @@ class Neo4jPartitionReaderFactory(
 ) extends PartitionReaderFactory {
 
   override def createReader(partition: InputPartition): PartitionReader[InternalRow] = new Neo4jPartitionReader(
+    neo4j,
     neo4jOptions,
     filters,
     schema,

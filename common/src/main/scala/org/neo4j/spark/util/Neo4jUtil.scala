@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.module.SimpleModule
 import org.apache.spark.sql.sources._
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core._
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
@@ -208,13 +209,14 @@ object Neo4jUtil {
   }
 
   def callSchemaService[T](
+    neo4j: Neo4j,
     neo4jOptions: Neo4jOptions,
     jobId: String,
     filters: Array[Filter],
     function: SchemaService => T
   ): T = {
     val driverCache = new DriverCache(neo4jOptions.connection)
-    val schemaService = new SchemaService(neo4jOptions, driverCache, filters)
+    val schemaService = new SchemaService(neo4j, neo4jOptions, driverCache, filters)
     var hasError = false
     try {
       function(schemaService)

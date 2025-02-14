@@ -24,21 +24,20 @@ import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.connector.read.streaming.MicroBatchStream
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.config.TopN
 import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.streaming.Neo4jMicroBatchReader
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jUtil
-import org.neo4j.spark.util.StorageType
 import org.neo4j.spark.util.ValidateReadNotStreaming
 import org.neo4j.spark.util.ValidateReadStreaming
 import org.neo4j.spark.util.Validations
 
-import java.util.Optional
-
 case class Neo4jPartition(partitionSkipLimit: PartitionPagination) extends InputPartition
 
 class Neo4jScan(
+  neo4j: Neo4j,
   neo4jOptions: Neo4jOptions,
   jobId: String,
   schema: StructType,
@@ -56,6 +55,7 @@ class Neo4jScan(
     Validations.validate(ValidateReadNotStreaming(neo4jOptions, jobId))
     // we get the skip/limit for each partition and execute the "script"
     val (partitionSkipLimitList, scriptResult) = Neo4jUtil.callSchemaService(
+      neo4j,
       neo4jOptions,
       jobId,
       filters,
@@ -76,6 +76,7 @@ class Neo4jScan(
 
   override def createReaderFactory(): PartitionReaderFactory = {
     new Neo4jPartitionReaderFactory(
+      neo4j,
       neo4jOptions,
       filters,
       schema,
@@ -89,7 +90,7 @@ class Neo4jScan(
   override def readSchema(): StructType = schema
 
   override def toMicroBatchStream(checkpointLocation: String): MicroBatchStream = {
-    Validations.validate(ValidateReadStreaming(neo4jOptions, jobId))
-    new Neo4jMicroBatchReader(schema, neo4jOptions, jobId, aggregateColumns)
+    Validations.validate(ValidateReadStreaming(neo4j, neo4jOptions, jobId))
+    new Neo4jMicroBatchReader(neo4j, schema, neo4jOptions, jobId, aggregateColumns)
   }
 }

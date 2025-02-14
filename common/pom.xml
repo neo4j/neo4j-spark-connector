@@ -14,6 +14,14 @@
     <dependencies>
         <dependency>
             <groupId>org.neo4j</groupId>
+            <artifactId>caniuse-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>caniuse-neo4j-detection</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
             <artifactId>neo4j-cypher-dsl</artifactId>
         </dependency>
         <dependency>

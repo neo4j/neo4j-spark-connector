@@ -22,9 +22,11 @@ import org.apache.spark.sql.connector.write.DataWriter
 import org.apache.spark.sql.connector.write.DataWriterFactory
 import org.apache.spark.sql.connector.write.PhysicalWriteInfo
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.util.Neo4jOptions
 
 class Neo4jDataWriterFactory(
+  neo4j: Neo4j,
   jobId: String,
   structType: StructType,
   saveMode: SaveMode,
@@ -33,6 +35,7 @@ class Neo4jDataWriterFactory(
 ) extends DataWriterFactory {
 
   override def createWriter(partitionId: Int, taskId: Long): DataWriter[InternalRow] = new Neo4jDataWriter(
+    neo4j,
     jobId,
     partitionId,
     structType,

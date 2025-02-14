@@ -25,8 +25,11 @@ import org.apache.spark.sql.connector.expressions.aggregate._
 import org.apache.spark.sql.sources.And
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.Or
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core._
 import org.neo4j.cypherdsl.core.renderer.Renderer
+import org.neo4j.spark.cypher.Cypher5Renderer
+import org.neo4j.spark.cypher.CypherVersionSelector.selectCypherVersionClause
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jUtil
@@ -35,7 +38,7 @@ import org.neo4j.spark.util.QueryType
 
 import scala.collection.JavaConverters._
 
-class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQueryStrategy {
+class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: SaveMode) extends Neo4jQueryStrategy {
 
   override def createStatementForQuery(options: Neo4jOptions): String =
     s"""WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
@@ -111,7 +114,7 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
       ""
     }
 
-    s"""UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
+    s"""${selectCypherVersionClause(neo4j)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$sourceQueryPart$withQueryPart
        |$targetQueryPart
        |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:$relationship$relKeys]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
@@ -131,7 +134,7 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
       Neo4jWriteMappingStrategy.KEYS
     )
 
-    s"""UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
+    s"""${selectCypherVersionClause(neo4j)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$keyword (node${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})
        |SET node += ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jWriteMappingStrategy.PROPERTIES}
        |""".stripMargin
@@ -142,13 +145,14 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
 }
 
 class Neo4jQueryReadStrategy(
+  neo4j: Neo4j,
   filters: Array[Filter] = Array.empty[Filter],
   partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
   requiredColumns: Seq[String] = Seq.empty,
   aggregateColumns: Array[AggregateFunc] = Array.empty,
   jobId: String = ""
 ) extends Neo4jQueryStrategy with Logging {
-  private val renderer: Renderer = Renderer.getDefaultRenderer
+  private val renderer: Renderer = new Cypher5Renderer(neo4j)
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 
@@ -494,6 +498,7 @@ class Neo4jQueryReadStrategy(
     val retCols = requiredColumns.map(column => getCorrectProperty(column, null))
     // we need it in order to parse the field YIELD by the GDS procedure...
     val (yieldFields, args) = Neo4jUtil.callSchemaService(
+      neo4j,
       options,
       jobId,
       filters,

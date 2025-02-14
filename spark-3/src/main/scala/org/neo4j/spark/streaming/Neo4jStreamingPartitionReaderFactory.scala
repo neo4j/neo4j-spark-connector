@@ -25,6 +25,7 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.AccumulatorV2
 import org.apache.spark.util.LongAccumulator
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.util.Neo4jOptions
 
@@ -32,6 +33,7 @@ case class Neo4jStreamingPartition(partitionSkipLimit: PartitionPagination, filt
     extends InputPartition
 
 class Neo4jStreamingPartitionReaderFactory(
+  private val neo4j: Neo4j,
   private val neo4jOptions: Neo4jOptions,
   private val schema: StructType,
   private val jobId: String,
@@ -41,6 +43,7 @@ class Neo4jStreamingPartitionReaderFactory(
 
   override def createReader(partition: InputPartition): PartitionReader[InternalRow] =
     new Neo4jStreamingPartitionReader(
+      neo4j,
       neo4jOptions,
       partition.asInstanceOf[Neo4jStreamingPartition].filters,
       schema,

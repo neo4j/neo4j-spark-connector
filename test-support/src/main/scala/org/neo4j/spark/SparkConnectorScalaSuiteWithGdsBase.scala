@@ -28,9 +28,13 @@ import org.junit.Rule
 import org.junit.rules.TestName
 import org.neo4j.Closeables.use
 import org.neo4j.Neo4jContainerExtension
+import org.neo4j.caniuse.Neo4j
+import org.neo4j.caniuse.Neo4jDetectorKt
 import org.neo4j.driver._
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.spark
+import org.neo4j.spark.SparkConnectorScalaSuiteIT.driver
+import org.neo4j.spark.SparkConnectorScalaSuiteIT.neo4j
 import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT.driver
 
 import java.util.TimeZone
@@ -50,6 +54,7 @@ object SparkConnectorScalaSuiteWithGdsBase {
   var conf: SparkConf = _
   var ss: SparkSession = _
   var driver: Driver = _
+  var neo4j: Neo4j = _
 
   @BeforeClass
   def setUpContainer(): Unit = {
@@ -66,9 +71,7 @@ object SparkConnectorScalaSuiteWithGdsBase {
         .set("spark.driver.host", "127.0.0.1")
       ss = SparkSession.builder.config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
-      session()
-        .readTransaction((tx: Transaction) => tx.run("RETURN 1").consume())
-      ()
+      neo4j = Neo4jDetectorKt.detectedWith(Neo4j.Companion, driver)
     }
   }
 

@@ -24,6 +24,7 @@ import org.apache.spark.sql.connector.write.streaming.StreamingDataWriterFactory
 import org.apache.spark.sql.connector.write.streaming.StreamingWrite
 import org.apache.spark.sql.streaming.StreamingQueryListener
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
@@ -32,6 +33,7 @@ import org.neo4j.spark.util.Neo4jUtil
 import java.util.Optional
 
 class Neo4jStreamingWriter(
+  val neo4j: Neo4j,
   val queryId: String,
   val schema: StructType,
   saveMode: SaveMode,
@@ -57,7 +59,7 @@ class Neo4jStreamingWriter(
   private val driverCache = new DriverCache(neo4jOptions.connection)
 
   private lazy val scriptResult = {
-    val schemaService = new SchemaService(neo4jOptions, driverCache)
+    val schemaService = new SchemaService(neo4j, neo4jOptions, driverCache)
     schemaService.createOptimizations(schema)
     val scriptResult = schemaService.execute(neo4jOptions.script)
     schemaService.close()
@@ -66,6 +68,7 @@ class Neo4jStreamingWriter(
 
   override def createStreamingWriterFactory(info: PhysicalWriteInfo): StreamingDataWriterFactory = {
     new Neo4jStreamingDataWriterFactory(
+      neo4j,
       queryId,
       schema,
       saveMode,
