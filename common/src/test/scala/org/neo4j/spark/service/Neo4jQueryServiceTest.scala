@@ -16,6 +16,8 @@
  */
 package org.neo4j.spark.service
 
+import junitparams.JUnitParamsRunner
+import junitparams.Parameters
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.connector.expressions.Expression
 import org.apache.spark.sql.connector.expressions.NullOrdering
@@ -28,9 +30,12 @@ import org.apache.spark.sql.connector.expressions.aggregate.Sum
 import org.apache.spark.sql.sources._
 import org.junit.Assert._
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.neo4j.caniuse.Neo4j
-import org.neo4j.caniuse.Neo4jDeploymentType
+import org.neo4j.caniuse.Neo4jDeploymentType.SELF_MANAGED
 import org.neo4j.caniuse.Neo4jEdition
+import org.neo4j.caniuse.Neo4jEdition.COMMUNITY
+import org.neo4j.caniuse.Neo4jEdition.ENTERPRISE
 import org.neo4j.caniuse.Neo4jVersion
 import org.neo4j.spark.config.TopN
 import org.neo4j.spark.util.DummyNamedReference
@@ -40,13 +45,12 @@ import org.neo4j.spark.util.QueryType
 
 import scala.collection.immutable.HashMap
 
+@RunWith(classOf[JUnitParamsRunner])
 class Neo4jQueryServiceTest {
 
-  private val neo4j: Neo4j =
-    new Neo4j(new Neo4jVersion(4, 4, 0), Neo4jEdition.ENTERPRISE, Neo4jDeploymentType.SELF_MANAGED)
-
   @Test
-  def testNodeOneLabel(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testNodeOneLabel(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -54,11 +58,12 @@ class Neo4jQueryServiceTest {
 
     val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j)).createQuery()
 
-    assertEquals("MATCH (n:`Person`) RETURN n", query)
+    assertEquals(s"${prefix}MATCH (n:`Person`) RETURN n", query)
   }
 
   @Test
-  def testNodeMultipleLabels(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testNodeMultipleLabels(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
@@ -66,11 +71,12 @@ class Neo4jQueryServiceTest {
 
     val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j)).createQuery()
 
-    assertEquals("MATCH (n:`Person`:`Player`:`Midfield`) RETURN n", query)
+    assertEquals(s"${prefix}MATCH (n:`Person`:`Player`:`Midfield`) RETURN n", query)
   }
 
   @Test
-  def testNodeMultipleLabelsWithPartitions(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testNodeMultipleLabelsWithPartitions(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
@@ -84,11 +90,12 @@ class Neo4jQueryServiceTest {
       )
     ).createQuery()
 
-    assertEquals("MATCH (n:`Person`:`Player`:`Midfield`) RETURN n LIMIT 100", query)
+    assertEquals(s"${prefix}MATCH (n:`Person`:`Player`:`Midfield`) RETURN n LIMIT 100", query)
   }
 
   @Test
-  def testNodeOneLabelWithOneSelectedColumn(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testNodeOneLabelWithOneSelectedColumn(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -99,11 +106,12 @@ class Neo4jQueryServiceTest {
       new Neo4jQueryReadStrategy(neo4j, Array.empty[Filter], PartitionPagination.EMPTY, Seq("name"))
     ).createQuery()
 
-    assertEquals("MATCH (n:`Person`) RETURN n.name AS name", query)
+    assertEquals(s"${prefix}MATCH (n:`Person`) RETURN n.name AS name", query)
   }
 
   @Test
-  def testNodeOneLabelWithMultipleColumnSelected(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testNodeOneLabelWithMultipleColumnSelected(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -114,11 +122,12 @@ class Neo4jQueryServiceTest {
       new Neo4jQueryReadStrategy(neo4j, Array.empty[Filter], PartitionPagination.EMPTY, List("name", "bornDate"))
     ).createQuery()
 
-    assertEquals("MATCH (n:`Person`) RETURN n.name AS name, n.bornDate AS bornDate", query)
+    assertEquals(s"${prefix}MATCH (n:`Person`) RETURN n.name AS name, n.bornDate AS bornDate", query)
   }
 
   @Test
-  def testNodeOneLabelWithInternalIdSelected(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testNodeOneLabelWithInternalIdSelected(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -129,11 +138,12 @@ class Neo4jQueryServiceTest {
       new Neo4jQueryReadStrategy(neo4j, Array.empty[Filter], PartitionPagination.EMPTY, List("<id>"))
     ).createQuery()
 
-    assertEquals("MATCH (n:`Person`) RETURN id(n) AS `<id>`", query)
+    assertEquals(s"${prefix}MATCH (n:`Person`) RETURN id(n) AS `<id>`", query)
   }
 
   @Test
-  def testNodeFilterEqualTo(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testNodeFilterEqualTo(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -147,11 +157,12 @@ class Neo4jQueryServiceTest {
 
     val paramName = "$" + "name".toParameterName("John Doe")
 
-    assertEquals(s"MATCH (n:`Person`) WHERE n.name = $paramName RETURN n", query)
+    assertEquals(s"${prefix}MATCH (n:`Person`) WHERE n.name = $paramName RETURN n", query)
   }
 
   @Test
-  def testNodeFilterEqualNullSafe(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testNodeFilterEqualNullSafe(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -168,7 +179,7 @@ class Neo4jQueryServiceTest {
     val ageParameterName = "$" + "age".toParameterName(36)
 
     assertEquals(
-      s"""MATCH (n:`Person`)
+      s"""${prefix}MATCH (n:`Person`)
          | WHERE (((n.name IS NULL AND $nameParameterName IS NULL)
          | OR n.name = $nameParameterName) AND n.age = $ageParameterName)
          | RETURN n""".stripMargin.replaceAll("\n", ""),
@@ -177,7 +188,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testNodeFilterEqualNullSafeWithNullValue(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testNodeFilterEqualNullSafeWithNullValue(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -194,13 +206,14 @@ class Neo4jQueryServiceTest {
     val ageParameterName = "$" + "age".toParameterName(36)
 
     assertEquals(
-      s"MATCH (n:`Person`) WHERE (((n.name IS NULL AND $nameParameterName IS NULL) OR n.name = $nameParameterName) AND n.age = $ageParameterName) RETURN n",
+      s"${prefix}MATCH (n:`Person`) WHERE (((n.name IS NULL AND $nameParameterName IS NULL) OR n.name = $nameParameterName) AND n.age = $ageParameterName) RETURN n",
       query
     )
   }
 
   @Test
-  def testNodeFilterStartsEndsWith(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testNodeFilterStartsEndsWith(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -217,7 +230,7 @@ class Neo4jQueryServiceTest {
     val nameTwoParameterName = "$" + "name".toParameterName("Person Surname")
 
     assertEquals(
-      s"""MATCH (n:`Person`)
+      s"""${prefix}MATCH (n:`Person`)
          | WHERE (n.name STARTS WITH $nameOneParameterName
          | AND n.name ENDS WITH $nameTwoParameterName)
          | RETURN n""".stripMargin.replaceAll("\n", ""),
@@ -226,7 +239,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testRelationshipWithOneColumnSelected(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testRelationshipWithOneColumnSelected(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -246,7 +260,7 @@ class Neo4jQueryServiceTest {
     ).createQuery()
 
     assertEquals(
-      "MATCH (source:`Person`) " +
+      s"${prefix}MATCH (source:`Person`) " +
         "MATCH (target:`Person`) " +
         "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`",
       query
@@ -254,7 +268,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testRelationshipWithMoreColumnSelected(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testRelationshipWithMoreColumnSelected(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -274,7 +289,7 @@ class Neo4jQueryServiceTest {
     ).createQuery()
 
     assertEquals(
-      "MATCH (source:`Person`) " +
+      s"${prefix}MATCH (source:`Person`) " +
         "MATCH (target:`Person`) " +
         "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, id(source) AS `<source.id>`",
       query
@@ -282,7 +297,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testRelationshipWithMoreColumnSelectedWithPartitions(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testRelationshipWithMoreColumnSelectedWithPartitions(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -302,11 +318,11 @@ class Neo4jQueryServiceTest {
     ).createQuery()
 
     assertEquals(
-      """MATCH (source:`Person`)
-        |MATCH (target:`Person`)
-        |MATCH (source)-[rel:`KNOWS`]->(target)
-        |RETURN source.name AS `source.name`, id(source) AS `<source.id>`
-        |LIMIT 100"""
+      s"""${prefix}MATCH (source:`Person`)
+         |MATCH (target:`Person`)
+         |MATCH (source)-[rel:`KNOWS`]->(target)
+         |RETURN source.name AS `source.name`, id(source) AS `<source.id>`
+         |LIMIT 100"""
         .stripMargin
         .replace(System.lineSeparator(), " "),
       query
@@ -314,7 +330,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testRelationshipWithMoreColumnsSelected(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testRelationshipWithMoreColumnsSelected(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -334,7 +351,7 @@ class Neo4jQueryServiceTest {
     ).createQuery()
 
     assertEquals(
-      "MATCH (source:`Person`) " +
+      s"${prefix}MATCH (source:`Person`) " +
         "MATCH (target:`Person`) " +
         "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, source.id AS `source.id`, rel.someprops AS `rel.someprops`, target.date AS `target.date`",
       query
@@ -342,7 +359,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testRelationshipFilterEqualTo(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testRelationshipFilterEqualTo(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -360,7 +378,7 @@ class Neo4jQueryServiceTest {
     val parameterName = "$" + "source.name".toParameterName("John Doe")
 
     assertEquals(
-      "MATCH (source:`Person`) " +
+      s"${prefix}MATCH (source:`Person`) " +
         "MATCH (target:`Person`) " +
         s"MATCH (source)-[rel:`KNOWS`]->(target) WHERE source.name = $parameterName RETURN rel, source AS source, target AS target",
       query
@@ -368,7 +386,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testRelationshipFilterNotEqualTo(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testRelationshipFilterNotEqualTo(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -387,7 +406,7 @@ class Neo4jQueryServiceTest {
     val paramTwoName = "$" + "target.name".toParameterName("John Doe")
 
     assertEquals(
-      "MATCH (source:`Person`) " +
+      s"${prefix}MATCH (source:`Person`) " +
         "MATCH (target:`Person`) " +
         s"MATCH (source)-[rel:`KNOWS`]->(target) WHERE (source.name = $paramOneName OR target.name = $paramTwoName) RETURN rel, source AS source, target AS target",
       query
@@ -395,7 +414,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testRelationshipAndFilterEqualTo(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testRelationshipAndFilterEqualTo(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -415,7 +435,7 @@ class Neo4jQueryServiceTest {
     val targetIdParameterName = "$" + "target.id".toParameterName(16)
 
     assertEquals(
-      s"""MATCH (source:`Person`)
+      s"""${prefix}MATCH (source:`Person`)
          | MATCH (target:`Person`)
          | MATCH (source)-[rel:`KNOWS`]->(target)
          | WHERE (source.id = $sourceIdParameterName AND target.id = $targetIdParameterName)
@@ -426,7 +446,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testComplexNodeConditions(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testComplexNodeConditions(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("labels", "Person")
@@ -450,7 +471,7 @@ class Neo4jQueryServiceTest {
     )
 
     assertEquals(
-      s"""MATCH (n:`Person`)
+      s"""${prefix}MATCH (n:`Person`)
          | WHERE (((n.name = ${parameterNames("name_1")} OR n.name = ${parameterNames("name_2")})
          | AND (n.age = ${parameterNames("age_1")} OR n.age >= ${parameterNames("age_2")}))
          | AND (NOT (n.age = ${parameterNames("age_3")}) OR NOT (n.age < ${parameterNames("age_4")})))
@@ -460,7 +481,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testRelationshipFilterComplexConditionsNoMap(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testRelationshipFilterComplexConditionsNoMap(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -490,7 +512,7 @@ class Neo4jQueryServiceTest {
     )
 
     assertEquals(
-      s"""MATCH (source:`Person`)
+      s"""${prefix}MATCH (source:`Person`)
          | MATCH (target:`Person`:`Customer`)
          | MATCH (source)-[rel:`KNOWS`]->(target)
          | WHERE ((source.name = ${parameterNames("source.name_1")} OR target.name = ${
@@ -506,7 +528,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testRelationshipFilterComplexConditionsWithMap(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testRelationshipFilterComplexConditionsWithMap(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -536,7 +559,7 @@ class Neo4jQueryServiceTest {
     )
 
     assertEquals(
-      s"""MATCH (source:`Person`)
+      s"""${prefix}MATCH (source:`Person`)
          | MATCH (target:`Person`:`Customer`)
          | MATCH (source)-[rel:`KNOWS`]->(target)
          | WHERE ((source.name = ${parameterNames("source.name_1")} OR target.name = ${
@@ -553,7 +576,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testCompoundKeysForNodes(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testCompoundKeysForNodes(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("labels", "Location")
@@ -564,16 +588,17 @@ class Neo4jQueryServiceTest {
       new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(neo4j, SaveMode.Overwrite)).createQuery()
 
     assertEquals(
-      """UNWIND $events AS event
-        |MERGE (node:Location {name: event.keys.name, type: event.keys.type, featureId: event.keys.featureId})
-        |SET node += event.properties
-        |""".stripMargin,
+      s"""${prefix}UNWIND $$events AS event
+         |MERGE (node:Location {name: event.keys.name, type: event.keys.type, featureId: event.keys.featureId})
+         |SET node += event.properties
+         |""".stripMargin,
       query
     )
   }
 
   @Test
-  def testCompoundKeysForRelationship(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testCompoundKeysForRelationship(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "BOUGHT")
@@ -588,18 +613,19 @@ class Neo4jQueryServiceTest {
       new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(neo4j, SaveMode.Overwrite)).createQuery()
 
     assertEquals(
-      """UNWIND $events AS event
-        |MATCH (source:Person {name: event.source.keys.name, lastName: event.source.keys.lastName})
-        |MATCH (target:Product {price: event.target.keys.price, id: event.target.keys.id})
-        |MERGE (source)-[rel:BOUGHT]->(target)
-        |SET rel += event.rel.properties
-        |""".stripMargin,
+      s"""${prefix}UNWIND $$events AS event
+         |MATCH (source:Person {name: event.source.keys.name, lastName: event.source.keys.lastName})
+         |MATCH (target:Product {price: event.target.keys.price, id: event.target.keys.id})
+         |MERGE (source)-[rel:BOUGHT]->(target)
+         |SET rel += event.rel.properties
+         |""".stripMargin,
       query.stripMargin
     )
   }
 
   @Test
-  def testCompoundKeysForRelationshipMergeMatch(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testCompoundKeysForRelationshipMergeMatch(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "BOUGHT")
@@ -616,19 +642,20 @@ class Neo4jQueryServiceTest {
       new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(neo4j, SaveMode.Overwrite)).createQuery()
 
     assertEquals(
-      """UNWIND $events AS event
-        |MERGE (source:Person {name: event.source.keys.name, lastName: event.source.keys.lastName}) SET source += event.source.properties
-        |WITH source, event
-        |MATCH (target:Product {price: event.target.keys.price, id: event.target.keys.id})
-        |MERGE (source)-[rel:BOUGHT]->(target)
-        |SET rel += event.rel.properties
-        |""".stripMargin,
+      s"""${prefix}UNWIND $$events AS event
+         |MERGE (source:Person {name: event.source.keys.name, lastName: event.source.keys.lastName}) SET source += event.source.properties
+         |WITH source, event
+         |MATCH (target:Product {price: event.target.keys.price, id: event.target.keys.id})
+         |MERGE (source)-[rel:BOUGHT]->(target)
+         |SET rel += event.rel.properties
+         |""".stripMargin,
       query.stripMargin
     )
   }
 
   @Test
-  def testShouldDoSumAggregationOnLabels(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testShouldDoSumAggregationOnLabels(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -650,7 +677,7 @@ class Neo4jQueryServiceTest {
     ).createQuery()
 
     assertEquals(
-      "MATCH (n:`Person`) RETURN n.name AS name, sum(DISTINCT n.age) AS `SUM(DISTINCT age)`, sum(n.age) AS `SUM(age)`",
+      s"${prefix}MATCH (n:`Person`) RETURN n.name AS name, sum(DISTINCT n.age) AS `SUM(DISTINCT age)`, sum(n.age) AS `SUM(age)`",
       query
     )
 
@@ -670,7 +697,7 @@ class Neo4jQueryServiceTest {
     ).createQuery()
 
     assertEquals(
-      "MATCH (n:`Person`) RETURN n.name AS name, count(DISTINCT n.name) AS `COUNT(DISTINCT name)`, count(n.name) AS `COUNT(name)`",
+      s"${prefix}MATCH (n:`Person`) RETURN n.name AS name, count(DISTINCT n.name) AS `COUNT(DISTINCT name)`, count(n.name) AS `COUNT(name)`",
       query
     )
 
@@ -688,11 +715,15 @@ class Neo4jQueryServiceTest {
       )
     ).createQuery()
 
-    assertEquals("MATCH (n:`Person`) RETURN n.name AS name, max(n.age) AS `MAX(age)`, min(n.age) AS `MIN(age)`", query)
+    assertEquals(
+      s"${prefix}MATCH (n:`Person`) RETURN n.name AS name, max(n.age) AS `MAX(age)`, min(n.age) AS `MIN(age)`",
+      query
+    )
   }
 
   @Test
-  def testShouldDoSumAggregationOnRelationships(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testShouldDoSumAggregationOnRelationships(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "BOUGHT")
@@ -717,10 +748,10 @@ class Neo4jQueryServiceTest {
     ).createQuery()
 
     assertEquals(
-      """MATCH (source:`Person`)
-        |MATCH (target:`Product`)
-        |MATCH (source)-[rel:`BOUGHT`]->(target)
-        |RETURN source.fullName AS `source.fullName`, sum(DISTINCT target.price) AS `SUM(DISTINCT ``target.price``)`, sum(target.price) AS `SUM(``target.price``)`"""
+      s"""${prefix}MATCH (source:`Person`)
+         |MATCH (target:`Product`)
+         |MATCH (source)-[rel:`BOUGHT`]->(target)
+         |RETURN source.fullName AS `source.fullName`, sum(DISTINCT target.price) AS `SUM(DISTINCT ``target.price``)`, sum(target.price) AS `SUM(``target.price``)`"""
         .stripMargin
         .replaceAll("\n", " "),
       query
@@ -742,9 +773,9 @@ class Neo4jQueryServiceTest {
     ).createQuery()
 
     assertEquals(
-      """MATCH (source:`Person`) MATCH (target:`Product`)
-        |MATCH (source)-[rel:`BOUGHT`]->(target)
-        |RETURN source.fullName AS `source.fullName`, count(DISTINCT target.id) AS `COUNT(DISTINCT ``target.id``)`, count(target.id) AS `COUNT(``target.id``)`"""
+      s"""${prefix}MATCH (source:`Person`) MATCH (target:`Product`)
+         |MATCH (source)-[rel:`BOUGHT`]->(target)
+         |RETURN source.fullName AS `source.fullName`, count(DISTINCT target.id) AS `COUNT(DISTINCT ``target.id``)`, count(target.id) AS `COUNT(``target.id``)`"""
         .stripMargin
         .replaceAll("\n", " "),
       query
@@ -765,10 +796,10 @@ class Neo4jQueryServiceTest {
     ).createQuery()
 
     assertEquals(
-      """MATCH (source:`Person`)
-        |MATCH (target:`Product`)
-        |MATCH (source)-[rel:`BOUGHT`]->(target)
-        |RETURN source.fullName AS `source.fullName`, max(target.price) AS `MAX(``target.price``)`, min(target.price) AS `MIN(``target.price``)`"""
+      s"""${prefix}MATCH (source:`Person`)
+         |MATCH (target:`Product`)
+         |MATCH (source)-[rel:`BOUGHT`]->(target)
+         |RETURN source.fullName AS `source.fullName`, max(target.price) AS `MAX(``target.price``)`, min(target.price) AS `MIN(``target.price``)`"""
         .stripMargin
         .replaceAll("\n", " "),
       query
@@ -776,7 +807,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testTopNForLabels(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testTopNForLabels(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -803,11 +835,12 @@ class Neo4jQueryServiceTest {
       )
     ).createQuery()
 
-    assertEquals("MATCH (n:`Person`) RETURN n ORDER BY n.name ASC LIMIT 42", query)
+    assertEquals(s"${prefix}MATCH (n:`Person`) RETURN n ORDER BY n.name ASC LIMIT 42", query)
   }
 
   @Test
-  def testTopNForLabelsWithRequiredColumn(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testTopNForLabelsWithRequiredColumn(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -835,11 +868,12 @@ class Neo4jQueryServiceTest {
       )
     ).createQuery()
 
-    assertEquals("MATCH (n:`Person`) RETURN n.name AS name ORDER BY n.name ASC LIMIT 42", query)
+    assertEquals(s"${prefix}MATCH (n:`Person`) RETURN n.name AS name ORDER BY n.name ASC LIMIT 42", query)
   }
 
   @Test
-  def testTopNForRelationships(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testTopNForRelationships(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -871,7 +905,7 @@ class Neo4jQueryServiceTest {
     ).createQuery()
 
     assertEquals(
-      "MATCH (source:`Person`) " +
+      s"${prefix}MATCH (source:`Person`) " +
         "MATCH (target:`Person`) " +
         "MATCH (source)-[rel:`KNOWS`]->(target) RETURN rel, source AS source, target AS target " +
         "ORDER BY rel.since DESC LIMIT 24",
@@ -880,7 +914,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testTopNForRelationshipWithOneRequiredColumn(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testTopNForRelationshipWithOneRequiredColumn(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -913,10 +948,10 @@ class Neo4jQueryServiceTest {
     ).createQuery()
 
     assertEquals(
-      """MATCH (source:`Person`)
-        |MATCH (target:`Person`)
-        |MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`
-        |ORDER BY rel.since DESC LIMIT 24"""
+      s"""${prefix}MATCH (source:`Person`)
+         |MATCH (target:`Person`)
+         |MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`
+         |ORDER BY rel.since DESC LIMIT 24"""
         .stripMargin
         .replaceAll("\n", " "),
       query
@@ -924,7 +959,8 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testTopNForCustomQueryIgnoresAggregation(): Unit = {
+  @Parameters(method = "versions_and_prefixes")
+  def testTopNForCustomQueryIgnoresAggregation(neo4j: Neo4j, ignored: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (p:Person) RETURN p")
@@ -956,5 +992,28 @@ class Neo4jQueryServiceTest {
       "WITH $scriptResult AS scriptResult MATCH (p:Person) RETURN p SKIP 0 LIMIT 24",
       query
     )
+  }
+
+  def versions_and_prefixes(): Array[Array[Any]] = {
+    Array(
+      Array(neo4j(version(4, 4), COMMUNITY), ""),
+      Array(neo4j(version(4, 4), ENTERPRISE), ""),
+      Array(neo4j(version(5, 0), COMMUNITY), ""),
+      Array(neo4j(version(5, 0), ENTERPRISE), ""),
+      Array(neo4j(version(5, 21), COMMUNITY), "CYPHER 5 "),
+      Array(neo4j(version(5, 21), ENTERPRISE), "CYPHER 5 "),
+      Array(neo4j(version(5, 26), COMMUNITY), "CYPHER 5 "),
+      Array(neo4j(version(5, 26), ENTERPRISE), "CYPHER 5 "),
+      Array(neo4j(version(2025, 1), COMMUNITY), "CYPHER 5 "),
+      Array(neo4j(version(2025, 1), ENTERPRISE), "CYPHER 5 ")
+    )
+  }
+
+  def neo4j(version: Neo4jVersion, edition: Neo4jEdition): Neo4j = {
+    new Neo4j(version, edition, SELF_MANAGED)
+  }
+
+  def version(major: Int, minor: Int): Neo4jVersion = {
+    new Neo4jVersion(major, minor, 0)
   }
 }
