@@ -23,7 +23,7 @@ import org.junit.Assume
 import org.junit.BeforeClass
 import org.neo4j.Neo4jContainerExtension
 import org.neo4j.caniuse.Neo4j
-import org.neo4j.caniuse.Neo4jDetectorKt
+import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver._
 
 import java.io.File
@@ -62,7 +62,7 @@ object SparkConnectorScalaSuiteIT {
         .set("spark.sql.warehouse.dir", tmpDir.getAbsolutePath)
       ss = SparkSession.builder.config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
-      neo4j = Neo4jDetectorKt.detectedWith(Neo4j.Companion, driver)
+      neo4j = Neo4jDetector.INSTANCE.detect(driver)
     }
   }
 

@@ -24,7 +24,7 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.neo4j.caniuse.Neo4j
-import org.neo4j.caniuse.Neo4jDetectorKt
+import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jDriverOptions
 import org.neo4j.spark.util.Neo4jOptions
@@ -73,7 +73,7 @@ class DataSource extends TableProvider
   private def getNeo4jInfo(options: Neo4jDriverOptions): Neo4j = {
     if (neo4j == null) {
       val driver = new DriverCache(options).getOrCreate()
-      neo4j = Neo4jDetectorKt.detectedWith(Neo4j.Companion, driver)
+      neo4j = Neo4jDetector.INSTANCE.detect(driver)
     }
     neo4j
   }
