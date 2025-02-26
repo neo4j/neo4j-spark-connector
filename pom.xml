@@ -66,7 +66,7 @@
         <scala-maven-plugin.version>4.9.2</scala-maven-plugin.version>
         <!-- This is empty because we use it for the deploy process -->
         <scala.binary.version/>
-        <slf4j-api.version>2.0.16</slf4j-api.version>
+        <slf4j-api.version>2.0.17</slf4j-api.version>
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
         <spark.version>3.5.2</spark.version>
         <spotless-maven-plugin.version>2.44.3</spotless-maven-plugin.version>
