@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ "3.9", "3.10", "3.11", "3.12", "3.13" ]
-        neo4j-version: [ "4.4", "5", "2025.01", "2025.02" ]
+        neo4j-version: [ "4.4", "5", "2025.01", "2025.02", "2025.03" ]
         spark-version:
           - { short: "3", ext: "3.4.3", scala: "2.12" }
           - { short: "3", ext: "3.5.2", scala: "2.12" }
