@@ -8,6 +8,10 @@ Apache Software License, Version 2.0
   Kotlin Stdlib
   Netty/Buffer
   Netty/Codec
+  Netty/Codec/Base
+  Netty/Codec/Compression
+  Netty/Codec/Marshalling
+  Netty/Codec/Protobuf
   Netty/Common
   Netty/Handler
   Netty/Resolver
