@@ -72,8 +72,7 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
             runMaven(javaVersion) {
               this.name = "Release to Github"
               goals = "jreleaser:full-release"
-              runnerArgs =
-                  "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -Prelease -pl :packaging"
+              runnerArgs = "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -Prelease"
             }
 
             setVersion("Set next snapshot version", "%nextSnapshotVersion%", javaVersion)

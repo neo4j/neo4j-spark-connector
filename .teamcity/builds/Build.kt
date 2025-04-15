@@ -58,7 +58,7 @@ class Build(
                           java,
                           scala,
                           neo4jVersion,
-                          "-pl :packaging -am -DskipTests",
+                          "-DskipTests",
                       ))
                   dependentBuildType(
                       IntegrationTests(
