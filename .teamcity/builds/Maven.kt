@@ -23,7 +23,7 @@ class Maven(
       }
 
       steps {
-        commonMaven(javaVersion) {
+        runMaven(javaVersion) {
           this.goals = goals
           this.runnerArgs =
               "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -Dscala-${scalaVersion.version} ${args ?: ""}"

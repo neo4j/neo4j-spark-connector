@@ -29,17 +29,6 @@ class Build(
 
             parallel {
               javaVersions.cartesianProduct(scalaVersions).forEach { (java, scala) ->
-                val packaging =
-                    Maven(
-                        "${name}-package-${java.version}-${scala.version}",
-                        "package (${java.version}, ${scala.version})",
-                        "package",
-                        java,
-                        scala,
-                        neo4jVersion,
-                        "-pl :packaging -am -DskipTests",
-                    )
-
                 sequential {
                   dependentBuildType(
                       Maven(
@@ -61,8 +50,16 @@ class Build(
                           neo4jVersion,
                       ),
                   )
-                  dependentBuildType(collectArtifacts(packaging))
-
+                  dependentBuildType(
+                      Maven(
+                          "${name}-package-${java.version}-${scala.version}",
+                          "package (${java.version}, ${scala.version})",
+                          "package",
+                          java,
+                          scala,
+                          neo4jVersion,
+                          "-pl :packaging -am -DskipTests",
+                      ))
                   dependentBuildType(
                       IntegrationTests(
                           "${name}-integration-tests-${java.version}-${scala.version}-${neo4jVersion.version}",
@@ -70,19 +67,7 @@ class Build(
                           java,
                           scala,
                           neo4jVersion,
-                      ) {
-                        dependencies {
-                          artifacts(packaging) {
-                            artifactRules =
-                                """
-                                    +:packages/*.jar => docker/plugins
-                                    -:packages/*-kc-oss.jar
-                                    """
-                                    .trimIndent()
-                          }
-                        }
-                      },
-                  )
+                      ) {})
                 }
               }
             }

@@ -1,12 +1,12 @@
 package builds
 
-import jetbrains.buildServer.configs.kotlin.BuildSteps
+import jetbrains.buildServer.configs.kotlin.AbsoluteId
 import jetbrains.buildServer.configs.kotlin.BuildType
 import jetbrains.buildServer.configs.kotlin.ParameterDisplay
-import jetbrains.buildServer.configs.kotlin.buildSteps.MavenBuildStep
-import jetbrains.buildServer.configs.kotlin.buildSteps.ScriptBuildStep
 import jetbrains.buildServer.configs.kotlin.buildSteps.script
 import jetbrains.buildServer.configs.kotlin.toId
+
+private const val DRY_RUN = "dry-run"
 
 class Release(id: String, name: String, javaVersion: JavaVersion) :
     BuildType(
@@ -14,37 +14,62 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
           this.id(id.toId())
           this.name = name
 
+          templates(AbsoluteId("FetchSigningKey"))
+
           params {
             text(
                 "releaseVersion",
                 "",
-                allowEmpty = false,
-                display = ParameterDisplay.PROMPT,
                 label = "Version to release",
-            )
+                display = ParameterDisplay.PROMPT,
+                allowEmpty = false)
             text(
                 "nextSnapshotVersion",
                 "",
-                allowEmpty = false,
+                label = "Next snapshot version",
+                description = "Next snapshot version to set after release",
                 display = ParameterDisplay.PROMPT,
-                label = "Version on the next snapshot after the release",
-            )
+                allowEmpty = false)
+
+            checkbox(
+                DRY_RUN,
+                "true",
+                "Dry run?",
+                description =
+                    "Whether to perform a dry run where nothing is published and released",
+                display = ParameterDisplay.PROMPT,
+                checked = "true",
+                unchecked = "false")
+
+            text("env.JRELEASER_DRY_RUN", "%$DRY_RUN%")
 
             password("env.JRELEASER_GITHUB_TOKEN", "%github-pull-request-token%")
+            password("env.OSSSONATYPEORG_USERNAME", "%osssonatypeorg-username%")
+            password("env.OSSSONATYPEORG_PASSWORD", "%osssonatypeorg-password%")
+            password("env.SIGNING_KEY_PASSPHRASE", "%signing-key-passphrase%")
           }
 
           steps {
             setVersion("Set release version", "%releaseVersion%", javaVersion)
 
-            commonMaven(javaVersion) {
-              this.name = "Build versionalised package"
-              goals = "package"
-              runnerArgs = "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -DskipTests"
+            ScalaVersion.entries.forEach { scalaVersion ->
+              script {
+                this.name = "Build for Scala ${scalaVersion.name}"
+
+                scriptContent =
+                    """
+                          ./maven-release.sh deploy ${scalaVersion.version} "default::default::file://%teamcity.build.checkoutDir%/maven-artifacts"
+                      """
+                        .trimIndent()
+              }
             }
 
-            commitAndPush("Push release version", "build: release version %releaseVersion%")
+            commitAndPush(
+                "Push release version",
+                "build: release version %releaseVersion%",
+                dryRunParameter = DRY_RUN)
 
-            commonMaven(javaVersion) {
+            runMaven(javaVersion) {
               this.name = "Release to Github"
               goals = "jreleaser:full-release"
               runnerArgs =
@@ -56,37 +81,11 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
             commitAndPush(
                 "Push next snapshot version",
                 "build: update version to %nextSnapshotVersion%",
-            )
+                dryRunParameter = DRY_RUN)
+
+            publishToMavenCentral("Publish to Maven Central", dryRunParameter = DRY_RUN)
           }
 
           requirements { runOnLinux(LinuxSize.SMALL) }
         },
     )
-
-fun BuildSteps.setVersion(name: String, version: String, javaVersion: JavaVersion): MavenBuildStep {
-  return this.commonMaven(javaVersion) {
-    this.name = name
-    goals = "versions:set"
-    runnerArgs =
-        "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -DnewVersion=$version -DgenerateBackupPoms=false"
-  }
-}
-
-fun BuildSteps.commitAndPush(
-    name: String,
-    commitMessage: String,
-    includeFiles: String = "\\*pom.xml"
-): ScriptBuildStep {
-  return this.script {
-    this.name = name
-    scriptContent =
-        """
-          #!/bin/bash -eu              
-         
-          git add $includeFiles
-          git commit -m "$commitMessage"
-          git push
-        """
-            .trimIndent()
-  }
-}
