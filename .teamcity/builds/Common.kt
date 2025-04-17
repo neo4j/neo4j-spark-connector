@@ -74,7 +74,6 @@ enum class PySparkVersion(
           JavaVersion.V_8,
           JavaVersion.V_11,
           JavaVersion.V_17,
-          JavaVersion.V_21,
       ),
       setOf(
           PythonVersion.V3_9,
