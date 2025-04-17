@@ -82,12 +82,12 @@ class Build(
                           pyspark.pythonVersions.forEach { python ->
                             dependentBuildType(
                                 PythonIntegrationTests(
-                                    "${name}-integration-tests-pyspark-${java.version}-${scala.version}-${python.version}-${pyspark.version}",
-                                    "pyspark integration tests (${java.version}, ${scala.version}, ${python.version}, ${pyspark.version})",
+                                    "${name}-integration-tests-pyspark-${java.version}-${scala.version}-${python.version}-${pyspark.sparkVersion.version}",
+                                    "pyspark integration tests (${java.version}, ${scala.version}, ${python.version}, ${pyspark.sparkVersion.version})",
                                     java,
                                     python,
                                     scala,
-                                    pyspark.version,
+                                    pyspark.sparkVersion,
                                     neo4jVersion,
                                 ) {
                                   dependencies {

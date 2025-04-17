@@ -62,7 +62,7 @@ enum class SparkVersion(val short: String, val version: String) {
 }
 
 enum class PySparkVersion(
-    val version: SparkVersion,
+    val sparkVersion: SparkVersion,
     val scalaVersion: ScalaVersion,
     val javaVersions: Set<JavaVersion>,
     val pythonVersions: Set<PythonVersion>,
