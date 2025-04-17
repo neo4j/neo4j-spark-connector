@@ -57,19 +57,19 @@ class Build(
                       ),
                   )
 
-                  parallel {
-                    neo4jVersions.forEach { neo4jVersion ->
-                      dependentBuildType(
-                          Maven(
-                              "${name}-unit-tests-${java.version}-${scala.version}-${neo4jVersion.version}",
-                              "unit tests (${java.version}, ${scala.version}, ${neo4jVersion.version})",
-                              "test",
-                              java,
-                              scala,
-                              neo4jVersion,
-                          ),
-                      )
+                  neo4jVersions.forEach { neo4jVersion ->
+                    dependentBuildType(
+                        Maven(
+                            "${name}-unit-tests-${java.version}-${scala.version}-${neo4jVersion.version}",
+                            "unit tests (${java.version}, ${scala.version}, ${neo4jVersion.version})",
+                            "test",
+                            java,
+                            scala,
+                            neo4jVersion,
+                        ),
+                    )
 
+                    parallel {
                       dependentBuildType(
                           JavaIntegrationTests(
                               "${name}-integration-tests-java-${java.version}-${scala.version}-${neo4jVersion.version}",
