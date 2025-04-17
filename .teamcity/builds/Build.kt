@@ -10,9 +10,9 @@ val DEFAULT_NEO4J_VERSION = Neo4jVersion.V_2025
 class Build(
     name: String,
     forPullRequests: Boolean,
-    javaVersions: List<JavaVersion>,
-    scalaVersions: List<ScalaVersion>,
-    pysparkVersions: List<PySparkVersion>,
+    javaVersions: Set<JavaVersion>,
+    scalaVersions: Set<ScalaVersion>,
+    pysparkVersions: Set<PySparkVersion>,
     neo4jVersion: Neo4jVersion = DEFAULT_NEO4J_VERSION,
     customizeCompletion: BuildType.() -> Unit = {}
 ) :
@@ -64,6 +64,7 @@ class Build(
                           packaging,
                       ),
                   )
+
                   parallel {
                     dependentBuildType(
                         JavaIntegrationTests(
@@ -79,25 +80,27 @@ class Build(
                         .filter { it.shouldTestWith(java, scala) }
                         .forEach { pyspark ->
                           pyspark.pythonVersions.forEach { python ->
-                            PythonIntegrationTests(
-                                "${name}-integration-tests-pyspark-${java.version}-${scala.version}-${python.version}-${pyspark.version}",
-                                "pyspark integration tests (${java.version}, ${scala.version}, ${python.version}, ${pyspark.version})",
-                                java,
-                                python,
-                                scala,
-                                pyspark.version,
-                                neo4jVersion,
-                            ) {
-                              dependencies {
-                                artifacts(packaging) {
-                                  artifactRules =
-                                      """
+                            dependentBuildType(
+                                PythonIntegrationTests(
+                                    "${name}-integration-tests-pyspark-${java.version}-${scala.version}-${python.version}-${pyspark.version}",
+                                    "pyspark integration tests (${java.version}, ${scala.version}, ${python.version}, ${pyspark.version})",
+                                    java,
+                                    python,
+                                    scala,
+                                    pyspark.version,
+                                    neo4jVersion,
+                                ) {
+                                  dependencies {
+                                    artifacts(packaging) {
+                                      artifactRules =
+                                          """
                                     +:packages/*.jar => ./scripts/python
                                     """
-                                          .trimIndent()
-                                }
-                              }
-                            }
+                                              .trimIndent()
+                                    }
+                                  }
+                                },
+                            )
                           }
                         }
                   }

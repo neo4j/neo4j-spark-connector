@@ -62,14 +62,12 @@ enum class SparkVersion(val short: String, val version: String) {
 }
 
 enum class PySparkVersion(
-    val short: String,
     val version: SparkVersion,
     val scalaVersion: ScalaVersion,
     val javaVersions: Set<JavaVersion>,
     val pythonVersions: Set<PythonVersion>,
 ) {
   V3_4(
-      "3",
       SparkVersion.V3_4_4,
       ScalaVersion.V2_12,
       setOf(
@@ -86,7 +84,6 @@ enum class PySparkVersion(
       ),
   ),
   V3_5(
-      "3",
       SparkVersion.V3_5_5,
       ScalaVersion.V2_12,
       setOf(
@@ -126,7 +123,7 @@ enum class Neo4jVersion(val version: String, val dockerImage: String) {
   ),
 }
 
-fun <S, T> List<S>.cartesianProduct(other: List<T>): List<Pair<S, T>> =
+fun <S, T> Set<S>.cartesianProduct(other: Set<T>): List<Pair<S, T>> =
     this.flatMap { s -> List(other.size) { s }.zip(other) }
 
 object Neo4jSparkConnectorVcs :

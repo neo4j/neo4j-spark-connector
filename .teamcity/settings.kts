@@ -27,9 +27,9 @@ project {
       Build(
           name = "main",
           javaVersions =
-              listOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
-          scalaVersions = listOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
-          pysparkVersions = listOf(PySparkVersion.V3_4, PySparkVersion.V3_5),
+              setOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
+          scalaVersions = setOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
+          pysparkVersions = setOf(PySparkVersion.V3_4, PySparkVersion.V3_5),
           neo4jVersion = Neo4jVersion.V_2025,
           forPullRequests = false,
       ) {
@@ -51,9 +51,9 @@ project {
       Build(
           name = "pull-request",
           javaVersions =
-              listOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
-          scalaVersions = listOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
-          pysparkVersions = listOf(PySparkVersion.V3_4, PySparkVersion.V3_5),
+              setOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
+          scalaVersions = setOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
+          pysparkVersions = setOf(PySparkVersion.V3_4, PySparkVersion.V3_5),
           neo4jVersion = Neo4jVersion.V_2025,
           forPullRequests = true,
       ) {
@@ -71,9 +71,9 @@ project {
               Build(
                   name = "${neo4j.version}",
                   javaVersions =
-                      listOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
-                  scalaVersions = listOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
-                  pysparkVersions = listOf(PySparkVersion.V3_4, PySparkVersion.V3_5),
+                      setOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
+                  scalaVersions = setOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
+                  pysparkVersions = setOf(PySparkVersion.V3_4, PySparkVersion.V3_5),
                   neo4jVersion = neo4j,
                   forPullRequests = false,
               ) {
