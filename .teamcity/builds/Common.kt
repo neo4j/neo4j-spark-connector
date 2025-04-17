@@ -6,13 +6,16 @@ import jetbrains.buildServer.configs.kotlin.BuildType
 import jetbrains.buildServer.configs.kotlin.CompoundStage
 import jetbrains.buildServer.configs.kotlin.FailureAction
 import jetbrains.buildServer.configs.kotlin.Requirements
+import jetbrains.buildServer.configs.kotlin.ReuseBuilds
 import jetbrains.buildServer.configs.kotlin.buildFeatures.PullRequests
 import jetbrains.buildServer.configs.kotlin.buildFeatures.commitStatusPublisher
 import jetbrains.buildServer.configs.kotlin.buildFeatures.dockerRegistryConnections
 import jetbrains.buildServer.configs.kotlin.buildFeatures.freeDiskSpace
 import jetbrains.buildServer.configs.kotlin.buildFeatures.pullRequests
+import jetbrains.buildServer.configs.kotlin.buildSteps.DockerCommandStep
 import jetbrains.buildServer.configs.kotlin.buildSteps.MavenBuildStep
 import jetbrains.buildServer.configs.kotlin.buildSteps.ScriptBuildStep
+import jetbrains.buildServer.configs.kotlin.buildSteps.dockerCommand
 import jetbrains.buildServer.configs.kotlin.buildSteps.maven
 import jetbrains.buildServer.configs.kotlin.buildSteps.script
 import jetbrains.buildServer.configs.kotlin.vcs.GitVcsRoot
@@ -26,7 +29,7 @@ val DEFAULT_JAVA_VERSION = JavaVersion.V_11
 
 // Look into Root Project's settings -> Connections
 const val SLACK_CONNECTION_ID = "PROJECT_EXT_83"
-const val SLACK_CHANNEL = "#C05R4RURYLA" // #team-connectors-feed
+const val SLACK_CHANNEL = "#team-connectors-feed"
 
 // Look into Root Project's settings -> Connections
 const val ECR_CONNECTION_ID = "PROJECT_EXT_124"
@@ -105,6 +108,7 @@ fun PySparkVersion.shouldTestWith(javaVersion: JavaVersion, scalaVersion: ScalaV
     this.javaVersions.contains(javaVersion) && this.scalaVersion == scalaVersion
 
 enum class Neo4jVersion(val version: String, val dockerImage: String) {
+  V_NONE("", ""),
   V_4_4("4.4", "neo4j:4.4-enterprise"),
   V_4_4_DEV(
       "4.4-dev",
@@ -175,10 +179,11 @@ fun BuildFeatures.loginToECR() = dockerRegistryConnections {
   loginToRegistry = on { dockerRegistryId = ECR_CONNECTION_ID }
 }
 
-fun CompoundStage.dependentBuildType(bt: BuildType) =
+fun CompoundStage.dependentBuildType(bt: BuildType, reuse: ReuseBuilds = ReuseBuilds.SUCCESSFUL) =
     buildType(bt) {
       onDependencyCancel = FailureAction.CANCEL
       onDependencyFailure = FailureAction.FAIL_TO_START
+      reuseBuilds = reuse
     }
 
 fun collectArtifacts(buildType: BuildType): BuildType {
@@ -267,3 +272,12 @@ fun BuildSteps.publishToMavenCentral(
     dockerRunParameters = "--volume %teamcity.build.checkoutDir%/signingkeysandbox:/root/.gnupg"
   }
 }
+
+fun BuildSteps.pullImage(version: Neo4jVersion): DockerCommandStep =
+    this.dockerCommand {
+      name = "pull neo4j test image"
+      commandType = other {
+        subCommand = "image"
+        commandArgs = "pull ${version.dockerImage}"
+      }
+    }

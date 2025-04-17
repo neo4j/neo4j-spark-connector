@@ -2,6 +2,7 @@ package builds
 
 import jetbrains.buildServer.configs.kotlin.BuildType
 import jetbrains.buildServer.configs.kotlin.Project
+import jetbrains.buildServer.configs.kotlin.buildFeatures.notifications
 import jetbrains.buildServer.configs.kotlin.sequential
 import jetbrains.buildServer.configs.kotlin.toId
 
@@ -13,7 +14,8 @@ class Build(
     javaVersions: Set<JavaVersion>,
     scalaVersions: Set<ScalaVersion>,
     pysparkVersions: Set<PySparkVersion>,
-    neo4jVersion: Neo4jVersion = DEFAULT_NEO4J_VERSION,
+    neo4jVersions: Set<Neo4jVersion>,
+    forCompatibility: Boolean = false,
     customizeCompletion: BuildType.() -> Unit = {}
 ) :
     Project(
@@ -46,70 +48,73 @@ class Build(
                           "test-compile",
                           java,
                           scala,
-                          neo4jVersion,
                       ),
                   )
-                  dependentBuildType(
-                      Maven(
-                          "${name}-unit-tests-${java.version}-${scala.version}",
-                          "unit tests (${java.version}, ${scala.version})",
-                          "test",
-                          java,
-                          scala,
-                          neo4jVersion,
-                      ),
-                  )
+
                   dependentBuildType(
                       collectArtifacts(
                           packaging,
                       ),
                   )
 
-                  parallel {
+                  neo4jVersions.forEach { neo4jVersion ->
                     dependentBuildType(
-                        JavaIntegrationTests(
-                            "${name}-integration-tests-java-${java.version}-${scala.version}-${neo4jVersion.version}",
-                            "java integration tests (${java.version}, ${scala.version}, ${neo4jVersion.version})",
+                        Maven(
+                            "${name}-unit-tests-${java.version}-${scala.version}",
+                            "unit tests (${java.version}, ${scala.version})",
+                            "test",
                             java,
                             scala,
                             neo4jVersion,
-                        ) {},
+                        ),
                     )
 
-                    pysparkVersions
-                        .filter { it.shouldTestWith(java, scala) }
-                        .forEach { pyspark ->
-                          pyspark.pythonVersions.forEach { python ->
-                            dependentBuildType(
-                                PythonIntegrationTests(
-                                    "${name}-integration-tests-pyspark-${java.version}-${scala.version}-${python.version}-${pyspark.sparkVersion.version}",
-                                    "pyspark integration tests (${java.version}, ${scala.version}, ${python.version}, ${pyspark.sparkVersion.version})",
-                                    java,
-                                    python,
-                                    scala,
-                                    pyspark.sparkVersion,
-                                    neo4jVersion,
-                                ) {
-                                  dependencies {
-                                    artifacts(packaging) {
-                                      artifactRules =
-                                          """
+                    parallel {
+                      dependentBuildType(
+                          JavaIntegrationTests(
+                              "${name}-integration-tests-java-${java.version}-${scala.version}-${neo4jVersion.version}",
+                              "java integration tests (${java.version}, ${scala.version}, ${neo4jVersion.version})",
+                              java,
+                              scala,
+                              neo4jVersion,
+                          ) {},
+                      )
+
+                      pysparkVersions
+                          .filter { it.shouldTestWith(java, scala) }
+                          .forEach { pyspark ->
+                            pyspark.pythonVersions.forEach { python ->
+                              dependentBuildType(
+                                  PythonIntegrationTests(
+                                      "${name}-integration-tests-pyspark-${java.version}-${scala.version}-${python.version}-${pyspark.sparkVersion.version}",
+                                      "pyspark integration tests (${java.version}, ${scala.version}, ${python.version}, ${pyspark.sparkVersion.version})",
+                                      java,
+                                      python,
+                                      scala,
+                                      pyspark.sparkVersion,
+                                      neo4jVersion,
+                                  ) {
+                                    dependencies {
+                                      artifacts(packaging) {
+                                        artifactRules =
+                                            """
                                     +:packages/*.jar => ./scripts/python
                                     """
-                                              .trimIndent()
+                                                .trimIndent()
+                                      }
                                     }
-                                  }
-                                },
-                            )
+                                  },
+                              )
+                            }
                           }
-                        }
+                    }
                   }
                 }
               }
             }
 
             dependentBuildType(complete)
-            if (!forPullRequests)
+            if (!forPullRequests && !forCompatibility)
                 dependentBuildType(Release("${name}-release", "release", DEFAULT_JAVA_VERSION))
           }
 
@@ -119,11 +124,31 @@ class Build(
             it.features {
               loginToECR()
               requireDiskSpace("5gb")
-              enableCommitStatusPublisher()
+              if (!forCompatibility) enableCommitStatusPublisher()
               if (forPullRequests) enablePullRequests()
             }
 
             buildType(it)
+          }
+
+          if (!forPullRequests) {
+            complete.features {
+              notifications {
+                buildFailedToStart = true
+                buildFailed = true
+                firstFailureAfterSuccess = true
+                firstSuccessAfterFailure = true
+                buildProbablyHanging = true
+
+                branchFilter = "+:main"
+
+                notifierSettings = slackNotifier {
+                  connection = SLACK_CONNECTION_ID
+                  sendTo = SLACK_CHANNEL
+                  messageFormat = simpleMessageFormat()
+                }
+              }
+            }
           }
 
           complete.apply(customizeCompletion)

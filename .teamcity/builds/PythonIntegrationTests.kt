@@ -32,6 +32,10 @@ class PythonIntegrationTests(
           params { text("env.NEO4J_TEST_IMAGE", neo4jVersion.dockerImage) }
 
           steps {
+            if (neo4jVersion != Neo4jVersion.V_NONE) {
+              pullImage(neo4jVersion)
+            }
+
             script {
               scriptContent =
                   """

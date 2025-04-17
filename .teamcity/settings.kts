@@ -3,11 +3,8 @@ import builds.JavaVersion
 import builds.Neo4jSparkConnectorVcs
 import builds.Neo4jVersion
 import builds.PySparkVersion
-import builds.SLACK_CHANNEL
-import builds.SLACK_CONNECTION_ID
 import builds.ScalaVersion
 import jetbrains.buildServer.configs.kotlin.Project
-import jetbrains.buildServer.configs.kotlin.buildFeatures.notifications
 import jetbrains.buildServer.configs.kotlin.project
 import jetbrains.buildServer.configs.kotlin.triggers.schedule
 import jetbrains.buildServer.configs.kotlin.triggers.vcs
@@ -30,7 +27,7 @@ project {
               setOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
           scalaVersions = setOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
           pysparkVersions = setOf(PySparkVersion.V3_4, PySparkVersion.V3_5),
-          neo4jVersion = Neo4jVersion.V_2025,
+          neo4jVersions = setOf(Neo4jVersion.V_4_4, Neo4jVersion.V_5, Neo4jVersion.V_2025),
           forPullRequests = false,
       ) {
         triggers {
@@ -54,7 +51,7 @@ project {
               setOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
           scalaVersions = setOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
           pysparkVersions = setOf(PySparkVersion.V3_4, PySparkVersion.V3_5),
-          neo4jVersion = Neo4jVersion.V_2025,
+          neo4jVersions = setOf(Neo4jVersion.V_4_4, Neo4jVersion.V_5, Neo4jVersion.V_2025),
           forPullRequests = true,
       ) {
         triggers { vcs { this.branchFilter = "+:pull/*" } }
@@ -66,7 +63,7 @@ project {
         this.id("compatibility")
         name = "compatibility"
 
-        Neo4jVersion.entries.forEach { neo4j ->
+        Neo4jVersion.entries.minus(Neo4jVersion.V_NONE).forEach { neo4j ->
           subProject(
               Build(
                   name = "${neo4j.version}",
@@ -74,8 +71,9 @@ project {
                       setOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
                   scalaVersions = setOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
                   pysparkVersions = setOf(PySparkVersion.V3_4, PySparkVersion.V3_5),
-                  neo4jVersion = neo4j,
+                  neo4jVersions = setOf(neo4j),
                   forPullRequests = false,
+                  forCompatibility = true,
               ) {
                 triggers {
                   vcs { enabled = false }
@@ -87,22 +85,6 @@ project {
                       minute = 0
                     }
                     triggerBuild = always()
-                  }
-                }
-
-                features {
-                  notifications {
-                    buildFailedToStart = true
-                    buildFailed = true
-                    firstFailureAfterSuccess = true
-                    firstSuccessAfterFailure = true
-                    buildProbablyHanging = true
-
-                    notifierSettings = slackNotifier {
-                      connection = SLACK_CONNECTION_ID
-                      sendTo = SLACK_CHANNEL
-                      messageFormat = simpleMessageFormat()
-                    }
                   }
                 }
               },

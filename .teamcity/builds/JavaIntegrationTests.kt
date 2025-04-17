@@ -30,6 +30,10 @@ class JavaIntegrationTests(
           params { text("env.NEO4J_TEST_IMAGE", neo4jVersion.dockerImage) }
 
           steps {
+            if (neo4jVersion != Neo4jVersion.V_NONE) {
+              pullImage(neo4jVersion)
+            }
+
             maven {
               this.goals = "verify"
               this.runnerArgs =

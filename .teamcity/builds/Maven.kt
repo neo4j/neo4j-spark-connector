@@ -10,35 +10,41 @@ class Maven(
     goals: String,
     javaVersion: JavaVersion,
     scalaVersion: ScalaVersion,
-    neo4jVersion: Neo4jVersion = DEFAULT_NEO4J_VERSION,
+    neo4jVersion: Neo4jVersion = Neo4jVersion.V_NONE,
     args: String? = null
 ) :
-    BuildType({
-      this.id(id.toId())
-      this.name = name
+    BuildType(
+        {
+          this.id(id.toId())
+          this.name = name
 
-      params {
-        text("env.JAVA_VERSION", javaVersion.version)
-        text("env.NEO4J_TEST_IMAGE", neo4jVersion.dockerImage)
-      }
+          params {
+            text("env.JAVA_VERSION", javaVersion.version)
+            text("env.NEO4J_TEST_IMAGE", neo4jVersion.dockerImage)
+          }
 
-      steps {
-        runMaven(javaVersion) {
-          this.goals = goals
-          this.runnerArgs =
-              "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -Dscala-${scalaVersion.version} ${args ?: ""}"
-        }
-      }
+          steps {
+            if (neo4jVersion != Neo4jVersion.V_NONE) {
+              pullImage(neo4jVersion)
+            }
 
-      features {
-        buildCache {
-          this.name = "neo4j-spark-connector"
-          publish = true
-          use = true
-          publishOnlyChanged = true
-          rules = ".m2/repository"
-        }
-      }
+            runMaven(javaVersion) {
+              this.goals = goals
+              this.runnerArgs =
+                  "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -Dscala-${scalaVersion.version} ${args ?: ""}"
+            }
+          }
 
-      requirements { runOnLinux(LinuxSize.SMALL) }
-    })
+          features {
+            buildCache {
+              this.name = "neo4j-spark-connector"
+              publish = true
+              use = true
+              publishOnlyChanged = true
+              rules = ".m2/repository"
+            }
+          }
+
+          requirements { runOnLinux(LinuxSize.SMALL) }
+        },
+    )
