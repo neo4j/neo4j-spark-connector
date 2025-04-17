@@ -35,8 +35,10 @@ class PythonIntegrationTests(
             script {
               scriptContent =
                   """
-              apt update
-              apt install build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev curl git libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+              #!/bin/bash -eu
+              
+              apt-get update
+              apt-get install --yes build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev curl git libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
               curl -fsSL https://pyenv.run | bash
               
               export PYENV_ROOT="${'$'}HOME/.pyenv"
