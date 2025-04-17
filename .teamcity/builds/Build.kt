@@ -60,8 +60,8 @@ class Build(
                   neo4jVersions.forEach { neo4jVersion ->
                     dependentBuildType(
                         Maven(
-                            "${name}-unit-tests-${java.version}-${scala.version}",
-                            "unit tests (${java.version}, ${scala.version})",
+                            "${name}-unit-tests-${java.version}-${scala.version}-${neo4jVersion.version}",
+                            "unit tests (${java.version}, ${scala.version}, ${neo4jVersion.version})",
                             "test",
                             java,
                             scala,
