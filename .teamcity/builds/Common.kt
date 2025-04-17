@@ -126,8 +126,12 @@ enum class Neo4jVersion(val version: String, val dockerImage: String) {
   ),
 }
 
-fun <S, T> Set<S>.cartesianProduct(other: Set<T>): List<Pair<S, T>> =
-    this.flatMap { s -> List(other.size) { s }.zip(other) }
+fun <S, T, Y> Iterable<S>.cartesianProduct(
+    other1: Collection<T>,
+    other2: Collection<Y>
+): Iterable<Triple<S, T, Y>> =
+    this.flatMap { s -> other1.map { t -> s to t } }
+        .flatMap { (s, t) -> other2.map { y -> Triple(s, t, y) } }
 
 object Neo4jSparkConnectorVcs :
     GitVcsRoot(

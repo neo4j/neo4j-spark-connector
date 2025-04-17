@@ -6,8 +6,6 @@ import jetbrains.buildServer.configs.kotlin.buildFeatures.notifications
 import jetbrains.buildServer.configs.kotlin.sequential
 import jetbrains.buildServer.configs.kotlin.toId
 
-val DEFAULT_NEO4J_VERSION = Neo4jVersion.V_2025
-
 class Build(
     name: String,
     forPullRequests: Boolean,
@@ -31,23 +29,35 @@ class Build(
             if (forPullRequests) dependentBuildType(PRCheck("${name}-pr-check", "pr check"))
 
             parallel {
-              javaVersions.cartesianProduct(scalaVersions).forEach { (java, scala) ->
+              javaVersions.cartesianProduct(scalaVersions, neo4jVersions).forEach {
+                  (java, scala, neo4j) ->
                 sequential {
                   val packaging =
                       Package(
-                          "${name}-package-${java.version}-${scala.version}",
-                          "package (${java.version}, ${scala.version})",
+                          "${name}-package-${java.version}-${scala.version}-${neo4j.version}",
+                          "package (${java.version}, ${scala.version}, ${neo4j.version})",
                           java,
                           scala,
                       )
 
                   dependentBuildType(
                       Maven(
-                          "${name}-build-${java.version}-${scala.version}",
-                          "build (${java.version}, ${scala.version})",
+                          "${name}-build-${java.version}-${scala.version}-${neo4j.version}",
+                          "build (${java.version}, ${scala.version}, ${neo4j.version})",
                           "test-compile",
                           java,
                           scala,
+                      ),
+                  )
+
+                  dependentBuildType(
+                      Maven(
+                          "${name}-unit-tests-${java.version}-${scala.version}-${neo4j.version}",
+                          "unit tests (${java.version}, ${scala.version}, ${neo4j.version})",
+                          "test",
+                          java,
+                          scala,
+                          neo4j,
                       ),
                   )
 
@@ -57,57 +67,44 @@ class Build(
                       ),
                   )
 
-                  neo4jVersions.forEach { neo4jVersion ->
+                  parallel {
                     dependentBuildType(
-                        Maven(
-                            "${name}-unit-tests-${java.version}-${scala.version}-${neo4jVersion.version}",
-                            "unit tests (${java.version}, ${scala.version}, ${neo4jVersion.version})",
-                            "test",
+                        JavaIntegrationTests(
+                            "${name}-integration-tests-java-${java.version}-${scala.version}-${neo4j.version}",
+                            "java integration tests (${java.version}, ${scala.version}, ${neo4j.version})",
                             java,
                             scala,
-                            neo4jVersion,
-                        ),
+                            neo4j,
+                        ) {},
                     )
 
-                    parallel {
-                      dependentBuildType(
-                          JavaIntegrationTests(
-                              "${name}-integration-tests-java-${java.version}-${scala.version}-${neo4jVersion.version}",
-                              "java integration tests (${java.version}, ${scala.version}, ${neo4jVersion.version})",
-                              java,
-                              scala,
-                              neo4jVersion,
-                          ) {},
-                      )
-
-                      pysparkVersions
-                          .filter { it.shouldTestWith(java, scala) }
-                          .forEach { pyspark ->
-                            pyspark.pythonVersions.forEach { python ->
-                              dependentBuildType(
-                                  PythonIntegrationTests(
-                                      "${name}-integration-tests-pyspark-${java.version}-${scala.version}-${neo4jVersion.version}-${python.version}-${pyspark.sparkVersion.version}",
-                                      "pyspark integration tests (${java.version}, ${scala.version}, ${neo4jVersion.version}, ${python.version}, ${pyspark.sparkVersion.version})",
-                                      java,
-                                      python,
-                                      scala,
-                                      pyspark.sparkVersion,
-                                      neo4jVersion,
-                                  ) {
-                                    dependencies {
-                                      artifacts(packaging) {
-                                        artifactRules =
-                                            """
+                    pysparkVersions
+                        .filter { it.shouldTestWith(java, scala) }
+                        .forEach { pyspark ->
+                          pyspark.pythonVersions.forEach { python ->
+                            dependentBuildType(
+                                PythonIntegrationTests(
+                                    "${name}-integration-tests-pyspark-${java.version}-${scala.version}-${neo4j.version}-${python.version}-${pyspark.sparkVersion.version}",
+                                    "pyspark integration tests (${java.version}, ${scala.version}, ${neo4j.version}, ${python.version}, ${pyspark.sparkVersion.version})",
+                                    java,
+                                    python,
+                                    scala,
+                                    pyspark.sparkVersion,
+                                    neo4j,
+                                ) {
+                                  dependencies {
+                                    artifacts(packaging) {
+                                      artifactRules =
+                                          """
                                     +:packages/*.jar => ./scripts/python
                                     """
-                                                .trimIndent()
-                                      }
+                                              .trimIndent()
                                     }
-                                  },
-                              )
-                            }
+                                  }
+                                },
+                            )
                           }
-                    }
+                        }
                   }
                 }
               }
