@@ -1,4 +1,2 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
+./mvnw sortpom:sort spotless:apply -f .teamcity
 ./mvnw sortpom:sort spotless:apply

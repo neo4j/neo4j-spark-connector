@@ -6,7 +6,7 @@ import jetbrains.buildServer.configs.kotlin.buildSteps.MavenBuildStep
 import jetbrains.buildServer.configs.kotlin.buildSteps.maven
 import jetbrains.buildServer.configs.kotlin.toId
 
-class IntegrationTests(
+class JavaIntegrationTests(
     id: String,
     name: String,
     javaVersion: JavaVersion,

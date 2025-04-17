@@ -2,6 +2,7 @@ import builds.Build
 import builds.JavaVersion
 import builds.Neo4jSparkConnectorVcs
 import builds.Neo4jVersion
+import builds.PySparkVersion
 import builds.SLACK_CHANNEL
 import builds.SLACK_CONNECTION_ID
 import builds.ScalaVersion
@@ -28,20 +29,23 @@ project {
           javaVersions =
               listOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
           scalaVersions = listOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
+          pysparkVersions = listOf(PySparkVersion.V3_4, PySparkVersion.V3_5),
           neo4jVersion = Neo4jVersion.V_2025,
-          forPullRequests = false) {
-            triggers {
-              vcs {
-                this.branchFilter = "+:setup-ci"
-                this.triggerRules =
-                    """
+          forPullRequests = false,
+      ) {
+        triggers {
+          vcs {
+            this.branchFilter = "+:setup-ci"
+            this.triggerRules =
+                """
               -:comment=^build.*release version.*:**
               -:comment=^build.*update version.*:**
               """
-                        .trimIndent()
-              }
-            }
-          })
+                    .trimIndent()
+          }
+        }
+      },
+  )
 
   subProject(
       Build(
@@ -49,10 +53,13 @@ project {
           javaVersions =
               listOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
           scalaVersions = listOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
+          pysparkVersions = listOf(PySparkVersion.V3_4, PySparkVersion.V3_5),
           neo4jVersion = Neo4jVersion.V_2025,
-          forPullRequests = true) {
-            triggers { vcs { this.branchFilter = "+:pull/*" } }
-          })
+          forPullRequests = true,
+      ) {
+        triggers { vcs { this.branchFilter = "+:pull/*" } }
+      },
+  )
 
   subProject(
       Project {
@@ -66,37 +73,41 @@ project {
                   javaVersions =
                       listOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
                   scalaVersions = listOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
+                  pysparkVersions = listOf(PySparkVersion.V3_4, PySparkVersion.V3_5),
                   neo4jVersion = neo4j,
-                  forPullRequests = false) {
-                    triggers {
-                      vcs { enabled = false }
+                  forPullRequests = false,
+              ) {
+                triggers {
+                  vcs { enabled = false }
 
-                      schedule {
-                        branchFilter = "+:5.0"
-                        schedulingPolicy = daily {
-                          hour = 8
-                          minute = 0
-                        }
-                        triggerBuild = always()
-                      }
+                  schedule {
+                    branchFilter = "+:setup-ci"
+                    schedulingPolicy = daily {
+                      hour = 8
+                      minute = 0
                     }
+                    triggerBuild = always()
+                  }
+                }
 
-                    features {
-                      notifications {
-                        buildFailedToStart = true
-                        buildFailed = true
-                        firstFailureAfterSuccess = true
-                        firstSuccessAfterFailure = true
-                        buildProbablyHanging = true
+                features {
+                  notifications {
+                    buildFailedToStart = true
+                    buildFailed = true
+                    firstFailureAfterSuccess = true
+                    firstSuccessAfterFailure = true
+                    buildProbablyHanging = true
 
-                        notifierSettings = slackNotifier {
-                          connection = SLACK_CONNECTION_ID
-                          sendTo = SLACK_CHANNEL
-                          messageFormat = simpleMessageFormat()
-                        }
-                      }
+                    notifierSettings = slackNotifier {
+                      connection = SLACK_CONNECTION_ID
+                      sendTo = SLACK_CHANNEL
+                      messageFormat = simpleMessageFormat()
                     }
-                  })
+                  }
+                }
+              },
+          )
         }
-      })
+      },
+  )
 }

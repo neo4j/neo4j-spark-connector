@@ -48,19 +48,82 @@ enum class ScalaVersion(val version: String) {
   V2_13(version = "2.13"),
 }
 
+enum class PythonVersion(val version: String) {
+  V3_9(version = "3.9"),
+  V3_10(version = "3.10"),
+  V3_11(version = "3.11"),
+  V3_12(version = "3.12"),
+  V3_13(version = "3.13"),
+}
+
+enum class SparkVersion(val short: String, val version: String) {
+  V3_4_4(short = "3", version = "3.4.4"),
+  V3_5_5(short = "3", version = "3.5.5"),
+}
+
+enum class PySparkVersion(
+    val short: String,
+    val version: SparkVersion,
+    val scalaVersion: ScalaVersion,
+    val javaVersions: Set<JavaVersion>,
+    val pythonVersions: Set<PythonVersion>,
+) {
+  V3_4(
+      "3",
+      SparkVersion.V3_4_4,
+      ScalaVersion.V2_12,
+      setOf(
+          JavaVersion.V_8,
+          JavaVersion.V_11,
+          JavaVersion.V_17,
+          JavaVersion.V_21,
+      ),
+      setOf(
+          PythonVersion.V3_9,
+          PythonVersion.V3_10,
+          PythonVersion.V3_11,
+          PythonVersion.V3_12,
+      ),
+  ),
+  V3_5(
+      "3",
+      SparkVersion.V3_5_5,
+      ScalaVersion.V2_12,
+      setOf(
+          JavaVersion.V_8,
+          JavaVersion.V_11,
+          JavaVersion.V_17,
+          JavaVersion.V_21,
+      ),
+      setOf(
+          PythonVersion.V3_9,
+          PythonVersion.V3_10,
+          PythonVersion.V3_11,
+          PythonVersion.V3_12,
+          PythonVersion.V3_13,
+      ),
+  ),
+}
+
+fun PySparkVersion.shouldTestWith(javaVersion: JavaVersion, scalaVersion: ScalaVersion): Boolean =
+    this.javaVersions.contains(javaVersion) && this.scalaVersion == scalaVersion
+
 enum class Neo4jVersion(val version: String, val dockerImage: String) {
   V_4_4("4.4", "neo4j:4.4-enterprise"),
   V_4_4_DEV(
       "4.4-dev",
-      "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:4.4-enterprise-debian-nightly"),
+      "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:4.4-enterprise-debian-nightly",
+  ),
   V_5("5", "neo4j:5-enterprise"),
   V_5_DEV(
       "5-dev",
-      "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:5-enterprise-debian-nightly"),
+      "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:5-enterprise-debian-nightly",
+  ),
   V_2025("2025", "neo4j:2025-enterprise"),
   V_2025_DEV(
       "2025-dev",
-      "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:2025-enterprise-debian-nightly"),
+      "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:2025-enterprise-debian-nightly",
+  ),
 }
 
 fun <S, T> List<S>.cartesianProduct(other: List<T>): List<Pair<S, T>> =
@@ -125,8 +188,8 @@ fun CompoundStage.dependentBuildType(bt: BuildType) =
 fun collectArtifacts(buildType: BuildType): BuildType {
   buildType.artifactRules =
       """
-        +:packaging/target/*.jar => packages
-        +:packaging/target/*.zip => packages
+        +:spark-3/target/*_for_spark_*.jar => packages
+        +:spark-3/target/*.zip => packages
     """
           .trimIndent()
 

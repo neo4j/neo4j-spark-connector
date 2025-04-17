@@ -12,6 +12,7 @@ class Build(
     forPullRequests: Boolean,
     javaVersions: List<JavaVersion>,
     scalaVersions: List<ScalaVersion>,
+    pysparkVersions: List<PySparkVersion>,
     neo4jVersion: Neo4jVersion = DEFAULT_NEO4J_VERSION,
     customizeCompletion: BuildType.() -> Unit = {}
 ) :
@@ -30,6 +31,14 @@ class Build(
             parallel {
               javaVersions.cartesianProduct(scalaVersions).forEach { (java, scala) ->
                 sequential {
+                  val packaging =
+                      Package(
+                          "${name}-package-${java.version}-${scala.version}",
+                          "package (${java.version}, ${scala.version})",
+                          java,
+                          scala,
+                      )
+
                   dependentBuildType(
                       Maven(
                           "${name}-build-${java.version}-${scala.version}",
@@ -51,23 +60,47 @@ class Build(
                       ),
                   )
                   dependentBuildType(
-                      Maven(
-                          "${name}-package-${java.version}-${scala.version}",
-                          "package (${java.version}, ${scala.version})",
-                          "package",
-                          java,
-                          scala,
-                          neo4jVersion,
-                          "-DskipTests",
-                      ))
-                  dependentBuildType(
-                      IntegrationTests(
-                          "${name}-integration-tests-${java.version}-${scala.version}-${neo4jVersion.version}",
-                          "integration tests (${java.version}, ${scala.version}, ${neo4jVersion.version})",
-                          java,
-                          scala,
-                          neo4jVersion,
-                      ) {})
+                      collectArtifacts(
+                          packaging,
+                      ),
+                  )
+                  parallel {
+                    dependentBuildType(
+                        JavaIntegrationTests(
+                            "${name}-integration-tests-java-${java.version}-${scala.version}-${neo4jVersion.version}",
+                            "java integration tests (${java.version}, ${scala.version}, ${neo4jVersion.version})",
+                            java,
+                            scala,
+                            neo4jVersion,
+                        ) {},
+                    )
+
+                    pysparkVersions
+                        .filter { it.shouldTestWith(java, scala) }
+                        .forEach { pyspark ->
+                          pyspark.pythonVersions.forEach { python ->
+                            PythonIntegrationTests(
+                                "${name}-integration-tests-pyspark-${java.version}-${scala.version}-${python.version}-${pyspark.version}",
+                                "pyspark integration tests (${java.version}, ${scala.version}, ${python.version}, ${pyspark.version})",
+                                java,
+                                python,
+                                scala,
+                                pyspark.version,
+                                neo4jVersion,
+                            ) {
+                              dependencies {
+                                artifacts(packaging) {
+                                  artifactRules =
+                                      """
+                                    +:packages/*.jar => ./scripts/python
+                                    """
+                                          .trimIndent()
+                                }
+                              }
+                            }
+                          }
+                        }
+                  }
                 }
               }
             }

@@ -1,0 +1,4 @@
+pyspark==3.5.5
+testcontainers[neo4j]
+six
+tzlocal==2.1

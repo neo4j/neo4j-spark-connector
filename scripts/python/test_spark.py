@@ -13,7 +13,7 @@ class SparkTest(unittest.TestCase):
     spark = None
 
     def tearDown(self):
-        with self.neo4j_driver.session(database = "system") as session:
+        with self.neo4j_driver.session(database="system") as session:
             session.run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds").consume()
 
     def init_test(self, query, parameters=None):
@@ -342,22 +342,17 @@ class SparkTest(unittest.TestCase):
         assert 8 == df.count()
 
 
-if len(sys.argv) != 5:
+if len(sys.argv) != 3:
     print("Wrong arguments count")
     print(sys.argv)
     sys.exit(1)
 
-connector_version = str(sys.argv.pop())
-neo4j_version = str(sys.argv.pop())
-scala_version = str(sys.argv.pop())
-spark_version = str(sys.argv.pop())
+neo4j_image = str(sys.argv.pop())
+connector_jar = str(sys.argv.pop())
 current_time_zone = get_localzone().zone
 
-print("Running tests for Connector %s, Neo4j %s, Scala %s, Spark %s, TimeZone %s"
-      % (connector_version, neo4j_version, scala_version, spark_version, current_time_zone))
-
 if __name__ == "__main__":
-    with (Neo4jContainer('neo4j:' + neo4j_version + '-enterprise')
+    with (Neo4jContainer(neo4j_image)
             .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
             .with_env("NEO4J_db_temporal_timezone", current_time_zone)
             .with_env("NEO4JLABS_PLUGINS", "[\"graph-data-science\"]")) as neo4j_container:
@@ -367,8 +362,7 @@ if __name__ == "__main__":
                 .master('local[*]') \
                 .config(
                 "spark.jars",
-                "../../spark-%s/target/neo4j-connector-apache-spark_%s-%s.jar"
-                % (spark_version, scala_version, connector_version)
+                connector_jar
             ) \
                 .config("spark.driver.host", "127.0.0.1") \
                 .getOrCreate()
