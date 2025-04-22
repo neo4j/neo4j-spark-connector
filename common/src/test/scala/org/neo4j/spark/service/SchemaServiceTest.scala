@@ -18,14 +18,18 @@ package org.neo4j.spark.service
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.mockito.Mockito.{RETURNS_DEEP_STUBS, mock}
-import org.neo4j.caniuse.{Neo4j, Neo4jDeploymentType, Neo4jEdition, Neo4jVersion}
+import org.mockito.Mockito.RETURNS_DEEP_STUBS
+import org.mockito.Mockito.mock
+import org.neo4j.caniuse.Neo4j
+import org.neo4j.caniuse.Neo4jDeploymentType
+import org.neo4j.caniuse.Neo4jEdition
+import org.neo4j.caniuse.Neo4jVersion
 import org.neo4j.spark.config.TopN
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions}
+import org.neo4j.spark.util.DriverCache
+import org.neo4j.spark.util.Neo4jOptions
 
 import scala.annotation.nowarn
 import scala.collection.JavaConverters
-
 
 class SchemaServiceTest {
 
