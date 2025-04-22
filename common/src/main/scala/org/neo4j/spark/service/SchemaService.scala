@@ -552,7 +552,7 @@ class SchemaService(
       if (count <= 0) {
         Seq(PartitionPagination.EMPTY)
       } else {
-        val partitionSize = Math.ceil(count.toDouble / options.partitions).toInt
+        val partitionSize = Math.ceil(count.toDouble / options.partitions).toLong
         (0 until options.partitions)
           .map(index => PartitionPagination(index, index * partitionSize, TopN(partitionSize)))
       }
