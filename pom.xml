@@ -11,12 +11,12 @@
     <url>https://github.com/neo4j/neo4j-spark-connector</url>
     <organization>
         <name>Neo4j, Inc.</name>
-        <url>http://neo4j.com/</url>
+        <url>https://neo4j.com/</url>
     </organization>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
             <distribution>manual</distribution>
         </license>
     </licenses>
