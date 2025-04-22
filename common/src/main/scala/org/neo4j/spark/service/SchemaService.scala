@@ -543,28 +543,6 @@ class SchemaService(
     -1
   }
 
-  def countForQuery(): Long = {
-    val queryCount: String = options.queryMetadata.queryCount
-    if (Neo4jUtil.isLong(queryCount)) {
-      queryCount.toLong
-    } else {
-      val query = if (queryCount.nonEmpty) {
-        options.queryMetadata.queryCount
-      } else {
-        s"""CALL { ${options.query.value} }
-           |RETURN count(*) AS count
-           |""".stripMargin
-      }
-      session.run(query).single().get("count").asLong()
-    }
-  }
-
-  def count(filters: Array[Filter] = this.filters): Long = options.query.queryType match {
-    case QueryType.LABELS       => countForNode(filters)
-    case QueryType.RELATIONSHIP => countForRelationship(filters)
-    case QueryType.QUERY        => countForQuery()
-  }
-
   def skipLimitFromPartition(topN: Option[TopN]): Seq[PartitionPagination] =
     if (options.partitions == 1) {
       val skipLimit = topN.map(top => PartitionPagination(0, 0, top)).getOrElse(PartitionPagination.EMPTY)
@@ -576,9 +554,31 @@ class SchemaService(
       } else {
         val partitionSize = Math.ceil(count.toDouble / options.partitions).toInt
         (0 until options.partitions)
-          .map(index => PartitionPagination(index, index * partitionSize, TopN(partitionSize, Array.empty)))
+          .map(index => PartitionPagination(index, index * partitionSize, TopN(partitionSize)))
       }
     }
+
+  def count(filters: Array[Filter] = this.filters): Long = options.query.queryType match {
+    case QueryType.LABELS       => countForNode(filters)
+    case QueryType.RELATIONSHIP => countForRelationship(filters)
+    case QueryType.QUERY        => countForQuery()
+  }
+
+  private def countForQuery(): Long = {
+    val queryCount: String = options.queryMetadata.queryCount
+    if (Neo4jUtil.isLong(queryCount)) {
+      queryCount.trim.toLong
+    } else {
+      val query = if (queryCount.nonEmpty) {
+        options.queryMetadata.queryCount
+      } else {
+        s"""CALL { ${options.query.value} }
+           |RETURN count(*) AS count
+           |""".stripMargin
+      }
+      session.run(query).single().get("count").asLong()
+    }
+  }
 
   def isGdsProcedure(procName: String): Boolean = {
     val params: util.Map[String, AnyRef] = Map[String, AnyRef]("procName" -> procName).asJava

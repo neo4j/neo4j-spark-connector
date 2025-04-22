@@ -118,8 +118,7 @@ object Neo4jUtil {
         str.trim.toLong
         true
       } catch {
-        case nfe: NumberFormatException => false
-        case t: Throwable               => throw t
+        case _: NumberFormatException => false
       }
     }
   }
