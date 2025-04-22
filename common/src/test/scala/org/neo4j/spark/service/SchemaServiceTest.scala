@@ -1,14 +1,34 @@
+/*
+ * Copyright (c) "Neo4j"
+ * Neo4j Sweden AB [https://neo4j.com]
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.neo4j.spark.service
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.mockito.Mockito.{RETURNS_DEEP_STUBS, mock}
-import org.neo4j.caniuse.{Neo4j, Neo4jDeploymentType, Neo4jEdition, Neo4jVersion}
+import org.mockito.Mockito.RETURNS_DEEP_STUBS
+import org.mockito.Mockito.mock
+import org.neo4j.caniuse.Neo4j
+import org.neo4j.caniuse.Neo4jDeploymentType
+import org.neo4j.caniuse.Neo4jEdition
+import org.neo4j.caniuse.Neo4jVersion
 import org.neo4j.spark.config.TopN
-import org.neo4j.spark.util.{DriverCache, Neo4jOptions}
+import org.neo4j.spark.util.DriverCache
+import org.neo4j.spark.util.Neo4jOptions
 
 import scala.jdk.javaapi.CollectionConverters
-
 
 class SchemaServiceTest {
 
@@ -18,7 +38,7 @@ class SchemaServiceTest {
       "url" -> "bolt://example.com",
       "partitions" -> 2.toString,
       "query.count" -> (2L * 2_147_483_648L).toString, // 2 * (Integer.MAX_VALUE + 1)
-      "query" -> "MERGE (:Node)",
+      "query" -> "MERGE (:Node)"
     )
     val schemaService = new SchemaService(neo4j(), opts, mock(classOf[DriverCache], RETURNS_DEEP_STUBS))
 
