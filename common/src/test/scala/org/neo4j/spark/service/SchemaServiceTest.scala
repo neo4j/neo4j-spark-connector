@@ -52,7 +52,6 @@ class SchemaServiceTest {
     assertEquals(List(0, 0), pages.map(_.topN.orders.size).toList)
   }
 
-  @nowarn // deprecated only in Scala 2.13, but 2.12 is our baseline
   private def options(kv: (String, String)*): Neo4jOptions = {
     new Neo4jOptions(
       JavaConverters.mapAsJavaMap(kv.toMap)
