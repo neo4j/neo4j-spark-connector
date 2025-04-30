@@ -85,10 +85,15 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
                 apt-get update
                 apt-get install --yes build-essential curl git unzip zip
                 
-                curl https://jreleaser.org/setup.sh -sSfL | sh
-                export PATH=${'$'}HOME/.jreleaser/caches/jreleaser/distributions/latest/:${'$'}PATH
-                jreleaser assemble
-                jreleaser full-release
+                // Get the jreleaser downloader
+                curl -sL https://git.io/get-jreleaser > get_jreleaser.java
+
+                // Download JReleaser with version = 1.18.0
+                java get_jreleaser.java 1.18.0
+
+                // Execute JReleaser
+                java -jar jreleaser-cli.jar assemble
+                java -jar jreleaser-cli.jar full-release
               """
                       .trimIndent()
 
