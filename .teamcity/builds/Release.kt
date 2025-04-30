@@ -49,14 +49,14 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
             text("env.JRELEASER_PROJECT_VERSION", "%releaseVersion%")
             text("env.JRELEASER_UPLOAD_S3_ACTIVE", "")
 
-            text("env.JRELEASER_S3_ACTIVE", "NONE")
+            text("env.JRELEASER_S3_ACTIVE", "NEVER")
             text("env.JRELEASER_S3_REGION", "%aws-s3-region%")
             text("env.JRELEASER_S3_BUCKET", "%aws-s3-bucket%")
             text("env.JRELEASER_S3_ACCESS_KEY_ID", "%aws-s3-access-key-id%")
             text("env.JRELEASER_S3_SECRET_KEY", "%aws-s3-secret-key%")
             text("env.JRELEASER_S3_PATH", "/")
 
-            text("env.JRELEASER_ANNOUNCE_SLACK_ACTIVE", "NONE")
+            text("env.JRELEASER_ANNOUNCE_SLACK_ACTIVE", "NEVER")
             text("env.JRELEASER_ANNOUNCE_SLACK_TOKEN", "%slack-token%")
             text("env.JRELEASER_ANNOUNCE_SLACK_WEBHOOK", "%slack-webhook%")
 
