@@ -1,0 +1,110 @@
+# Generated with JReleaser 1.17.0 at 2025-04-28T13:27:24.943485+01:00
+project:
+  name: neo4j-spark-connector
+  version: 5.3.6
+  description: Neo4j Connector for Spark
+  authors:
+    - Connectors Team
+  license: Apache-2.0
+  copyright: Neo4j, Inc.
+  links:
+    homepage: https://github.com/neo4j/neo4j-spark-connector
+
+release:
+  github:
+    owner: neo4j
+    name: neo4j-spark-connector
+    tagName: "{{projectVersion}}"
+    update:
+      enabled: true
+      sections:
+        - TITLE
+        - BODY
+        - ASSETS
+    artifacts: false
+    files: true
+    checksums: true
+    changelog:
+      formatted: ALWAYS
+      preset: conventional-commits
+      skipMergeCommits: true
+      format: "- {{commitShortHash}} {{conventionalCommitDescription}}"
+      links: true
+      labelers:
+        - title: ci
+          label: ci
+      excludeLabels:
+        - ci
+      hide:
+        contributors:
+          - '[bot]'
+          - GitHub
+
+checksum:
+  name: 'neo4j-connector-apache-spark-{{projectVersion}}_checksums.txt'
+  algorithms:
+    - SHA_256
+  files: true
+  artifacts: true
+  individual: true
+
+files:
+  globs:
+    - pattern: artifacts/*/*.jar
+    - pattern: artifacts/*/*.zip
+      extraProperties:
+        skipRelease: "true"
+
+assemble:
+  archive:
+    zip:
+      active: ALWAYS
+      exported: true
+      stereotype: NONE
+      archiveName: neo4j-connector-apache-spark-{{projectVersion}}
+      distributionType: BINARY
+      attachPlatform: false
+      formats:
+        - ZIP
+      fileSets:
+        - input: '{{basedir}}/artifacts/2.12'
+          output: .
+          includes:
+            - '{{projectName}}-{{projectVersion}}*.jar'
+        - input: '{{basedir}}/artifacts/2.13'
+          output: .
+          includes:
+            - '{{projectName}}-{{projectVersion}}*.jar'
+      templateDirectory: spark-3/src/jreleaser/assemblers/zip
+
+hooks:
+  script:
+    matrix:
+      vars:
+        scala: [ "2.12", "2.13" ]
+
+    before:
+      - filter:
+          includes: [ "assemble" ]
+        continueOnError: false
+        verbose: true
+        shell: BASH
+        run: |
+          mkdir artifacts || true
+          rm -rf artifacts/{{matrix.scala}} || true
+          ./maven-release.sh deploy {{matrix.scala}} default::file://{{basedir}}/target/{{matrix.scala}}/maven-artifacts
+          cp -r {{basedir}}/target/{{matrix.scala}} artifacts/
+          cp -r {{basedir}}/spark-3/target/{{projectName}}*.zip artifacts/{{matrix.scala}}/
+          cp -r {{basedir}}/spark-3/target/{{projectName}}*.jar artifacts/{{matrix.scala}}/
+
+upload:
+  s3:
+    artifacts:
+      active: ALWAYS
+      artifacts: true
+      files: false
+      checksums: true
+
+announce:
+  slack:
+    channel: '#release'

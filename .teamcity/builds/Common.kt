@@ -246,6 +246,8 @@ fun BuildSteps.commitAndPush(
 
 fun BuildSteps.publishToMavenCentral(
     name: String,
+    groupId: String,
+    repositoryPath: String,
     dryRunParameter: String = "dry-run"
 ): ScriptBuildStep {
   return this.script {
@@ -261,11 +263,11 @@ fun BuildSteps.publishToMavenCentral(
             fi
 
             ${'$'}{JAVA_HOME}/bin/java -jar lib/rt.jar ${'$'}{DRY_RUN_OPTION} --debug publish-to-maven-central \
-                --group-id org.neo4j \
+                --group-id $groupId \
                 --operator %teamcity.build.triggeredBy.username% \
                 --repository-username ${'$'}{OSSSONATYPEORG_USERNAME} \
                 --repository-password ${'$'}{OSSSONATYPEORG_PASSWORD} \
-                --repository-path ./target/staging-deploy \
+                --repository-path $repositoryPath \
                 --signing-key-passphrase "${'$'}{SIGNING_KEY_PASSPHRASE}" \
                 --staging-profile-name org.neo4j
         """
