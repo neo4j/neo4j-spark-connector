@@ -110,14 +110,12 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
                 dryRunParameter = DRY_RUN,
             )
 
-            ScalaVersion.entries.forEach { scala ->
-              publishToMavenCentral(
-                  "Publish to Maven Central",
-                  "org.neo4j",
-                  "./artifacts/${scala.version}/maven-artifacts",
-                  dryRunParameter = DRY_RUN,
-              )
-            }
+            publishToMavenCentral(
+                "Publish to Maven Central",
+                "org.neo4j",
+                "./artifacts/maven-artifacts",
+                dryRunParameter = DRY_RUN,
+            )
           }
 
           artifactRules =
