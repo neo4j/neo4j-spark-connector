@@ -244,42 +244,6 @@ fun BuildSteps.commitAndPush(
   }
 }
 
-fun BuildSteps.publishToMavenCentral(
-    name: String,
-    version: String,
-    groupId: String,
-    repositoryPath: String,
-    dryRunParameter: String = "dry-run"
-): ScriptBuildStep {
-  return this.script {
-    this.name = name
-
-    scriptContent =
-        """
-            #!/bin/bash -exu
-            
-            DRY_RUN_OPTION=""
-            if [ "%$dryRunParameter%" = "true" ]; then
-                DRY_RUN_OPTION="--dry-run"
-            fi
-
-            ${'$'}{JAVA_HOME}/bin/java -jar lib/rt.jar ${'$'}{DRY_RUN_OPTION} --debug publish-to-maven-central \
-                --group-id $groupId \
-                --package-name connectors \
-                --version $version \
-                --repository-path $repositoryPath \
-                --repository-username ${'$'}{OSSSONATYPEORG_USERNAME} \
-                --repository-password ${'$'}{OSSSONATYPEORG_PASSWORD} \
-                --signing-key-passphrase "${'$'}{SIGNING_KEY_PASSPHRASE}" \
-        """
-            .trimIndent()
-
-    dockerImage = "neo4jbuildservice/quality:general-java17"
-    dockerImagePlatform = ScriptBuildStep.ImagePlatform.Linux
-    dockerRunParameters = "--volume %teamcity.build.checkoutDir%/signingkeysandbox:/root/.gnupg"
-  }
-}
-
 fun BuildSteps.pullImage(version: Neo4jVersion): DockerCommandStep =
     this.dockerCommand {
       name = "pull neo4j test image"

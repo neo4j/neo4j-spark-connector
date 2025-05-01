@@ -8,6 +8,9 @@ project:
   copyright: Neo4j, Inc.
   links:
     homepage: https://github.com/neo4j/neo4j-spark-connector
+  languages:
+    java:
+      groupId: org.neo4j
 
 release:
   github:
@@ -95,6 +98,26 @@ hooks:
           cp -r {{basedir}}/target/{{matrix.scala}}/maven-artifacts artifacts/
           cp -r {{basedir}}/spark-3/target/{{projectName}}*.zip artifacts/
           cp -r {{basedir}}/spark-3/target/{{projectName}}*.jar artifacts/
+
+signing:
+  active: ALWAYS
+  mode: COMMAND
+  command:
+    homeDir: '~/.gnupg'
+
+deploy:
+  maven:
+    active: ALWAYS
+    mavenCentral:
+      artifacts:
+        active: ALWAYS
+        url: https://central.sonatype.com/api/v1/publisher
+        applyMavenCentralRules: true
+        namespace: org.neo4j
+        verifyPom: false
+        stage: UPLOAD
+        stagingRepositories:
+          - ./artifacts/maven-artifacts
 
 upload:
   s3:

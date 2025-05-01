@@ -45,9 +45,10 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
                 unchecked = "false",
             )
 
+            password("env.JRELEASER_GITHUB_TOKEN", "%github-pull-request-token%")
+
             text("env.JRELEASER_DRY_RUN", "%$DRY_RUN%")
             text("env.JRELEASER_PROJECT_VERSION", "%releaseVersion%")
-            text("env.JRELEASER_UPLOAD_S3_ACTIVE", "")
 
             text("env.JRELEASER_S3_ACTIVE", "NEVER")
             text("env.JRELEASER_S3_REGION", "%aws-s3-region%")
@@ -60,10 +61,10 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
             text("env.JRELEASER_ANNOUNCE_SLACK_TOKEN", "%slack-token%")
             text("env.JRELEASER_ANNOUNCE_SLACK_WEBHOOK", "%slack-webhook%")
 
-            password("env.JRELEASER_GITHUB_TOKEN", "%github-pull-request-token%")
-            password("env.OSSSONATYPEORG_USERNAME", "%osssonatypeorg-username%")
-            password("env.OSSSONATYPEORG_PASSWORD", "%osssonatypeorg-password%")
-            password("env.SIGNING_KEY_PASSPHRASE", "%signing-key-passphrase%")
+            password("env.JRELEASER_GPG_PASSPHRASE", "%signing-key-passphrase%")
+
+            text("env.JRELEASER_MAVENCENTRAL_USERNAME", "%publish-username%")
+            password("env.JRELEASER_MAVENCENTRAL_TOKEN", "%publish-password%")
           }
 
           steps {
@@ -99,7 +100,8 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
 
               dockerImagePlatform = ScriptBuildStep.ImagePlatform.Linux
               dockerImage = javaVersion.dockerImage
-              dockerRunParameters = "--volume /var/run/docker.sock:/var/run/docker.sock"
+              dockerRunParameters =
+                  "--volume /var/run/docker.sock:/var/run/docker.sock --volume %teamcity.build.checkoutDir%/signingkeysandbox:/root/.gnupg"
             }
 
             setVersion("Set next snapshot version", "%nextSnapshotVersion%", javaVersion)
@@ -107,14 +109,6 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
             commitAndPush(
                 "Push next snapshot version",
                 "build: update version to %nextSnapshotVersion%",
-                dryRunParameter = DRY_RUN,
-            )
-
-            publishToMavenCentral(
-                "Publish to Maven Central",
-                "%releaseVersion%",
-                "org.neo4j",
-                "./artifacts/maven-artifacts",
                 dryRunParameter = DRY_RUN,
             )
           }
