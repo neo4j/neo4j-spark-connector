@@ -120,13 +120,20 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
             }
           }
 
-          requirements { runOnLinux(LinuxSize.SMALL) }
-
           artifactRules =
               """
             +:artifacts => artifacts
             +:out/jreleaser => jreleaser
             """
                   .trimIndent()
+
+          dependencies {
+            artifacts(AbsoluteId("Tools_ReleaseTool")) {
+              buildRule = lastSuccessful()
+              artifactRules = "rt.jar => lib"
+            }
+          }
+
+          requirements { runOnLinux(LinuxSize.SMALL) }
         },
     )

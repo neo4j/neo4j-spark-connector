@@ -1,7 +1,6 @@
 # Generated with JReleaser 1.17.0 at 2025-04-28T13:27:24.943485+01:00
 project:
   name: neo4j-spark-connector
-  version: 5.3.6
   description: Neo4j Connector for Spark
   authors:
     - Connectors Team
@@ -50,8 +49,8 @@ checksum:
 
 files:
   globs:
-    - pattern: artifacts/*/*.jar
-    - pattern: artifacts/*/*.zip
+    - pattern: artifacts/*.jar
+    - pattern: artifacts/*.zip
       extraProperties:
         skipRelease: "true"
 
@@ -67,11 +66,7 @@ assemble:
       formats:
         - ZIP
       fileSets:
-        - input: '{{basedir}}/artifacts/2.12'
-          output: .
-          includes:
-            - '{{projectName}}-{{projectVersion}}*.jar'
-        - input: '{{basedir}}/artifacts/2.13'
+        - input: '{{basedir}}/artifacts'
           output: .
           includes:
             - '{{projectName}}-{{projectVersion}}*.jar'
@@ -79,23 +74,27 @@ assemble:
 
 hooks:
   script:
-    matrix:
-      vars:
-        scala: [ "2.12", "2.13" ]
 
     before:
       - filter:
           includes: [ "assemble" ]
+        shell: BASH
+        run: |
+          rm -rf artifacts
+      - filter:
+          includes: [ "assemble" ]
+        matrix:
+          vars:
+            scala: [ "2.12", "2.13" ]
         continueOnError: false
         verbose: true
         shell: BASH
         run: |
           mkdir artifacts || true
-          rm -rf artifacts/{{matrix.scala}} || true
           ./maven-release.sh deploy {{matrix.scala}} default::file://{{basedir}}/target/{{matrix.scala}}/maven-artifacts
-          cp -r {{basedir}}/target/{{matrix.scala}} artifacts/
-          cp -r {{basedir}}/spark-3/target/{{projectName}}*.zip artifacts/{{matrix.scala}}/
-          cp -r {{basedir}}/spark-3/target/{{projectName}}*.jar artifacts/{{matrix.scala}}/
+          cp -r {{basedir}}/target/{{matrix.scala}}/maven-artifacts artifacts/
+          cp -r {{basedir}}/spark-3/target/{{projectName}}*.zip artifacts/
+          cp -r {{basedir}}/spark-3/target/{{projectName}}*.jar artifacts/
 
 upload:
   s3:
