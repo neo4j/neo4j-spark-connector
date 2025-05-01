@@ -273,7 +273,7 @@ fun BuildSteps.publishToMavenCentral(
         """
             .trimIndent()
 
-    dockerImage = "neo4jbuildservice/quality:general-java8"
+    dockerImage = "neo4jbuildservice/quality:general-java17"
     dockerImagePlatform = ScriptBuildStep.ImagePlatform.Linux
     dockerRunParameters = "--volume %teamcity.build.checkoutDir%/signingkeysandbox:/root/.gnupg"
   }
