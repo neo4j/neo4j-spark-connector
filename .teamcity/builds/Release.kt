@@ -112,6 +112,7 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
 
             publishToMavenCentral(
                 "Publish to Maven Central",
+                "%releaseVersion%",
                 "org.neo4j",
                 "./artifacts/maven-artifacts",
                 dryRunParameter = DRY_RUN,

@@ -246,6 +246,7 @@ fun BuildSteps.commitAndPush(
 
 fun BuildSteps.publishToMavenCentral(
     name: String,
+    version: String,
     groupId: String,
     repositoryPath: String,
     dryRunParameter: String = "dry-run"
@@ -264,12 +265,12 @@ fun BuildSteps.publishToMavenCentral(
 
             ${'$'}{JAVA_HOME}/bin/java -jar lib/rt.jar ${'$'}{DRY_RUN_OPTION} --debug publish-to-maven-central \
                 --group-id $groupId \
-                --operator %teamcity.build.triggeredBy.username% \
+                --package-name connectors \
+                --version $version \
+                --repository-path $repositoryPath \
                 --repository-username ${'$'}{OSSSONATYPEORG_USERNAME} \
                 --repository-password ${'$'}{OSSSONATYPEORG_PASSWORD} \
-                --repository-path $repositoryPath \
                 --signing-key-passphrase "${'$'}{SIGNING_KEY_PASSPHRASE}" \
-                --staging-profile-name org.neo4j
         """
             .trimIndent()
 
