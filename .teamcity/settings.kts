@@ -35,7 +35,7 @@ project {
       ) {
         triggers {
           vcs {
-            this.branchFilter = "+:setup-ci"
+            this.branchFilter = "+:5.0"
             this.triggerRules =
                 """
               -:comment=^build.*release version.*:**
@@ -81,7 +81,7 @@ project {
                   vcs { enabled = false }
 
                   schedule {
-                    branchFilter = "+:setup-ci"
+                    branchFilter = "+:5.0"
                     schedulingPolicy = daily {
                       hour = 8
                       minute = 0

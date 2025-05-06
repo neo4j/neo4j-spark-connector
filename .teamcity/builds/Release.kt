@@ -50,13 +50,6 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
             text("env.JRELEASER_DRY_RUN", "%$DRY_RUN%")
             text("env.JRELEASER_PROJECT_VERSION", "%releaseVersion%")
 
-            text("env.JRELEASER_S3_ACTIVE", "NEVER")
-            text("env.JRELEASER_S3_REGION", "%aws-s3-region%")
-            text("env.JRELEASER_S3_BUCKET", "%aws-s3-bucket%")
-            text("env.JRELEASER_S3_ACCESS_KEY_ID", "%aws-s3-access-key-id%")
-            text("env.JRELEASER_S3_SECRET_KEY", "%aws-s3-secret-key%")
-            text("env.JRELEASER_S3_PATH", "/")
-
             text("env.JRELEASER_ANNOUNCE_SLACK_ACTIVE", "NEVER")
             text("env.JRELEASER_ANNOUNCE_SLACK_TOKEN", "%slack-token%")
             text("env.JRELEASER_ANNOUNCE_SLACK_WEBHOOK", "%slack-webhook%")
@@ -95,9 +88,11 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
                 if [ "%dry-run%" = "true" ]; then
                   echo "we are on a dry run, only performing upload to maven central"
                   export JRELEASER_MAVENCENTRAL_STAGE=UPLOAD
+                  export JRELEASER_ANNOUNCE_SLACK_ACTIVE=NEVER
                 else
                   echo "we will do a full deploy to maven central"
                   export JRELEASER_MAVENCENTRAL_STAGE=FULL
+                  export JRELEASER_ANNOUNCE_SLACK_ACTIVE=ALWAYS
                 fi
                 
                 # Execute JReleaser

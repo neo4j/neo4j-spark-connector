@@ -140,7 +140,7 @@ object Neo4jSparkConnectorVcs :
 
           name = "neo4j-spark-connector"
           url = "git@github.com:neo4j/neo4j-spark-connector.git"
-          branch = "refs/heads/setup-ci"
+          branch = "refs/heads/5.0"
           branchSpec = "refs/heads/*"
 
           authMethod = defaultPrivateKey { userName = "git" }
