@@ -92,6 +92,14 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
                 # Download JReleaser with version = 1.18.0
                 java get_jreleaser.java 1.18.0
 
+                if [ "%dry-run%" = "true" ]; then
+                  echo "we are on a dry run, only performing upload to maven central"
+                  export JRELEASER_MAVENCENTRAL_STAGE=UPLOAD
+                else
+                  echo "we will do a full deploy to maven central"
+                  export JRELEASER_MAVENCENTRAL_STAGE=FULL
+                fi
+                
                 # Execute JReleaser
                 java -jar jreleaser-cli.jar assemble
                 java -jar jreleaser-cli.jar full-release

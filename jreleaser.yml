@@ -115,17 +115,8 @@ deploy:
         applyMavenCentralRules: true
         namespace: org.neo4j
         verifyPom: false
-        stage: UPLOAD
         stagingRepositories:
           - ./artifacts/maven-artifacts
-
-upload:
-  s3:
-    artifacts:
-      active: ALWAYS
-      artifacts: true
-      files: false
-      checksums: true
 
 announce:
   slack:
