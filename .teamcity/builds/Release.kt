@@ -80,7 +80,7 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
                 apt-get install --yes build-essential curl git unzip zip
                 
                 # Get the jreleaser downloader
-                curl -sL https://git.io/get-jreleaser > get_jreleaser.java
+                curl -sL https://raw.githubusercontent.com/jreleaser/release-action/refs/tags/2.4.2/get_jreleaser.java > get_jreleaser.java
 
                 # Download JReleaser with version = 1.18.0
                 java get_jreleaser.java 1.18.0
