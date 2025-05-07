@@ -1,4 +1,5 @@
 import builds.Build
+import builds.DEFAULT_BRANCH
 import builds.JavaVersion
 import builds.Neo4jSparkConnectorVcs
 import builds.Neo4jVersion
@@ -35,7 +36,7 @@ project {
       ) {
         triggers {
           vcs {
-            this.branchFilter = "+:5.0"
+            this.branchFilter = "+:$DEFAULT_BRANCH"
             this.triggerRules =
                 """
               -:comment=^build.*release version.*:**
@@ -81,7 +82,7 @@ project {
                   vcs { enabled = false }
 
                   schedule {
-                    branchFilter = "+:5.0"
+                    branchFilter = "+:$DEFAULT_BRANCH"
                     schedulingPolicy = daily {
                       hour = 8
                       minute = 0

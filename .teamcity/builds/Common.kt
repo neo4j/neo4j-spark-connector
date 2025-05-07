@@ -22,6 +22,7 @@ import jetbrains.buildServer.configs.kotlin.vcs.GitVcsRoot
 
 const val GITHUB_OWNER = "neo4j"
 const val GITHUB_REPOSITORY = "neo4j-spark-connector"
+const val DEFAULT_BRANCH = "5.0"
 const val MAVEN_DEFAULT_ARGS =
     "--no-transfer-progress --batch-mode -Dmaven.repo.local=%teamcity.build.checkoutDir%/.m2/repository"
 
@@ -140,7 +141,7 @@ object Neo4jSparkConnectorVcs :
 
           name = "neo4j-spark-connector"
           url = "git@github.com:neo4j/neo4j-spark-connector.git"
-          branch = "refs/heads/5.0"
+          branch = "refs/heads/$DEFAULT_BRANCH"
           branchSpec = "refs/heads/*"
 
           authMethod = defaultPrivateKey { userName = "git" }
