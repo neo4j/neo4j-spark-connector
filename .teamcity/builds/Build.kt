@@ -128,22 +128,26 @@ class Build(
             buildType(it)
           }
 
-          if (!forPullRequests) {
-            complete.features {
-              notifications {
-                buildFailedToStart = true
-                buildFailed = true
-                firstFailureAfterSuccess = true
-                firstSuccessAfterFailure = true
-                buildProbablyHanging = true
+          complete.features {
+            notifications {
+              branchFilter =
+                  """
+                  +:$DEFAULT_BRANCH
+                  ${if (forPullRequests) "+:pull/*" else ""}
+                  """
+                      .trimIndent()
 
-                branchFilter = "+:$DEFAULT_BRANCH"
+              queuedBuildRequiresApproval = forPullRequests
+              buildFailedToStart = !forPullRequests
+              buildFailed = !forPullRequests
+              firstFailureAfterSuccess = !forPullRequests
+              firstSuccessAfterFailure = !forPullRequests
+              buildProbablyHanging = !forPullRequests
 
-                notifierSettings = slackNotifier {
-                  connection = SLACK_CONNECTION_ID
-                  sendTo = SLACK_CHANNEL
-                  messageFormat = simpleMessageFormat()
-                }
+              notifierSettings = slackNotifier {
+                connection = SLACK_CONNECTION_ID
+                sendTo = SLACK_CHANNEL
+                messageFormat = simpleMessageFormat()
               }
             }
           }
