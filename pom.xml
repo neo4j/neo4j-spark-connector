@@ -65,7 +65,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scala-maven-plugin.version>4.9.5</scala-maven-plugin.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <scala.version>2.12.20</scala.version>
+        <scala.version>2.13.16</scala.version>
         <slf4j-api.version>2.0.17</slf4j-api.version>
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
         <spark.version>3.5.5</spark.version>
