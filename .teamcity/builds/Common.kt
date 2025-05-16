@@ -118,12 +118,12 @@ enum class Neo4jVersion(val version: String, val dockerImage: String) {
   V_5("5", "neo4j:5-enterprise"),
   V_5_DEV(
       "5-dev",
-      "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:5-enterprise-debian-nightly",
+      "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:5-enterprise-debian-nightly-bundle",
   ),
   V_2025("2025", "neo4j:2025-enterprise"),
   V_2025_DEV(
       "2025-dev",
-      "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:2025-enterprise-debian-nightly",
+      "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:2025-enterprise-debian-nightly-bundle",
   ),
 }
 

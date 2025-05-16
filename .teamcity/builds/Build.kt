@@ -140,8 +140,7 @@ class Build(
               queuedBuildRequiresApproval = forPullRequests
               buildFailedToStart = !forPullRequests
               buildFailed = !forPullRequests
-              firstFailureAfterSuccess = !forPullRequests
-              firstSuccessAfterFailure = !forPullRequests
+              buildFinishedSuccessfully = !forPullRequests
               buildProbablyHanging = !forPullRequests
 
               notifierSettings = slackNotifier {
