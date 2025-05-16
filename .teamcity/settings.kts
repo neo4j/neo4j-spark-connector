@@ -84,7 +84,7 @@ project {
                   schedule {
                     branchFilter = "+:$DEFAULT_BRANCH"
                     schedulingPolicy = daily {
-                      hour = 8
+                      hour = 7
                       minute = 0
                     }
                     triggerBuild = always()
