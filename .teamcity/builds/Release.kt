@@ -77,7 +77,7 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
                 set -eux
                 
                 apt-get update
-                apt-get install --yes build-essential curl git unzip zip
+                apt-get install -o Acquire::Retries=10 --yes build-essential curl git unzip zip
                 
                 # Get the jreleaser downloader
                 curl -sL https://raw.githubusercontent.com/jreleaser/release-action/refs/tags/2.4.2/get_jreleaser.java > get_jreleaser.java
