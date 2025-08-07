@@ -40,6 +40,7 @@
         <build-resources.version>2024-12.1</build-resources.version>
         <caniuse.version>1.3.0</caniuse.version>
         <commons-compress.version>1.28.0</commons-compress.version>
+        <connectors-commons.version>1.0.0-SNAPSHOT</connectors-commons.version>
         <cypherdsl.version>2022.11.0</cypherdsl.version>
         <driver.version>4.4.20</driver.version>
         <java.version>1.8</java.version>
@@ -123,6 +124,16 @@
                 <groupId>org.neo4j</groupId>
                 <artifactId>neo4j-cypher-dsl</artifactId>
                 <version>${cypherdsl.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.neo4j.connectors</groupId>
+                <artifactId>commons-authn-spi</artifactId>
+                <version>${connectors-commons.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.neo4j.connectors</groupId>
+                <artifactId>commons-reauth-driver</artifactId>
+                <version>${connectors-commons.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.neo4j.driver</groupId>

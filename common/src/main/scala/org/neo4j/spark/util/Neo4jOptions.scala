@@ -20,6 +20,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.jetbrains.annotations.TestOnly
+import org.neo4j.connectors.authn.{AuthenticationTokenSupplierFactory, BearerAuthenticationToken}
+import org.neo4j.connectors.common.driver.reauth.ReAuthDriverFactory
 import org.neo4j.driver.Config.TrustStrategy
 import org.neo4j.driver._
 import org.neo4j.driver.exceptions.Neo4jException
@@ -31,9 +33,10 @@ import java.io.File
 import java.net.URI
 import java.time.Duration
 import java.util
-import java.util.UUID
+import java.util.{Objects, ServiceLoader, UUID}
 import java.util.concurrent.TimeUnit
-
+import java.util.function.Supplier
+import scala.::
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 
@@ -71,6 +74,22 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       .flatMap(Option(_)) // to turn null into None
       .map(_.trim)
       .getOrElse(defaultValue)
+
+  private def getProviderAuthenticationParameters: Map[String, String] = {
+    val authType = getParameter(AUTH_TYPE, DEFAULT_AUTH_TYPE)
+    if (!authType.equalsIgnoreCase("provider")) {
+      return Map()
+    }
+    val providerName = getParameter(AUTH_PROVIDER_NAME, DEFAULT_EMPTY)
+    if (providerName.isEmpty) {
+      return Map()
+    }
+    val providerNamespace = s"$AUTH_PROVIDER.$providerName"
+    parameters.asScala
+      .filterKeys(_.startsWith(providerNamespace))
+      .map(t => (t._1.substring(providerNamespace.length + 1), t._2))
+      .toMap
+  }
 
   val saveMode: String = getParameter(SAVE_MODE, DEFAULT_SAVE_MODE.toString)
 
@@ -173,7 +192,9 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS,
       DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS.toString
     ).toInt,
-    getParameter(CONNECTION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt
+    getParameter(CONNECTION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt,
+    getParameter(AUTH_PROVIDER_NAME, DEFAULT_EMPTY),
+    getProviderAuthenticationParameters
   )
 
   val session: Neo4jSessionOptions = Neo4jSessionOptions(
@@ -431,15 +452,20 @@ case class Neo4jDriverOptions(
   lifetime: Int,
   acquisitionTimeout: Int,
   livenessCheckTimeout: Int,
-  connectionTimeout: Int
+  connectionTimeout: Int,
+  authProviderName: String,
+  authProviderParameters: Map[String, String]
 ) extends Serializable {
 
   def createDriver(): Driver = {
     val (url, _) = connectionUrls
-    GraphDatabase.driver(url, toNeo4jAuth, toDriverConfig)
+    auth match {
+      case "provider" => ReAuthDriverFactory.driver(url, createAuthTokenSupplier, toDriverConfig(metricsEnabled = true))
+      case _          => GraphDatabase.driver(url, toNeo4jAuth, toDriverConfig())
+    }
   }
 
-  private def toDriverConfig: Config = {
+  private def toDriverConfig(metricsEnabled: Boolean = false): Config = {
     val builder = Config.builder()
       .withUserAgent(s"neo4j-${Neo4jUtil.connectorEnv}-connector/${Neo4jUtil.connectorVersion}")
       .withLogging(Logging.slf4j())
@@ -472,9 +498,11 @@ case class Neo4jDriverOptions(
     }
 
     if (resolvers.nonEmpty) {
-      builder.withResolver(new ServerAddressResolver {
-        override def resolve(serverAddress: ServerAddress): util.Set[ServerAddress] = resolvers.asJava
-      })
+      builder.withResolver(_ => resolvers.asJava)
+    }
+
+    if (metricsEnabled) {
+      builder.withDriverMetrics()
     }
 
     builder.build()
@@ -493,9 +521,7 @@ case class Neo4jDriverOptions(
     (URI.create(urls.head.trim), resolved)
   }
 
-  // public only for testing purposes
-  @TestOnly
-  def toNeo4jAuth: AuthToken = {
+  private def toNeo4jAuth: AuthToken = {
     auth match {
       case "basic"    => AuthTokens.basic(username, password)
       case "none"     => AuthTokens.none()
@@ -505,6 +531,22 @@ case class Neo4jDriverOptions(
       case _          => throw new IllegalArgumentException(s"Authentication method '${auth}' is not supported")
     }
   }
+
+  private def createAuthTokenSupplier: Supplier[BearerAuthenticationToken] = {
+    if (authProviderName == null || authProviderName.isBlank) {
+      throw new IllegalArgumentException(s"Authentication provider name is required")
+    }
+    val supplierFactory = ServiceLoader.load(classOf[AuthenticationTokenSupplierFactory[BearerAuthenticationToken]], getClass.getClassLoader)
+      .stream()
+      .map(_.get())
+      .filter(s => s.getName != null && s.getName.equalsIgnoreCase(authProviderName))
+      .findFirst().orElseThrow(() => new IllegalArgumentException(s"Unable to find authentication token supplier factory with name '$authProviderName"))
+
+    val username = authProviderParameters.get("username")
+    val password = authProviderParameters.get("password")
+    supplierFactory.create(username.orNull, password.orNull, authProviderParameters.asJava)
+  }
+
 }
 
 object Neo4jOptions {
@@ -522,6 +564,8 @@ object Neo4jOptions {
   val AUTH_CUSTOM_REALM = "authentication.custom.realm"
   val AUTH_CUSTOM_SCHEME = "authentication.custom.scheme"
   val AUTH_BEARER_TOKEN = "authentication.bearer.token"
+  val AUTH_PROVIDER = s"authentication.provider"
+  val AUTH_PROVIDER_NAME = s"authentication.provider.name"
 
   // driver
   val ENCRYPTION_ENABLED = "encryption.enabled"
