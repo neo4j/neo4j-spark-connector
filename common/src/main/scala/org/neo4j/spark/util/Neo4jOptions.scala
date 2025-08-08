@@ -16,11 +16,14 @@
  */
 package org.neo4j.spark.util
 
+import org.apache.hadoop.shaded.org.eclipse.jetty.client.api.Authentication
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.jetbrains.annotations.TestOnly
-import org.neo4j.connectors.authn.{AuthenticationTokenSupplierFactory, BearerAuthenticationToken}
+import org.neo4j.connectors.authn.AuthenticationToken
+import org.neo4j.connectors.authn.AuthenticationTokenSupplierFactory
+import org.neo4j.connectors.authn.BearerAuthenticationToken
 import org.neo4j.connectors.common.driver.reauth.ReAuthDriverFactory
 import org.neo4j.driver.Config.TrustStrategy
 import org.neo4j.driver._
@@ -33,9 +36,12 @@ import java.io.File
 import java.net.URI
 import java.time.Duration
 import java.util
-import java.util.{Objects, ServiceLoader, UUID}
+import java.util.Objects
+import java.util.ServiceLoader
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.function.Supplier
+
 import scala.::
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
@@ -532,19 +538,27 @@ case class Neo4jDriverOptions(
     }
   }
 
-  private def createAuthTokenSupplier: Supplier[BearerAuthenticationToken] = {
+  private def createAuthTokenSupplier: Supplier[AuthenticationToken] = {
     if (authProviderName == null || authProviderName.isBlank) {
       throw new IllegalArgumentException(s"Authentication provider name is required")
     }
-    val supplierFactory = ServiceLoader.load(classOf[AuthenticationTokenSupplierFactory[BearerAuthenticationToken]], getClass.getClassLoader)
-      .stream()
-      .map(_.get())
+    val supplierFactories = ServiceLoader.load(
+      classOf[AuthenticationTokenSupplierFactory[AuthenticationToken]],
+      getClass.getClassLoader
+    ).iterator()
+      .asScala
+      .toList
       .filter(s => s.getName != null && s.getName.equalsIgnoreCase(authProviderName))
-      .findFirst().orElseThrow(() => new IllegalArgumentException(s"Unable to find authentication token supplier factory with name '$authProviderName"))
+
+    if (supplierFactories.isEmpty) {
+      throw new IllegalArgumentException(
+        s"Unable to find authentication token supplier factory with name '$authProviderName"
+      )
+    }
 
     val username = authProviderParameters.get("username")
     val password = authProviderParameters.get("password")
-    supplierFactory.create(username.orNull, password.orNull, authProviderParameters.asJava)
+    supplierFactories.head.create(username.orNull, password.orNull, authProviderParameters.asJava)
   }
 
 }
@@ -564,8 +578,8 @@ object Neo4jOptions {
   val AUTH_CUSTOM_REALM = "authentication.custom.realm"
   val AUTH_CUSTOM_SCHEME = "authentication.custom.scheme"
   val AUTH_BEARER_TOKEN = "authentication.bearer.token"
-  val AUTH_PROVIDER = s"authentication.provider"
-  val AUTH_PROVIDER_NAME = s"authentication.provider.name"
+  val AUTH_PROVIDER = "authentication.provider"
+  val AUTH_PROVIDER_NAME = "authentication.provider.name"
 
   // driver
   val ENCRYPTION_ENABLED = "encryption.enabled"
