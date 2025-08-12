@@ -27,7 +27,6 @@ import org.neo4j.spark.TestUtil
 import org.neo4j.spark.util.Neo4jOptionsReauthenticationIT.KEYCLOAK
 import org.neo4j.spark.util.Neo4jOptionsReauthenticationIT.NEO4J
 import org.testcontainers.containers.Network
-import org.testcontainers.containers.output.OutputFrame
 import org.testcontainers.utility.MountableFile
 
 object Neo4jOptionsReauthenticationIT {
@@ -40,7 +39,6 @@ object Neo4jOptionsReauthenticationIT {
     .withRealmImportFile("neo4j-sso-test-realm.json")
     .withEnv("KC_HOSTNAME", "https://keycloak:8443")
     .withEnv("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true")
-    .withLogConsumer((outputFrame: OutputFrame) => System.out.print(outputFrame.getUtf8String))
 
   private val NEO4J = new Neo4jContainerExtension()
     .withNetwork(NETWORK)
@@ -68,7 +66,6 @@ object Neo4jOptionsReauthenticationIT {
     .withNeo4jConfig("dbms.security.oidc.keycloak.claims.username", "preferred_username")
     .withNeo4jConfig("dbms.security.oidc.keycloak.claims.groups", "groups")
     .withNeo4jConfig("dbms.security.auth_cache_ttl", "1s")
-    .withLogConsumer((outputFrame: OutputFrame) => System.out.print(outputFrame.getUtf8String));
 
   @BeforeClass
   def setUp(): Unit = {
