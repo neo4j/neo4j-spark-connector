@@ -51,7 +51,7 @@ class AuthenticationTest {
     val neo4jDriverOptions = neo4jOptions.connection
     val driverCache = new DriverCache(neo4jDriverOptions)
 
-    PowerMockito.mockStatic(classOf[GraphDatabase])
+    PowerMockito.spy(classOf[GraphDatabase])
 
     driverCache.getOrCreate()
 
@@ -71,7 +71,7 @@ class AuthenticationTest {
     val neo4jDriverOptions = neo4jOptions.connection
     val driverCache = new DriverCache(neo4jDriverOptions)
 
-    PowerMockito.mockStatic(classOf[GraphDatabase])
+    PowerMockito.spy(classOf[GraphDatabase])
 
     driverCache.getOrCreate()
 

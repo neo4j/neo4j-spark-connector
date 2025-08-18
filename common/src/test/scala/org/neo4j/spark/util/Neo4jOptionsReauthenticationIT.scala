@@ -87,17 +87,16 @@ class Neo4jOptionsReauthenticationIT extends SparkConnectorScalaSuiteIT {
   def createAnInstanceOfReAuthDriver(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, NEO4J.getBoltUrl)
-    options.put(Neo4jOptions.AUTH_TYPE, "provider")
-    options.put(Neo4jOptions.AUTH_PROVIDER_NAME, "keycloak")
-    options.put(s"${Neo4jOptions.AUTH_PROVIDER}.keycloak.username", "john-tester")
-    options.put(s"${Neo4jOptions.AUTH_PROVIDER}.keycloak.password", "testerpwd")
+    options.put(Neo4jOptions.AUTH_TYPE, "keycloak")
+    options.put(s"${Neo4jOptions.AUTH}.keycloak.username", "john-tester")
+    options.put(s"${Neo4jOptions.AUTH}.keycloak.password", "testerpwd")
     options.put(
-      s"${Neo4jOptions.AUTH_PROVIDER}.keycloak.authServerUrl",
+      s"${Neo4jOptions.AUTH}.keycloak.authServerUrl",
       s"http://${KEYCLOAK.getHost}:${KEYCLOAK.getHttpPort}"
     )
-    options.put(s"${Neo4jOptions.AUTH_PROVIDER}.keycloak.realm", "neo4j-sso-test")
-    options.put(s"${Neo4jOptions.AUTH_PROVIDER}.keycloak.clientId", "neo4j-commons-client")
-    options.put(s"${Neo4jOptions.AUTH_PROVIDER}.keycloak.clientSecret", "QNrSpbh0mxhnlYlI21UcBaz3Htb734vi")
+    options.put(s"${Neo4jOptions.AUTH}.keycloak.realm", "neo4j-sso-test")
+    options.put(s"${Neo4jOptions.AUTH}.keycloak.clientId", "neo4j-commons-client")
+    options.put(s"${Neo4jOptions.AUTH}.keycloak.clientSecret", "QNrSpbh0mxhnlYlI21UcBaz3Htb734vi")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val driver = neo4jOptions.connection.createDriver()

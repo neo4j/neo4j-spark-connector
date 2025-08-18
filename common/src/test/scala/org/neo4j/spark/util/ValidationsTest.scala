@@ -19,7 +19,6 @@ package org.neo4j.spark.util
 import org.apache.spark.sql.SparkSession
 import org.junit
 import org.junit.Assert.assertEquals
-import org.junit.Assert.fail
 import org.junit.Test
 import org.neo4j.spark.SparkConnectorScalaBaseTSE
 
