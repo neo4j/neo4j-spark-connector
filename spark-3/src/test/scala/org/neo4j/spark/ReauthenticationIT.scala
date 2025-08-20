@@ -14,22 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.spark.util
+package org.neo4j.spark
 
 import dasniko.testcontainers.keycloak.KeycloakContainer
 import org.junit.AfterClass
-import org.junit.Assert
+import org.junit.Assert.assertEquals
 import org.junit.BeforeClass
 import org.junit.Test
 import org.neo4j.Neo4jContainerExtension
-import org.neo4j.spark.SparkConnectorScalaSuiteIT
-import org.neo4j.spark.TestUtil
-import org.neo4j.spark.util.Neo4jOptionsReauthenticationIT.KEYCLOAK
-import org.neo4j.spark.util.Neo4jOptionsReauthenticationIT.NEO4J
+import org.neo4j.driver.{AuthTokens, Driver, GraphDatabase}
+import org.neo4j.spark.ReauthenticationIT.KEYCLOAK
+import org.neo4j.spark.ReauthenticationIT.NEO4J
+import org.neo4j.spark.SparkConnectorScalaSuiteIT.{server, ss}
 import org.testcontainers.containers.Network
 import org.testcontainers.utility.MountableFile
 
-object Neo4jOptionsReauthenticationIT {
+object ReauthenticationIT {
 
   private val NETWORK = Network.newNetwork
 
@@ -81,32 +81,44 @@ object Neo4jOptionsReauthenticationIT {
   }
 }
 
-class Neo4jOptionsReauthenticationIT extends SparkConnectorScalaSuiteIT {
+class ReauthenticationIT extends SparkConnectorScalaSuiteIT {
 
   @Test
   def createAnInstanceOfReAuthDriver(): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, NEO4J.getBoltUrl)
-    options.put(Neo4jOptions.AUTH_TYPE, "keycloak")
-    options.put(s"${Neo4jOptions.AUTH}.keycloak.username", "john-tester")
-    options.put(s"${Neo4jOptions.AUTH}.keycloak.password", "testerpwd")
-    options.put(
-      s"${Neo4jOptions.AUTH}.keycloak.authServerUrl",
-      s"http://${KEYCLOAK.getHost}:${KEYCLOAK.getHttpPort}"
+    val options = Map(
+      "url" -> NEO4J.getBoltUrl,
+      "authentication.type" -> "keycloak",
+      "authentication.keycloak.username" -> "john-tester",
+      "authentication.keycloak.password" -> "testerpwd",
+      "authentication.keycloak.authServerUrl" ->
+        s"http://${KEYCLOAK.getHost}:${KEYCLOAK.getHttpPort}",
+      "authentication.keycloak.realm" -> "neo4j-sso-test",
+      "authentication.keycloak.clientId" -> "neo4j-commons-client",
+      "authentication.keycloak.clientSecret" -> "QNrSpbh0mxhnlYlI21UcBaz3Htb734vi"
     )
-    options.put(s"${Neo4jOptions.AUTH}.keycloak.realm", "neo4j-sso-test")
-    options.put(s"${Neo4jOptions.AUTH}.keycloak.clientId", "neo4j-commons-client")
-    options.put(s"${Neo4jOptions.AUTH}.keycloak.clientSecret", "QNrSpbh0mxhnlYlI21UcBaz3Htb734vi")
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val driver = neo4jOptions.connection.createDriver()
-    driver.verifyConnectivity()
-    val result = driver.session().run("CREATE (t:Test {field: 42}) RETURN t.field").single().get(0).asInt()
-    Assert.assertEquals(42, result)
+    var driver: Driver = null
+    try {
+      driver = GraphDatabase.driver(NEO4J.getBoltUrl, AuthTokens.basic("neo4j", NEO4J.getAdminPassword))
+      driver.session().run(" CREATE (n:Test {field: 42}) CREATE (t:Test {field: 45})").consume()
+    } finally {
+      driver.close()
+    }
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .options(options)
+      .option("query", "MATCH (t:Test {field: 42}) RETURN t.field")
+      .load()
+      .toDF()
+    assertEquals(42, df.first().getLong(0))
 
     Thread.sleep(4000)
-    val result2 = driver.session().run("CREATE (t:Test {field: 45}) RETURN t.field").single().get(0).asInt()
-    Assert.assertEquals(45, result2)
+    val df2 = ss.read.format(classOf[DataSource].getName)
+      .options(options)
+      .option("query", "MATCH (t:Test {field: 45}) RETURN t.field")
+      .load()
+      .toDF()
+    assertEquals(45, df2.first().getLong(0))
   }
 
 }
