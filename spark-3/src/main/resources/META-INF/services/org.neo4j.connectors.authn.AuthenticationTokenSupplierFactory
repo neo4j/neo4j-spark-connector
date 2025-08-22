@@ -1,5 +1,0 @@
-org.neo4j.spark.auth.BasicAuthenticationSupplierFactory
-org.neo4j.spark.auth.BearerAuthenticationSupplierFactory
-org.neo4j.spark.auth.CustomAuthenticationSupplierFactory
-org.neo4j.spark.auth.KerberosAuthenticationSupplierFactory
-org.neo4j.spark.auth.NoneAuthenticationSupplierFactory

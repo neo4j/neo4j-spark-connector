@@ -79,10 +79,11 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   private def getAuthenticationParameters: Map[String, String] = {
     val authType = getParameter(AUTH_TYPE, DEFAULT_AUTH_TYPE)
     val authNamespace = s"$AUTH.$authType"
-    parameters.asScala
+    val providedParameters = parameters.asScala
       .filterKeys(_.startsWith(authNamespace))
       .map(t => (t._1.substring(authNamespace.length + 1), t._2))
       .toMap
+    DEFAULT_AUTH_PARAMETERS ++ providedParameters
   }
 
   val saveMode: String = getParameter(SAVE_MODE, DEFAULT_SAVE_MODE.toString)
@@ -644,6 +645,10 @@ object Neo4jOptions {
   val DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS = Duration.ofMinutes(2).toMillis
 
   val DEFAULT_MAP_GROUP_DUPLICATE_KEYS = false
+
+  var DEFAULT_AUTH_PARAMETERS: Map[String, String] =
+    Seq("username", "password", "ticket", "principal", "credentials", "realm", "scheme")
+      .map(name => name -> DEFAULT_EMPTY).toMap
 }
 
 class CaseInsensitiveEnumeration extends Enumeration {

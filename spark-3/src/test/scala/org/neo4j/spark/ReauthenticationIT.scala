@@ -22,10 +22,13 @@ import org.junit.Assert.assertEquals
 import org.junit.BeforeClass
 import org.junit.Test
 import org.neo4j.Neo4jContainerExtension
-import org.neo4j.driver.{AuthTokens, Driver, GraphDatabase}
+import org.neo4j.driver.AuthTokens
+import org.neo4j.driver.Driver
+import org.neo4j.driver.GraphDatabase
 import org.neo4j.spark.ReauthenticationIT.KEYCLOAK
 import org.neo4j.spark.ReauthenticationIT.NEO4J
-import org.neo4j.spark.SparkConnectorScalaSuiteIT.{server, ss}
+import org.neo4j.spark.SparkConnectorScalaSuiteIT.server
+import org.neo4j.spark.SparkConnectorScalaSuiteIT.ss
 import org.testcontainers.containers.Network
 import org.testcontainers.utility.MountableFile
 

@@ -57,6 +57,11 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.neo4j.connectors</groupId>
+            <artifactId>commons-authn-provided</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-connector-apache-spark_test-support</artifactId>
             <version>${project.version}</version>

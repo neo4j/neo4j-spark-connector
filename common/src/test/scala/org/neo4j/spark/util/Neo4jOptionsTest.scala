@@ -161,7 +161,7 @@ class Neo4jOptionsTest {
     assertEquals(AccessMode.READ, neo4jOptions.session.accessMode)
 
     assertEquals("basic", neo4jOptions.connection.auth)
-    assertEquals(0, neo4jOptions.connection.authParameters.size)
+    assertEquals(Neo4jOptions.DEFAULT_AUTH_PARAMETERS, neo4jOptions.connection.authParameters)
     assertEquals(false, neo4jOptions.connection.encryption)
 
     assertEquals(None, neo4jOptions.connection.trustStrategy)
