@@ -475,8 +475,6 @@ case class Neo4jDriverOptions(
       builder.withResolver(_ => resolvers.asJava)
     }
 
-    builder.withDriverMetrics()
-
     builder.build()
   }
 
