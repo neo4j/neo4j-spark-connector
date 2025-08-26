@@ -645,7 +645,7 @@ object Neo4jOptions {
   val DEFAULT_MAP_GROUP_DUPLICATE_KEYS = false
 
   var DEFAULT_AUTH_PARAMETERS: Map[String, String] =
-    Seq("username", "password", "ticket", "principal", "credentials", "realm", "scheme")
+    Seq("username", "password", "ticket", "principal", "credentials", "realm", "scheme", "token")
       .map(name => name -> DEFAULT_EMPTY).toMap
 }
 
