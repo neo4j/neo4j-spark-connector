@@ -32,6 +32,9 @@ Apache Software License, Version 2.0
   Non-Blocking Reactive Foundation for the JVM
   org.apiguardian:apiguardian-api
 
+MIT License
+  SLF4J API Module
+
 MIT No Attribution License
   reactive-streams
 

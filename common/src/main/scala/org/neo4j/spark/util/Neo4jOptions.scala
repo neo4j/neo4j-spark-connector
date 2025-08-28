@@ -20,19 +20,23 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.jetbrains.annotations.TestOnly
+import org.neo4j.connectors.authn.AuthenticationToken
+import org.neo4j.connectors.authn.AuthenticationTokenSupplierFactory
+import org.neo4j.connectors.common.driver.reauth.ReAuthDriverFactory
 import org.neo4j.driver.Config.TrustStrategy
 import org.neo4j.driver._
 import org.neo4j.driver.exceptions.Neo4jException
 import org.neo4j.driver.net.ServerAddress
-import org.neo4j.driver.net.ServerAddressResolver
 import org.neo4j.spark.util.Neo4jImplicits.StringMapImplicits
 
 import java.io.File
 import java.net.URI
 import java.time.Duration
 import java.util
+import java.util.ServiceLoader
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import java.util.function.Supplier
 
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
@@ -71,6 +75,16 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       .flatMap(Option(_)) // to turn null into None
       .map(_.trim)
       .getOrElse(defaultValue)
+
+  private def getAuthenticationParameters: Map[String, String] = {
+    val authType = getParameter(AUTH_TYPE, DEFAULT_AUTH_TYPE)
+    val authNamespace = s"$AUTH.$authType"
+    val providedParameters = parameters.asScala
+      .filterKeys(_.startsWith(authNamespace))
+      .map(t => (t._1.substring(authNamespace.length + 1), t._2))
+      .toMap
+    DEFAULT_AUTH_PARAMETERS ++ providedParameters
+  }
 
   val saveMode: String = getParameter(SAVE_MODE, DEFAULT_SAVE_MODE.toString)
 
@@ -156,14 +170,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   val connection: Neo4jDriverOptions = Neo4jDriverOptions(
     getRequiredParameter(URL),
     getParameter(AUTH_TYPE, DEFAULT_AUTH_TYPE),
-    getParameter(AUTH_BASIC_USERNAME, DEFAULT_EMPTY),
-    getParameter(AUTH_BASIC_PASSWORD, DEFAULT_EMPTY),
-    getParameter(AUTH_KERBEROS_TICKET, DEFAULT_EMPTY),
-    getParameter(AUTH_CUSTOM_PRINCIPAL, DEFAULT_EMPTY),
-    getParameter(AUTH_CUSTOM_CREDENTIALS, DEFAULT_EMPTY),
-    getParameter(AUTH_CUSTOM_REALM, DEFAULT_EMPTY),
-    getParameter(AUTH_CUSTOM_SCHEME, DEFAULT_EMPTY),
-    getParameter(AUTH_BEARER_TOKEN, DEFAULT_EMPTY),
+    getAuthenticationParameters,
     getParameter(ENCRYPTION_ENABLED, DEFAULT_ENCRYPTION_ENABLED.toString).toBoolean,
     Option(getParameter(ENCRYPTION_TRUST_STRATEGY, null)),
     getParameter(ENCRYPTION_CA_CERTIFICATE_PATH, DEFAULT_EMPTY),
@@ -417,14 +424,7 @@ case class Neo4jSessionOptions(database: String, accessMode: AccessMode = Access
 case class Neo4jDriverOptions(
   url: String,
   auth: String,
-  username: String,
-  password: String,
-  ticket: String,
-  principal: String,
-  credentials: String,
-  realm: String,
-  schema: String,
-  bearerToken: String,
+  authParameters: Map[String, String],
   encryption: Boolean,
   trustStrategy: Option[String],
   certificatePath: String,
@@ -436,7 +436,7 @@ case class Neo4jDriverOptions(
 
   def createDriver(): Driver = {
     val (url, _) = connectionUrls
-    GraphDatabase.driver(url, toNeo4jAuth, toDriverConfig)
+    ReAuthDriverFactory.driver(url, createAuthTokenSupplier, toDriverConfig)
   }
 
   private def toDriverConfig: Config = {
@@ -472,9 +472,7 @@ case class Neo4jDriverOptions(
     }
 
     if (resolvers.nonEmpty) {
-      builder.withResolver(new ServerAddressResolver {
-        override def resolve(serverAddress: ServerAddress): util.Set[ServerAddress] = resolvers.asJava
-      })
+      builder.withResolver(_ => resolvers.asJava)
     }
 
     builder.build()
@@ -493,18 +491,35 @@ case class Neo4jDriverOptions(
     (URI.create(urls.head.trim), resolved)
   }
 
-  // public only for testing purposes
-  @TestOnly
-  def toNeo4jAuth: AuthToken = {
-    auth match {
-      case "basic"    => AuthTokens.basic(username, password)
-      case "none"     => AuthTokens.none()
-      case "kerberos" => AuthTokens.kerberos(ticket)
-      case "custom"   => AuthTokens.custom(principal, credentials, realm, schema)
-      case "bearer"   => AuthTokens.bearer(bearerToken)
-      case _          => throw new IllegalArgumentException(s"Authentication method '${auth}' is not supported")
+  private def createAuthTokenSupplier: Supplier[AuthenticationToken] = {
+    if (auth == null || auth.isBlank) {
+      throw new IllegalArgumentException(s"Authentication type name is required")
     }
+    val supplierFactories = ServiceLoader.load(
+      classOf[AuthenticationTokenSupplierFactory],
+      getClass.getClassLoader
+    ).iterator()
+      .asScala
+      .toList
+
+    val filteredSupplierFactories = supplierFactories.filter(s => s.getName != null && s.getName.equalsIgnoreCase(auth))
+
+    if (filteredSupplierFactories.isEmpty) {
+      throw new IllegalArgumentException(
+        s"Authentication method '$auth' is not supported. Supported authentication methods are: ${supplierFactories.map(_.getName).mkString(", ")}"
+      )
+    }
+    if (filteredSupplierFactories.size > 1) {
+      throw new IllegalArgumentException(
+        s"Multiple implementation for authentication type '$auth' are found"
+      )
+    }
+
+    val username = authParameters.get("username")
+    val password = authParameters.get("password")
+    filteredSupplierFactories.head.create(username.orNull, password.orNull, authParameters.asJava)
   }
+
 }
 
 object Neo4jOptions {
@@ -513,15 +528,8 @@ object Neo4jOptions {
   val URL = "url"
 
   // auth
-  val AUTH_TYPE = "authentication.type" // basic, none, kerberos, custom
-  val AUTH_BASIC_USERNAME = "authentication.basic.username"
-  val AUTH_BASIC_PASSWORD = "authentication.basic.password"
-  val AUTH_KERBEROS_TICKET = "authentication.kerberos.ticket"
-  val AUTH_CUSTOM_PRINCIPAL = "authentication.custom.principal"
-  val AUTH_CUSTOM_CREDENTIALS = "authentication.custom.credentials"
-  val AUTH_CUSTOM_REALM = "authentication.custom.realm"
-  val AUTH_CUSTOM_SCHEME = "authentication.custom.scheme"
-  val AUTH_BEARER_TOKEN = "authentication.bearer.token"
+  val AUTH = "authentication"
+  val AUTH_TYPE = "authentication.type"
 
   // driver
   val ENCRYPTION_ENABLED = "encryption.enabled"
@@ -635,6 +643,10 @@ object Neo4jOptions {
   val DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS = Duration.ofMinutes(2).toMillis
 
   val DEFAULT_MAP_GROUP_DUPLICATE_KEYS = false
+
+  var DEFAULT_AUTH_PARAMETERS: Map[String, String] =
+    Seq("username", "password", "ticket", "principal", "credentials", "realm", "scheme", "token")
+      .map(name => name -> DEFAULT_EMPTY).toMap
 }
 
 class CaseInsensitiveEnumeration extends Enumeration {

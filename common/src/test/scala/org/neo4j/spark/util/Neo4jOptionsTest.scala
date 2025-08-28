@@ -161,18 +161,12 @@ class Neo4jOptionsTest {
     assertEquals(AccessMode.READ, neo4jOptions.session.accessMode)
 
     assertEquals("basic", neo4jOptions.connection.auth)
-    assertEquals("", neo4jOptions.connection.username)
-    assertEquals("", neo4jOptions.connection.password)
+    assertEquals(Neo4jOptions.DEFAULT_AUTH_PARAMETERS, neo4jOptions.connection.authParameters)
     assertEquals(false, neo4jOptions.connection.encryption)
 
     assertEquals(None, neo4jOptions.connection.trustStrategy)
 
     assertEquals("", neo4jOptions.connection.certificatePath)
-    assertEquals("", neo4jOptions.connection.ticket)
-    assertEquals("", neo4jOptions.connection.principal)
-    assertEquals("", neo4jOptions.connection.credentials)
-    assertEquals("", neo4jOptions.connection.realm)
-    assertEquals("", neo4jOptions.connection.schema)
 
     assertEquals(Neo4jOptions.DEFAULT_CONNECTION_MAX_LIFETIME_MSECS, neo4jOptions.connection.lifetime)
     assertEquals(-1, neo4jOptions.connection.acquisitionTimeout)
