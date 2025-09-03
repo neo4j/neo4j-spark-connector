@@ -27,7 +27,6 @@ import org.neo4j.driver.Driver
 import org.neo4j.driver.GraphDatabase
 import org.neo4j.spark.ReauthenticationIT.KEYCLOAK
 import org.neo4j.spark.ReauthenticationIT.NEO4J
-import org.neo4j.spark.SparkConnectorScalaSuiteIT.server
 import org.neo4j.spark.SparkConnectorScalaSuiteIT.ss
 import org.testcontainers.containers.Network
 import org.testcontainers.utility.MountableFile
@@ -38,7 +37,12 @@ object ReauthenticationIT {
 
   private val KEYCLOAK = new KeycloakContainer("quay.io/keycloak/keycloak:26.2.5")
     .withNetwork(NETWORK).withNetworkAliases("keycloak")
-    .useTlsKeystore("/neo4j-keycloak.jks", "testpwd")
+    .withCopyFileToContainer(
+      MountableFile.forClasspathResource("/neo4j-keycloak.jks"),
+      "/opt/keycloak/conf/server.keystore"
+    )
+    .withEnv("KC_HTTPS_KEY_STORE_FILE", "/opt/keycloak/conf/server.keystore")
+    .withEnv("KC_HTTPS_KEY_STORE_PASSWORD", "testpwd")
     .withRealmImportFile("neo4j-sso-test-realm.json")
     .withEnv("KC_HOSTNAME", "https://keycloak:8443")
     .withEnv("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true")

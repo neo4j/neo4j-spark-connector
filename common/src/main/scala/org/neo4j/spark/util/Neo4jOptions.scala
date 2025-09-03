@@ -492,7 +492,7 @@ case class Neo4jDriverOptions(
   }
 
   private def createAuthTokenSupplier: Supplier[AuthenticationToken] = {
-    if (auth == null || auth.isBlank) {
+    if (auth == null || auth.isEmpty) {
       throw new IllegalArgumentException(s"Authentication type name is required")
     }
     val supplierFactories = ServiceLoader.load(
