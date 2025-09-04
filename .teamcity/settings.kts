@@ -51,7 +51,7 @@ project {
   subProject(
       Build(
           name = "pull-request",
-          javaVersions = setOf(JavaVersion.V_11, JavaVersion.V_17),
+          javaVersions = setOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17),
           scalaVersions = setOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
           pysparkVersions = setOf(PySparkVersion.V3_5),
           neo4jVersions = setOf(Neo4jVersion.V_4_4, Neo4jVersion.V_5, Neo4jVersion.V_2025),
