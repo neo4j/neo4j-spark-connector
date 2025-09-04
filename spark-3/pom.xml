@@ -48,11 +48,6 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.github.dasniko</groupId>
-            <artifactId>testcontainers-keycloak</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-connector-apache-spark_test-support</artifactId>
             <version>${project.version}</version>

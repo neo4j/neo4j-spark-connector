@@ -16,7 +16,6 @@
  */
 package org.neo4j.spark
 
-import dasniko.testcontainers.keycloak.KeycloakContainer
 import org.junit.AfterClass
 import org.junit.Assert.assertEquals
 import org.junit.BeforeClass
@@ -27,21 +26,47 @@ import org.neo4j.driver.Driver
 import org.neo4j.driver.GraphDatabase
 import org.neo4j.spark.ReauthenticationIT.KEYCLOAK
 import org.neo4j.spark.ReauthenticationIT.NEO4J
-import org.neo4j.spark.SparkConnectorScalaSuiteIT.server
 import org.neo4j.spark.SparkConnectorScalaSuiteIT.ss
+import org.slf4j.LoggerFactory
+import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.Network
+import org.testcontainers.containers.output.Slf4jLogConsumer
+import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.MountableFile
 
 object ReauthenticationIT {
 
+  private val log = LoggerFactory.getLogger(classOf[ReauthenticationIT])
+
+  private class TestKeycloakContainer(image: String) extends GenericContainer[TestKeycloakContainer](image) {
+    def getHttpPort: Integer = this.getMappedPort(8080)
+  }
+
   private val NETWORK = Network.newNetwork
 
-  private val KEYCLOAK = new KeycloakContainer("quay.io/keycloak/keycloak:26.2.5")
-    .withNetwork(NETWORK).withNetworkAliases("keycloak")
-    .useTlsKeystore("/neo4j-keycloak.jks", "testpwd")
-    .withRealmImportFile("neo4j-sso-test-realm.json")
+  private val KEYCLOAK = new TestKeycloakContainer("quay.io/keycloak/keycloak:26.2.5")
+    .withNetwork(NETWORK)
+    .withEnv("KC_BOOTSTRAP_ADMIN_USERNAME", "admin")
+    .withEnv("KC_BOOTSTRAP_ADMIN_PASSWORD", "admin")
+    .withNetworkAliases("keycloak")
+    .withExposedPorts(8080, 9000, 8443)
+    .withCopyFileToContainer(
+      MountableFile.forClasspathResource("/neo4j-keycloak.jks"),
+      "/opt/keycloak/conf/server.keystore"
+    )
+    .withEnv("KC_HTTPS_KEY_STORE_FILE", "/opt/keycloak/conf/server.keystore")
+    .withEnv("KC_HTTPS_KEY_STORE_PASSWORD", "testpwd")
+    .withEnv("KC_HTTPS_KEY_PASSWORD", "testpwd")
+    .withEnv("KC_HEALTH_ENABLED", "true")
+    .withCopyFileToContainer(
+      MountableFile.forClasspathResource("/neo4j-sso-test-realm.json"),
+      "/opt/keycloak/data/import/neo4j-sso-test-realm.json"
+    )
     .withEnv("KC_HOSTNAME", "https://keycloak:8443")
     .withEnv("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true")
+    .waitingFor(Wait.forHttp("/health/started").forPort(9000).usingTls().allowInsecure())
+    .withCommand("start-dev --import-realm")
+    .withLogConsumer(new Slf4jLogConsumer(log))
 
   private val NEO4J = new Neo4jContainerExtension()
     .withNetwork(NETWORK)
