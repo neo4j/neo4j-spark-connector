@@ -45,6 +45,8 @@
         <cypherdsl.version>2022.11.0</cypherdsl.version>
         <driver.version>4.4.20</driver.version>
         <java.version>1.8</java.version>
+        <!-- 3.4.3.Final is the latest jboss-logging version compatible with java 8 -->
+        <jboss-logging.version>3.4.3.Final</jboss-logging.version>
         <junit.version>4.13.2</junit.version>
         <license-maven-plugin.version>4.6</license-maven-plugin.version>
         <licensing-maven-plugin.version>1.7.11</licensing-maven-plugin.version>
@@ -115,6 +117,11 @@
                 <groupId>org.hamcrest</groupId>
                 <artifactId>hamcrest</artifactId>
                 <version>3.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.logging</groupId>
+                <artifactId>jboss-logging</artifactId>
+                <version>${jboss-logging.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.neo4j</groupId>
@@ -643,21 +650,6 @@
                     </plugin>
                 </plugins>
             </build>
-        </profile>
-        <profile>
-            <id>jdk8</id>
-            <activation>
-                <jdk>1.8</jdk>
-            </activation>
-            <dependencyManagement>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.jboss.logging</groupId>
-                        <artifactId>jboss-logging</artifactId>
-                        <version>3.4.3.Final</version>
-                    </dependency>
-                </dependencies>
-            </dependencyManagement>
         </profile>
     </profiles>
 </project>
