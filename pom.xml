@@ -73,7 +73,6 @@
         <spark.version>3.5.6</spark.version>
         <spotless-maven-plugin.version>2.46.1</spotless-maven-plugin.version>
         <surefire.jvm.args/>
-        <testcontainers-keycloak.version>3.8.0</testcontainers-keycloak.version>
         <testcontainers.version>1.21.3</testcontainers.version>
     </properties>
     <dependencyManagement>
@@ -91,27 +90,6 @@
                 <version>${testcontainers.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.github.dasniko</groupId>
-                <artifactId>testcontainers-keycloak</artifactId>
-                <version>${testcontainers-keycloak.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>io.quarkus</groupId>
-                        <artifactId>quarkus-junit4-mock</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <!--
-                Required for com.github.dasniko:testcontainers-keycloak.
-                Version 3.6.9 is a minimal version supporting JDK 11.
-                See rules in: .github/dependabot.yml
-            -->
-            <dependency>
-                <groupId>io.quarkus</groupId>
-                <artifactId>quarkus-junit4-mock</artifactId>
-                <version>3.26.0</version>
             </dependency>
             <dependency>
                 <groupId>junit</groupId>
@@ -679,9 +657,9 @@
             <dependencyManagement>
                 <dependencies>
                     <dependency>
-                        <groupId>com.github.dasniko</groupId>
-                        <artifactId>testcontainers-keycloak</artifactId>
-                        <version>1.9.0</version>
+                        <groupId>org.jboss.logging</groupId>
+                        <artifactId>jboss-logging</artifactId>
+                        <version>3.4.3.Final</version>
                     </dependency>
                 </dependencies>
             </dependencyManagement>
