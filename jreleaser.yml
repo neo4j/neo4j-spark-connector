@@ -102,6 +102,7 @@ hooks:
 signing:
   active: ALWAYS
   mode: COMMAND
+  verify: false
   command:
     homeDir: '~/.gnupg'
 
