@@ -97,7 +97,7 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
                 
                 # Execute JReleaser
                 java -jar jreleaser-cli.jar assemble
-                java -jar jreleaser-cli.jar full-release
+                java -jar jreleaser-cli.jar full-release --debug
               """
                       .trimIndent()
 
