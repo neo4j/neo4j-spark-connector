@@ -121,7 +121,4 @@ deploy:
 
 announce:
   slack:
-    channels:
-      - '#release'
-      - '#team-spark'
-    message: ':tada: @release-pm {{projectNameCapitalized}} {{projectVersion}} has been released! {{releaseNotesUrl}}'
+    channel: '#release'

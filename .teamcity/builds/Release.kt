@@ -82,8 +82,8 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
                 # Get the jreleaser downloader
                 curl -sL https://raw.githubusercontent.com/jreleaser/release-action/refs/tags/2.4.2/get_jreleaser.java > get_jreleaser.java
 
-                # Download JReleaser with version = 1.20.0
-                java get_jreleaser.java 1.20.0
+                # Download JReleaser with version = 1.18.0
+                java get_jreleaser.java 1.18.0
 
                 if [ "%dry-run%" = "true" ]; then
                   echo "we are on a dry run, only performing upload to maven central"
