@@ -125,7 +125,10 @@ object Neo4jUtil {
 
   def connectorVersion: String = properties.getOrDefault("version", "UNKNOWN").toString
 
-  def connectorEnv: String = Option(System.getenv("DATABRICKS_RUNTIME_VERSION"))
+  def connectorEnv: String = Option(System.getProperty("neo4j.spark.platform"))
+    .getOrElse(defaultConnectorEnv)
+
+  private def defaultConnectorEnv: String = Option(System.getenv("DATABRICKS_RUNTIME_VERSION"))
     .map(_ => "databricks")
     .getOrElse("spark")
 
