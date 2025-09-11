@@ -36,13 +36,11 @@ import org.neo4j.spark.writer.Neo4jWriterBuilder
 
 import scala.collection.JavaConverters._
 
-class Neo4jTable(neo4j: Neo4j, schema: StructType, options: java.util.Map[String, String], jobId: String)
+class Neo4jTable(neo4j: Neo4j, schema: StructType, neo4jOptions: Neo4jOptions, jobId: String)
     extends Table
     with SupportsRead
     with SupportsWrite
     with Logging {
-
-  private val neo4jOptions = new Neo4jOptions(options)
 
   override def name(): String = neo4jOptions.getTableName
 
@@ -64,7 +62,7 @@ class Neo4jTable(neo4j: Neo4j, schema: StructType, options: java.util.Map[String
   }
 
   override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {
-    val mapOptions = new java.util.HashMap[String, String](options)
+    val mapOptions = neo4jOptions.asMap()
     mapOptions.put(Neo4jOptions.ACCESS_MODE, AccessMode.WRITE.toString)
     val writeNeo4jOptions = new Neo4jOptions(mapOptions)
     new Neo4jWriterBuilder(neo4j, info.queryId(), info.schema(), SaveMode.Append, writeNeo4jOptions)

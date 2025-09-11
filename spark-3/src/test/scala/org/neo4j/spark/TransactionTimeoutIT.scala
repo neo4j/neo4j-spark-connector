@@ -16,8 +16,13 @@
  */
 package org.neo4j.spark
 
+import org.apache.spark.SparkException
+import org.apache.spark.sql.SparkSession
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT.conf
 import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT.server
 import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT.ss
 
@@ -41,6 +46,58 @@ class TransactionTimeoutIT extends SparkConnectorScalaSuiteWithApocIT {
     val expected = Range.inclusive(1, 3).map(_.toLong).toList
 
     assertEquals(expected, results)
+  }
+
+  @Test
+  def sparkConnectorFailsWithTransactionTimeoutWhenSetOnSessionLevel(): Unit = {
+    val newConf = conf.clone().set("neo4j.url", server.getBoltUrl)
+      .set("neo4j.authentication.basic.username", "neo4j")
+      .set("neo4j.authentication.basic.password", server.getAdminPassword)
+      .set("neo4j.db.transaction.timeout", "1000")
+    val session = SparkSession.builder.config(newConf).getOrCreate()
+
+    val cypher = "UNWIND range(1, 20) AS i " +
+      "CALL apoc.util.sleep(1000) " +
+      "RETURN i as number"
+
+    val df = session.read.format("org.neo4j.spark.DataSource")
+      .option("query", cypher)
+      .load()
+      .toDF()
+
+    val exc = assertThrows(
+      classOf[SparkException],
+      () => {
+        df.select("number").rdd.map(_.getLong(0)).collect().toList
+      }
+    )
+    assertTrue(exc.getMessage.contains("The transaction has been terminated"))
+  }
+
+  @Test
+  def sparkConnectorFailsWithTransactionTimeoutWhenSetOnDatasourceLevel(): Unit = {
+    val newConf = conf.clone().set("neo4j.url", server.getBoltUrl)
+      .set("neo4j.authentication.basic.username", "neo4j")
+      .set("neo4j.authentication.basic.password", server.getAdminPassword)
+    val session = SparkSession.builder.config(newConf).getOrCreate()
+
+    val cypher = "UNWIND range(1, 20) AS i " +
+      "CALL apoc.util.sleep(1000) " +
+      "RETURN i as number"
+
+    val df = session.read.format("org.neo4j.spark.DataSource")
+      .option("query", cypher)
+      .option("db.transaction.timeout", "1000")
+      .load()
+      .toDF()
+
+    val exc = assertThrows(
+      classOf[SparkException],
+      () => {
+        df.select("number").rdd.map(_.getLong(0)).collect().toList
+      }
+    )
+    assertTrue(exc.getMessage.contains("The transaction has been terminated"))
   }
 
 }

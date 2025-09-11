@@ -16,6 +16,7 @@
  */
 package org.neo4j.spark
 
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.catalog.TableProvider
 import org.apache.spark.sql.connector.expressions.Transform
@@ -80,7 +81,8 @@ class DataSource extends TableProvider
 
   private def getNeo4jOptions(caseInsensitiveStringMap: CaseInsensitiveStringMap) = {
     if (neo4jOptions == null) {
-      neo4jOptions = new Neo4jOptions(caseInsensitiveStringMap.asCaseSensitiveMap())
+      neo4jOptions =
+        Neo4jOptions.fromSession(SparkSession.getActiveSession, caseInsensitiveStringMap.asCaseSensitiveMap())
     }
 
     neo4jOptions
@@ -99,7 +101,7 @@ class DataSource extends TableProvider
     }
     val neo4jOpts = getNeo4jOptions(caseInsensitiveStringMapNeo4jOptions)
     val neo4jInfo = getNeo4jInfo(neo4jOpts.connection)
-    new Neo4jTable(neo4jInfo, schema, map, jobId)
+    new Neo4jTable(neo4jInfo, schema, neo4jOpts, jobId)
   }
 
   override def shortName(): String = "neo4j"
