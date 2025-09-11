@@ -38,4 +38,11 @@ class Neo4jUtilTest {
     Assert.assertEquals(expected, actual)
   }
 
+  @Test
+  def testConnectorEnvForCustom(): Unit = {
+    System.setProperty("neo4j.spark.platform", "abc")
+    val actual = Neo4jUtil.connectorEnv
+    Assert.assertEquals("abc", actual)
+  }
+
 }
