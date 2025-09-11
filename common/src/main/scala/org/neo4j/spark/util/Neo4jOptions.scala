@@ -48,30 +48,16 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
   def asMap() = new util.HashMap[String, String](options)
 
-  private def parameters: util.Map[String, String] = {
-    val sparkOptions = SparkSession.getActiveSession
-      .map {
-        _.conf
-          .getAll
-          .filterKeys(k => k.startsWith("neo4j."))
-          .map { elem => (elem._1.substring("neo4j.".length), elem._2) }
-          .toMap
-      }
-      .getOrElse(Map.empty)
-
-    (sparkOptions ++ options.asScala).asJava
-  }
-
   private def getRequiredParameter(parameter: String): String = {
-    if (!parameters.containsKey(parameter) || parameters.get(parameter).isEmpty) {
+    if (!options.containsKey(parameter) || options.get(parameter).isEmpty) {
       throw new IllegalArgumentException(s"Parameter '$parameter' is required")
     }
 
-    parameters.get(parameter)
+    options.get(parameter)
   }
 
   private def getParameter(parameter: String, defaultValue: String = ""): String =
-    Some(parameters.getOrDefault(parameter, defaultValue))
+    Some(options.getOrDefault(parameter, defaultValue))
       .flatMap(Option(_)) // to turn null into None
       .map(_.trim)
       .getOrElse(defaultValue)
@@ -79,7 +65,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   private def getAuthenticationParameters: Map[String, String] = {
     val authType = getParameter(AUTH_TYPE, DEFAULT_AUTH_TYPE)
     val authNamespace = s"$AUTH.$authType"
-    val providedParameters = parameters.asScala
+    val providedParameters = options.asScala
       .filterKeys(_.startsWith(authNamespace))
       .map(t => (t._1.substring(authNamespace.length + 1), t._2))
       .toMap
@@ -301,7 +287,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   val queryMetadata: Neo4jQueryMetadata = initNeo4jQueryMetadata()
 
   private def initNeo4jGdsMetadata(): Neo4jGdsMetadata = Neo4jGdsMetadata(
-    parameters.asScala
+    options.asScala
       .filterKeys(k => k.startsWith("gds."))
       .map(t => (t._1.substring("gds.".length), t._2))
       .toMap
@@ -314,7 +300,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
   val streamingOrderBy: String = getParameter(ORDER_BY, getParameter(STREAMING_PROPERTY_NAME))
 
-  val apocConfig: Neo4jApocConfig = Neo4jApocConfig(parameters.asScala
+  val apocConfig: Neo4jApocConfig = Neo4jApocConfig(options.asScala
     .filterKeys(_.startsWith("apoc."))
     .mapValues(Neo4jUtil.mapper.readValue(_, classOf[java.util.Map[String, AnyRef]]).asScala)
     .toMap)
@@ -647,6 +633,20 @@ object Neo4jOptions {
   var DEFAULT_AUTH_PARAMETERS: Map[String, String] =
     Seq("username", "password", "ticket", "principal", "credentials", "realm", "scheme", "token")
       .map(name => name -> DEFAULT_EMPTY).toMap
+
+  def fromSession(sparkSession: Option[SparkSession], options: java.util.Map[String, String]): Neo4jOptions = {
+    val sessionLevelOptions = sparkSession
+      .map {
+        _.conf
+          .getAll
+          .filterKeys(k => k.startsWith("neo4j."))
+          .map { elem => (elem._1.substring("neo4j.".length), elem._2) }
+          .toMap
+      }
+      .getOrElse(Map.empty)
+
+    new Neo4jOptions((sessionLevelOptions ++ options.asScala).asJava)
+  }
 }
 
 class CaseInsensitiveEnumeration extends Enumeration {
