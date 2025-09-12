@@ -89,6 +89,8 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   val pushdownTopNEnabled: Boolean =
     getParameter(PUSHDOWN_TOPN_ENABLED, DEFAULT_PUSHDOWN_TOPN_ENABLED.toString).toBoolean
 
+  val skipNullKeys: Boolean = getParameter(SKIP_NULL_KEY_PROPS, "false").toBoolean
+
   val schemaMetadata: Neo4jSchemaMetadata = initSchemaMetadata
 
   private def initSchemaMetadata = {
@@ -582,6 +584,9 @@ object Neo4jOptions {
 
   // Query metadata
   val QUERY_COUNT = "query.count"
+
+  // Skip NULL valued key properties when creating nodes/relationships
+  val SKIP_NULL_KEY_PROPS = "skip.null.keys"
 
   // Transaction Metadata
   val TRANSACTION_RETRIES = "transaction.retries"

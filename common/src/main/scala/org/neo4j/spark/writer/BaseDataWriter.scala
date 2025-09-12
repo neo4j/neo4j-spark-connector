@@ -72,7 +72,7 @@ abstract class BaseDataWriter(
   private val metrics = DataWriterMetrics()
 
   def write(record: InternalRow): Unit = {
-    batch.add(mappingService.convert(record, structType))
+    mappingService.convert(record, structType).foreach(batch.add)
     if (batch.size() == options.transactionSettings.batchSize) {
       writeBatch()
     }
