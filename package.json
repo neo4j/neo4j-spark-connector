@@ -4,7 +4,7 @@
     "@commitlint/config-conventional": "^18.6.3",
     "@commitlint/lint": "^18.6.1",
     "@commitlint/load": "^18.6.1",
-    "danger": "^12.3.3",
+    "danger": "^13.0.4",
     "husky": "^9.0.11"
   },
   "scripts": {
