@@ -435,14 +435,15 @@ class SchemaService(
     }
     log.info(s"Executing the following counting query on Neo4j: $query")
     session.readTransaction(
-      tx => tx.run(query, Values.value(Neo4jUtil.paramsFromFilters(filters).asJava)),
+      tx =>
+        tx.run(query, Values.value(Neo4jUtil.paramsFromFilters(filters).asJava))
+          .list()
+          .asScala
+          .map(_.get("count"))
+          .map(count => if (count.isNull) 0L else count.asLong())
+          .min,
       sessionTransactionConfig
     )
-      .list()
-      .asScala
-      .map(_.get("count"))
-      .map(count => if (count.isNull) 0L else count.asLong())
-      .min
   }
 
   def countForRelationshipWithQuery(filters: Array[Filter]): Long = {

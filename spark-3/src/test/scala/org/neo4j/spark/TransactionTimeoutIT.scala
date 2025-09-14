@@ -25,6 +25,7 @@ import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
 import org.junit.Test
 import org.neo4j.Neo4jContainerExtension
+import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT.conf
 import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT.server
 import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT.ss
@@ -68,13 +69,13 @@ class TransactionTimeoutIT extends SparkConnectorScalaSuiteWithApocIT {
 
     val df = session.read.format("org.neo4j.spark.DataSource")
       .option("query", cypher)
-      .load()
-      .toDF()
 
     val exc = assertThrows(
-      classOf[SparkException],
+      classOf[ClientException],
       () => {
-        df.select("number").rdd.map(_.getLong(0)).collect().toList
+        df.load()
+          .toDF()
+          .select("number").rdd.map(_.getLong(0)).collect().toList
       }
     )
     assertTrue(exc.getMessage.contains("The transaction has been terminated"))
@@ -94,13 +95,13 @@ class TransactionTimeoutIT extends SparkConnectorScalaSuiteWithApocIT {
     val df = session.read.format("org.neo4j.spark.DataSource")
       .option("query", cypher)
       .option("db.transaction.timeout", "1000")
-      .load()
-      .toDF()
 
     val exc = assertThrows(
-      classOf[SparkException],
+      classOf[ClientException],
       () => {
-        df.select("number").rdd.map(_.getLong(0)).collect().toList
+        df.load()
+          .toDF()
+          .select("number").rdd.map(_.getLong(0)).collect().toList
       }
     )
     assertTrue(exc.getMessage.contains("The transaction has been terminated"))
@@ -108,20 +109,20 @@ class TransactionTimeoutIT extends SparkConnectorScalaSuiteWithApocIT {
 
   @Test
   def sparkConnectorExtendsDefaultTimeut(): Unit = {
-    val cypher = "UNWIND range(1, 3) AS i " +
+    val cypher = "UNWIND range(1, 6) AS i " +
       "CALL apoc.util.sleep(1000) " +
       "RETURN i as number"
     val df = ss.read.format("org.neo4j.spark.DataSource")
       .option("url", NEO4J_LOW_TX_TIMEOUT.getBoltUrl)
       .option("authentication.basic.username", "neo4j")
       .option("authentication.basic.password", NEO4J_LOW_TX_TIMEOUT.getAdminPassword)
-      .option("db.transaction.timeout", "4000")
+      .option("db.transaction.timeout", "7000")
       .option("query", cypher)
       .load()
       .toDF()
 
     val results = df.select("number").rdd.map(_.getLong(0)).collect().toList
-    val expected = Range.inclusive(1, 3).map(_.toLong).toList
+    val expected = Range.inclusive(1, 6).map(_.toLong).toList
 
     assertEquals(expected, results)
   }
@@ -135,7 +136,7 @@ object TransactionTimeoutIT {
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     .withEnv("NEO4JLABS_PLUGINS", "[\"apoc\"]")
     .withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
-    .withNeo4jConfig("db.transaction.timeout", "2s")
+    .withNeo4jConfig("db.transaction.timeout", "5s")
     .withDatabases(Seq("db1", "db2"))
 
   @BeforeClass
