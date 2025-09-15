@@ -22,8 +22,6 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
-import org.neo4j.caniuse.CanIUse.INSTANCE.canIUse
-import org.neo4j.caniuse.Cypher.{INSTANCE => Cypher}
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.Record
 import org.neo4j.driver.Session
@@ -36,7 +34,6 @@ import org.neo4j.driver.summary
 import org.neo4j.spark.config.TopN
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.converter.SparkToCypherTypeConverter
-import org.neo4j.spark.cypher.CypherVersionSelector
 import org.neo4j.spark.cypher.CypherVersionSelector.selectCypherVersionClause
 import org.neo4j.spark.service.SchemaService.normalizedClassName
 import org.neo4j.spark.service.SchemaService.normalizedClassNameFromGraphEntity
@@ -116,7 +113,7 @@ class SchemaService(
     query: String,
     params: java.util.Map[String, AnyRef]
   ): mutable.Buffer[StructField] = {
-    val fields = session.run(query, params)
+    val fields = session.run(query, params, sessionTransactionConfig)
       .list
       .asScala
       .filter(record => !record.get("propertyName").isNull && !record.get("propertyName").isEmpty)
@@ -151,7 +148,7 @@ class SchemaService(
     params: java.util.Map[String, AnyRef],
     extractFunction: Record => Map[String, AnyRef]
   ): mutable.Buffer[StructField] = {
-    session.run(query, params).list.asScala
+    session.run(query, params, sessionTransactionConfig).list.asScala
       .flatMap(extractFunction)
       .groupBy(_._1)
       .mapValues(_.map(_._2))
@@ -342,7 +339,7 @@ class SchemaService(
          |RETURN *
          |""".stripMargin
     val map: util.Map[String, AnyRef] = Map[String, AnyRef]("procName" -> options.query.value).asJava
-    val fields = session.run(query, map).list.asScala
+    val fields = session.run(query, map, sessionTransactionConfig).list.asScala
       .map(r => r.get("field").asList((t: Value) => t.asString()).asScala)
       .map(r =>
         (
@@ -401,15 +398,16 @@ class SchemaService(
         |RETURN *
         |""".stripMargin
     val map: util.Map[String, AnyRef] = Map[String, AnyRef]("procName" -> procName).asJava
-    session.run(query, map)
+    session.run(query, map, sessionTransactionConfig)
       .list
       .asScala
       .map(r => (r.get("fieldName").asString(), r.get("optional").asBoolean()))
       .toSeq
   }
 
-  private def getReturnedColumns(query: String): Array[String] = session.run("EXPLAIN " + query)
-    .keys().asScala.toArray
+  private def getReturnedColumns(query: String): Array[String] =
+    session.run("EXPLAIN " + query, sessionTransactionConfig)
+      .keys().asScala.toArray
 
   def struct(): StructType = {
     val struct = options.query.queryType match {
@@ -436,12 +434,16 @@ class SchemaService(
       queryReadStrategy.createStatementForNodeCount(options)
     }
     log.info(s"Executing the following counting query on Neo4j: $query")
-    session.run(query, Values.value(Neo4jUtil.paramsFromFilters(filters).asJava))
-      .list()
-      .asScala
-      .map(_.get("count"))
-      .map(count => if (count.isNull) 0L else count.asLong())
-      .min
+    session.readTransaction(
+      tx =>
+        tx.run(query, Values.value(Neo4jUtil.paramsFromFilters(filters).asJava))
+          .list()
+          .asScala
+          .map(_.get("count"))
+          .map(count => if (count.isNull) 0L else count.asLong())
+          .min,
+      sessionTransactionConfig
+    )
   }
 
   def countForRelationshipWithQuery(filters: Array[Filter]): Long = {
@@ -466,7 +468,7 @@ class SchemaService(
       queryReadStrategy.createStatementForRelationshipCount(options)
     }
     log.info(s"Executing the following counting query on Neo4j: $query")
-    session.run(query)
+    session.run(query, sessionTransactionConfig)
       .list()
       .asScala
       .map(_.get("count"))
@@ -484,7 +486,7 @@ class SchemaService(
        */
       if (filters.isEmpty) {
         val query = "CALL apoc.meta.stats() yield labels RETURN labels"
-        val map = session.run(query).single()
+        val map = session.run(query, sessionTransactionConfig).single()
           .asMap()
           .asScala
           .get("labels")
@@ -507,7 +509,7 @@ class SchemaService(
     try {
       if (filters.isEmpty) {
         val query = "CALL apoc.meta.stats() yield relTypes RETURN relTypes"
-        val map = session.run(query).single()
+        val map = session.run(query, sessionTransactionConfig).single()
           .asMap()
           .asScala
           .get("relTypes")
@@ -576,7 +578,7 @@ class SchemaService(
            |RETURN count(*) AS count
            |""".stripMargin
       }
-      session.run(query).single().get("count").asLong()
+      session.run(query, sessionTransactionConfig).single().get("count").asLong()
     }
   }
 
@@ -588,7 +590,8 @@ class SchemaService(
         |WHERE name = $procName AND type = 'procedure'
         |RETURN count(*) = 1
         |""".stripMargin,
-      params
+      params,
+      sessionTransactionConfig
     )
       .single()
       .get(0)
@@ -597,7 +600,7 @@ class SchemaService(
 
   def validateQuery(query: String, expectedQueryTypes: org.neo4j.driver.summary.QueryType*): String =
     try {
-      val queryType = session.run(s"EXPLAIN $query").consume().queryType()
+      val queryType = session.run(s"EXPLAIN $query", sessionTransactionConfig).consume().queryType()
       if (expectedQueryTypes.isEmpty || expectedQueryTypes.contains(queryType)) {
         ""
       } else {
@@ -620,7 +623,7 @@ class SchemaService(
 
   def validateQueryCount(query: String): String =
     try {
-      val resultSummary = session.run(s"EXPLAIN $query").consume()
+      val resultSummary = session.run(s"EXPLAIN $query", sessionTransactionConfig).consume()
       val queryType = resultSummary.queryType()
       val plan = resultSummary.plan()
       val expectedQueryTypes =
@@ -638,7 +641,7 @@ class SchemaService(
 
   def isValidQuery(query: String, expectedQueryTypes: org.neo4j.driver.summary.QueryType*): Boolean =
     try {
-      val queryType = session.run(s"EXPLAIN $query").consume().queryType()
+      val queryType = session.run(s"EXPLAIN $query", sessionTransactionConfig).consume().queryType()
       expectedQueryTypes.isEmpty || expectedQueryTypes.contains(queryType)
     } catch {
       case e: Throwable => {
@@ -690,7 +693,7 @@ class SchemaService(
             "labels" -> Seq(label).asJava,
             "properties" -> props.asJava
           ).asJava.asInstanceOf[util.Map[String, AnyRef]]
-          val isPresent = session.run(queryCheck, params)
+          val isPresent = session.run(queryCheck, params, sessionTransactionConfig)
             .single()
             .get("isPresent")
             .asBoolean()
@@ -700,7 +703,7 @@ class SchemaService(
           } else {
             val query = s"$queryPrefix $querySuffix"
             log.info(s"Performing the following schema query: $query")
-            session.run(query)
+            session.run(query, sessionTransactionConfig)
             "CREATED"
           }
           log.info(s"Status for $action named with label $quotedLabel and props $quotedProps is: $status")
@@ -726,11 +729,14 @@ class SchemaService(
       s"spark_${entityType}_${constraintType.replace(s"$entityType ", "")}-CONSTRAINT_${entityIdentifier}_$dashSeparatedProps".quote()
     val props = keys.values.map(_.quote()).map("e." + _).mkString(", ")
     val asciiRepresentation: String = createCypherPattern(entityType, entityIdentifier)
-    session.writeTransaction(tx => {
-      tx.run(
-        s"CREATE CONSTRAINT $constraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE ($props) IS $constraintType"
-      )
-    })
+    session.writeTransaction(
+      tx => {
+        tx.run(
+          s"CREATE CONSTRAINT $constraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE ($props) IS $constraintType"
+        )
+      },
+      sessionTransactionConfig
+    )
   }
 
   private def createCypherPattern(entityType: String, entityIdentifier: String) = {
@@ -750,33 +756,36 @@ class SchemaService(
     constraints: Set[SchemaConstraintsOptimizationType.Value]
   ): Unit = {
     val asciiRepresentation: String = createCypherPattern(entityType, entityIdentifier)
-    session.writeTransaction(tx => {
-      properties
-        .filter(t => struct.exists(f => f.name == t._1))
-        .map(t => {
-          val field = struct.find(f => f.name == t._1).get
-          (t._2, sparkToCypherTypeConverter.convert(field.dataType), field.nullable)
-        })
-        .foreach(t => {
-          val prop = t._1.quote()
-          val cypherType = t._2
-          val isNullable = t._3
-          if (constraints.contains(SchemaConstraintsOptimizationType.TYPE)) {
-            val typeConstraintName = s"spark_$entityType-TYPE-CONSTRAINT-$entityIdentifier-$prop".quote()
-            tx.run(
-              s"CREATE CONSTRAINT $typeConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$prop IS :: $cypherType"
-            ).consume()
-          }
-          if (constraints.contains(SchemaConstraintsOptimizationType.EXISTS)) {
-            if (!isNullable) {
-              val notNullConstraintName = s"spark_$entityType-NOT_NULL-CONSTRAINT-$entityIdentifier-$prop".quote()
+    session.writeTransaction(
+      tx => {
+        properties
+          .filter(t => struct.exists(f => f.name == t._1))
+          .map(t => {
+            val field = struct.find(f => f.name == t._1).get
+            (t._2, sparkToCypherTypeConverter.convert(field.dataType), field.nullable)
+          })
+          .foreach(t => {
+            val prop = t._1.quote()
+            val cypherType = t._2
+            val isNullable = t._3
+            if (constraints.contains(SchemaConstraintsOptimizationType.TYPE)) {
+              val typeConstraintName = s"spark_$entityType-TYPE-CONSTRAINT-$entityIdentifier-$prop".quote()
               tx.run(
-                s"CREATE CONSTRAINT $notNullConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$prop IS NOT NULL"
+                s"CREATE CONSTRAINT $typeConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$prop IS :: $cypherType"
               ).consume()
             }
-          }
-        })
-    })
+            if (constraints.contains(SchemaConstraintsOptimizationType.EXISTS)) {
+              if (!isNullable) {
+                val notNullConstraintName = s"spark_$entityType-NOT_NULL-CONSTRAINT-$entityIdentifier-$prop".quote()
+                tx.run(
+                  s"CREATE CONSTRAINT $notNullConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$prop IS NOT NULL"
+                ).consume()
+              }
+            }
+          })
+      },
+      sessionTransactionConfig
+    )
   }
 
   private def createOptimizationsForNode(struct: StructType): Unit = {
@@ -914,12 +923,12 @@ class SchemaService(
   def execute(queries: Seq[String]): util.List[util.Map[String, AnyRef]] = {
     val queryMap = queries
       .map(query => {
-        (session.run(s"EXPLAIN $query").consume().queryType(), query)
+        (session.run(s"EXPLAIN $query", sessionTransactionConfig).consume().queryType(), query)
       })
       .groupBy(_._1)
       .mapValues(_.map(_._2))
     val schemaQueries = queryMap.getOrElse(org.neo4j.driver.summary.QueryType.SCHEMA_WRITE, Seq.empty[String])
-    schemaQueries.foreach(session.run)
+    schemaQueries.foreach(session.run(_, sessionTransactionConfig))
     val others = queryMap
       .filterKeys(key => key != org.neo4j.driver.summary.QueryType.SCHEMA_WRITE)
       .values
@@ -959,7 +968,8 @@ class SchemaService(
     val label = options.nodeMetadata.labels.head
     session.run(
       s"""MATCH (n:$label)
-         |RETURN max(n.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin
+         |RETURN max(n.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin,
+      sessionTransactionConfig
     )
       .single()
       .get(options.streamingOptions.propertyName)
@@ -973,14 +983,15 @@ class SchemaService(
 
     session.run(
       s"""MATCH (s:$sourceLabel)-[r:$relType]->(t:$targetLabel)
-         |RETURN max(r.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin
+         |RETURN max(r.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin,
+      sessionTransactionConfig
     )
       .single()
       .get(options.streamingOptions.propertyName)
       .asLong(-1)
   }
 
-  private def lastOffsetForQuery(): Long = session.run(options.streamingOptions.queryOffset)
+  private def lastOffsetForQuery(): Long = session.run(options.streamingOptions.queryOffset, sessionTransactionConfig)
     .single()
     .get(0)
     .asLong(-1)
