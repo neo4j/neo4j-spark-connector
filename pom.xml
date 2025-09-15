@@ -43,7 +43,7 @@
         <commons-lang3.version>3.18.0</commons-lang3.version>
         <connectors-commons.version>1.0.0-rc2</connectors-commons.version>
         <cypherdsl.version>2022.11.0</cypherdsl.version>
-        <driver.version>4.4.20</driver.version>
+        <driver.version>4.4.21</driver.version>
         <java.version>1.8</java.version>
         <!-- 3.4.3.Final is the latest jboss-logging version compatible with java 8 -->
         <jboss-logging.version>3.4.3.Final</jboss-logging.version>
@@ -56,18 +56,18 @@
         <maven-dependency-plugin.version>3.8.1</maven-dependency-plugin.version>
         <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
         <maven-enforcer-plugin.version>3.6.1</maven-enforcer-plugin.version>
-        <maven-failsafe-plugin.version>3.5.3</maven-failsafe-plugin.version>
+        <maven-failsafe-plugin.version>3.5.4</maven-failsafe-plugin.version>
         <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
         <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
         <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <maven-site-plugin.version>3.21.0</maven-site-plugin.version>
         <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
-        <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
+        <maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
         <neo4j.experimental>false</neo4j.experimental>
         <neo4j.version>4.4.20</neo4j.version>
         <netty-bom.version>4.1.127.Final</netty-bom.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <scala-maven-plugin.version>4.9.5</scala-maven-plugin.version>
+        <scala-maven-plugin.version>4.9.6</scala-maven-plugin.version>
         <scala.binary.version>2.12</scala.binary.version>
         <scala.version>2.12.20</scala.version>
         <slf4j-api.version>2.0.17</slf4j-api.version>
