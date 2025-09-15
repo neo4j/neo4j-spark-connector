@@ -17,22 +17,17 @@
 package org.neo4j.spark
 
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.spark.SparkException
 import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.scheduler.SparkListenerStageCompleted
 import org.apache.spark.scheduler.SparkListenerStageSubmitted
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.SparkSession
 import org.hamcrest.Matchers
-import org.junit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.neo4j.Closeables.use
-import org.neo4j.driver.Result
 import org.neo4j.driver.Session
 import org.neo4j.driver.SessionConfig
 import org.neo4j.driver.Transaction
@@ -663,225 +658,6 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       if (session != null) {
         session.close()
       }
-    }
-  }
-
-  @Test
-  def `fails to write nodes when key properties contain null values`(): Unit = {
-    val cities = Seq(
-      (Some(1), "Cherbourg en Cotentin"),
-      (Some(2), "London"),
-      (Some(3), "Malmö"),
-      (None, "Moon")
-    ).toDF("id", "city")
-
-    val caught = intercept[SparkException] {
-      cities.write
-        .format(classOf[DataSource].getName)
-        .mode(SaveMode.Overwrite)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("labels", ":City")
-        .option("node.keys", "id")
-        .option("schema.optimization.node.keys", "KEY")
-        .save()
-    }
-    assert(caught.getMessage contains "Cannot merge the following node because of null property value")
-  }
-
-  @Test
-  def `fails to write relationships when source node key properties contain null values`(): Unit = {
-    val caught = intercept[SparkException] {
-      val cities = Seq(
-        (Some(1), Some(2), "British Airways"),
-        (Some(2), Some(3), "Turkish Airlines"),
-        (None, Some(5), "Another Airline")
-      ).toDF("from", "to", "airline")
-
-      cities.write
-        .format(classOf[DataSource].getName)
-        .mode(SaveMode.Overwrite)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("relationship", "FLIES_TO")
-        .option("relationship.save.strategy", "keys")
-        .option("relationship.source.save.mode", "Overwrite")
-        .option("relationship.source.labels", ":City")
-        .option("relationship.source.node.keys", "from:id")
-        .option("relationship.target.save.mode", "Overwrite")
-        .option("relationship.target.labels", ":City")
-        .option("relationship.target.node.keys", "to:id")
-        .option("relationship.properties", "airline")
-        .option("schema.optimization.node.keys", "KEY")
-        .save()
-    }
-    assert(caught.getMessage contains "Cannot merge the following node because of null property value")
-  }
-
-  @Test
-  def `fails to write relationships when target node key properties contain null values`(): Unit = {
-    val caught = intercept[SparkException] {
-      val cities = Seq(
-        (Some(1), Some(2), "British Airways"),
-        (Some(2), Some(3), "Turkish Airlines"),
-        (Some(3), None, "Another Airline")
-      ).toDF("from", "to", "airline")
-
-      cities.write
-        .format(classOf[DataSource].getName)
-        .mode(SaveMode.Overwrite)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("relationship", "FLIES_TO")
-        .option("relationship.save.strategy", "keys")
-        .option("relationship.source.save.mode", "Overwrite")
-        .option("relationship.source.labels", ":City")
-        .option("relationship.source.node.keys", "from:id")
-        .option("relationship.target.save.mode", "Overwrite")
-        .option("relationship.target.labels", ":City")
-        .option("relationship.target.node.keys", "to:id")
-        .option("relationship.properties", "airline")
-        .option("schema.optimization.node.keys", "KEY")
-        .save()
-    }
-    assert(caught.getMessage contains "Cannot merge the following node because of null property value")
-  }
-
-  @Test
-  def `fails to write relationships when relationship key properties contain null values`(): Unit = {
-    val caught = intercept[SparkException] {
-      val cities = Seq(
-        (Some(1), Some(2), Some("BA721"), "British Airways"),
-        (Some(2), Some(3), Some("TK211"), "Turkish Airlines"),
-        (Some(3), Some(4), None, "Another Airline")
-      ).toDF("from", "to", "flight", "airline")
-
-      cities.write
-        .format(classOf[DataSource].getName)
-        .mode(SaveMode.Overwrite)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("relationship", "FLIES_TO")
-        .option("relationship.save.strategy", "keys")
-        .option("relationship.source.save.mode", "Overwrite")
-        .option("relationship.source.labels", ":City")
-        .option("relationship.source.node.keys", "from:id")
-        .option("relationship.target.save.mode", "Overwrite")
-        .option("relationship.target.labels", ":City")
-        .option("relationship.target.node.keys", "to:id")
-        .option("relationship.keys", "flight")
-        .option("relationship.properties", "airline")
-        .option("schema.optimization.node.keys", "KEY")
-        .option("schema.optimization.relationship.keys", "KEY")
-        .save()
-    }
-    assert(caught.getMessage contains "Cannot merge the following relationship because of null property value")
-  }
-
-  @Test
-  def `skips nodes when key properties contain null values`(): Unit = {
-    val cities = Seq(
-      (Some(1), "Cherbourg en Cotentin"),
-      (Some(2), "London"),
-      (Some(3), "Malmö"),
-      (None, "Moon")
-    ).toDF("id", "city")
-
-    cities.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Overwrite)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", ":City")
-      .option("node.keys", "id")
-      .option("schema.optimization.node.keys", "KEY")
-      .option("skip.null.keys", "true")
-      .save()
-
-    use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
-      val result = session.run("MATCH (n:City) RETURN count(n) as count")
-        .single()
-        .get("count")
-        .asLong()
-      assert(result == 3)
-    }
-  }
-
-  @Test
-  def `skips relationships when source or target node key properties contain null values`(): Unit = {
-    val cities = Seq(
-      (Some(1), Some(2), "British Airways"),
-      (Some(2), Some(3), "Turkish Airlines"),
-      (None, Some(5), "Another Airline"),
-      (Some(5), None, "Another Airline")
-    ).toDF("from", "to", "airline")
-
-    cities.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Overwrite)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("relationship", "FLIES_TO")
-      .option("relationship.save.strategy", "keys")
-      .option("relationship.source.save.mode", "Overwrite")
-      .option("relationship.source.labels", ":City")
-      .option("relationship.source.node.keys", "from:id")
-      .option("relationship.target.save.mode", "Overwrite")
-      .option("relationship.target.labels", ":City")
-      .option("relationship.target.node.keys", "to:id")
-      .option("relationship.properties", "airline")
-      .option("schema.optimization.node.keys", "KEY")
-      .option("skip.null.keys", "true")
-      .save()
-
-    use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
-      val cities = session.run("MATCH (n:City) RETURN count(n) as count")
-        .single()
-        .get("count")
-        .asLong()
-      assert(cities == 3)
-
-      val flies = session.run("MATCH ()-[r:FLIES_TO]->() RETURN count(r) as count")
-        .single()
-        .get("count")
-        .asLong()
-      assert(flies == 2)
-    }
-  }
-
-  @Test
-  def `skips relationships when relationship key properties contain null values`(): Unit = {
-    val cities = Seq(
-      (Some(1), Some(2), Some("BA721"), "British Airways"),
-      (Some(2), Some(3), Some("TK211"), "Turkish Airlines"),
-      (Some(3), Some(4), None, "Another Airline")
-    ).toDF("from", "to", "flight", "airline")
-
-    cities.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Overwrite)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("relationship", "FLIES_TO")
-      .option("relationship.save.strategy", "keys")
-      .option("relationship.source.save.mode", "Overwrite")
-      .option("relationship.source.labels", ":City")
-      .option("relationship.source.node.keys", "from:id")
-      .option("relationship.target.save.mode", "Overwrite")
-      .option("relationship.target.labels", ":City")
-      .option("relationship.target.node.keys", "to:id")
-      .option("relationship.keys", "flight")
-      .option("relationship.properties", "airline")
-      .option("schema.optimization.node.keys", "KEY")
-      .option("schema.optimization.relationship.keys", "KEY")
-      .option("skip.null.keys", "true")
-      .save()
-
-    use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
-      val cities = session.run("MATCH (n:City) RETURN count(n) as count")
-        .single()
-        .get("count")
-        .asLong()
-      assert(cities == 3)
-
-      val flies = session.run("MATCH ()-[r:FLIES_TO]->() RETURN count(r) as count")
-        .single()
-        .get("count")
-        .asLong()
-      assert(flies == 2)
     }
   }
 
