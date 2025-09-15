@@ -34,8 +34,6 @@ import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.QueryType
 import org.neo4j.spark.util.RelationshipSaveStrategy
-import org.neo4j.spark.util.ValidateSchemaOptions
-import org.neo4j.spark.util.Validations
 
 import java.util
 import java.util.function
@@ -68,7 +66,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
       })
 
     if (options.skipNullKeys && keys.containsValue(Values.NULL)) {
-      logWarning(
+      logTrace(
         s"Skipping row because it contains null value for one of the node keys: [${
             options.nodeMetadata.nodeKeys.values
               .mkString(", ")
@@ -161,7 +159,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
           || consumer.targetNodeMap.get(KEYS).containsValue(Values.NULL)
       )
     ) {
-      logWarning(
+      logTrace(
         s"Skipping row because it contains null value for one of the relationship keys: [${
             options.relationshipMetadata.relationshipKeys.values
               .mkString(", ")
