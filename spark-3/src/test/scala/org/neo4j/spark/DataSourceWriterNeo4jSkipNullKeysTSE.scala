@@ -26,27 +26,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
   import ss.implicits._
 
   @Test
-  def `fails to write nodes when mode is not Overwrite`(): Unit = {
-    val cities = Seq(
-      (Some(1), "Cherbourg en Cotentin"),
-      (Some(2), "London"),
-      (Some(3), "Malmö")
-    ).toDF("id", "city")
-
-    val caught = intercept[IllegalArgumentException] {
-      cities.write
-        .format(classOf[DataSource].getName)
-        .mode(SaveMode.Append)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("labels", ":City")
-        .option("node.keys", "id")
-        .option("skip.null.keys", "true")
-        .save()
-    }
-    assert(caught.getMessage contains "`skip.null.keys` works only with `mode` `Overwrite`")
-  }
-
-  @Test
   def `fails to write nodes when key properties contain null values`(): Unit = {
     val cities = Seq(
       (Some(1), "Cherbourg en Cotentin"),
@@ -155,7 +134,34 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `skips nodes when key properties contain null values`(): Unit = {
+  def `skips nodes when key properties contain null values with APPEND mode`(): Unit = {
+    val cities = Seq(
+      (Some(1), "Cherbourg en Cotentin"),
+      (Some(2), "London"),
+      (Some(3), "Malmö"),
+      (None, "Moon")
+    ).toDF("id", "city")
+
+    cities.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":City")
+      .option("node.keys", "id")
+      .option("node.keys.skip.nulls", "true")
+      .save()
+
+    use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
+      val result = session.run("MATCH (n:City) RETURN count(n) as count")
+        .single()
+        .get("count")
+        .asLong()
+      assert(result == 3)
+    }
+  }
+
+  @Test
+  def `skips nodes when key properties contain null values with OVERWRITE mode`(): Unit = {
     val cities = Seq(
       (Some(1), "Cherbourg en Cotentin"),
       (Some(2), "London"),
@@ -169,8 +175,8 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("labels", ":City")
       .option("node.keys", "id")
+      .option("node.keys.skip.nulls", "true")
       .option("schema.optimization.node.keys", "KEY")
-      .option("skip.null.keys", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -205,7 +211,8 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.node.keys", "to:id")
       .option("relationship.properties", "airline")
       .option("schema.optimization.node.keys", "KEY")
-      .option("skip.null.keys", "true")
+      .option("relationship.source.node.keys.skip.nulls", "true")
+      .option("relationship.target.node.keys.skip.nulls", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -256,7 +263,8 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":City")
       .option("relationship.target.node.keys", "to:id")
       .option("relationship.properties", "airline")
-      .option("skip.null.keys", "true")
+      .option("relationship.source.node.keys.skip.nulls", "true")
+      .option("relationship.target.node.keys.skip.nulls", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -297,7 +305,8 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":City")
       .option("relationship.target.node.keys", "to:id")
       .option("relationship.properties", "airline")
-      .option("skip.null.keys", "true")
+      .option("relationship.source.node.keys.skip.nulls", "true")
+      .option("relationship.target.node.keys.skip.nulls", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -344,7 +353,8 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.node.keys", "to:id")
       .option("relationship.properties", "airline")
       .option("schema.optimization.node.keys", "KEY")
-      .option("skip.null.keys", "true")
+      .option("relationship.source.node.keys.skip.nulls", "true")
+      .option("relationship.target.node.keys.skip.nulls", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -395,7 +405,8 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":City")
       .option("relationship.target.node.keys", "to:id")
       .option("relationship.properties", "airline")
-      .option("skip.null.keys", "true")
+      .option("relationship.source.node.keys.skip.nulls", "true")
+      .option("relationship.target.node.keys.skip.nulls", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -436,7 +447,8 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":City")
       .option("relationship.target.node.keys", "to:id")
       .option("relationship.properties", "airline")
-      .option("skip.null.keys", "true")
+      .option("relationship.source.node.keys.skip.nulls", "true")
+      .option("relationship.target.node.keys.skip.nulls", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -484,7 +496,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.properties", "airline")
       .option("schema.optimization.node.keys", "KEY")
       .option("schema.optimization.relationship.keys", "KEY")
-      .option("skip.null.keys", "true")
+      .option("relationship.keys.skip.nulls", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>

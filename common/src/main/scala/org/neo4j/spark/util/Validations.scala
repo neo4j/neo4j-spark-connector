@@ -123,13 +123,6 @@ case class ValidateSchemaMetadataWrite(neo4jOptions: Neo4jOptions, saveMode: Sav
             s"${Neo4jOptions.NODE_KEYS} is required to define the constraints"
           )
         }
-
-        if (neo4jOptions.skipNullKeys) {
-          ValidationUtil.isTrue(
-            saveMode == SaveMode.Overwrite,
-            s"`${Neo4jOptions.SKIP_NULL_KEY_PROPS}` works only with `mode` `Overwrite`"
-          )
-        }
       }
       case QueryType.RELATIONSHIP => {
         if (hasNodeOptimizations) {

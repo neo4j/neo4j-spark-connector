@@ -65,13 +65,8 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
         }
       })
 
-    if (options.skipNullKeys && keys.containsValue(Values.NULL)) {
-      logTrace(
-        s"Skipping row because it contains null value for one of the node keys: [${
-            options.nodeMetadata.nodeKeys.values
-              .mkString(", ")
-          }]"
-      )
+    if (options.nodeMetadata.skipNullKeys && containsNull(keys)) {
+      logSkipping("node keys", options.nodeMetadata.nodeKeys.values)
       None
     } else {
       Some(rowMap)
@@ -152,32 +147,19 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
       )
     }
 
-    if (
-      options.skipNullKeys && (
-        consumer.relMap.get(KEYS).containsValue(Values.NULL)
-          || consumer.sourceNodeMap.get(KEYS).containsValue(Values.NULL)
-          || consumer.targetNodeMap.get(KEYS).containsValue(Values.NULL)
-      )
-    ) {
-      logTrace(
-        s"Skipping row because it contains null value for one of the relationship keys: [${
-            options.relationshipMetadata.relationshipKeys.values
-              .mkString(", ")
-          }] or source node keys: [${
-            options.relationshipMetadata.source.nodeKeys.values
-              .mkString(", ")
-          }] or target node keys: [${
-            options.relationshipMetadata.target.nodeKeys.values
-              .mkString(", ")
-          }]"
-      )
+    if (options.relationshipMetadata.skipNullKeys && containsNull(consumer.relMap, KEYS)) {
+      logSkipping("relationship keys", options.relationshipMetadata.relationshipKeys.values)
+      None
+    } else if (options.relationshipMetadata.source.skipNullKeys && containsNull(consumer.sourceNodeMap, KEYS)) {
+      logSkipping("source node keys", options.relationshipMetadata.source.nodeKeys.values)
+      None
+    } else if (options.relationshipMetadata.target.skipNullKeys && containsNull(consumer.targetNodeMap, KEYS)) {
+      logSkipping("target node keys", options.relationshipMetadata.target.nodeKeys.values)
       None
     } else {
-
       rowMap.put(Neo4jUtil.RELATIONSHIP_ALIAS, consumer.relMap)
       rowMap.put(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, consumer.sourceNodeMap)
       rowMap.put(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, consumer.targetNodeMap)
-
       Some(rowMap)
     }
   }
@@ -201,6 +183,20 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
         .toMap
         .asJava
     )
+  }
+
+  // Helper methods
+
+  private def containsNull(map: java.util.Map[String, Object]): Boolean = {
+    map.containsValue(Values.NULL)
+  }
+
+  private def containsNull(map: java.util.Map[String, java.util.Map[String, AnyRef]], key: String): Boolean = {
+    map.get(key).containsValue(Values.NULL)
+  }
+
+  private def logSkipping(keyType: String, keys: Iterable[String]): Unit = {
+    logTrace(s"Skipping row because it contains null value for one of the $keyType: [${keys.mkString(", ")}]")
   }
 }
 
