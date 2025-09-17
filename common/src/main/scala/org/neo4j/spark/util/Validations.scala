@@ -117,7 +117,7 @@ case class ValidateSchemaMetadataWrite(neo4jOptions: Neo4jOptions, saveMode: Sav
       }
       case QueryType.LABELS => {
         if (hasNodeOptimizations) {
-          ValidationUtil.isTrue(saveMode == SaveMode.Overwrite, "This works only with `mode` `SaveMode.Overwrite`")
+          ValidationUtil.isTrue(saveMode == SaveMode.Overwrite, "This works only with `mode` `Overwrite`")
           ValidationUtil.isNotEmpty(
             neo4jOptions.nodeMetadata.nodeKeys,
             s"${Neo4jOptions.NODE_KEYS} is required to define the constraints"
