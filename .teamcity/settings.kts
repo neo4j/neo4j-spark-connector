@@ -20,6 +20,7 @@ project {
     password("signing-key-passphrase", "%publish-signing-key-password%")
     password("github-commit-status-token", "%github-token%")
     password("github-pull-request-token", "%github-token%")
+    password("snyk-token", "%snyk-token%")
   }
 
   vcsRoot(Neo4jSparkConnectorVcs)
@@ -69,7 +70,7 @@ project {
         Neo4jVersion.entries.minus(Neo4jVersion.V_NONE).forEach { neo4j ->
           subProject(
               Build(
-                  name = "${neo4j.version}",
+                  name = neo4j.version,
                   javaVersions =
                       setOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
                   scalaVersions = setOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
