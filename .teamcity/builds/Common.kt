@@ -130,7 +130,8 @@ enum class Neo4jVersion(val version: String, val dockerImage: String) {
 data class SnykProfile(val name: String, val mavenArgs: String, val dockerImage: String = "snyk/snyk:maven-3-jdk-17")
 
 val SNYK_PROFILES = setOf(
-    SnykProfile("scala-2-13", "-Pscala-2.13")
+    SnykProfile("scala-2-13", "-Pscala-2.13"),
+    SnykProfile("neo4j-4-4", "-Pneo4j-4.4"),
 )
 
 fun <S, T, Y> Iterable<S>.cartesianProduct(
