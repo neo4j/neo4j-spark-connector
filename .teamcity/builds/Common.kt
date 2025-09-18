@@ -131,7 +131,6 @@ data class SnykProfile(val name: String, val mavenArgs: String, val dockerImage:
 
 val SNYK_PROFILES = setOf(
     SnykProfile("scala-2-13", "-Pscala-2.13"),
-    SnykProfile("neo4j-4-4", "-Pneo4j-4.4"),
 )
 
 fun <S, T, Y> Iterable<S>.cartesianProduct(
