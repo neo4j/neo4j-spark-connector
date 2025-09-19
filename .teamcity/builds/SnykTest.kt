@@ -5,10 +5,11 @@ import jetbrains.buildServer.configs.kotlin.ParameterDisplay
 import jetbrains.buildServer.configs.kotlin.buildFeatures.buildCache
 import jetbrains.buildServer.configs.kotlin.buildSteps.ScriptBuildStep
 import jetbrains.buildServer.configs.kotlin.buildSteps.script
+import jetbrains.buildServer.configs.kotlin.toId
 
 class SnykTest(id: String, name: String, snykProfile: SnykProfile) : BuildType(
     {
-      this.id(id)
+      this.id(id.toId())
       this.name = name
 
       params {
