@@ -13,7 +13,7 @@ class SnykTest(id: String, name: String, snykProfile: SnykProfile) : BuildType(
       this.name = name
 
       params {
-        password("env.SNYK_TOKEN", "%snyk-token%", display = ParameterDisplay.HIDDEN)
+        password("env.SNYK_TOKEN", "%snyk-token%")
       }
 
       steps {
