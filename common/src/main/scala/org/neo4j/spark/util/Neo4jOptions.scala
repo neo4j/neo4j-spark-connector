@@ -200,7 +200,8 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   private def initNeo4jNodeMetadata(
     nodeKeysString: String = getParameter(NODE_KEYS, ""),
     labelsString: String = query.value,
-    nodePropsString: String = ""
+    nodePropsString: String = "",
+    skipNullKeys: Boolean = getParameter(NODE_KEYS_SKIP_NULLS, "false").toBoolean
   ): Neo4jNodeMetadata = {
 
     val nodeKeys = mapPropsString(nodeKeysString)
@@ -210,7 +211,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       .split(":")
       .map(_.trim)
       .filter(_.nonEmpty)
-    Neo4jNodeMetadata(labels, nodeKeys, nodeProps)
+    Neo4jNodeMetadata(labels, nodeKeys, nodeProps, skipNullKeys)
   }
 
   val transactionSettings: Neo4jTransactionSettings = initNeo4jTransactionSettings()
@@ -238,13 +239,15 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     val source = initNeo4jNodeMetadata(
       getParameter(RELATIONSHIP_SOURCE_NODE_KEYS, ""),
       getParameter(RELATIONSHIP_SOURCE_LABELS, ""),
-      getParameter(RELATIONSHIP_SOURCE_NODE_PROPS, "")
+      getParameter(RELATIONSHIP_SOURCE_NODE_PROPS, ""),
+      getParameter(RELATIONSHIP_SOURCE_NODE_KEYS_SKIP_NULLS, "false").toBoolean
     )
 
     val target = initNeo4jNodeMetadata(
       getParameter(RELATIONSHIP_TARGET_NODE_KEYS, ""),
       getParameter(RELATIONSHIP_TARGET_LABELS, ""),
-      getParameter(RELATIONSHIP_TARGET_NODE_PROPS, "")
+      getParameter(RELATIONSHIP_TARGET_NODE_PROPS, ""),
+      getParameter(RELATIONSHIP_TARGET_NODE_KEYS_SKIP_NULLS, "false").toBoolean
     )
 
     val nodeMap = getParameter(RELATIONSHIP_NODES_MAP, DEFAULT_RELATIONSHIP_NODES_MAP.toString).toBoolean
@@ -275,7 +278,8 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       query.value,
       nodeMap,
       writeStrategy,
-      relationshipKeys
+      relationshipKeys,
+      getParameter(RELATIONSHIP_KEYS_SKIP_NULLS, "false").toBoolean
     )
   }
 
@@ -371,7 +375,12 @@ case class Neo4jTransactionSettings(
 
 }
 
-case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String], properties: Map[String, String]) {
+case class Neo4jNodeMetadata(
+  labels: Seq[String],
+  nodeKeys: Map[String, String],
+  properties: Map[String, String],
+  skipNullKeys: Boolean = false
+) {
   def includesProperty(name: String): Boolean = nodeKeys.contains(name) || properties.contains(name)
 }
 
@@ -384,7 +393,8 @@ case class Neo4jRelationshipMetadata(
   relationshipType: String,
   nodeMap: Boolean,
   saveStrategy: RelationshipSaveStrategy.Value,
-  relationshipKeys: Map[String, String]
+  relationshipKeys: Map[String, String],
+  skipNullKeys: Boolean = false
 )
 
 case class Neo4jQueryMetadata(query: String, queryCount: String)
@@ -556,8 +566,12 @@ object Neo4jOptions {
   // orderBy
   val ORDER_BY = "orderBy"
 
+  // skip.nulls postfix
+  val SKIP_NULLS = "skip.nulls"
+
   // Node Metadata
   val NODE_KEYS = "node.keys"
+  val NODE_KEYS_SKIP_NULLS = s"${NODE_KEYS}.${SKIP_NULLS}"
   val NODE_PROPS = "node.properties"
 
   val BATCH_SIZE = "batch.size"
@@ -567,18 +581,21 @@ object Neo4jOptions {
   val RELATIONSHIP_SOURCE_LABELS =
     s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.${QueryType.LABELS.toString.toLowerCase}"
   val RELATIONSHIP_SOURCE_NODE_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.$NODE_KEYS"
+  val RELATIONSHIP_SOURCE_NODE_KEYS_SKIP_NULLS = s"${RELATIONSHIP_SOURCE_NODE_KEYS}.${SKIP_NULLS}"
   val RELATIONSHIP_SOURCE_NODE_PROPS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.$NODE_PROPS"
   val RELATIONSHIP_SOURCE_SAVE_MODE = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.$SAVE_MODE"
 
   val RELATIONSHIP_TARGET_LABELS =
     s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.${QueryType.LABELS.toString.toLowerCase}"
   val RELATIONSHIP_TARGET_NODE_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$NODE_KEYS"
+  val RELATIONSHIP_TARGET_NODE_KEYS_SKIP_NULLS = s"${RELATIONSHIP_TARGET_NODE_KEYS}.${SKIP_NULLS}"
   val RELATIONSHIP_TARGET_NODE_PROPS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$NODE_PROPS"
   val RELATIONSHIP_TARGET_SAVE_MODE = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$SAVE_MODE"
   val RELATIONSHIP_PROPERTIES = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.properties"
   val RELATIONSHIP_NODES_MAP = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.nodes.map"
   val RELATIONSHIP_SAVE_STRATEGY = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.save.strategy"
   val RELATIONSHIP_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.keys"
+  val RELATIONSHIP_KEYS_SKIP_NULLS = s"${RELATIONSHIP_KEYS}.${SKIP_NULLS}"
 
   // Query metadata
   val QUERY_COUNT = "query.count"

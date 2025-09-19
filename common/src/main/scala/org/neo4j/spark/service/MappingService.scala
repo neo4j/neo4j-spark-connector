@@ -34,8 +34,6 @@ import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.QueryType
 import org.neo4j.spark.util.RelationshipSaveStrategy
-import org.neo4j.spark.util.ValidateSchemaOptions
-import org.neo4j.spark.util.Validations
 
 import java.util
 import java.util.function
@@ -45,12 +43,12 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
-    extends Neo4jMappingStrategy[InternalRow, java.util.Map[String, AnyRef]]
+    extends Neo4jMappingStrategy[InternalRow, Option[java.util.Map[String, AnyRef]]]
     with Logging {
 
   private val dataConverter = SparkToNeo4jDataConverter()
 
-  override def node(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
+  override def node(row: InternalRow, schema: StructType): Option[java.util.Map[String, AnyRef]] = {
     val rowMap: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
     val keys: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
     val properties: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
@@ -58,6 +56,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     rowMap.put(PROPERTIES, properties)
 
     query(row, schema)
+      .get
       .forEach(new BiConsumer[String, AnyRef] {
         override def accept(key: String, value: AnyRef): Unit = if (options.nodeMetadata.nodeKeys.contains(key)) {
           keys.put(options.nodeMetadata.nodeKeys.getOrElse(key, key), value)
@@ -66,7 +65,12 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
         }
       })
 
-    rowMap
+    if (options.nodeMetadata.skipNullKeys && containsNull(keys)) {
+      logSkipping("node keys", options.nodeMetadata.nodeKeys.values)
+      None
+    } else {
+      Some(rowMap)
+    }
   }
 
   private def nativeStrategyConsumer(): MappingBiConsumer = new MappingBiConsumer {
@@ -121,7 +125,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     }
   }
 
-  override def relationship(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
+  override def relationship(row: InternalRow, schema: StructType): Option[java.util.Map[String, AnyRef]] = {
     val rowMap: java.util.Map[String, AnyRef] = new java.util.HashMap[String, AnyRef]
 
     val consumer = options.relationshipMetadata.saveStrategy match {
@@ -129,7 +133,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
       case RelationshipSaveStrategy.KEYS   => keysStrategyConsumer()
     }
 
-    query(row, schema).forEach(consumer)
+    query(row, schema).get.forEach(consumer)
 
     if (
       options.relationshipMetadata.saveStrategy.equals(RelationshipSaveStrategy.NATIVE)
@@ -143,30 +147,56 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
       )
     }
 
-    rowMap.put(Neo4jUtil.RELATIONSHIP_ALIAS, consumer.relMap)
-    rowMap.put(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, consumer.sourceNodeMap)
-    rowMap.put(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, consumer.targetNodeMap)
-
-    rowMap
+    if (options.relationshipMetadata.skipNullKeys && containsNull(consumer.relMap, KEYS)) {
+      logSkipping("relationship keys", options.relationshipMetadata.relationshipKeys.values)
+      None
+    } else if (options.relationshipMetadata.source.skipNullKeys && containsNull(consumer.sourceNodeMap, KEYS)) {
+      logSkipping("source node keys", options.relationshipMetadata.source.nodeKeys.values)
+      None
+    } else if (options.relationshipMetadata.target.skipNullKeys && containsNull(consumer.targetNodeMap, KEYS)) {
+      logSkipping("target node keys", options.relationshipMetadata.target.nodeKeys.values)
+      None
+    } else {
+      rowMap.put(Neo4jUtil.RELATIONSHIP_ALIAS, consumer.relMap)
+      rowMap.put(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, consumer.sourceNodeMap)
+      rowMap.put(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, consumer.targetNodeMap)
+      Some(rowMap)
+    }
   }
 
-  override def query(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
+  override def query(row: InternalRow, schema: StructType): Option[java.util.Map[String, AnyRef]] = {
     val seq = row.toSeq(schema)
-    schema.indices
-      .flatMap(i => {
-        val field = schema(i)
-        val neo4jValue = dataConverter.convert(seq(i), field.dataType)
-        neo4jValue match {
-          case map: MapValue =>
-            map.asMap().asScala.toMap
-              .flattenMap(field.name, options.schemaMetadata.mapGroupDuplicateKeys)
-              .mapValues(value => Values.value(value).asInstanceOf[AnyRef])
-              .toSeq
-          case _ => Seq((field.name, neo4jValue))
-        }
-      })
-      .toMap
-      .asJava
+    Some(
+      schema.indices
+        .flatMap(i => {
+          val field = schema(i)
+          val neo4jValue = dataConverter.convert(seq(i), field.dataType)
+          neo4jValue match {
+            case map: MapValue =>
+              map.asMap().asScala.toMap
+                .flattenMap(field.name, options.schemaMetadata.mapGroupDuplicateKeys)
+                .mapValues(value => Values.value(value).asInstanceOf[AnyRef])
+                .toSeq
+            case _ => Seq((field.name, neo4jValue))
+          }
+        })
+        .toMap
+        .asJava
+    )
+  }
+
+  // Helper methods
+
+  private def containsNull(map: java.util.Map[String, Object]): Boolean = {
+    map.containsValue(Values.NULL)
+  }
+
+  private def containsNull(map: java.util.Map[String, java.util.Map[String, AnyRef]], key: String): Boolean = {
+    map.get(key).containsValue(Values.NULL)
+  }
+
+  private def logSkipping(keyType: String, keys: Iterable[String]): Unit = {
+    logTrace(s"Skipping row because it contains null value for one of the $keyType: [${keys.mkString(", ")}]")
   }
 }
 

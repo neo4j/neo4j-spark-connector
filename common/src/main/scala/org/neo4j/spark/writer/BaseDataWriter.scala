@@ -71,8 +71,15 @@ abstract class BaseDataWriter(
 
   private val metrics = DataWriterMetrics()
 
+  private var skipped = 0
+
   def write(record: InternalRow): Unit = {
-    batch.add(mappingService.convert(record, structType))
+    val mapped = mappingService.convert(record, structType)
+    mapped match {
+      case Some(m) => batch.add(m)
+      case None =>
+        skipped += 1
+    }
     if (batch.size() == options.transactionSettings.batchSize) {
       writeBatch()
     }
@@ -116,6 +123,11 @@ abstract class BaseDataWriter(
         )
       }
       transaction.commit()
+
+      if (skipped > 0) {
+        log.info(s"Skipped $skipped rows that contained null values in one of their key property values.")
+        skipped = 0
+      }
 
       // update metrics
       metrics.applyCounters(batch.size(), counters)
