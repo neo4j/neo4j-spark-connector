@@ -43,6 +43,11 @@ class Neo4jBatchWriter(
     val scriptResult = schemaService.execute(neo4jOptions.script)
     schemaService.close()
 
+    if (neo4jOptions.indexAwait > 0) {
+      val session = driverCache.getOrCreate().session(neo4jOptions.session.toNeo4jSession())
+      session.run(s"CALL db.awaitIndexes(${neo4jOptions.indexAwait})").consume()
+    }
+
     new Neo4jDataWriterFactory(
       neo4j,
       jobId,

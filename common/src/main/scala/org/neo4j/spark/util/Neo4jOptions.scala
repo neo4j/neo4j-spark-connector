@@ -134,6 +134,8 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     )
   }
 
+  val indexAwait = getParameter(INDEX_AWAIT_TIMEOUT_SEC, DEFAULT_INDEX_AWAIT_TIMEOUT_SEC.toString).toInt
+
   val query: Neo4jQueryOptions = (
     getParameter(QUERY.toString.toLowerCase),
     getParameter(LABELS.toString.toLowerCase),
@@ -564,6 +566,9 @@ object Neo4jOptions {
   // map aggregation
   val SCHEMA_MAP_GROUP_DUPLICATE_KEYS = "schema.map.group.duplicate.keys"
 
+  // index options
+  val INDEX_AWAIT_TIMEOUT_SEC = "index.await.timeout"
+
   // partitions
   val PARTITIONS = "partitions"
 
@@ -650,6 +655,8 @@ object Neo4jOptions {
   val DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS = Duration.ofMinutes(2).toMillis
 
   val DEFAULT_MAP_GROUP_DUPLICATE_KEYS = false
+
+  val DEFAULT_INDEX_AWAIT_TIMEOUT_SEC = 300
 
   var DEFAULT_AUTH_PARAMETERS: Map[String, String] =
     Seq("username", "password", "ticket", "principal", "credentials", "realm", "scheme", "token")
