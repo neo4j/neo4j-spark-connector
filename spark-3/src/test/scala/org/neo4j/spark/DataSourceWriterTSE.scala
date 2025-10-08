@@ -36,6 +36,7 @@ import org.neo4j.driver.internal.types.InternalTypeSystem
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.types.IsoDuration
 import org.neo4j.driver.types.Type
+import org.neo4j.spark.RowUtil.getByName
 import org.neo4j.spark.util.Neo4jOptions
 import org.scalatest.matchers.must.Matchers.be
 import org.scalatest.matchers.must.Matchers.include
@@ -995,57 +996,272 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
   }
 
-  @Test
-  def `should write relations with KEYS mode with props`(): Unit = {
+  def writeKeyModeRelationshipWriteDataSet(
+    optionModifier: Map[String, String] => Map[String, String] = { m => m }
+  ): DataFrame = {
     val musicDf = Seq(
-      (12, "John Bonham", "Drums"),
-      (19, "John Mayer", "Guitar"),
-      (32, "John Scofield", "Guitar"),
-      (15, "John Butler", "Guitar")
-    ).toDF("experience", "name", "instrument")
+      (12, "John Bonham", "Drums", 2, true),
+      (19, "John Mayer", "Guitar", 1, false),
+      (32, "John Scofield", "Guitar", 3, true),
+      (15, "John Butler", "Guitar", 4, false)
+    ).toDF("experience", "name", "instrument", "rating", "hasDiploma")
+
+    val options = Map(
+      "url" -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      "relationship" -> "PLAYS",
+      "relationship.source.save.mode" -> "Overwrite",
+      "relationship.target.save.mode" -> "Overwrite",
+      "relationship.save.strategy" -> "keys",
+      "relationship.source.labels" -> ":Musician",
+      "relationship.source.node.keys" -> "name",
+      "relationship.target.labels" -> ":Instrument",
+      "relationship.target.node.keys" -> "instrument:name"
+    )
+    val modifiedOptions = optionModifier(options)
 
     musicDf.repartition(1).write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Overwrite)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("relationship", "PLAYS")
-      .option("relationship.properties", "experience")
-      .option("relationship.source.save.mode", "Overwrite")
-      .option("relationship.target.save.mode", "Overwrite")
-      .option("relationship.save.strategy", "keys")
-      .option("relationship.source.labels", ":Musician")
-      .option("relationship.source.node.keys", "name")
-      .option("relationship.target.labels", ":Instrument")
-      .option("relationship.target.node.keys", "instrument:name")
+      .options(modifiedOptions)
       .save()
 
-    val df2 = ss.read.format(classOf[DataSource].getName)
+    ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship.nodes.map", "false")
       .option("relationship", "PLAYS")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.target.labels", ":Instrument")
       .load()
+  }
 
-    assertEquals(4, df2.count())
+  @Test
+  def `should write relations with KEYS mode with explicitly listed properties`(): Unit = {
+    val resultDf = writeKeyModeRelationshipWriteDataSet({ options =>
+      options + ("relationship.properties" -> "experience, rating:avgRating")
+    })
 
-    val res = df2.orderBy("`source.name`").collectAsList()
+    resultDf.show(false)
+    assertEquals(4, resultDf.count())
 
-    assertEquals("John Bonham", res.get(0).getString(4))
-    assertEquals("Drums", res.get(0).getString(7))
-    assertEquals(12, res.get(0).getLong(8))
+    val res = resultDf.orderBy("`source.name`").collectAsList()
 
-    assertEquals("John Butler", res.get(1).getString(4))
-    assertEquals("Guitar", res.get(1).getString(7))
-    assertEquals(15, res.get(1).getLong(8))
+    assertEquals("John Bonham", getByName[String](res.get(0), "source.name"))
+    assertEquals("Drums", getByName[String](res.get(0), "target.name"))
+    assertEquals(12, getByName[Long](res.get(0), "rel.experience"))
+    assertEquals(2, getByName[Long](res.get(0), "rel.avgRating"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have hasDiploma field",
+      res.get(0).fieldIndex("rel.hasDiploma")
+    )
+    assertThrows[IllegalArgumentException](
+      "relationship should not have rating field",
+      res.get(0).fieldIndex("rel.rating")
+    )
+    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(0).fieldIndex("rel.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have instrument field",
+      res.get(0).fieldIndex("rel.instrument")
+    )
 
-    assertEquals("John Mayer", res.get(2).getString(4))
-    assertEquals("Guitar", res.get(2).getString(7))
-    assertEquals(19, res.get(2).getLong(8))
+    assertEquals("John Butler", getByName[String](res.get(1), "source.name"))
+    assertEquals("Guitar", getByName[String](res.get(1), "target.name"))
+    assertEquals(15, getByName[Long](res.get(1), "rel.experience"))
+    assertEquals(4, getByName[Long](res.get(1), "rel.avgRating"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have hasDiploma field",
+      res.get(1).fieldIndex("rel.hasDiploma")
+    )
+    assertThrows[IllegalArgumentException](
+      "relationship should not have rating field",
+      res.get(1).fieldIndex("rel.rating")
+    )
+    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(1).fieldIndex("rel.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have instrument field",
+      res.get(1).fieldIndex("rel.instrument")
+    )
 
-    assertEquals("John Scofield", res.get(3).getString(4))
-    assertEquals("Guitar", res.get(3).getString(7))
-    assertEquals(32, res.get(3).getLong(8))
+    assertEquals("John Mayer", getByName[String](res.get(2), "source.name"))
+    assertEquals("Guitar", getByName[String](res.get(2), "target.name"))
+    assertEquals(19, getByName[Long](res.get(2), "rel.experience"))
+    assertEquals(1, getByName[Long](res.get(2), "rel.avgRating"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have hasDiploma field",
+      res.get(2).fieldIndex("rel.hasDiploma")
+    )
+    assertThrows[IllegalArgumentException](
+      "relationship should not have rating field",
+      res.get(2).fieldIndex("rel.rating")
+    )
+    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(2).fieldIndex("rel.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have instrument field",
+      res.get(2).fieldIndex("rel.instrument")
+    )
+
+    assertEquals("John Scofield", getByName[String](res.get(3), "source.name"))
+    assertEquals("Guitar", getByName[String](res.get(3), "target.name"))
+    assertEquals(32, getByName[Long](res.get(3), "rel.experience"))
+    assertEquals(3, getByName[Long](res.get(3), "rel.avgRating"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have hasDiploma field",
+      res.get(3).fieldIndex("rel.hasDiploma")
+    )
+    assertThrows[IllegalArgumentException](
+      "relationship should not have rating field",
+      res.get(3).fieldIndex("rel.rating")
+    )
+    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(3).fieldIndex("rel.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have instrument field",
+      res.get(3).fieldIndex("rel.instrument")
+    )
+  }
+
+  @Test
+  def `should write relations with KEYS mode with explicitly listed empty properties`(): Unit = {
+    val resultDf = writeKeyModeRelationshipWriteDataSet({ options =>
+      options + ("relationship.properties" -> "")
+    })
+
+    resultDf.show(false)
+    assertEquals(4, resultDf.count())
+
+    val res = resultDf.orderBy("`source.name`").collectAsList()
+
+    assertEquals("John Bonham", getByName[String](res.get(0), "source.name"))
+    assertEquals("Drums", getByName[String](res.get(0), "target.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have experience field",
+      res.get(0).fieldIndex("rel.experience")
+    )
+    assertThrows[IllegalArgumentException](
+      "relationship should not have hasDiploma field",
+      res.get(0).fieldIndex("rel.hasDiploma")
+    )
+    assertThrows[IllegalArgumentException](
+      "relationship should not have rating field",
+      res.get(0).fieldIndex("rel.rating")
+    )
+    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(0).fieldIndex("rel.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have instrument field",
+      res.get(0).fieldIndex("rel.instrument")
+    )
+
+    assertEquals("John Butler", getByName[String](res.get(1), "source.name"))
+    assertEquals("Guitar", getByName[String](res.get(1), "target.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have experience field",
+      res.get(1).fieldIndex("rel.experience")
+    )
+    assertThrows[IllegalArgumentException](
+      "relationship should not have hasDiploma field",
+      res.get(1).fieldIndex("rel.hasDiploma")
+    )
+    assertThrows[IllegalArgumentException](
+      "relationship should not have rating field",
+      res.get(1).fieldIndex("rel.rating")
+    )
+    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(1).fieldIndex("rel.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have instrument field",
+      res.get(1).fieldIndex("rel.instrument")
+    )
+
+    assertEquals("John Mayer", getByName[String](res.get(2), "source.name"))
+    assertEquals("Guitar", getByName[String](res.get(2), "target.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have experience field",
+      res.get(2).fieldIndex("rel.experience")
+    )
+    assertThrows[IllegalArgumentException](
+      "relationship should not have hasDiploma field",
+      res.get(2).fieldIndex("rel.hasDiploma")
+    )
+    assertThrows[IllegalArgumentException](
+      "relationship should not have rating field",
+      res.get(2).fieldIndex("rel.rating")
+    )
+    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(2).fieldIndex("rel.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have instrument field",
+      res.get(2).fieldIndex("rel.instrument")
+    )
+
+    assertEquals("John Scofield", getByName[String](res.get(3), "source.name"))
+    assertEquals("Guitar", getByName[String](res.get(3), "target.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have experience field",
+      res.get(3).fieldIndex("rel.experience")
+    )
+    assertThrows[IllegalArgumentException](
+      "relationship should not have hasDiploma field",
+      res.get(3).fieldIndex("rel.hasDiploma")
+    )
+    assertThrows[IllegalArgumentException](
+      "relationship should not have rating field",
+      res.get(3).fieldIndex("rel.rating")
+    )
+    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(3).fieldIndex("rel.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have instrument field",
+      res.get(3).fieldIndex("rel.instrument")
+    )
+  }
+
+  @Test
+  def `should write relations with KEYS mode with default properties`(): Unit = {
+    val resultDf = writeKeyModeRelationshipWriteDataSet()
+
+    resultDf.show(false)
+    assertEquals(4, resultDf.count())
+
+    val res = resultDf.orderBy("`source.name`").collectAsList()
+
+    assertEquals("John Bonham", getByName[String](res.get(0), "source.name"))
+    assertEquals("Drums", getByName[String](res.get(0), "target.name"))
+    assertEquals(12, getByName[Long](res.get(0), "rel.experience"))
+    assertEquals(true, getByName[Boolean](res.get(0), "rel.hasDiploma"))
+    assertEquals(2, getByName[Long](res.get(0), "rel.rating"))
+    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(0).fieldIndex("rel.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have instrument field",
+      res.get(0).fieldIndex("rel.instrument")
+    )
+
+    assertEquals("John Butler", getByName[String](res.get(1), "source.name"))
+    assertEquals("Guitar", getByName[String](res.get(1), "target.name"))
+    assertEquals(15, getByName[Long](res.get(1), "rel.experience"))
+    assertEquals(false, getByName[Boolean](res.get(1), "rel.hasDiploma"))
+    assertEquals(4, getByName[Long](res.get(1), "rel.rating"))
+    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(1).fieldIndex("rel.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have instrument field",
+      res.get(1).fieldIndex("rel.instrument")
+    )
+
+    assertEquals("John Mayer", getByName[String](res.get(2), "source.name"))
+    assertEquals("Guitar", getByName[String](res.get(2), "target.name"))
+    assertEquals(19, getByName[Long](res.get(2), "rel.experience"))
+    assertEquals(false, getByName[Boolean](res.get(2), "rel.hasDiploma"))
+    assertEquals(1, getByName[Long](res.get(2), "rel.rating"))
+    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(2).fieldIndex("rel.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have instrument field",
+      res.get(2).fieldIndex("rel.instrument")
+    )
+
+    assertEquals("John Scofield", getByName[String](res.get(3), "source.name"))
+    assertEquals("Guitar", getByName[String](res.get(3), "target.name"))
+    assertEquals(32, getByName[Long](res.get(3), "rel.experience"))
+    assertEquals(true, getByName[Boolean](res.get(3), "rel.hasDiploma"))
+    assertEquals(3, getByName[Long](res.get(3), "rel.rating"))
+    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(3).fieldIndex("rel.name"))
+    assertThrows[IllegalArgumentException](
+      "relationship should not have instrument field",
+      res.get(3).fieldIndex("rel.instrument")
+    )
   }
 
   @Test

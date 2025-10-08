@@ -48,7 +48,7 @@ case class ValidateSchemaOptions(neo4jOptions: Neo4jOptions, schema: StructType)
       Neo4jOptions.NODE_KEYS -> schema.getMissingFields(neo4jOptions.nodeMetadata.nodeKeys.keySet),
       Neo4jOptions.NODE_PROPS -> schema.getMissingFields(neo4jOptions.nodeMetadata.properties.keySet),
       Neo4jOptions.RELATIONSHIP_PROPERTIES -> schema.getMissingFields(
-        neo4jOptions.relationshipMetadata.properties.keySet
+        neo4jOptions.relationshipMetadata.properties.getOrElse(Map.empty).keySet
       ),
       Neo4jOptions.RELATIONSHIP_SOURCE_NODE_PROPS -> schema.getMissingFields(
         neo4jOptions.relationshipMetadata.source.properties.keySet
