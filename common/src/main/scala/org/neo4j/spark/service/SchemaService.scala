@@ -869,7 +869,7 @@ class SchemaService(
           .map(f => (f.name, f.name))
           .toMap
         val propsFromMeta: Map[String, String] =
-          options.relationshipMetadata.relationshipKeys ++ options.relationshipMetadata.properties
+          options.relationshipMetadata.relationshipKeys ++ options.relationshipMetadata.properties.getOrElse(Map.empty)
         createEntityTypeConstraint(
           "RELATIONSHIP",
           options.relationshipMetadata.relationshipType,

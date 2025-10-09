@@ -119,8 +119,17 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
 
       if (options.relationshipMetadata.relationshipKeys.contains(key)) {
         relMap.get(KEYS).put(options.relationshipMetadata.relationshipKeys.getOrElse(key, key), value)
-      } else if (!source.includesProperty(key) && !target.includesProperty(key)) {
-        relMap.get(PROPERTIES).put(options.relationshipMetadata.properties.getOrElse(key, key), value)
+      } else {
+        val propertyKey = options.relationshipMetadata.properties match {
+          case Some(relProperties) => relProperties.get(key)
+          case None =>
+            if (!source.includesProperty(key) && !target.includesProperty(key)) {
+              Some(key)
+            } else {
+              None
+            }
+        }
+        propertyKey.foreach(k => relMap.get(PROPERTIES).put(k, value))
       }
     }
   }

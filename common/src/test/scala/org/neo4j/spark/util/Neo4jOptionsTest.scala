@@ -204,7 +204,7 @@ class Neo4jOptionsTest {
 
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    assertEquals(neo4jOptions.relationshipMetadata.properties, Map.empty)
+    assertEquals(neo4jOptions.relationshipMetadata.properties, None)
   }
 
   @Test

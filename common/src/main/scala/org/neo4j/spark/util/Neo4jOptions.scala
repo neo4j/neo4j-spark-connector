@@ -57,10 +57,12 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   }
 
   private def getParameter(parameter: String, defaultValue: String = ""): String =
-    Some(options.getOrDefault(parameter, defaultValue))
+    getParameterOption(parameter).getOrElse(defaultValue)
+
+  private def getParameterOption(parameter: String): Option[String] =
+    Some(options.get(parameter))
       .flatMap(Option(_)) // to turn null into None
       .map(_.trim)
-      .getOrElse(defaultValue)
 
   private def getAuthenticationParameters: Map[String, String] = {
     val authType = getParameter(AUTH_TYPE, DEFAULT_AUTH_TYPE)
@@ -176,26 +178,28 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
   val nodeMetadata: Neo4jNodeMetadata = initNeo4jNodeMetadata()
 
-  private def mapPropsString(str: String): Map[String, String] = str.split(",")
-    .map(_.trim)
-    .filter(_.nonEmpty)
-    .map(s => {
-      val keys = if (s.startsWith("`")) {
-        val pattern = "`[^`]+`".r
-        val groups = pattern findAllIn s
-        groups
-          .map(_.replaceAll("`", ""))
-          .toArray
-      } else {
-        s.split(":")
-      }
-      if (keys.length == 2) {
-        (keys(0), keys(1))
-      } else {
-        (keys(0), keys(0))
-      }
-    })
-    .toMap
+  private def mapPropsString(strOpt: Option[String]): Option[Map[String, String]] = strOpt.map(str =>
+    str.split(",")
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .map(s => {
+        val keys = if (s.startsWith("`")) {
+          val pattern = "`[^`]+`".r
+          val groups = pattern findAllIn s
+          groups
+            .map(_.replaceAll("`", ""))
+            .toArray
+        } else {
+          s.split(":")
+        }
+        if (keys.length == 2) {
+          (keys(0), keys(1))
+        } else {
+          (keys(0), keys(0))
+        }
+      })
+      .toMap
+  )
 
   private def initNeo4jNodeMetadata(
     nodeKeysString: String = getParameter(NODE_KEYS, ""),
@@ -204,8 +208,8 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     skipNullKeys: Boolean = getParameter(NODE_KEYS_SKIP_NULLS, "false").toBoolean
   ): Neo4jNodeMetadata = {
 
-    val nodeKeys = mapPropsString(nodeKeysString)
-    val nodeProps = mapPropsString(nodePropsString)
+    val nodeKeys = mapPropsString(Some(nodeKeysString)).getOrElse(Map.empty[String, String])
+    val nodeProps = mapPropsString(Some(nodePropsString)).getOrElse(Map.empty[String, String])
 
     val labels = labelsString
       .split(":")
@@ -252,7 +256,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
     val nodeMap = getParameter(RELATIONSHIP_NODES_MAP, DEFAULT_RELATIONSHIP_NODES_MAP.toString).toBoolean
 
-    val relProps = mapPropsString(getParameter(RELATIONSHIP_PROPERTIES))
+    val relProps = mapPropsString(getParameterOption(RELATIONSHIP_PROPERTIES))
 
     val writeStrategy = RelationshipSaveStrategy.withCaseInsensitiveName(getParameter(
       RELATIONSHIP_SAVE_STRATEGY,
@@ -267,7 +271,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE.toString
     ))
 
-    val relationshipKeys = mapPropsString(getParameter(RELATIONSHIP_KEYS, ""))
+    val relationshipKeys = mapPropsString(getParameterOption(RELATIONSHIP_KEYS)).getOrElse(Map.empty)
 
     Neo4jRelationshipMetadata(
       source,
@@ -389,7 +393,7 @@ case class Neo4jRelationshipMetadata(
   target: Neo4jNodeMetadata,
   sourceSaveMode: NodeSaveMode.Value,
   targetSaveMode: NodeSaveMode.Value,
-  properties: Map[String, String],
+  properties: Option[Map[String, String]],
   relationshipType: String,
   nodeMap: Boolean,
   saveStrategy: RelationshipSaveStrategy.Value,
