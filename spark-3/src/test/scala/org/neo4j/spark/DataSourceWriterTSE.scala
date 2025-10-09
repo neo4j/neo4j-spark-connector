@@ -1037,7 +1037,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write relations with KEYS mode with explicitly listed properties`(): Unit = {
     val resultDf = writeKeyModeRelationshipWriteDataSet({ options =>
-      options + ("relationship.properties" -> "experience, rating:avgRating")
+      options + ("relationship.properties" -> "experience, rating:avgRating, instrument")
     })
 
     resultDf.show(false)
@@ -1047,6 +1047,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals("John Bonham", getByName[String](res.get(0), "source.name"))
     assertEquals("Drums", getByName[String](res.get(0), "target.name"))
+    assertEquals("Drums", getByName[String](res.get(0), "rel.instrument"))
     assertEquals(12, getByName[Long](res.get(0), "rel.experience"))
     assertEquals(2, getByName[Long](res.get(0), "rel.avgRating"))
     assertThrows[IllegalArgumentException](
@@ -1058,13 +1059,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       res.get(0).fieldIndex("rel.rating")
     )
     assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(0).fieldIndex("rel.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have instrument field",
-      res.get(0).fieldIndex("rel.instrument")
-    )
 
     assertEquals("John Butler", getByName[String](res.get(1), "source.name"))
     assertEquals("Guitar", getByName[String](res.get(1), "target.name"))
+    assertEquals("Guitar", getByName[String](res.get(1), "rel.instrument"))
     assertEquals(15, getByName[Long](res.get(1), "rel.experience"))
     assertEquals(4, getByName[Long](res.get(1), "rel.avgRating"))
     assertThrows[IllegalArgumentException](
@@ -1076,13 +1074,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       res.get(1).fieldIndex("rel.rating")
     )
     assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(1).fieldIndex("rel.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have instrument field",
-      res.get(1).fieldIndex("rel.instrument")
-    )
 
     assertEquals("John Mayer", getByName[String](res.get(2), "source.name"))
     assertEquals("Guitar", getByName[String](res.get(2), "target.name"))
+    assertEquals("Guitar", getByName[String](res.get(2), "rel.instrument"))
     assertEquals(19, getByName[Long](res.get(2), "rel.experience"))
     assertEquals(1, getByName[Long](res.get(2), "rel.avgRating"))
     assertThrows[IllegalArgumentException](
@@ -1094,13 +1089,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       res.get(2).fieldIndex("rel.rating")
     )
     assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(2).fieldIndex("rel.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have instrument field",
-      res.get(2).fieldIndex("rel.instrument")
-    )
 
     assertEquals("John Scofield", getByName[String](res.get(3), "source.name"))
     assertEquals("Guitar", getByName[String](res.get(3), "target.name"))
+    assertEquals("Guitar", getByName[String](res.get(3), "rel.instrument"))
     assertEquals(32, getByName[Long](res.get(3), "rel.experience"))
     assertEquals(3, getByName[Long](res.get(3), "rel.avgRating"))
     assertThrows[IllegalArgumentException](
@@ -1112,10 +1104,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       res.get(3).fieldIndex("rel.rating")
     )
     assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(3).fieldIndex("rel.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have instrument field",
-      res.get(3).fieldIndex("rel.instrument")
-    )
   }
 
   @Test
