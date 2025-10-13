@@ -1,11 +1,11 @@
 {
   "devDependencies": {
-    "@commitlint/cli": "^18.6.1",
-    "@commitlint/config-conventional": "^18.6.3",
-    "@commitlint/lint": "^18.6.1",
-    "@commitlint/load": "^18.6.1",
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "@commitlint/lint": "^20.0.0",
+    "@commitlint/load": "^20.1.0",
     "danger": "^13.0.4",
-    "husky": "^9.0.11"
+    "husky": "^9.1.7"
   },
   "scripts": {
     "prepare": "husky"

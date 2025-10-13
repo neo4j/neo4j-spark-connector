@@ -1,2 +1,4 @@
+#!/usr/bin/env sh
+
 ./mvnw sortpom:sort spotless:apply -f .teamcity
 ./mvnw sortpom:sort spotless:apply

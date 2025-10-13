@@ -1,6 +1,5 @@
-const {markdown, danger, fail, warn, schedule} = require('danger');
-const load = require('@commitlint/load').default;
-const lint = require('@commitlint/lint').default;
+import load from '@commitlint/load';
+import lint from '@commitlint/lint';
 
 const minPRDescriptionLength = 10;
 
