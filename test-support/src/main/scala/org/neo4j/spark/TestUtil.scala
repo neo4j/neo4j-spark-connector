@@ -54,10 +54,10 @@ object Versions {
 object TestUtil {
 
   def neo4jImage(): DockerImageName = {
-    val image = System.getenv("NEO4J_TEST_IMAGE")
-    if (image == null || image.trim.isBlank) {
-      throw new IllegalArgumentException("NEO4J_TEST_IMAGE environment variable is not defined!")
-    }
+    val image = Option(System.getenv("NEO4J_TEST_IMAGE"))
+      .map(_.trim)
+      .filter(_.nonEmpty) // avoids Java 11-only isBlank
+      .getOrElse(throw new IllegalArgumentException("NEO4J_TEST_IMAGE environment variable is not defined!"))
     DockerImageName.parse(image).asCompatibleSubstituteFor("neo4j")
   }
 
