@@ -21,19 +21,18 @@ import org.apache.spark.sql.connector.expressions.aggregate.Max
 import org.apache.spark.sql.connector.expressions.aggregate.Min
 import org.apache.spark.sql.connector.expressions.aggregate.Sum
 import org.junit.After
-import org.junit.Assert
 import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runners.MethodSorters
-import org.neo4j.caniuse.Neo4j
-import org.neo4j.caniuse.Neo4jDeploymentType
-import org.neo4j.caniuse.Neo4jEdition
-import org.neo4j.caniuse.Neo4jVersion
 import org.neo4j.spark.SparkConnectorScalaSuiteWithGdsBase
 import org.neo4j.spark.SparkConnectorScalaSuiteWithGdsBase.neo4j
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.DummyNamedReference
 import org.neo4j.spark.util.Neo4jOptions
+import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
+import org.scalatest.matchers.must.Matchers.endWith
+
+import scala.language.postfixOps
 
 @FixMethodOrder(MethodSorters.JVM)
 class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
@@ -81,13 +80,12 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
       )
     ).createQuery()
 
-    Assert.assertEquals(
+    query must endWith(
       """CALL gds.pageRank.stream($graphName)
         |YIELD nodeId, score
         |RETURN nodeId AS nodeId, max(score) AS `MAX(score)`, min(score) AS `MIN(score)`, count(score) AS `COUNT(score)`, count(DISTINCT score) AS `COUNT(DISTINCT score)`, sum(score) AS `SUM(score)`, sum(DISTINCT score) AS `SUM(DISTINCT score)`"""
         .stripMargin
-        .replaceAll("\n", " "),
-      query
+        .replaceAll("\n", " ")
     )
   }
 

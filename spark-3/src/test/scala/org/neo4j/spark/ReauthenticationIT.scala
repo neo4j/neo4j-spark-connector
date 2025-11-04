@@ -72,8 +72,8 @@ object ReauthenticationIT {
     .withNetwork(NETWORK)
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     .withCopyFileToContainer(MountableFile.forClasspathResource("/neo4j-keycloak.jks"), "/tmp/keycloak.jks")
-    .withNeo4jConfig(
-      "server.jvm.additional",
+    .withEnv(
+      "_JAVA_OPTIONS",
       "-Djavax.net.ssl.keyStore=/tmp/keycloak.jks -Djavax.net.ssl.keyStorePassword=testpwd -Djavax.net.ssl.trustStore=/tmp/keycloak.jks -Djavax.net.ssl.trustStorePassword=testpwd"
     )
     .withNeo4jConfig("dbms.security.authentication_providers", "oidc-keycloak,native")
