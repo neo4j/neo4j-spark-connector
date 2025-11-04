@@ -37,7 +37,7 @@ class JavaIntegrationTests(
             maven {
               this.goals = "verify"
               this.runnerArgs =
-                  "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -Dscala-${scalaVersion.version} -Dneo4j-${neo4jVersion.version} -DskipUnitTests"
+                  "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -Dscala-${scalaVersion.version} -DskipUnitTests"
 
               dockerImagePlatform = MavenBuildStep.ImagePlatform.Linux
               dockerImage = javaVersion.dockerImage

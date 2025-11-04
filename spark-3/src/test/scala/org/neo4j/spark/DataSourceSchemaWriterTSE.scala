@@ -43,7 +43,7 @@ object DataSourceSchemaWriterTSE {
 
   @BeforeClass
   def checkNeo4jVersion() {
-    Assume.assumeTrue(TestUtil.neo4jVersion() >= Versions.NEO4J_5_13)
+    Assume.assumeTrue(TestUtil.neo4jVersion(SparkConnectorScalaSuiteIT.session()) >= Versions.NEO4J_5_13)
   }
 }
 
