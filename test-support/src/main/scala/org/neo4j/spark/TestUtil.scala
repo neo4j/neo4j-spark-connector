@@ -19,6 +19,7 @@ package org.neo4j.spark
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
 import org.slf4j.Logger
+import org.testcontainers.utility.DockerImageName
 
 import java.util.Properties
 
@@ -52,13 +53,13 @@ object Versions {
 
 object TestUtil {
 
-  private val properties = new Properties()
-
-  properties.load(
-    Thread.currentThread().getContextClassLoader().getResourceAsStream("neo4j-spark-connector.properties")
-  )
-
-  def neo4jVersion(): Version = Version.parse(properties.getProperty("neo4j.version"))
+  def neo4jImage(): DockerImageName = {
+    val image = Option(System.getenv("NEO4J_TEST_IMAGE"))
+      .map(_.trim)
+      .filter(_.nonEmpty) // avoids Java 11-only isBlank
+      .getOrElse(throw new IllegalArgumentException("NEO4J_TEST_IMAGE environment variable is not defined!"))
+    DockerImageName.parse(image).asCompatibleSubstituteFor("neo4j")
+  }
 
   def gdsVersion(session: Session): Version = {
     Version.parse(session.run(
@@ -72,7 +73,12 @@ object TestUtil {
     ).single().get(0).asString())
   }
 
-  def experimental(): Boolean = properties.getProperty("neo4j.experimental", "false").toBoolean
+  def hasApoc(session: Session): Boolean = {
+    val result = session.run(
+      "SHOW PROCEDURES YIELD name RETURN any(x IN collect(name) WHERE x STARTS WITH 'apoc.') AS hasApoc"
+    )
+    result.single().get("hasApoc").asBoolean()
+  }
 
   def closeSafely(autoCloseable: AutoCloseable, logger: Logger = null): Unit = {
     try {

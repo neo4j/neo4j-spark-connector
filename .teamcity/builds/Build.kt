@@ -111,10 +111,10 @@ class Build(
 
               SNYK_PROFILES.forEach { snykProfile ->
                 dependentBuildType(
-                    SnykTest(id = "$name-snyk-test-${snykProfile.name}",
+                    SnykTest(
+                        id = "$name-snyk-test-${snykProfile.name}",
                         name = "$name snyk test ${snykProfile.name}",
-                        snykProfile = snykProfile)
-                )
+                        snykProfile = snykProfile))
               }
             }
 

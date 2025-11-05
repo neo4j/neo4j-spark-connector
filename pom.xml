@@ -203,18 +203,6 @@
         </dependencies>
     </dependencyManagement>
     <build>
-        <resources>
-            <resource>
-                <filtering>true</filtering>
-                <directory>src/main/resources</directory>
-            </resource>
-        </resources>
-        <testResources>
-            <testResource>
-                <filtering>true</filtering>
-                <directory>src/test/resources</directory>
-            </testResource>
-        </testResources>
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -569,32 +557,6 @@
         <!-- end scala profiles -->
         <!-- spark profiles -->
         <!-- end spark profiles -->
-        <!-- neo4j profiles -->
-        <profile>
-            <id>neo4j-4.4</id>
-            <activation>
-                <property>
-                    <name>neo4j-4</name>
-                </property>
-            </activation>
-            <properties>
-                <neo4j.experimental>false</neo4j.experimental>
-                <neo4j.version>4.4.34</neo4j.version>
-            </properties>
-        </profile>
-        <profile>
-            <id>neo4j-5</id>
-            <activation>
-                <property>
-                    <name>!neo4j-4</name>
-                </property>
-            </activation>
-            <properties>
-                <neo4j.experimental>false</neo4j.experimental>
-                <neo4j.version>5.20.0</neo4j.version>
-            </properties>
-        </profile>
-        <!-- end neo4j profiles -->
         <profile>
             <id>has-sources</id>
             <activation>
