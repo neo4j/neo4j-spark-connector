@@ -75,7 +75,7 @@
         <spark.version>3.5.7</spark.version>
         <spotless-maven-plugin.version>3.0.0</spotless-maven-plugin.version>
         <surefire.jvm.args/>
-        <testcontainers.version>1.21.3</testcontainers.version>
+        <testcontainers.version>2.0.1</testcontainers.version>
     </properties>
     <dependencyManagement>
         <dependencies>
