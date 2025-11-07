@@ -33,6 +33,11 @@ object Version {
 
   def parse(version: String): Version = {
     val fields = version.split("\\.")
+      .map(field => {
+        val additionalInfoIndex = field.indexOf('-')
+        if (additionalInfoIndex.equals(-1)) field
+        else field.substring(0, additionalInfoIndex)
+      })
       .map(_.toInt)
       .toList
 
