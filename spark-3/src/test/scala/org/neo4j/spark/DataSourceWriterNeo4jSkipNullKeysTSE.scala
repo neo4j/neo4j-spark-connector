@@ -18,8 +18,11 @@ package org.neo4j.spark
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.SaveMode
+import org.junit.Assume
 import org.junit.Test
 import org.neo4j.Closeables.use
+import org.neo4j.caniuse.CanIUse
+import org.neo4j.caniuse.Schema
 
 class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
@@ -105,6 +108,10 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `fails to write relationships when relationship key properties contain null values`(): Unit = {
+    Assume.assumeTrue(
+      CanIUse.INSTANCE.canIUse(Schema.INSTANCE.relationshipKeyConstraints()).withNeo4j(SparkConnectorScalaSuiteIT.neo4j)
+    )
+
     val caught = intercept[SparkException] {
       val cities = Seq(
         (Some(1), Some(2), Some("BA721"), "British Airways"),
@@ -474,6 +481,10 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `skips relationships when relationship key properties contain null values`(): Unit = {
+    Assume.assumeTrue(
+      CanIUse.INSTANCE.canIUse(Schema.INSTANCE.relationshipKeyConstraints()).withNeo4j(SparkConnectorScalaSuiteIT.neo4j)
+    )
+
     val cities = Seq(
       (Some(1), Some(2), Some("BA721"), "British Airways"),
       (Some(2), Some(3), Some("TK211"), "Turkish Airlines"),

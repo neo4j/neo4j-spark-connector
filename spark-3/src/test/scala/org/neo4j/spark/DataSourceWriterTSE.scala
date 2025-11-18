@@ -1346,11 +1346,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   private def getIndexQueryCount: String = {
-    val (uniqueKey, uniqueCondition) = if (TestUtil.neo4jVersion() >= Versions.NEO4J_5) {
-      ("owningConstraint", "owningConstraint IS NULL")
-    } else {
-      ("uniqueness", "uniqueness = 'NONUNIQUE'")
-    }
+    val (uniqueKey, uniqueCondition) =
+      if (TestUtil.neo4jVersion(SparkConnectorScalaSuiteIT.session()) >= Versions.NEO4J_5) {
+        ("owningConstraint", "owningConstraint IS NULL")
+      } else {
+        ("uniqueness", "uniqueness = 'NONUNIQUE'")
+      }
 
     s"""SHOW INDEXES YIELD labelsOrTypes, properties, $uniqueKey
        |WHERE labelsOrTypes = ['Person'] AND properties = ['surname'] AND $uniqueCondition
@@ -1359,11 +1360,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   private def getConstraintQueryCount: String = {
-    val (uniqueKey, uniqueCondition) = if (TestUtil.neo4jVersion() >= Versions.NEO4J_5) {
-      ("owningConstraint", "owningConstraint IS NOT NULL")
-    } else {
-      ("uniqueness", "uniqueness = 'UNIQUE'")
-    }
+    val (uniqueKey, uniqueCondition) =
+      if (TestUtil.neo4jVersion(SparkConnectorScalaSuiteIT.session()) >= Versions.NEO4J_5) {
+        ("owningConstraint", "owningConstraint IS NOT NULL")
+      } else {
+        ("uniqueness", "uniqueness = 'UNIQUE'")
+      }
     s"""SHOW INDEXES YIELD labelsOrTypes, properties, $uniqueKey
        |WHERE labelsOrTypes = ['Person'] AND properties = ['surname'] AND $uniqueCondition
        |RETURN count(*) AS count
@@ -1529,12 +1531,15 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val expected = ds.count
     assertEquals(expected, records)
 
-    val uniqueFieldName = if (TestUtil.neo4jVersion() >= Versions.NEO4J_5) "owningConstraint" else "uniqueness"
-    val (indexCondition, uniqueCondition) = if (TestUtil.neo4jVersion() >= Versions.NEO4J_5) {
-      (s"$uniqueFieldName IS NULL", s"$uniqueFieldName IS NOT NULL")
-    } else {
-      (s"$uniqueFieldName = 'NONUNIQUE'", s"$uniqueFieldName = 'UNIQUE'")
-    }
+    val uniqueFieldName = if (TestUtil.neo4jVersion(SparkConnectorScalaSuiteIT.session()) >= Versions.NEO4J_5)
+      "owningConstraint"
+    else "uniqueness"
+    val (indexCondition, uniqueCondition) =
+      if (TestUtil.neo4jVersion(SparkConnectorScalaSuiteIT.session()) >= Versions.NEO4J_5) {
+        (s"$uniqueFieldName IS NULL", s"$uniqueFieldName IS NOT NULL")
+      } else {
+        (s"$uniqueFieldName = 'NONUNIQUE'", s"$uniqueFieldName = 'UNIQUE'")
+      }
     val query =
       s"""SHOW INDEXES YIELD labelsOrTypes, properties, $uniqueFieldName
          |WHERE (labelsOrTypes = ['Person'] AND properties = ['surname'] AND $indexCondition)

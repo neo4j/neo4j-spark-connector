@@ -44,7 +44,6 @@ object SparkConnectorScalaSuiteWithApocIT {
 
   @BeforeClass
   def setUpContainer(): Unit = {
-    Assume.assumeFalse("Neo4j Preview versions doesn't have APOC", TestUtil.experimental())
     if (!server.isRunning) {
       try {
         server.start()
@@ -60,6 +59,7 @@ object SparkConnectorScalaSuiteWithApocIT {
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       neo4j = Neo4jDetector.INSTANCE.detect(driver)
     }
+    Assume.assumeTrue("Neo4j Preview versions doesn't have APOC", TestUtil.hasApoc(session()))
   }
 
   @AfterClass
