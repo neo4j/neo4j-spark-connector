@@ -62,7 +62,6 @@ public class ReflectionUtils {
                     try {
                         return (Expression[]) mh.invokeExact(agg);
                     } catch (Throwable e) {
-                        e.printStackTrace();
                         return EMPTY;
                     }
                 })
