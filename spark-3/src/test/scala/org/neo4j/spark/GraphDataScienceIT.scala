@@ -44,7 +44,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
 
     use(SparkConnectorScalaSuiteWithGdsBase.session()) { session =>
       session
-        .writeTransaction((tx: Transaction) => {
+        .executeWrite(tx =>
           tx.run(
             """
               |CALL gds.graph.list() YIELD graphName
@@ -53,7 +53,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
               |RETURN *
               |""".stripMargin
           ).consume()
-        })
+        )
     }
   }
 
@@ -247,7 +247,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
 
   private def initForYens(): Unit = {
     SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction((tx: Transaction) => {
+      .executeWrite(tx =>
         tx.run(
           """
             |CREATE (a:Location {name: 'A'}),
@@ -267,7 +267,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
             |       (e)-[:ROAD {cost: 40}]->(f);
             |""".stripMargin
         ).consume()
-      })
+      )
     ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
       .option("gds", "gds.graph.project")
@@ -282,7 +282,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
   @Test
   def shouldWorkWithKNearest(): Unit = {
     SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction((tx: Transaction) => {
+      .executeWrite(tx =>
         tx.run(
           """
             |CREATE (alice:Person {name: 'Alice', age: 24, lotteryNumbers: [1, 3], embedding: [1.0, 3.0]})
@@ -292,7 +292,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
             |CREATE (eve:Person {name: 'Eve', age: 67, lotteryNumbers: [1, 5], embedding: [1.8, 2.7]});
             |""".stripMargin
         ).consume()
-      })
+      )
 
     ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
@@ -363,7 +363,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
 
   private def initForPageRank(): Unit = {
     SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction((tx: Transaction) => {
+      .executeWrite(tx =>
         tx.run(
           """
             |CREATE
@@ -392,7 +392,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
             |  (links)-[:LINKS {weight: 0.05}]->(d);
             |""".stripMargin
         ).consume()
-      })
+      )
     ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
       .option("gds", "gds.graph.project")
@@ -407,7 +407,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
   private def initForHits(): Unit = {
     Assume.assumeTrue(TestUtil.neo4jVersion(SparkConnectorScalaSuiteWithGdsBase.session()) >= Versions.NEO4J_5)
     SparkConnectorScalaSuiteWithGdsBase.session()
-      .writeTransaction((tx: Transaction) => {
+      .executeWrite(tx =>
         tx.run(
           """
               CREATE
@@ -441,7 +441,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
             |  (h)-[:LINK]->(i);
             |""".stripMargin
         ).consume()
-      })
+      )
     ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
       .option("gds", "gds.graph.project")

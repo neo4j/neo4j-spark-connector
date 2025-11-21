@@ -29,9 +29,7 @@ import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDeploymentType
 import org.neo4j.caniuse.Neo4jEdition
 import org.neo4j.caniuse.Neo4jVersion
-import org.neo4j.driver.Transaction
-import org.neo4j.driver.TransactionWork
-import org.neo4j.driver.summary.ResultSummary
+import org.neo4j.driver.TransactionContext
 import org.neo4j.spark.SparkConnectorScalaBaseWithApocTSE
 import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
@@ -41,7 +39,6 @@ import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.QueryType
 
 import java.util
-import java.util.UUID
 
 @FixMethodOrder(MethodSorters.JVM)
 class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
@@ -245,11 +242,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
   private def initTest(query: String): Unit = {
     SparkConnectorScalaSuiteWithApocIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(query).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(query).consume())
   }
 
   private def getSchema(options: java.util.Map[String, String]): StructType = {

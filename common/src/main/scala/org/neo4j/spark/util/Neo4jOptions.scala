@@ -22,7 +22,12 @@ import org.apache.spark.sql.SparkSession
 import org.jetbrains.annotations.TestOnly
 import org.neo4j.connectors.authn.AuthenticationToken
 import org.neo4j.connectors.authn.AuthenticationTokenSupplierFactory
-import org.neo4j.connectors.common.driver.reauth.ReAuthDriverFactory
+import org.neo4j.connectors.authn.BearerAuthenticationToken
+import org.neo4j.connectors.authn.CustomAuthenticationToken
+import org.neo4j.connectors.authn.DisabledAuthenticationToken
+import org.neo4j.connectors.authn.ExpiringAuthenticationToken
+import org.neo4j.connectors.authn.KerberosAuthenticationToken
+import org.neo4j.connectors.authn.UserNameAndPasswordAuthenticationToken
 import org.neo4j.driver.Config.TrustStrategy
 import org.neo4j.driver._
 import org.neo4j.driver.exceptions.Neo4jException
@@ -438,7 +443,7 @@ case class Neo4jDriverOptions(
 
   def createDriver(): Driver = {
     val (url, _) = connectionUrls
-    ReAuthDriverFactory.driver(url, createAuthTokenSupplier, toDriverConfig)
+    GraphDatabase.driver(url, createAuthTokenManager, toDriverConfig)
   }
 
   private def toDriverConfig: Config = {
@@ -491,6 +496,46 @@ case class Neo4jDriverOptions(
       .map(uri => ServerAddress.of(uri.getHost, if (uri.getPort > -1) uri.getPort else 7687))
       .toSet
     (URI.create(urls.head.trim), resolved)
+  }
+
+  // TODO this is partially intentionally not working as expect, changed to make it compile
+  // TODO missing here is also the keycloack support that comes from the authn commons
+  private def createAuthTokenManager: AuthTokenManager = {
+    if (auth == null || auth.isEmpty) {
+      throw new IllegalArgumentException(s"Authentication type name is required")
+    }
+    val token = createAuthTokenSupplier.get()
+    token match {
+      case bearerAuthenticationToken: BearerAuthenticationToken =>
+        AuthTokenManagers.bearer(() =>
+          AuthTokens.bearer(
+            bearerAuthenticationToken.getToken
+          ).expiringAt(bearerAuthenticationToken.getExpiresAt.toEpochMilli)
+        )
+      case customAuthenticationToken: CustomAuthenticationToken =>
+        AuthTokenManagers.basic(() =>
+          AuthTokens.custom(
+            customAuthenticationToken.getPrincipal,
+            customAuthenticationToken.getCredentials,
+            customAuthenticationToken.getRealm,
+            customAuthenticationToken.getScheme,
+            customAuthenticationToken.getParameters
+          )
+        )
+      case disabledAuthenticationToken: DisabledAuthenticationToken =>
+        AuthTokenManagers.basic(() => AuthTokens.none())
+      case kerberosAuthenticationToken: KerberosAuthenticationToken =>
+        AuthTokenManagers.basic(() => AuthTokens.kerberos(kerberosAuthenticationToken.getToken))
+      case userNameAndPasswordAuthenticationToken: UserNameAndPasswordAuthenticationToken =>
+        AuthTokenManagers.basic(() =>
+          AuthTokens.basic(
+            userNameAndPasswordAuthenticationToken.getUsername,
+            userNameAndPasswordAuthenticationToken.getPassword,
+            userNameAndPasswordAuthenticationToken.getRealm
+          )
+        )
+      case _ => throw new IllegalStateException("bam")
+    }
   }
 
   private def createAuthTokenSupplier: Supplier[AuthenticationToken] = {

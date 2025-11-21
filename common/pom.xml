@@ -15,10 +15,22 @@
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>caniuse-core</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.neo4j.driver</groupId>
+                    <artifactId>neo4j-java-driver</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>caniuse-neo4j-detection</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.neo4j.driver</groupId>
+                    <artifactId>neo4j-java-driver</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
@@ -29,12 +41,8 @@
             <artifactId>commons-authn-spi</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.neo4j.connectors</groupId>
-            <artifactId>commons-reauth-driver</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.neo4j.driver</groupId>
-            <artifactId>neo4j-java-driver-slim</artifactId>
+            <artifactId>neo4j-java-driver</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>

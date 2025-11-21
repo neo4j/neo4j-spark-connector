@@ -43,8 +43,8 @@
         <commons-lang3.version>3.19.0</commons-lang3.version>
         <connectors-commons.version>1.0.0-rc2</connectors-commons.version>
         <cypherdsl.version>2022.11.0</cypherdsl.version>
-        <driver.version>4.4.21</driver.version>
-        <java.version>1.8</java.version>
+        <driver.version>6.0.1</driver.version>
+        <java.version>17</java.version>
         <!-- 3.4.3.Final is the latest jboss-logging version compatible with java 8 -->
         <jboss-logging.version>3.4.3.Final</jboss-logging.version>
         <junit.version>4.13.2</junit.version>
@@ -127,11 +127,31 @@
                 <groupId>org.neo4j</groupId>
                 <artifactId>caniuse-core</artifactId>
                 <version>${caniuse.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.neo4j.driver</groupId>
+                        <artifactId>neo4j-java-driver</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.neo4j.driver</groupId>
+                        <artifactId>neo4j-java-driver-slim</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.neo4j</groupId>
                 <artifactId>caniuse-neo4j-detection</artifactId>
                 <version>${caniuse.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.neo4j.driver</groupId>
+                        <artifactId>neo4j-java-driver</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.neo4j.driver</groupId>
+                        <artifactId>neo4j-java-driver-slim</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.neo4j</groupId>
@@ -154,13 +174,8 @@
                 <version>${connectors-commons.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.neo4j.connectors</groupId>
-                <artifactId>commons-reauth-driver</artifactId>
-                <version>${connectors-commons.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.neo4j.driver</groupId>
-                <artifactId>neo4j-java-driver-slim</artifactId>
+                <artifactId>neo4j-java-driver</artifactId>
                 <version>${driver.version}</version>
             </dependency>
             <dependency>
@@ -426,7 +441,7 @@
                         <scalaVersion>${scala.version}</scalaVersion>
                         <scalaCompatVersion>${scala.binary.version}</scalaCompatVersion>
                         <args>
-                            <arg>-target:jvm-1.8</arg>
+                            <arg>-target:jvm-17</arg>
                         </args>
                         <jvmArgs>
                             <jvmArg>-Xms64m</jvmArg>

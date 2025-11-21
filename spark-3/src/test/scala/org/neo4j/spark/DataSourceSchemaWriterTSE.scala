@@ -228,7 +228,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(expectedSchema, actualSchema)
 
     val actualNode: Map[String, Any] = SparkConnectorScalaSuiteIT.session()
-      .readTransaction(tx =>
+      .executeRead(tx =>
         tx.run("MATCH (n:NodeWithSchema) RETURN n")
           .list()
           .asScala
@@ -415,7 +415,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(expectedSchema, actualSchema)
 
     val actualNode: Map[String, Any] = SparkConnectorScalaSuiteIT.session()
-      .readTransaction(tx =>
+      .executeRead(tx =>
         tx.run("MATCH (n:NodeWithSchema) RETURN n")
           .list()
           .asScala

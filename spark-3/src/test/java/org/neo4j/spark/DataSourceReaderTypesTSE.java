@@ -307,7 +307,7 @@ public class DataSourceReaderTypesTSE extends SparkConnectorScalaBaseTSE {
 
     Dataset<Row> initTest(String query) {
         try (Session session = SparkConnectorScalaSuiteIT.session("")) {
-            session.writeTransaction(transaction -> transaction.run(query).consume());
+            session.executeWrite(transaction -> transaction.run(query).consume());
         }
 
         return ss().read().format(DataSource.class.getName())

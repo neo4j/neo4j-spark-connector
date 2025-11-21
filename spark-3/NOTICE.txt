@@ -21,6 +21,10 @@ Third-party licenses
 Apache Software License, Version 2.0
   JetBrains Java Annotations
   Kotlin Stdlib
+  Neo4j Bolt Connection (Bolt Provider reference impl)
+  Neo4j Bolt Connection (Pooled Source impl)
+  Neo4j Bolt Connection (Provider SPI)
+  Neo4j Bolt Connection (Routed Source impl)
   Netty/Buffer
   Netty/Codec
   Netty/Common
@@ -31,9 +35,6 @@ Apache Software License, Version 2.0
   Netty/Transport/Native/Unix/Common
   Non-Blocking Reactive Foundation for the JVM
   org.apiguardian:apiguardian-api
-
-MIT License
-  SLF4J API Module
 
 MIT No Attribution License
   reactive-streams

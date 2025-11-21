@@ -21,8 +21,6 @@ import org.apache.spark.sql.streaming.StreamingQuery
 import org.hamcrest.Matchers
 import org.junit.After
 import org.junit.Test
-import org.neo4j.driver.Transaction
-import org.neo4j.driver.TransactionWork
 import org.neo4j.spark.Assert.ThrowingSupplier
 
 import java.util.UUID
@@ -262,13 +260,12 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
     val checkpointLocation = "/tmp/checkpoint/" + UUID.randomUUID().toString
 
     SparkConnectorScalaSuiteIT.driver.session()
-      .writeTransaction(
-        new TransactionWork[Unit] {
-          override def execute(tx: Transaction): Unit = {
-            tx.run("CREATE CONSTRAINT From_value FOR (p:From) REQUIRE p.value IS UNIQUE")
-            tx.run("CREATE CONSTRAINT To_value FOR (p:To) REQUIRE p.value IS UNIQUE")
-          }
+      .executeWrite(tx =>
+        {
+          tx.run("CREATE CONSTRAINT From_value FOR (p:From) REQUIRE p.value IS UNIQUE")
+          tx.run("CREATE CONSTRAINT To_value FOR (p:To) REQUIRE p.value IS UNIQUE")
         }
+          .consume()
       )
 
     query = memStream.toDF().writeStream
@@ -320,13 +317,12 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
     )
 
     SparkConnectorScalaSuiteIT.driver.session()
-      .writeTransaction(
-        new TransactionWork[Unit] {
-          override def execute(tx: Transaction): Unit = {
-            tx.run("DROP CONSTRAINT From_value")
-            tx.run("DROP CONSTRAINT To_value")
-          }
+      .executeWrite(tx =>
+        {
+          tx.run("DROP CONSTRAINT From_value")
+          tx.run("DROP CONSTRAINT To_value")
         }
+          .consume()
       )
   }
 }

@@ -30,9 +30,7 @@ import org.junit.Test
 import org.neo4j.Closeables.use
 import org.neo4j.driver.Session
 import org.neo4j.driver.SessionConfig
-import org.neo4j.driver.Transaction
-import org.neo4j.driver.TransactionWork
-import org.neo4j.driver.summary.ResultSummary
+import org.neo4j.driver.TransactionContext
 import org.neo4j.spark.writer.DataWriterMetrics
 
 import java.util.concurrent.TimeUnit
@@ -64,13 +62,12 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
     use(SparkConnectorScalaSuiteIT.session("db2")) { session =>
       session
-        .writeTransaction(
-          new TransactionWork[Unit] {
-            override def execute(tx: Transaction): Unit = {
-              tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE")
-              tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE")
-            }
+        .executeWrite(tx =>
+          {
+            tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE")
+            tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE")
           }
+            .consume()
         )
     }
 
@@ -149,13 +146,12 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       )
     } finally {
       SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
-        .writeTransaction(
-          new TransactionWork[Unit] {
-            override def execute(tx: Transaction): Unit = {
-              tx.run("DROP CONSTRAINT person_id")
-              tx.run("DROP CONSTRAINT product_id")
-            }
+        .executeWrite(tx =>
+          {
+            tx.run("DROP CONSTRAINT person_id")
+            tx.run("DROP CONSTRAINT product_id")
           }
+            .consume()
         )
     }
   }
@@ -182,13 +178,12 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
     use(SparkConnectorScalaSuiteIT.session("db2")) { session =>
       session
-        .writeTransaction(
-          new TransactionWork[Unit] {
-            override def execute(tx: Transaction): Unit = {
-              tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE")
-              tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE")
-            }
+        .executeWrite(tx =>
+          {
+            tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE")
+            tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE")
           }
+            .consume()
         )
     }
 
@@ -264,13 +259,12 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       )
     } finally {
       SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
-        .writeTransaction(
-          new TransactionWork[Unit] {
-            override def execute(tx: Transaction): Unit = {
-              tx.run("DROP CONSTRAINT person_id")
-              tx.run("DROP CONSTRAINT product_id")
-            }
+        .executeWrite(tx =>
+          {
+            tx.run("DROP CONSTRAINT person_id")
+            tx.run("DROP CONSTRAINT product_id")
           }
+            .consume()
         )
     }
   }
@@ -424,11 +418,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val musicDf = Seq(
       (12, 32, "John Bonham", "Drums")

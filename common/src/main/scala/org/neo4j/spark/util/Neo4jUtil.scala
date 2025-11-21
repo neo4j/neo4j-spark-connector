@@ -26,6 +26,7 @@ import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core._
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
+import org.neo4j.driver.exceptions.RetryableException
 import org.neo4j.driver.internal.retry.ExponentialBackoffRetryLogic
 import org.neo4j.driver.types.Entity
 import org.neo4j.driver.types.Path
@@ -240,7 +241,7 @@ object Neo4jUtil {
     if (exception == null) {
       false
     } else
-      ExponentialBackoffRetryLogic.isRetryable(exception) || isRetryableException(
+      exception.isInstanceOf[RetryableException] || isRetryableException(
         exception.getCause
       )
   }

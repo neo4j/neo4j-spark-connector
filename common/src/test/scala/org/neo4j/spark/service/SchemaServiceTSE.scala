@@ -25,13 +25,7 @@ import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runners.MethodSorters
 import org.neo4j.Closeables.use
-import org.neo4j.caniuse.Neo4j
-import org.neo4j.caniuse.Neo4jDeploymentType
-import org.neo4j.caniuse.Neo4jEdition
-import org.neo4j.caniuse.Neo4jVersion
-import org.neo4j.driver.Transaction
-import org.neo4j.driver.TransactionWork
-import org.neo4j.driver.summary.ResultSummary
+import org.neo4j.driver.TransactionContext
 import org.neo4j.spark.SparkConnectorScalaBaseTSE
 import org.neo4j.spark.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.SparkConnectorScalaSuiteIT.neo4j
@@ -246,11 +240,7 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
 
   private def initTest(query: String): Unit = {
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(query).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(query).consume())
   }
 
   private def getSchema(options: java.util.Map[String, String]): StructType = {

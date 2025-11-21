@@ -76,6 +76,6 @@ class AuthenticationTest {
     driverCache.getOrCreate()
 
     PowerMockito.verifyStatic(classOf[GraphDatabase], times(1))
-    GraphDatabase.driver(any[URI](), ArgumentMatchers.eq(AuthTokens.bearer(token)), any())
+    GraphDatabase.driver(any[URI](), ArgumentMatchers.eq(AuthTokens.bearer(token)), any[Config]())
   }
 }

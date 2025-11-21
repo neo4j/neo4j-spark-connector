@@ -21,7 +21,8 @@ import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.Transaction
-import org.neo4j.driver.TransactionWork
+import org.neo4j.driver.TransactionCallback
+import org.neo4j.driver.TransactionContext
 import org.neo4j.driver.summary.ResultSummary
 
 import java.sql.Timestamp
@@ -612,11 +613,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteWithApocIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
@@ -642,11 +639,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteWithApocIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
@@ -691,11 +684,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteWithApocIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
@@ -737,11 +726,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteWithApocIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
@@ -787,11 +772,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteWithApocIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
@@ -818,11 +799,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteWithApocIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
@@ -862,11 +839,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteWithApocIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
@@ -909,18 +882,10 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
         |CREATE (p:Employee:Customer {id: id, name: 'Person ' + id})
         |RETURN *
     """.stripMargin
-    SparkConnectorScalaSuiteWithApocIT.driver.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
-    SparkConnectorScalaSuiteWithApocIT.driver.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixture2Query).consume()
-        }
-      )
+    SparkConnectorScalaSuiteWithApocIT.session()
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
+    SparkConnectorScalaSuiteWithApocIT.session()
+      .executeWrite((tx: TransactionContext) => tx.run(fixture2Query).consume())
 
     val partitionedDf = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
@@ -939,12 +904,8 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
         |CREATE (p:Person {id: id, name: 'Person ' + id})-[:BOUGHT{quantity: ceil(rand() * 100)}]->(:Product{id: id, name: 'Product ' + id})
         |RETURN *
     """.stripMargin
-    SparkConnectorScalaSuiteWithApocIT.driver.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+    SparkConnectorScalaSuiteWithApocIT.session()
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val partitionedDf = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
@@ -977,11 +938,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
   private def initTest(query: String): DataFrame = {
     SparkConnectorScalaSuiteWithApocIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(query).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(query).consume())
 
     ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)

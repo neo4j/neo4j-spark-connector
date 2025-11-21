@@ -20,44 +20,35 @@ import org.apache.spark.SparkException
 import org.apache.spark.sql.DataFrame
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
-import org.junit.Assume
-import org.junit.BeforeClass
 import org.junit.Test
 import org.neo4j.Closeables.use
 import org.neo4j.driver.SessionConfig
-import org.neo4j.driver.Transaction
-import org.neo4j.driver.TransactionWork
+import org.neo4j.driver.TransactionContext
 import org.neo4j.driver.exceptions.ClientException
-import org.neo4j.driver.summary.ResultSummary
 
 class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testMultiDbJoin(): Unit = {
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(
-            """
+      .executeWrite((tx: TransactionContext) =>
+        tx.run(
+          """
       CREATE (p1:Person:Customer {name: 'John Doe'}),
        (p2:Person:Customer {name: 'Mark Brown'}),
        (p3:Person:Customer {name: 'Cindy White'})
       """
-          ).consume()
-        }
+        ).consume()
       )
 
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(
-            """
+      .executeWrite((tx: TransactionContext) =>
+        tx.run(
+          """
       CREATE (p1:Person:Employee {name: 'Jane Doe'}),
        (p2:Person:Employee {name: 'John Doe'})
       """
-          ).consume()
-        }
+        ).consume()
       )
 
     val df1 = ss.read.format(classOf[DataSource].getName)
@@ -89,11 +80,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
         |RETURN *
     """.stripMargin
     SparkConnectorScalaSuiteIT.driver.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureProduct1Query).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureProduct1Query).consume())
     val fixtureProduct2Query: String =
       """CREATE (pr:Product{id: 2, name: 'Product 2'})
         |WITH pr
@@ -103,11 +90,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
         |RETURN *
     """.stripMargin
     SparkConnectorScalaSuiteIT.driver.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureProduct2Query).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureProduct2Query).consume())
 
     val partitionedDf = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -151,11 +134,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -179,11 +158,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -209,11 +184,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -241,11 +212,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -273,11 +240,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -303,11 +266,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -333,11 +292,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val df = ss.read
       .format(classOf[DataSource].getName)
@@ -389,11 +344,10 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def testColumnSorted(): Unit = {
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary =
-            tx.run("CREATE (i1:Instrument{name: 'Drums', id: 1}), (i2:Instrument{name: 'Guitar', id: 2})").consume()
-        }
+      .executeWrite((tx: TransactionContext) =>
+        tx.run(
+          "CREATE (i1:Instrument{name: 'Drums', id: 1}), (i2:Instrument{name: 'Guitar', id: 2})"
+        ).consume()
       )
 
     val df = ss.read
@@ -421,11 +375,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
     use(SparkConnectorScalaSuiteIT.session()) { session =>
       session
-        .writeTransaction(
-          new TransactionWork[ResultSummary] {
-            override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-          }
-        )
+        .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
     }
 
     val df = ss.read.format(classOf[DataSource].getName)

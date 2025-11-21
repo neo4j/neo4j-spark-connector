@@ -18,9 +18,7 @@ package org.neo4j.spark
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.neo4j.driver.Transaction
-import org.neo4j.driver.TransactionWork
-import org.neo4j.driver.summary.ResultSummary
+import org.neo4j.driver.TransactionContext
 
 class DataSourceReaderAggregationTSE extends SparkConnectorScalaBaseTSE {
 
@@ -36,11 +34,7 @@ class DataSourceReaderAggregationTSE extends SparkConnectorScalaBaseTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     ss.read
       .format(classOf[DataSource].getName)
@@ -77,11 +71,7 @@ class DataSourceReaderAggregationTSE extends SparkConnectorScalaBaseTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     ss.read
       .format(classOf[DataSource].getName)
@@ -118,11 +108,7 @@ class DataSourceReaderAggregationTSE extends SparkConnectorScalaBaseTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     ss.read
       .format(classOf[DataSource].getName)

@@ -25,15 +25,12 @@ import org.junit
 import org.junit.Assert._
 import org.junit.Ignore
 import org.junit.Test
-import org.neo4j.driver.Result
-import org.neo4j.driver.Transaction
-import org.neo4j.driver.TransactionWork
+import org.neo4j.driver.TransactionContext
 import org.neo4j.driver.Value
 import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.driver.internal.InternalPoint2D
 import org.neo4j.driver.internal.InternalPoint3D
 import org.neo4j.driver.internal.types.InternalTypeSystem
-import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.types.IsoDuration
 import org.neo4j.driver.types.Type
 import org.neo4j.spark.RowUtil.getByName
@@ -555,7 +552,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     val count = SparkConnectorScalaSuiteIT.session().run(
       """MATCH (p:Person_TimeAndLocalTime)
-        |WHERE p.name STARTS WITH 'Andrea'        
+        |WHERE p.name STARTS WITH 'Andrea'
         |RETURN count(p) AS count
         |""".stripMargin
     ).single().get("count").asInt()
@@ -579,15 +576,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should throw an error because the node already exists`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result =
-          transaction.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE")
-      })
+      .executeWrite(tx => tx.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE"))
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result =
-          transaction.run("CREATE (p:Person{name: 'Andrea', surname: 'Santurbano'})")
-      })
+      .executeWrite(tx => tx.run("CREATE (p:Person{name: 'Andrea', surname: 'Santurbano'})"))
 
     val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
 
@@ -611,24 +602,16 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       }
     } finally {
       SparkConnectorScalaSuiteIT.session()
-        .writeTransaction(new TransactionWork[Result] {
-          override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT person_surname")
-        })
+        .executeWrite(tx => tx.run("DROP CONSTRAINT person_surname"))
     }
   }
 
   @Test
   def `should update the node that already exists`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result =
-          transaction.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE")
-      })
+      .executeWrite(tx => tx.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE"))
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result =
-          transaction.run("CREATE (p:Person{name: 'Federico', surname: 'Santurbano'})")
-      })
+      .executeWrite(tx => tx.run("CREATE (p:Person{name: 'Federico', surname: 'Santurbano'})"))
 
     val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
 
@@ -652,9 +635,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals("Andrea", nodeList.head.get("n").asNode().get("name").asString())
 
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT person_surname")
-      })
+      .executeWrite(tx => tx.run("DROP CONSTRAINT person_surname"))
   }
 
   @Test
@@ -785,10 +766,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should handle unusual column names`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result =
-          transaction.run("CREATE CONSTRAINT instrument_name FOR (i:Instrument) REQUIRE i.name IS UNIQUE")
-      })
+      .executeWrite(tx => tx.run("CREATE CONSTRAINT instrument_name FOR (i:Instrument) REQUIRE i.name IS UNIQUE"))
 
     val musicDf = Seq(
       (12, "John Bonham", "Drums", "f``````oo"),
@@ -813,9 +791,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT instrument_name")
-      })
+      .executeWrite(tx => tx.run("DROP CONSTRAINT instrument_name"))
 
     val musicDfCheck = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -1262,11 +1238,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     """.stripMargin
 
     SparkConnectorScalaSuiteIT.driver.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        }
-      )
+      .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
     val musicDf = Seq(
       (1, 12, "John Henry Bonham", "Drums"),

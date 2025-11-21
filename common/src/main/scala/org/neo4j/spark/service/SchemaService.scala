@@ -26,7 +26,8 @@ import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.Record
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
-import org.neo4j.driver.TransactionWork
+import org.neo4j.driver.TransactionCallback
+import org.neo4j.driver.TransactionContext
 import org.neo4j.driver.Value
 import org.neo4j.driver.Values
 import org.neo4j.driver.exceptions.ClientException
@@ -434,7 +435,7 @@ class SchemaService(
       queryReadStrategy.createStatementForNodeCount(options)
     }
     log.info(s"Executing the following counting query on Neo4j: $query")
-    session.readTransaction(
+    session.executeRead(
       tx =>
         tx.run(query, Values.value(Neo4jUtil.paramsFromFilters(filters).asJava))
           .list()
@@ -729,7 +730,7 @@ class SchemaService(
       s"spark_${entityType}_${constraintType.replace(s"$entityType ", "")}-CONSTRAINT_${entityIdentifier}_$dashSeparatedProps".quote()
     val props = keys.values.map(_.quote()).map("e." + _).mkString(", ")
     val asciiRepresentation: String = createCypherPattern(entityType, entityIdentifier)
-    session.writeTransaction(
+    session.executeWrite(
       tx => {
         tx.run(
           s"CREATE CONSTRAINT $constraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE ($props) IS $constraintType"
@@ -756,7 +757,7 @@ class SchemaService(
     constraints: Set[SchemaConstraintsOptimizationType.Value]
   ): Unit = {
     val asciiRepresentation: String = createCypherPattern(entityType, entityIdentifier)
-    session.writeTransaction(
+    session.executeWrite(
       tx => {
         properties
           .filter(t => struct.exists(f => f.name == t._1))
@@ -938,24 +939,22 @@ class SchemaService(
       Collections.emptyList()
     } else {
       session
-        .writeTransaction(
-          new TransactionWork[util.List[java.util.Map[String, AnyRef]]] {
-            override def execute(transaction: Transaction): util.List[util.Map[String, AnyRef]] = {
-              others.size match {
-                case 1 => transaction.run(others.head).list()
-                    .asScala
-                    .map(_.asMap())
-                    .asJava
-                case _ => {
-                  others
-                    .slice(0, queries.size - 1)
-                    .foreach(transaction.run)
-                  val result = transaction.run(others.last).list()
-                    .asScala
-                    .map(_.asMap())
-                    .asJava
-                  result
-                }
+        .executeWrite(
+          (transaction: TransactionContext) => {
+            others.size match {
+              case 1 => transaction.run(others.head).list()
+                  .asScala
+                  .map(_.asMap())
+                  .asJava
+              case _ => {
+                others
+                  .slice(0, queries.size - 1)
+                  .foreach(transaction.run)
+                val result = transaction.run(others.last).list()
+                  .asScala
+                  .map(_.asMap())
+                  .asJava
+                result
               }
             }
           },
