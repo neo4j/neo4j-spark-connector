@@ -85,10 +85,6 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>neo4j</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
             <exclusions>
                 <exclusion>
@@ -96,6 +92,10 @@
                     <artifactId>annotations</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-neo4j</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>

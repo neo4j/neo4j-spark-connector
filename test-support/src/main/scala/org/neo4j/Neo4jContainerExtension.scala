@@ -25,10 +25,8 @@ import org.rnorth.ducttape.unreliables.Unreliables
 import org.testcontainers.containers.Neo4jContainer
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy
 import org.testcontainers.containers.wait.strategy.WaitAllStrategy
-import org.testcontainers.utility.DockerImageName
 
 import java.time.Duration
-import java.util.concurrent.Callable
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
@@ -43,7 +41,7 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
   }
 
   override def waitUntilReady() {
-    val boltUrl = s"bolt://${waitStrategyTarget.getContainerIpAddress}:${waitStrategyTarget.getMappedPort(7687)}"
+    val boltUrl = s"bolt://${waitStrategyTarget.getHost}:${waitStrategyTarget.getMappedPort(7687)}"
     val driver = GraphDatabase.driver(boltUrl, auth)
     val systemSession = driver.session(SessionConfig.forDatabase("system"))
     val tx = systemSession.beginTransaction()
@@ -59,33 +57,29 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
       Unreliables.retryUntilSuccess(
         startupTimeout.getSeconds.toInt,
         TimeUnit.SECONDS,
-        new Callable[Boolean] {
-          override def call(): Boolean = {
-            getRateLimiter.doWhenReady(new Runnable {
-              override def run(): Unit = {
-                if (databases.nonEmpty) {
-                  val tx = systemSession.beginTransaction()
-                  val databasesStatus =
-                    try {
-                      tx.run("SHOW DATABASES").list().asScala.map(db => {
-                        (db.get("name").asString(), db.get("currentStatus").asString())
-                      }).toMap
-                    } finally {
-                      tx.close()
-                    }
-
-                  val notOnline = databasesStatus.filter(it => {
-                    it._2 != "online"
-                  })
-
-                  if (databasesStatus.size < databases.size || notOnline.nonEmpty) {
-                    throw new RuntimeException(s"Cannot started because of the following databases: ${notOnline.keys}")
-                  }
+        () => {
+          getRateLimiter.doWhenReady(() => {
+            if (databases.nonEmpty) {
+              val tx = systemSession.beginTransaction()
+              val databasesStatus =
+                try {
+                  tx.run("SHOW DATABASES").list().asScala.map(db => {
+                    (db.get("name").asString(), db.get("currentStatus").asString())
+                  }).toMap
+                } finally {
+                  tx.close()
                 }
+
+              val notOnline = databasesStatus.filter(it => {
+                it._2 != "online"
+              })
+
+              if (databasesStatus.size < databases.size || notOnline.nonEmpty) {
+                throw new RuntimeException(s"Cannot started because of the following databases: ${notOnline.keys}")
               }
-            })
-            true
-          }
+            }
+          })
+          true
         }
       )
     } finally {
