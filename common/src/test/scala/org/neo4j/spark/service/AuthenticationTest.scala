@@ -16,15 +16,11 @@
  */
 package org.neo4j.spark.service
 
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito.times
-import org.neo4j.driver.AuthTokenManager
-import org.neo4j.driver.AuthTokenManagers
-import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.Config
 import org.neo4j.driver.GraphDatabase
 import org.neo4j.driver.internal.security.ExpirationBasedAuthTokenManager
@@ -40,7 +36,6 @@ import java.util
 
 @PrepareForTest(Array(classOf[GraphDatabase]))
 @RunWith(classOf[PowerMockRunner])
-@Ignore
 class AuthenticationTest {
 
   @Test
