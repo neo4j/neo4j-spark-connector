@@ -77,14 +77,6 @@ object SparkToNeo4jDataConverter {
 class SparkToNeo4jDataConverter extends DataConverter[Value] {
 
   override def convert(value: Any, dataType: DataType): Value = {
-    dataType match {
-      case _: DayTimeIntervalType if value != null =>
-        return SparkToNeo4jDataConverter.dayTimeIntervalToNeo4j(value.asInstanceOf[Long])
-      case _: YearMonthIntervalType if value != null =>
-        return SparkToNeo4jDataConverter.yearMonthIntervalToNeo4j(value.asInstanceOf[Int])
-      case _ => // do nothing
-    }
-
     value match {
       case date: java.sql.Date           => convert(date.toLocalDate, dataType)
       case timestamp: java.sql.Timestamp => convert(timestamp.toLocalDateTime, dataType)
@@ -94,12 +86,16 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
             .toJavaDate(intValue),
           dataType
         )
+      case intValue: Int if dataType.isInstanceOf[YearMonthIntervalType] =>
+        SparkToNeo4jDataConverter.yearMonthIntervalToNeo4j(intValue)
       case longValue: Long if dataType == DataTypes.TimestampType =>
         convert(
           DateTimeUtils
             .toJavaTimestamp(longValue),
           dataType
         )
+      case longValue: Long if dataType.isInstanceOf[DayTimeIntervalType] =>
+        SparkToNeo4jDataConverter.dayTimeIntervalToNeo4j(longValue)
       case unsafeRow: UnsafeRow => {
         val structType = extractStructType(dataType)
         val row = new GenericRowWithSchema(unsafeRow.toSeq(structType).toArray, structType)
