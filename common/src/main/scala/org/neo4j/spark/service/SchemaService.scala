@@ -730,7 +730,7 @@ class SchemaService(
       s"spark_${entityType}_${constraintType.replace(s"$entityType ", "")}-CONSTRAINT_${entityIdentifier}_$dashSeparatedProps".quote()
     val props = keys.values.map(_.quote()).map("e." + _).mkString(", ")
     val asciiRepresentation: String = createCypherPattern(entityType, entityIdentifier)
-    session.executeWrite(
+    session.executeWriteWithoutResult(
       tx => {
         tx.run(
           s"CREATE CONSTRAINT $constraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE ($props) IS $constraintType"
