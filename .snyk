@@ -15,4 +15,5 @@ ignore:
   'SNYK-JAVA-ORGAPACHEZOOKEEPER-5961102': *spark-core-exclusions
   'SNYK-JAVA-ORGGLASSFISHJERSEYCORE-14049172': *spark-core-exclusions
   'SNYK-JAVA-ORGLZ4-14151788': *spark-core-exclusions
+  'SNYK-JAVA-ORGLZ4-14219384': *spark-core-exclusions
 patch: {}
