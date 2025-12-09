@@ -18,6 +18,8 @@ package org.neo4j.spark.converter
 
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.DayTimeIntervalType
+import org.apache.spark.sql.types.YearMonthIntervalType
 import org.neo4j.driver.types.Entity
 import org.neo4j.spark.converter.CypherToSparkTypeConverter.cleanTerms
 import org.neo4j.spark.converter.CypherToSparkTypeConverter.durationType
@@ -129,6 +131,8 @@ object SparkToCypherTypeConverter {
     DataTypes.DoubleType -> "FLOAT",
     DataTypes.DateType -> "DATE",
     DataTypes.TimestampType -> "LOCAL DATETIME",
+    DayTimeIntervalType() -> "DURATION",
+    YearMonthIntervalType() -> "DURATION",
     durationType -> "DURATION",
     pointType -> "POINT",
     // Cypher graph entities do not allow null values in arrays
@@ -141,6 +145,10 @@ object SparkToCypherTypeConverter {
     DataTypes.createArrayType(DataTypes.DateType, false) -> "LIST<DATE NOT NULL>",
     DataTypes.createArrayType(DataTypes.TimestampType, false) -> "LIST<LOCAL DATETIME NOT NULL>",
     DataTypes.createArrayType(DataTypes.TimestampType, true) -> "LIST<LOCAL DATETIME NOT NULL>",
+    DataTypes.createArrayType(DayTimeIntervalType(), false) -> "LIST<DURATION NOT NULL>",
+    DataTypes.createArrayType(DayTimeIntervalType(), true) -> "LIST<DURATION NOT NULL>",
+    DataTypes.createArrayType(YearMonthIntervalType(), false) -> "LIST<DURATION NOT NULL>",
+    DataTypes.createArrayType(YearMonthIntervalType(), true) -> "LIST<DURATION NOT NULL>",
     DataTypes.createArrayType(durationType, false) -> "LIST<DURATION NOT NULL>",
     DataTypes.createArrayType(pointType, false) -> "LIST<POINT NOT NULL>"
   )

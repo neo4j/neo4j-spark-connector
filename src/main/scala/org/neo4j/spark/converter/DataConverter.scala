@@ -55,11 +55,36 @@ trait DataConverter[T] {
 
 object SparkToNeo4jDataConverter {
   def apply(): SparkToNeo4jDataConverter = new SparkToNeo4jDataConverter()
+
+  def dayTimeIntervalToNeo4j(micros: Long): Value = {
+    val oneSecondInMicros = 1000000L
+    val oneDayInMicros = 24 * 3600 * oneSecondInMicros
+
+    val numberDays = Math.floorDiv(micros, oneDayInMicros)
+    val remainderMicros = Math.floorMod(micros, oneDayInMicros)
+    val numberSeconds = Math.floorDiv(remainderMicros, oneSecondInMicros)
+    val numberNanos = Math.floorMod(remainderMicros, oneSecondInMicros) * 1000
+
+    Values.isoDuration(0L, numberDays, numberSeconds, numberNanos.toInt)
+  }
+
+  // while Neo4j supports years, this driver version's API does not expose it.
+  def yearMonthIntervalToNeo4j(months: Int): Value = {
+    Values.isoDuration(months.toLong, 0L, 0L, 0)
+  }
 }
 
 class SparkToNeo4jDataConverter extends DataConverter[Value] {
 
   override def convert(value: Any, dataType: DataType): Value = {
+    dataType match {
+      case _: DayTimeIntervalType if value != null =>
+        return SparkToNeo4jDataConverter.dayTimeIntervalToNeo4j(value.asInstanceOf[Long])
+      case _: YearMonthIntervalType if value != null =>
+        return SparkToNeo4jDataConverter.yearMonthIntervalToNeo4j(value.asInstanceOf[Int])
+      case _ => // do nothing
+    }
+
     value match {
       case date: java.sql.Date           => convert(date.toLocalDate, dataType)
       case timestamp: java.sql.Timestamp => convert(timestamp.toLocalDateTime, dataType)
