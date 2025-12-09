@@ -25,7 +25,9 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.ArrayType
 import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.DayTimeIntervalType
+import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.sql.types.YearMonthIntervalType
 import org.junit
 import org.junit.Assert._
@@ -103,6 +105,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .filter(r => r.get("foo").hasType(neo4jType))
       .map(r => r.asMap().asScala)
       .toSet
+
     val expected = ds.collect()
       .map(row =>
         Map("foo" -> {
@@ -116,6 +119,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         })
       )
       .toSet
+
     assertEquals(expected, records)
   }
 
@@ -138,6 +142,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val expected = ds.collect()
       .map(row => row.getList[T](0))
       .toSet
+
     assertEquals(expected, records)
   }
 
@@ -194,8 +199,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with string values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i.toString)
       .toDF("foo")
 
@@ -204,8 +208,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with string array values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i.toString)
       .map(i => Array(i, i))
       .toDF("foo")
@@ -215,8 +218,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with int values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i)
       .toDF("foo")
 
@@ -224,9 +226,26 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def `should write nodes with byte values into Neo4j`(): Unit = {
+    val ds = (1 to 10)
+      .map(_.toByte)
+      .toDF("foo")
+
+    testType[Byte](ds, InternalTypeSystem.TYPE_SYSTEM.INTEGER())
+  }
+
+  @Test
+  def `should write nodes with short values into Neo4j`(): Unit = {
+    val ds = (1 to 10)
+      .map(_.toShort)
+      .toDF("foo")
+
+    testType[Short](ds, InternalTypeSystem.TYPE_SYSTEM.INTEGER())
+  }
+
+  @Test
   def `should write nodes with date values into Neo4j`(): Unit = {
-    val total = 5
-    val ds = (1 to total)
+    val ds = (1 to 5)
       .map(i => java.sql.Date.valueOf("2020-01-0" + i))
       .toDF("foo")
 
@@ -235,8 +254,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with timestamp values into Neo4j`(): Unit = {
-    val total = 5
-    val ds = (1 to total)
+    val ds = (1 to 5)
       .map(i => java.sql.Timestamp.valueOf(s"2020-01-0$i 11:11:11.11"))
       .toDF("foo")
 
@@ -245,8 +263,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with int array values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i.toLong)
       .map(i => Array(i, i))
       .toDF("foo")
@@ -256,8 +273,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with point-2d values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => EmptyRow(Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble())))
       .toDS()
 
@@ -287,8 +303,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with point-2d array values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i =>
         EmptyRow(Seq(
           Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble()),
@@ -325,8 +340,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with point-3d values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i =>
         EmptyRow(Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble()))
       )
@@ -358,8 +372,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with point-3d array values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i =>
         EmptyRow(Seq(
           Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble()),
@@ -396,8 +409,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with map values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => Map("field" + i -> i))
       .toDF("foo")
 
@@ -424,8 +436,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with duration values into Neo4j from struct`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i.toLong)
       .map(i => EmptyRow(Duration(i, i, i, i)))
       .toDS()
@@ -455,8 +466,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with duration array values into Neo4j from struct`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i.toLong)
       .map(i =>
         EmptyRow(Seq(
@@ -614,6 +624,56 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         case e              => throw e
       }
     )
+  }
+
+  @Test
+  def `should write TINYINT (byte) as neo4j integer`(): Unit = {
+    val id = java.util.UUID.randomUUID().toString
+    val df = sparkSession.sql(s"SELECT '$id' AS id, CAST(5 AS TINYINT) AS byte")
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Byte")
+      .save()
+
+    val wantType = DataTypes.ByteType
+    val gotType = df.schema("byte").dataType
+    assertTrue(s"expected Spark to pick ${wantType.simpleString} but it was $gotType", wantType == gotType)
+
+    val gotByte = SparkConnectorScalaSuiteIT.session().run(
+      s"""MATCH (b:Byte {id: '$id'})
+         |RETURN b.byte AS byte
+         |""".stripMargin
+    ).single().get("byte").asInt()
+
+    assertEquals(5, gotByte)
+  }
+
+  @Test
+  def `should write SMALLINT (shorts) as neo4j integer`(): Unit = {
+    val id = java.util.UUID.randomUUID().toString
+    val df = sparkSession.sql(s"SELECT '$id' AS id, CAST(5 AS SMALLINT) AS short")
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Short")
+      .save()
+
+    val wantType = DataTypes.ShortType
+    val gotType = df.schema("short").dataType
+    assertTrue(s"expected Spark to pick ${wantType.simpleString} but it was $gotType", wantType == gotType)
+
+    val gotByte = SparkConnectorScalaSuiteIT.session().run(
+      s"""MATCH (b:Short {id: '$id'})
+         |RETURN b.short AS short
+         |""".stripMargin
+    ).single().get("short").asInt()
+
+    assertEquals(5, gotByte)
   }
 
   @Test
@@ -1441,8 +1501,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should insert index while insert nodes`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i.toString)
       .toDF("surname")
 
@@ -1506,8 +1565,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should create constraint when insert nodes`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i.toString)
       .toDF("surname")
 
@@ -1546,8 +1604,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     SparkConnectorScalaSuiteIT.session().run(
       "CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE (p.surname) IS UNIQUE"
     )
-    val total = 10
-    val ds = (1 to total)
+
+    val ds = (1 to 10)
       .map(i => i.toString)
       .toDF("surname")
 
@@ -1583,8 +1641,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should insert indexes while insert with query`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i.toString)
       .toDF("surname")
 
