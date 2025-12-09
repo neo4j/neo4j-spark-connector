@@ -16,20 +16,28 @@
  */
 package org.neo4j.spark
 
+import junitparams.JUnitParamsRunner
+import junitparams.Parameters
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.SparkException
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.DayTimeIntervalType
+import org.apache.spark.sql.types.YearMonthIntervalType
 import org.junit
 import org.junit.Assert._
 import org.junit.Ignore
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.neo4j.driver.Result
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.Value
 import org.neo4j.driver.exceptions.ClientException
+import org.neo4j.driver.exceptions.value.Uncoercible
 import org.neo4j.driver.internal.InternalPoint2D
 import org.neo4j.driver.internal.InternalPoint3D
 import org.neo4j.driver.internal.types.InternalTypeSystem
@@ -54,7 +62,7 @@ import scala.util.Random
 
 abstract class Neo4jType(`type`: String)
 
-case class Duration(`type`: String = "duration", months: Long, days: Long, seconds: Long, nanoseconds: Long)
+case class Duration(months: Long, days: Long, seconds: Long, nanoseconds: Long, `type`: String = "duration")
     extends Neo4jType(`type`)
 
 case class Point2d(`type`: String = "point-2d", srid: Int, x: Double, y: Double) extends Neo4jType(`type`)
@@ -73,8 +81,9 @@ case class SimplePerson(name: String, surname: String)
 
 case class EmptyRow[T](data: T)
 
+@RunWith(classOf[JUnitParamsRunner])
 class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
-  val sparkSession = SparkSession.builder().getOrCreate()
+  val sparkSession = SparkSession.builder().master("local[*]").getOrCreate()
 
   import sparkSession.implicits._
 
@@ -414,11 +423,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should write nodes with duration values into Neo4j`(): Unit = {
+  def `should write nodes with duration values into Neo4j from struct`(): Unit = {
     val total = 10
     val ds = (1 to total)
       .map(i => i.toLong)
-      .map(i => EmptyRow(Duration(months = i, days = i, seconds = i, nanoseconds = i)))
+      .map(i => EmptyRow(Duration(i, i, i, i)))
       .toDS()
 
     ds.write
@@ -430,10 +439,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     val records = SparkConnectorScalaSuiteIT.session().run(
       """MATCH (p:BeanWithDuration)
-        |RETURN p.data AS data
+        |RETURN p.data AS duration
         |""".stripMargin
     ).list().asScala
-      .map(r => r.get("data").asIsoDuration())
+      .map(r => r.get("duration").asIsoDuration())
       .map(data => (data.months, data.days, data.seconds, data.nanoseconds))
       .toSet
 
@@ -445,14 +454,14 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should write nodes with duration array values into Neo4j`(): Unit = {
+  def `should write nodes with duration array values into Neo4j from struct`(): Unit = {
     val total = 10
     val ds = (1 to total)
       .map(i => i.toLong)
       .map(i =>
         EmptyRow(Seq(
-          Duration(months = i, days = i, seconds = i, nanoseconds = i),
-          Duration(months = i, days = i, seconds = i, nanoseconds = i)
+          Duration(i, i, i, i),
+          Duration(i, i, i, i)
         ))
       )
       .toDS()
@@ -482,6 +491,129 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .toSet
 
     assertEquals(expected, records)
+  }
+
+  private case class DurationCase(
+    intervalExpression: String,
+    duration: Duration,
+    expectedDt: Class[_ <: DataType] = classOf[DayTimeIntervalType]
+  ) {
+    private val isArithmetic = intervalExpression.startsWith("timestamp")
+
+    val sql: String = if (isArithmetic) {
+      intervalExpression
+    } else {
+      s"INTERVAL $intervalExpression"
+    }
+  }
+
+  private def sqlDurationCases: java.util.List[DurationCase] = java.util.Arrays.asList(
+    // DAY/TIME -> DayTimeIntervalType
+    DurationCase("'3' DAY", Duration(0, 3, 0, 0)),
+    DurationCase("'10 05' DAY TO HOUR", Duration(0, 10, 5L * 3600, 0)),
+    DurationCase("'10 05:30' DAY TO MINUTE", Duration(0, 10, 5L * 3600 + 30L * 60, 0)),
+    DurationCase("'10 05:30:15.123456' DAY TO SECOND", Duration(0, 10, 5L * 3600 + 30L * 60 + 15L, 123456000)),
+    DurationCase("'12' HOUR", Duration(0, 0, 12L * 3600, 0)),
+    DurationCase("'12:34' HOUR TO MINUTE", Duration(0, 0, 12L * 3600 + 34L * 60, 0)),
+    DurationCase("'12:34:56.123456' HOUR TO SECOND", Duration(0, 0, 12L * 3600 + 34L * 60 + 56L, 123456000)),
+    DurationCase("'42' MINUTE", Duration(0, 0, 42L * 60, 0)),
+    DurationCase("'42:07.001002' MINUTE TO SECOND", Duration(0, 0, 42L * 60 + 7L, 1002000)),
+    DurationCase("'59.000001' SECOND", Duration(0, 0, 59L, 1000)),
+    DurationCase(
+      "timestamp('2025-01-02 18:30:00.454') - timestamp('2024-01-01 00:00:00')",
+      Duration(0, 367, 66600L, 454000000)
+    ),
+    // YEAR/MONTH -> YearMonthIntervalType
+    DurationCase("'3' YEAR", Duration(36, 0, 0, 0), classOf[YearMonthIntervalType]),
+    DurationCase("'7' MONTH", Duration(7, 0, 0, 0), classOf[YearMonthIntervalType]),
+    DurationCase("'4-5' YEAR TO MONTH", Duration(53, 0, 0, 0), classOf[YearMonthIntervalType])
+  )
+
+  @Test
+  @Parameters(method = "sqlDurationCases")
+  def `interval literals map to native neo4j durations`(testCase: DurationCase): Unit = {
+    val id = java.util.UUID.randomUUID().toString
+    val df = sparkSession.sql(s"SELECT '$id' AS id, ${testCase.sql} AS duration")
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Dur")
+      .save()
+
+    val wantType = testCase.expectedDt.getSimpleName
+    val gotType = df.schema("duration").dataType
+    assertTrue(s"expected Spark to pick $wantType but it was $gotType", testCase.expectedDt.isInstance(gotType))
+
+    val gotDuration = SparkConnectorScalaSuiteIT.session().run(
+      s"""MATCH (d:Dur {id: '$id'})
+         |RETURN d.duration AS duration
+         |""".stripMargin
+    ).single().get("duration").asIsoDuration()
+
+    assertEquals(s"${testCase.sql} -> months", testCase.duration.months, gotDuration.months)
+    assertEquals(s"${testCase.sql} -> days", testCase.duration.days, gotDuration.days)
+    assertEquals(s"${testCase.sql} -> seconds", testCase.duration.seconds, gotDuration.seconds)
+    assertEquals(s"${testCase.sql} -> nanos", testCase.duration.nanoseconds, gotDuration.nanoseconds)
+  }
+
+  private val sqlDurationArrayCases: java.util.List[Seq[DurationCase]] = java.util.Arrays.asList(
+    Seq(
+      DurationCase("'10 05:30:15.123' DAY TO SECOND", null),
+      DurationCase("'0 00:00:01.000' DAY TO SECOND", null)
+    ),
+    Seq(
+      DurationCase("timestamp('2024-01-02 00:00:00') - timestamp('2024-01-01 00:00:00')", null),
+      DurationCase("timestamp('2024-01-01 00:00:00') - current_timestamp()", null)
+    ),
+    Seq(
+      DurationCase("'1-02' YEAR TO MONTH", null, classOf[YearMonthIntervalType]),
+      DurationCase("'0-11' YEAR TO MONTH", null, classOf[YearMonthIntervalType])
+    )
+  )
+
+  @Test
+  @Parameters(method = "sqlDurationArrayCases")
+  def `should write interval arrays as native neo4j durations`(testCase: Seq[DurationCase]): Unit = {
+    val id = java.util.UUID.randomUUID().toString
+    val expectedDt = testCase.head.expectedDt
+    val sqlArray = testCase.map(_.sql).mkString("array(", ", ", ")")
+    val df = sparkSession.sql(s"SELECT '$id' AS id, $sqlArray AS durations")
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "DurArr")
+      .save()
+
+    val gotType = df.schema("durations").dataType
+
+    assertTrue(
+      s"expected Spark to infer ArrayType(${expectedDt.getSimpleName}) but it was $gotType",
+      gotType match {
+        case ArrayType(et, _) if expectedDt.isInstance(et) => true
+        case _                                             => false
+      }
+    )
+
+    val result = SparkConnectorScalaSuiteIT.session().run(
+      s"""MATCH (d:DurArr {id: '$id'})
+         |RETURN d.durations AS durations
+         |""".stripMargin
+    ).single().get("durations")
+
+    assertTrue(
+      s"expected successful conversion to IsoDuration array, but it failed: $result",
+      try {
+        val _ = result.asList((v: Value) => v.asIsoDuration())
+        true
+      } catch {
+        case _: Uncoercible => false
+        case e              => throw e
+      }
+    )
   }
 
   @Test
