@@ -24,6 +24,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.types.ByteType
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.DayTimeIntervalType
@@ -505,7 +506,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   private case class DurationCase(
     intervalExpression: String,
-    duration: Duration,
+    expectedDuration: Duration,
     expectedDt: Class[_ <: DataType] = classOf[DayTimeIntervalType]
   ) {
     private val isArithmetic = intervalExpression.startsWith("timestamp")
@@ -562,10 +563,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
          |""".stripMargin
     ).single().get("duration").asIsoDuration()
 
-    assertEquals(s"${testCase.sql} -> months", testCase.duration.months, gotDuration.months)
-    assertEquals(s"${testCase.sql} -> days", testCase.duration.days, gotDuration.days)
-    assertEquals(s"${testCase.sql} -> seconds", testCase.duration.seconds, gotDuration.seconds)
-    assertEquals(s"${testCase.sql} -> nanos", testCase.duration.nanoseconds, gotDuration.nanoseconds)
+    assertEquals(s"${testCase.sql} -> months", testCase.expectedDuration.months, gotDuration.months)
+    assertEquals(s"${testCase.sql} -> days", testCase.expectedDuration.days, gotDuration.days)
+    assertEquals(s"${testCase.sql} -> seconds", testCase.expectedDuration.seconds, gotDuration.seconds)
+    assertEquals(s"${testCase.sql} -> nanos", testCase.expectedDuration.nanoseconds, gotDuration.nanoseconds)
   }
 
   private val sqlDurationArrayCases: java.util.List[Seq[DurationCase]] = java.util.Arrays.asList(
@@ -652,6 +653,44 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def `should write BINARY (byte array) as neo4j ByteArray`(): Unit = {
+    val id = java.util.UUID.randomUUID().toString
+    val sqlArray = (1 to 10).map(i => s"CAST($i AS TINYINT)").mkString("array(", ", ", ")")
+    val df = sparkSession.sql(s"SELECT '$id' AS id, $sqlArray AS binary")
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Binary")
+      .save()
+
+    val wantType: DataType = DataTypes.ByteType
+    val gotType = df.schema("binary").dataType
+
+    assertTrue(
+      s"expected Spark to infer ArrayType(${wantType.simpleString}) but it was $gotType",
+      gotType match {
+        case ArrayType(_: ByteType, _) => true
+        case _                         => false
+      }
+    )
+
+    val gotByteArray = SparkConnectorScalaSuiteIT.session().run(
+      s"""MATCH (b:Binary {id: '$id'})
+         |RETURN b.binary AS binary
+         |""".stripMargin
+    ).single().get("binary").asByteArray()
+
+    assertEquals(10, gotByteArray.length)
+
+    for (b <- gotByteArray.indices) {
+      val expectedValue = b + 1
+      assertEquals(expectedValue, gotByteArray(b).toInt)
+    }
+  }
+
+  @Test
   def `should write SMALLINT (shorts) as neo4j integer`(): Unit = {
     val id = java.util.UUID.randomUUID().toString
     val df = sparkSession.sql(s"SELECT '$id' AS id, CAST(5 AS SMALLINT) AS short")
@@ -674,6 +713,31 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     ).single().get("short").asInt()
 
     assertEquals(5, gotByte)
+  }
+
+  @Test
+  def `should write DECIMAL (java.math.BigDecimal) as neo4j string`(): Unit = {
+    val id = java.util.UUID.randomUUID().toString
+    val df = sparkSession.sql(s"SELECT '$id' AS id, CAST(5.42 AS DECIMAL(10, 2)) AS decimal")
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Decimal")
+      .save()
+
+    val wantType = DecimalType(10, 2)
+    val gotType = df.schema("decimal").dataType
+    assertTrue(s"expected Spark to pick $wantType but it was $gotType", wantType.typeName == gotType.simpleString)
+
+    val gotDecimal = SparkConnectorScalaSuiteIT.session().run(
+      s"""MATCH (b:Decimal {id: '$id'})
+         |RETURN b.decimal AS decimal
+         |""".stripMargin
+    ).single().get("decimal").asString
+
+    assertEquals("5.42", gotDecimal)
   }
 
   @Test

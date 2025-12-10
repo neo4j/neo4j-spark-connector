@@ -19,6 +19,7 @@ package org.neo4j.spark.converter
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.DayTimeIntervalType
+import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.sql.types.YearMonthIntervalType
 import org.neo4j.driver.types.Entity
 import org.neo4j.spark.converter.CypherToSparkTypeConverter.cleanTerms
@@ -125,6 +126,7 @@ object SparkToCypherTypeConverter {
   private val mapping: Map[DataType, String] = Map(
     DataTypes.BooleanType -> "BOOLEAN",
     DataTypes.StringType -> "STRING",
+    DecimalType.SYSTEM_DEFAULT -> "STRING",
     DataTypes.IntegerType -> "INTEGER",
     DataTypes.LongType -> "INTEGER",
     DataTypes.FloatType -> "FLOAT",
@@ -138,6 +140,7 @@ object SparkToCypherTypeConverter {
     // Cypher graph entities do not allow null values in arrays
     DataTypes.createArrayType(DataTypes.BooleanType, false) -> "LIST<BOOLEAN NOT NULL>",
     DataTypes.createArrayType(DataTypes.StringType, false) -> "LIST<STRING NOT NULL>",
+    DataTypes.createArrayType(DecimalType.SYSTEM_DEFAULT, false) -> "LIST<STRING NOT NULL>",
     DataTypes.createArrayType(DataTypes.IntegerType, false) -> "LIST<INTEGER NOT NULL>",
     DataTypes.createArrayType(DataTypes.LongType, false) -> "LIST<INTEGER NOT NULL>",
     DataTypes.createArrayType(DataTypes.FloatType, false) -> "LIST<FLOAT NOT NULL>",

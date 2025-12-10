@@ -142,10 +142,14 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
           case arrayType: ArrayType => arrayType.elementType
           case _                    => dataType
         }
-        val javaList = unsafeArray.toSeq[AnyRef](sparkType)
-          .map(elem => convert(elem, sparkType))
-          .asJava
-        Values.value(javaList)
+        if (sparkType == DataTypes.ByteType) {
+          Values.value(unsafeArray.toByteArray)
+        } else {
+          val javaList = unsafeArray.toSeq[AnyRef](sparkType)
+            .map(elem => convert(elem, sparkType))
+            .asJava
+          Values.value(javaList)
+        }
       }
       case unsafeMapData: MapData => { // Neo4j only supports Map[String, AnyRef]
         val mapType = dataType.asInstanceOf[MapType]
@@ -158,8 +162,9 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
           .toMap[String, AnyRef]
         Values.value(map.asJava)
       }
-      case string: UTF8String => convert(string.toString)
-      case _                  => Values.value(value)
+      case string: UTF8String                                     => convert(string.toString)
+      case decimal: Decimal if dataType.isInstanceOf[DecimalType] => Values.value(decimal.toString)
+      case _                                                      => Values.value(value)
     }
   }
 }
