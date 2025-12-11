@@ -153,6 +153,27 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(expected, records)
   }
 
+  private def testDurationType(ds: DataFrame, expected: Set[Duration]): Unit = {
+    ds.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":Duration")
+      .save()
+
+    val records = SparkConnectorScalaSuiteIT.session().run(
+      """MATCH (d:Duration)
+        |RETURN d.duration AS duration
+        |""".stripMargin
+    ).list().asScala
+      .filter(r => r.get("duration").hasType(InternalTypeSystem.TYPE_SYSTEM.DURATION()))
+      .map(r => r.get("duration").asIsoDuration())
+      .map(data => Duration(data.months, data.days, data.seconds, data.nanoseconds))
+      .toSet
+
+    assertEquals(expected, records)
+  }
+
   @Test
   def testThrowsExceptionIfNoValidReadOptionIsSet(): Unit = {
     try {
@@ -452,33 +473,46 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def `should write nodes with duration values into Neo4j from java period`(): Unit = {
+    val range = 1 to 10
+    val ds = range
+      .map(i => java.time.Period.ofMonths(i))
+      .toDF("duration")
+
+    val expected = range
+      .map(i => Duration(i, 0, 0, 0))
+      .toSet
+
+    testDurationType(ds, expected)
+  }
+
+  @Test
+  def `should write nodes with duration values into Neo4j from java duration`(): Unit = {
+    val range = 1 to 10
+    val ds = range
+      .map(i => java.time.Duration.ofDays(i.toLong))
+      .toDF("duration")
+
+    val expected = range
+      .map(i => Duration(0, i, 0, 0))
+      .toSet
+
+    testDurationType(ds, expected)
+  }
+
+  @Test
   def `should write nodes with duration values into Neo4j from struct`(): Unit = {
-    val ds = (1 to 10)
+    val range = 1 to 10
+    val ds = range
       .map(i => i.toLong)
       .map(i => EmptyRow(Duration(i, i, i, i)))
-      .toDS()
+      .toDF("duration")
 
-    ds.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Append)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", "BeanWithDuration")
-      .save()
-
-    val records = SparkConnectorScalaSuiteIT.session().run(
-      """MATCH (p:BeanWithDuration)
-        |RETURN p.data AS duration
-        |""".stripMargin
-    ).list().asScala
-      .map(r => r.get("duration").asIsoDuration())
-      .map(data => (data.months, data.days, data.seconds, data.nanoseconds))
+    val expected = range
+      .map(i => Duration(i, i, i, i))
       .toSet
 
-    val expected = ds.collect()
-      .map(row => (row.data.months, row.data.days, row.data.seconds, row.data.nanoseconds))
-      .toSet
-
-    assertEquals(expected, records)
+    testDurationType(ds, expected)
   }
 
   @Test
@@ -558,7 +592,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   @Parameters(method = "sqlDurationCases")
-  def `interval literals map to native neo4j durations`(testCase: DurationCase): Unit = {
+  def `interval SQL literals map to native neo4j durations`(testCase: DurationCase): Unit = {
     val id = java.util.UUID.randomUUID().toString
     val df = sparkSession.sql(s"SELECT '$id' AS id, ${testCase.sql} AS duration")
 
@@ -602,7 +636,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   @Parameters(method = "sqlDurationArrayCases")
-  def `should write interval arrays as native neo4j durations`(testCase: Seq[DurationCase]): Unit = {
+  def `interval SQL arrays map to native neo4j durations arrays`(testCase: Seq[DurationCase]): Unit = {
     val id = java.util.UUID.randomUUID().toString
     val expectedDt = testCase.head.expectedDt
     val sqlArray = testCase.map(_.sql).mkString("array(", ", ", ")")
