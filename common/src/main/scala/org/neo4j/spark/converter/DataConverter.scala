@@ -89,11 +89,9 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
       case intValue: Int if dataType.isInstanceOf[YearMonthIntervalType] =>
         SparkToNeo4jDataConverter.yearMonthIntervalToNeo4j(intValue)
       case longValue: Long if dataType == DataTypes.TimestampType =>
-        convert(
-          DateTimeUtils
-            .toJavaTimestamp(longValue),
-          dataType
-        )
+        convert(DateTimeUtils.toJavaTimestamp(longValue), dataType)
+      case longValue: Long if dataType == DataTypes.TimestampNTZType =>
+        convert(DateTimeUtils.toJavaTimestamp(longValue), dataType)
       case longValue: Long if dataType.isInstanceOf[DayTimeIntervalType] =>
         SparkToNeo4jDataConverter.dayTimeIntervalToNeo4j(longValue)
       case unsafeRow: UnsafeRow => {
@@ -159,7 +157,6 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
           )
           .toMap[String, AnyRef]
           .mapValues(innerValue => convert(innerValue, mapType.valueType))
-          .toMap[String, AnyRef]
         Values.value(map.asJava)
       }
       case string: UTF8String                                     => convert(string.toString)

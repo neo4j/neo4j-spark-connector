@@ -56,6 +56,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import java.time.LocalTime
 import java.time.OffsetTime
+import java.util.TimeZone
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.ListMap
@@ -86,7 +87,13 @@ case class EmptyRow[T](data: T)
 
 @RunWith(classOf[JUnitParamsRunner])
 class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
-  val sparkSession = SparkSession.builder().master("local[*]").getOrCreate()
+  val timeZoneLock = "UTC" // to make TIMESTAMP_NTZ tests deterministic
+
+  val sparkSession = SparkSession.builder()
+    .master("local[*]")
+    .appName("DataSourceWriterTSE")
+    .config("spark.sql.session.timeZone", timeZoneLock)
+    .getOrCreate()
 
   import sparkSession.implicits._
 
@@ -112,8 +119,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         Map("foo" -> {
           val foo = row.getAs[T]("foo")
           foo match {
-            case sqlDate: java.sql.Date => sqlDate
-                .toLocalDate
+            case sqlDate: java.sql.Date           => sqlDate.toLocalDate
             case sqlTimestamp: java.sql.Timestamp => sqlTimestamp.toLocalDateTime
             case _                                => foo
           }
@@ -260,6 +266,16 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .toDF("foo")
 
     testType[java.sql.Timestamp](ds, InternalTypeSystem.TYPE_SYSTEM.LOCAL_DATE_TIME())
+  }
+
+  @Test
+  def `should write nodes with timestampNTZ values into Neo4j`(): Unit = {
+    TimeZone.setDefault(TimeZone.getTimeZone(timeZoneLock))
+    val ds = (1 to 5)
+      .map(i => java.time.LocalDateTime.of(2020, 1, i, 11, 11, 11, 111000000))
+      .toDF("foo")
+
+    testType[java.time.LocalDateTime](ds, InternalTypeSystem.TYPE_SYSTEM.LOCAL_DATE_TIME())
   }
 
   @Test
@@ -628,7 +644,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should write TINYINT (byte) as neo4j integer`(): Unit = {
+  def `should write TINYINT as neo4j integer`(): Unit = {
     val id = java.util.UUID.randomUUID().toString
     val df = sparkSession.sql(s"SELECT '$id' AS id, CAST(5 AS TINYINT) AS byte")
 
@@ -691,7 +707,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should write SMALLINT (shorts) as neo4j integer`(): Unit = {
+  def `should write SMALLINT as neo4j integer`(): Unit = {
     val id = java.util.UUID.randomUUID().toString
     val df = sparkSession.sql(s"SELECT '$id' AS id, CAST(5 AS SMALLINT) AS short")
 
@@ -716,7 +732,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should write DECIMAL (java.math.BigDecimal) as neo4j string`(): Unit = {
+  def `should write DECIMAL as neo4j string`(): Unit = {
     val id = java.util.UUID.randomUUID().toString
     val df = sparkSession.sql(s"SELECT '$id' AS id, CAST(5.42 AS DECIMAL(10, 2)) AS decimal")
 

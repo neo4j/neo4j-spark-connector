@@ -73,14 +73,15 @@ class CypherToSparkTypeConverter extends TypeConverter[String, DataType] {
     case "Node" | "Relationship" => if (value != null) value.asInstanceOf[Entity].toStruct else DataTypes.NullType
     case "NodeArray" | "RelationshipArray" =>
       if (value != null) DataTypes.createArrayType(value.asInstanceOf[Entity].toStruct) else DataTypes.NullType
-    case "Boolean"                                      => DataTypes.BooleanType
-    case "Long"                                         => DataTypes.LongType
-    case "Double"                                       => DataTypes.DoubleType
-    case "Point"                                        => pointType
-    case "DateTime" | "ZonedDateTime" | "LocalDateTime" => DataTypes.TimestampType
-    case "Time"                                         => timeType
-    case "Date"                                         => DataTypes.DateType
-    case "Duration"                                     => durationType
+    case "Boolean"                    => DataTypes.BooleanType
+    case "Long"                       => DataTypes.LongType
+    case "Double"                     => DataTypes.DoubleType
+    case "Point"                      => pointType
+    case "DateTime" | "ZonedDateTime" => DataTypes.TimestampType
+    case "LocalDateTime"              => DataTypes.TimestampNTZType
+    case "Time"                       => timeType
+    case "Date"                       => DataTypes.DateType
+    case "Duration"                   => durationType
     case "Map" => {
       val valueType = if (value == null) {
         DataTypes.NullType
@@ -127,12 +128,15 @@ object SparkToCypherTypeConverter {
     DataTypes.BooleanType -> "BOOLEAN",
     DataTypes.StringType -> "STRING",
     DecimalType.SYSTEM_DEFAULT -> "STRING",
+    DataTypes.ByteType -> "INTEGER",
+    DataTypes.ShortType -> "INTEGER",
     DataTypes.IntegerType -> "INTEGER",
     DataTypes.LongType -> "INTEGER",
     DataTypes.FloatType -> "FLOAT",
     DataTypes.DoubleType -> "FLOAT",
     DataTypes.DateType -> "DATE",
-    DataTypes.TimestampType -> "LOCAL DATETIME",
+    DataTypes.TimestampType -> "ZONED DATETIME",
+    DataTypes.TimestampNTZType -> "LOCAL DATETIME",
     DayTimeIntervalType() -> "DURATION",
     YearMonthIntervalType() -> "DURATION",
     durationType -> "DURATION",
@@ -141,13 +145,17 @@ object SparkToCypherTypeConverter {
     DataTypes.createArrayType(DataTypes.BooleanType, false) -> "LIST<BOOLEAN NOT NULL>",
     DataTypes.createArrayType(DataTypes.StringType, false) -> "LIST<STRING NOT NULL>",
     DataTypes.createArrayType(DecimalType.SYSTEM_DEFAULT, false) -> "LIST<STRING NOT NULL>",
+    DataTypes.createArrayType(DataTypes.ByteType, false) -> "ByteArray",
+    DataTypes.createArrayType(DataTypes.ShortType, false) -> "LIST<INTEGER NOT NULL>",
     DataTypes.createArrayType(DataTypes.IntegerType, false) -> "LIST<INTEGER NOT NULL>",
     DataTypes.createArrayType(DataTypes.LongType, false) -> "LIST<INTEGER NOT NULL>",
     DataTypes.createArrayType(DataTypes.FloatType, false) -> "LIST<FLOAT NOT NULL>",
     DataTypes.createArrayType(DataTypes.DoubleType, false) -> "LIST<FLOAT NOT NULL>",
     DataTypes.createArrayType(DataTypes.DateType, false) -> "LIST<DATE NOT NULL>",
-    DataTypes.createArrayType(DataTypes.TimestampType, false) -> "LIST<LOCAL DATETIME NOT NULL>",
-    DataTypes.createArrayType(DataTypes.TimestampType, true) -> "LIST<LOCAL DATETIME NOT NULL>",
+    DataTypes.createArrayType(DataTypes.TimestampType, false) -> "LIST<ZONED DATETIME NOT NULL>",
+    DataTypes.createArrayType(DataTypes.TimestampType, true) -> "LIST<ZONED DATETIME NOT NULL>",
+    DataTypes.createArrayType(DataTypes.TimestampNTZType, false) -> "LIST<LOCAL DATETIME NOT NULL>",
+    DataTypes.createArrayType(DataTypes.TimestampNTZType, true) -> "LIST<LOCAL DATETIME NOT NULL>",
     DataTypes.createArrayType(DayTimeIntervalType(), false) -> "LIST<DURATION NOT NULL>",
     DataTypes.createArrayType(DayTimeIntervalType(), true) -> "LIST<DURATION NOT NULL>",
     DataTypes.createArrayType(YearMonthIntervalType(), false) -> "LIST<DURATION NOT NULL>",
