@@ -20,6 +20,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.types.BinaryType
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
@@ -424,6 +425,28 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(43200L, res(1).get(3))
     assertEquals(0, res(1).get(4))
     assertEquals("P0M17DT43200S", res(1).get(5))
+  }
+
+  @Test
+  def testReadNodeWithBinary(): Unit = {
+    val bytes = "hello, world!".map(_.toByte).toArray
+    val parameters: java.util.Map[String, Object] = java.util.Map.of("bytes", bytes)
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction((tx: Transaction) => tx.run("CREATE (h:Hello {b: $bytes})", parameters).consume())
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Hello")
+      .load()
+
+    val res = df.select("b").collect()
+    assertEquals(1, res.length)
+    val gotBytes = res.head.getAs[Array[Byte]](0)
+
+    for (i <- bytes.indices) {
+      assertEquals(bytes(i), gotBytes(i))
+    }
   }
 
   @Test

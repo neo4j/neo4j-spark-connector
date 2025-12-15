@@ -735,8 +735,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(10, gotByteArray.length)
 
     for (b <- gotByteArray.indices) {
-      val expectedValue = b + 1
-      assertEquals(expectedValue, gotByteArray(b).toInt)
+      val expectedValue = (b + 1).toByte
+      assertEquals(expectedValue, gotByteArray(b))
     }
   }
 

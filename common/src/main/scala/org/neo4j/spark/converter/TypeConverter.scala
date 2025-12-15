@@ -82,6 +82,7 @@ class CypherToSparkTypeConverter extends TypeConverter[String, DataType] {
     case "Time"                       => timeType
     case "Date"                       => DataTypes.DateType
     case "Duration"                   => durationType
+    case "ByteArray"                  => DataTypes.BinaryType
     case "Map" => {
       val valueType = if (value == null) {
         DataTypes.NullType
