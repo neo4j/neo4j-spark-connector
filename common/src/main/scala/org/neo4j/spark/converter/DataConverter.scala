@@ -79,7 +79,7 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
   override def convert(value: Any, dataType: DataType): Value = {
     value match {
       case date: java.sql.Date           => convert(date.toLocalDate, dataType)
-      case timestamp: java.sql.Timestamp => convert(timestamp.toLocalDateTime, dataType)
+      case timestamp: java.sql.Timestamp => convert(timestamp.toInstant.atZone(ZoneOffset.UTC), dataType)
       case intValue: Int if dataType == DataTypes.DateType =>
         convert(
           DateTimeUtils
@@ -91,7 +91,7 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
       case longValue: Long if dataType == DataTypes.TimestampType =>
         convert(DateTimeUtils.toJavaTimestamp(longValue), dataType)
       case longValue: Long if dataType == DataTypes.TimestampNTZType =>
-        convert(DateTimeUtils.toJavaTimestamp(longValue), dataType)
+        convert(DateTimeUtils.microsToLocalDateTime(longValue), dataType)
       case longValue: Long if dataType.isInstanceOf[DayTimeIntervalType] =>
         SparkToNeo4jDataConverter.dayTimeIntervalToNeo4j(longValue)
       case unsafeRow: UnsafeRow => {
@@ -157,6 +157,7 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
           )
           .toMap[String, AnyRef]
           .mapValues(innerValue => convert(innerValue, mapType.valueType))
+          .toMap[String, AnyRef]
         Values.value(map.asJava)
       }
       case string: UTF8String                                     => convert(string.toString)
@@ -218,7 +219,7 @@ class Neo4jToSparkDataConverter extends DataConverter[Any] {
           ))
         }
         case zt: ZonedDateTime => DateTimeUtils.instantToMicros(zt.toInstant)
-        case dt: LocalDateTime => DateTimeUtils.instantToMicros(dt.toInstant(ZoneOffset.UTC))
+        case dt: LocalDateTime => DateTimeUtils.localDateTimeToMicros(dt)
         case d: LocalDate      => d.toEpochDay.toInt
         case lt: LocalTime => {
           InternalRow.fromSeq(Seq(

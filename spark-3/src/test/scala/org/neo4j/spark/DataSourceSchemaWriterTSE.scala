@@ -34,6 +34,8 @@ import java.sql.Date
 import java.sql.Timestamp
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZonedDateTime
+import java.util.TimeZone
 
 import scala.collection.JavaConverters.iterableAsScalaIterableConverter
 import scala.collection.JavaConverters.mapAsScalaMapConverter
@@ -48,16 +50,22 @@ object DataSourceSchemaWriterTSE {
 }
 
 class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
-  val sparkSession = SparkSession.builder().getOrCreate()
+  val timeZoneLock = "UTC" // to make TIMESTAMP_NTZ tests deterministic
+
+  val sparkSession = SparkSession.builder()
+    .master("local[*]")
+    .appName("DataSourceWriterTSE")
+    .config("spark.sql.session.timeZone", timeZoneLock) // to make TIMESTAMP_NTZ tests deterministic
+    .getOrCreate()
 
   import sparkSession.implicits._
 
-  private def mapData(x: Any): Any = x match {
+  private def mapData(data: Any): Any = data match {
     case null                 => null
     case a: Array[_]          => a.toSeq.map(mapData)
     case l: java.util.List[_] => l.asScala.toSeq.map(mapData)
     case d: LocalDate         => Date.valueOf(d)
-    case ldt: LocalDateTime   => Timestamp.valueOf(ldt)
+    case zdt: ZonedDateTime   => Timestamp.from(zdt.toInstant)
     case any: Any             => any
   }
 
@@ -68,6 +76,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def shouldApplySchemaForNodes(): Unit = {
     val (expectedNode: Map[_root_.java.lang.String, Any], df: DataFrame) = createNodesDataFrameWithNotNullColumns
+
     df
       .write
       .mode(SaveMode.Append)
@@ -85,6 +94,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .single()
       .get(0)
       .asLong()
+
     assertEquals(1L, count)
 
     val expectedSchema = Seq(
@@ -185,6 +195,22 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
         "propertyType" -> "LIST<INTEGER NOT NULL>"
       ),
       Map(
+        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-localDateTime",
+        "type" -> "NODE_PROPERTY_TYPE",
+        "entityType" -> "NODE",
+        "labelsOrTypes" -> Seq("NodeWithSchema"),
+        "properties" -> Seq("localDateTime"),
+        "propertyType" -> "LOCAL DATETIME"
+      ),
+      Map(
+        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-localDateTimeArray",
+        "type" -> "NODE_PROPERTY_TYPE",
+        "entityType" -> "NODE",
+        "labelsOrTypes" -> Seq("NodeWithSchema"),
+        "properties" -> Seq("localDateTimeArray"),
+        "propertyType" -> "LIST<LOCAL DATETIME NOT NULL>"
+      ),
+      Map(
         "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-string",
         "type" -> "NODE_PROPERTY_TYPE",
         "entityType" -> "NODE",
@@ -201,20 +227,20 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
         "propertyType" -> "LIST<STRING NOT NULL>"
       ),
       Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-timestamp",
+        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-zonedDateTime",
         "type" -> "NODE_PROPERTY_TYPE",
         "entityType" -> "NODE",
         "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("timestamp"),
-        "propertyType" -> "LOCAL DATETIME"
+        "properties" -> Seq("zonedDateTime"),
+        "propertyType" -> "ZONED DATETIME"
       ),
       Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-timestampArray",
+        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-zonedDateTimeArray",
         "type" -> "NODE_PROPERTY_TYPE",
         "entityType" -> "NODE",
         "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("timestampArray"),
-        "propertyType" -> "LIST<LOCAL DATETIME NOT NULL>"
+        "properties" -> Seq("zonedDateTimeArray"),
+        "propertyType" -> "LIST<ZONED DATETIME NOT NULL>"
       )
     )
 
@@ -364,6 +390,22 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
         "propertyType" -> "LIST<INTEGER NOT NULL>"
       ),
       Map(
+        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-localDateTime",
+        "type" -> "NODE_PROPERTY_TYPE",
+        "entityType" -> "NODE",
+        "labelsOrTypes" -> Seq("NodeWithSchema"),
+        "properties" -> Seq("localDateTime"),
+        "propertyType" -> "LOCAL DATETIME"
+      ),
+      Map(
+        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-localDateTimeArray",
+        "type" -> "NODE_PROPERTY_TYPE",
+        "entityType" -> "NODE",
+        "labelsOrTypes" -> Seq("NodeWithSchema"),
+        "properties" -> Seq("localDateTimeArray"),
+        "propertyType" -> "LIST<LOCAL DATETIME NOT NULL>"
+      ),
+      Map(
         "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-string",
         "type" -> "NODE_PROPERTY_TYPE",
         "entityType" -> "NODE",
@@ -380,20 +422,20 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
         "propertyType" -> "LIST<STRING NOT NULL>"
       ),
       Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-timestamp",
+        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-zonedDateTime",
         "type" -> "NODE_PROPERTY_TYPE",
         "entityType" -> "NODE",
         "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("timestamp"),
-        "propertyType" -> "LOCAL DATETIME"
+        "properties" -> Seq("zonedDateTime"),
+        "propertyType" -> "ZONED DATETIME"
       ),
       Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-timestampArray",
+        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-zonedDateTimeArray",
         "type" -> "NODE_PROPERTY_TYPE",
         "entityType" -> "NODE",
         "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("timestampArray"),
-        "propertyType" -> "LIST<LOCAL DATETIME NOT NULL>"
+        "properties" -> Seq("zonedDateTimeArray"),
+        "propertyType" -> "LIST<ZONED DATETIME NOT NULL>"
       ),
       Map(
         "name" -> "spark_NODE_KEY-CONSTRAINT_NodeWithSchema_int-string",
@@ -431,19 +473,23 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   private def createNodesDataFrameWithNotNullColumns: (Map[String, Any], DataFrame) = {
+    TimeZone.setDefault(TimeZone.getTimeZone(timeZoneLock))
+
     val colNames = Array(
       "string",
       "int",
       "boolean",
       "float",
       "date",
-      "timestamp",
+      "localDateTime",
+      "zonedDateTime",
       "stringArray",
       "intArray",
       "booleanArray",
       "floatArray",
       "dateArray",
-      "timestampArray"
+      "localDateTimeArray",
+      "zonedDateTimeArray"
     )
     val row = (
       "Foo",
@@ -451,21 +497,25 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       false,
       1.1,
       Date.valueOf("2023-11-22"),
+      LocalDateTime.of(2023, 11, 22, 12, 12, 12),
       Timestamp.valueOf(s"2020-11-22 11:11:11.11"),
       Seq("Foo1", "Foo2"),
       Seq(1, 2),
       Seq(true, false),
       Seq(1.1, 2.2),
       Seq(Date.valueOf("2023-11-22"), Date.valueOf("2023-11-23")),
+      Seq(LocalDateTime.of(2023, 11, 22, 11, 11, 11), LocalDateTime.of(2023, 11, 23, 12, 12, 12)),
       Seq(Timestamp.valueOf("2023-11-22 11:11:11.11"), Timestamp.valueOf("2023-11-23 12:12:12.12"))
     )
-    val data = Seq(row).toDF(colNames: _*)
 
+    val data = Seq(row).toDF(colNames: _*)
     val expectedNode = colNames.zip(row.productIterator.toSeq).toMap
 
     val schema = StructType(data.schema.map { sf =>
       sf.name match {
-        case "timestampArray" =>
+        case "localDateTimeArray" =>
+          StructField(sf.name, DataTypes.createArrayType(DataTypes.TimestampNTZType, false), sf.nullable)
+        case "zonedDateTimeArray" =>
           StructField(sf.name, DataTypes.createArrayType(DataTypes.TimestampType, false), sf.nullable)
         case "stringArray" => StructField(sf.name, DataTypes.createArrayType(DataTypes.StringType, false), sf.nullable)
         case "dateArray"   => StructField(sf.name, DataTypes.createArrayType(DataTypes.DateType, false), sf.nullable)
@@ -473,6 +523,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
         case _             => sf
       }
     })
+
     val df = ss.createDataFrame(data.rdd, schema)
     (expectedNode, df)
   }
@@ -618,6 +669,22 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
         "propertyType" -> "LIST<INTEGER NOT NULL>"
       ),
       Map(
+        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-localDateTime",
+        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
+        "entityType" -> "RELATIONSHIP",
+        "labelsOrTypes" -> Seq("MY_REL"),
+        "properties" -> Seq("localDateTime"),
+        "propertyType" -> "LOCAL DATETIME"
+      ),
+      Map(
+        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-localDateTimeArray",
+        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
+        "entityType" -> "RELATIONSHIP",
+        "labelsOrTypes" -> Seq("MY_REL"),
+        "properties" -> Seq("localDateTimeArray"),
+        "propertyType" -> "LIST<LOCAL DATETIME NOT NULL>"
+      ),
+      Map(
         "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-string",
         "type" -> "RELATIONSHIP_PROPERTY_TYPE",
         "entityType" -> "RELATIONSHIP",
@@ -634,20 +701,20 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
         "propertyType" -> "LIST<STRING NOT NULL>"
       ),
       Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-timestamp",
+        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-zonedDateTime",
         "type" -> "RELATIONSHIP_PROPERTY_TYPE",
         "entityType" -> "RELATIONSHIP",
         "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("timestamp"),
-        "propertyType" -> "LOCAL DATETIME"
+        "properties" -> Seq("zonedDateTime"),
+        "propertyType" -> "ZONED DATETIME"
       ),
       Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-timestampArray",
+        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-zonedDateTimeArray",
         "type" -> "RELATIONSHIP_PROPERTY_TYPE",
         "entityType" -> "RELATIONSHIP",
         "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("timestampArray"),
-        "propertyType" -> "LIST<LOCAL DATETIME NOT NULL>"
+        "properties" -> Seq("zonedDateTimeArray"),
+        "propertyType" -> "LIST<ZONED DATETIME NOT NULL>"
       )
     )
 
@@ -693,13 +760,15 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       "boolean",
       "float",
       "date",
-      "timestamp",
+      "localDateTime",
+      "zonedDateTime",
       "stringArray",
       "intArray",
       "booleanArray",
       "floatArray",
       "dateArray",
-      "timestampArray"
+      "localDateTimeArray",
+      "zonedDateTimeArray"
     )
     val row = (
       "a",
@@ -709,19 +778,23 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       false,
       1.1,
       Date.valueOf("2023-11-22"),
+      LocalDateTime.of(2023, 11, 22, 12, 12, 12),
       Timestamp.valueOf(s"2020-11-22 11:11:11.11"),
       Seq("Foo1", "Foo2"),
       Seq(1, 2),
       Seq(true, false),
       Seq(1.1, 2.2),
       Seq(Date.valueOf("2023-11-22"), Date.valueOf("2023-11-23")),
+      Seq(LocalDateTime.of(2023, 11, 22, 11, 11, 11), LocalDateTime.of(2023, 11, 23, 12, 12, 12)),
       Seq(Timestamp.valueOf("2023-11-22 11:11:11.11"), Timestamp.valueOf("2023-11-23 12:12:12.12"))
     )
     val data = Seq(row).toDF(colNames: _*)
 
     val schema = StructType(data.schema.map { sf =>
       sf.name match {
-        case "timestampArray" =>
+        case "localDateTimeArray" =>
+          StructField(sf.name, DataTypes.createArrayType(DataTypes.TimestampNTZType, false), sf.nullable)
+        case "zonedDateTimeArray" =>
           StructField(sf.name, DataTypes.createArrayType(DataTypes.TimestampType, false), sf.nullable)
         case "stringArray" => StructField(sf.name, DataTypes.createArrayType(DataTypes.StringType, false), sf.nullable)
         case "dateArray"   => StructField(sf.name, DataTypes.createArrayType(DataTypes.DateType, false), sf.nullable)
@@ -866,7 +939,9 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .head
       .mapValues(mapData)
       .toMap
+
     assertEquals(expectedMap, actualMap)
+
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run("SHOW CONSTRAINTS")
       .list()
       .asScala
@@ -909,7 +984,9 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .head
       .mapValues(mapData)
       .toMap
+
     assertEquals(expectedMap, actualMap)
+
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run("SHOW CONSTRAINTS")
       .list()
       .asScala
@@ -924,6 +1001,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       "ownedIndex" -> "spark_RELATIONSHIP_KEY-CONSTRAINT_MY_REL_string-int",
       "propertyType" -> null
     )
+
     assertEquals(expectedConstraint, actualConstraint)
   }
 }

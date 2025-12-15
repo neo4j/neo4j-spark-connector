@@ -41,7 +41,7 @@ trait TypeConverter[SOURCE_TYPE, DESTINATION_TYPE] {
 object CypherToSparkTypeConverter {
   def apply(): CypherToSparkTypeConverter = new CypherToSparkTypeConverter()
 
-  private val cleanTerms: String = "Unmodifiable|Internal|Iso|2D|3D|Offset|Local|Zoned"
+  private val cleanTerms: String = "Unmodifiable|Internal|Iso|2D|3D|Offset"
 
   val durationType: DataType = DataTypes.createStructType(Array(
     DataTypes.createStructField("type", DataTypes.StringType, false),
@@ -79,8 +79,8 @@ class CypherToSparkTypeConverter extends TypeConverter[String, DataType] {
     case "Point"                      => pointType
     case "DateTime" | "ZonedDateTime" => DataTypes.TimestampType
     case "LocalDateTime"              => DataTypes.TimestampNTZType
-    case "Time"                       => timeType
-    case "Date"                       => DataTypes.DateType
+    case "Time" | "LocalTime"         => timeType
+    case "Date" | "LocalDate"         => DataTypes.DateType
     case "Duration"                   => durationType
     case "ByteArray"                  => DataTypes.BinaryType
     case "Map" => {
@@ -108,15 +108,15 @@ class CypherToSparkTypeConverter extends TypeConverter[String, DataType] {
       DataTypes.createArrayType(valueType)
     }
     // These are from APOC
-    case "StringArray"   => DataTypes.createArrayType(DataTypes.StringType)
-    case "LongArray"     => DataTypes.createArrayType(DataTypes.LongType)
-    case "DoubleArray"   => DataTypes.createArrayType(DataTypes.DoubleType)
-    case "BooleanArray"  => DataTypes.createArrayType(DataTypes.BooleanType)
-    case "PointArray"    => DataTypes.createArrayType(pointType)
-    case "DateTimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
-    case "TimeArray"     => DataTypes.createArrayType(timeType)
-    case "DateArray"     => DataTypes.createArrayType(DataTypes.DateType)
-    case "DurationArray" => DataTypes.createArrayType(durationType)
+    case "StringArray"                          => DataTypes.createArrayType(DataTypes.StringType)
+    case "LongArray"                            => DataTypes.createArrayType(DataTypes.LongType)
+    case "DoubleArray"                          => DataTypes.createArrayType(DataTypes.DoubleType)
+    case "BooleanArray"                         => DataTypes.createArrayType(DataTypes.BooleanType)
+    case "PointArray"                           => DataTypes.createArrayType(pointType)
+    case "DateTimeArray" | "ZonedDateTimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
+    case "TimeArray" | "LocalTimeArray"         => DataTypes.createArrayType(timeType)
+    case "DateArray" | "LocalDateArray"         => DataTypes.createArrayType(DataTypes.DateType)
+    case "DurationArray"                        => DataTypes.createArrayType(durationType)
     // Default is String
     case _ => DataTypes.StringType
   }

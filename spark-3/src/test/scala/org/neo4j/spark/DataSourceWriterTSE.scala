@@ -56,6 +56,8 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import java.time.LocalTime
 import java.time.OffsetTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.TimeZone
 
 import scala.collection.JavaConverters._
@@ -87,12 +89,10 @@ case class EmptyRow[T](data: T)
 
 @RunWith(classOf[JUnitParamsRunner])
 class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
-  val timeZoneLock = "UTC" // to make TIMESTAMP_NTZ tests deterministic
 
   val sparkSession = SparkSession.builder()
     .master("local[*]")
     .appName("DataSourceWriterTSE")
-    .config("spark.sql.session.timeZone", timeZoneLock)
     .getOrCreate()
 
   import sparkSession.implicits._
@@ -120,7 +120,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
           val foo = row.getAs[T]("foo")
           foo match {
             case sqlDate: java.sql.Date           => sqlDate.toLocalDate
-            case sqlTimestamp: java.sql.Timestamp => sqlTimestamp.toLocalDateTime
+            case sqlTimestamp: java.sql.Timestamp => sqlTimestamp.toInstant.atZone(ZoneOffset.UTC)
             case _                                => foo
           }
         })
@@ -286,12 +286,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .map(i => java.sql.Timestamp.valueOf(s"2020-01-0$i 11:11:11.11"))
       .toDF("foo")
 
-    testType[java.sql.Timestamp](ds, InternalTypeSystem.TYPE_SYSTEM.LOCAL_DATE_TIME())
+    testType[java.sql.Timestamp](ds, InternalTypeSystem.TYPE_SYSTEM.DATE_TIME())
   }
 
   @Test
   def `should write nodes with timestampNTZ values into Neo4j`(): Unit = {
-    TimeZone.setDefault(TimeZone.getTimeZone(timeZoneLock))
     val ds = (1 to 5)
       .map(i => java.time.LocalDateTime.of(2020, 1, i, 11, 11, 11, 111000000))
       .toDF("foo")
