@@ -11,7 +11,7 @@ import jetbrains.buildServer.configs.kotlin.triggers.schedule
 import jetbrains.buildServer.configs.kotlin.triggers.vcs
 import jetbrains.buildServer.configs.kotlin.version
 
-version = "2025.03"
+version = "2025.11"
 
 project {
   name = "6.0"
