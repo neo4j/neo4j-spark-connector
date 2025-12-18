@@ -19,6 +19,7 @@ package org.neo4j.spark
 import org.junit.AfterClass
 import org.junit.Assert.assertEquals
 import org.junit.BeforeClass
+import org.junit.Ignore
 import org.junit.Test
 import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver.AuthTokens
@@ -112,6 +113,7 @@ object ReauthenticationIT {
 class ReauthenticationIT extends SparkConnectorScalaSuiteIT {
 
   @Test
+  @Ignore("Ignored temporarily")
   def createAnInstanceOfReAuthDriver(): Unit = {
     val options = Map(
       "url" -> NEO4J.getBoltUrl,

@@ -576,7 +576,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should throw an error because the node already exists`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
-      .executeWrite(tx => tx.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE").consume())
+      .executeWrite(tx =>
+        tx.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE").consume()
+      )
     SparkConnectorScalaSuiteIT.session()
       .executeWrite(tx => tx.run("CREATE (p:Person{name: 'Andrea', surname: 'Santurbano'})").consume())
 
@@ -609,7 +611,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should update the node that already exists`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
-      .executeWrite(tx => tx.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE").consume())
+      .executeWrite(tx =>
+        tx.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE").consume()
+      )
     SparkConnectorScalaSuiteIT.session()
       .executeWrite(tx => tx.run("CREATE (p:Person{name: 'Federico', surname: 'Santurbano'})").consume())
 
@@ -766,7 +770,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should handle unusual column names`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
-      .executeWrite(tx => tx.run("CREATE CONSTRAINT instrument_name FOR (i:Instrument) REQUIRE i.name IS UNIQUE").consume())
+      .executeWrite(tx =>
+        tx.run("CREATE CONSTRAINT instrument_name FOR (i:Instrument) REQUIRE i.name IS UNIQUE").consume()
+      )
 
     val musicDf = Seq(
       (12, "John Bonham", "Drums", "f``````oo"),
