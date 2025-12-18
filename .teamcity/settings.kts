@@ -58,16 +58,7 @@ project {
           neo4jVersions = setOf(Neo4jVersion.V_4_4, Neo4jVersion.V_5, Neo4jVersion.V_2025),
           forPullRequests = true,
       ) {
-        triggers {
-          vcs {
-            this.branchFilter =
-                """
-              +:$DEFAULT_BRANCH
-              +:pull/*
-            """
-                    .trimIndent()
-          }
-        }
+        triggers { vcs { this.branchFilter = "+:pull/*" } }
       },
   )
 
