@@ -165,7 +165,7 @@ fun BuildType.thisVcs(forBranch: String) = vcs {
   branchSpec =
       """
     -:*
-    +:$forBranch  
+    +:$forBranch
   """
           .trimIndent()
 

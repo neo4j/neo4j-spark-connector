@@ -63,7 +63,8 @@ project {
           vcs {
             this.branchFilter =
                 """
-              +:refs/heads/$DEFAULT_BRANCH
+              +:$DEFAULT_BRANCH
+              +:pull/*
             """
                     .trimIndent()
           }
