@@ -2,3 +2,5 @@
 
 ./mvnw sortpom:sort spotless:apply -f .teamcity
 ./mvnw sortpom:sort spotless:apply
+
+git update-index --again
