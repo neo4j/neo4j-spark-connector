@@ -114,7 +114,9 @@ class Build(
                     SnykTest(
                         id = "$name-snyk-test-${snykProfile.name}",
                         name = "$name snyk test ${snykProfile.name}",
-                        snykProfile = snykProfile))
+                        snykProfile = snykProfile,
+                    ),
+                )
               }
             }
 
@@ -124,7 +126,7 @@ class Build(
           }
 
           bts.buildTypes().forEach {
-            it.thisVcs()
+            it.thisVcs(if (forPullRequests) "refs/pull/*" else DEFAULT_BRANCH)
 
             it.features {
               loginToECR()

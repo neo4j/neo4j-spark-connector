@@ -1,5 +1,6 @@
 package builds
 
+import builds.Neo4jSparkConnectorVcs.branchSpec
 import jetbrains.buildServer.configs.kotlin.BuildFeatures
 import jetbrains.buildServer.configs.kotlin.BuildSteps
 import jetbrains.buildServer.configs.kotlin.BuildType
@@ -22,11 +23,11 @@ import jetbrains.buildServer.configs.kotlin.vcs.GitVcsRoot
 
 const val GITHUB_OWNER = "neo4j"
 const val GITHUB_REPOSITORY = "neo4j-spark-connector"
-const val DEFAULT_BRANCH = "5.0"
+const val DEFAULT_BRANCH = "6.0"
 const val MAVEN_DEFAULT_ARGS =
     "--no-transfer-progress --batch-mode -Dmaven.repo.local=%teamcity.build.checkoutDir%/.m2/repository"
 
-val DEFAULT_JAVA_VERSION = JavaVersion.V_11
+val DEFAULT_JAVA_VERSION = JavaVersion.V_17
 
 // Look into Root Project's settings -> Connections
 const val SLACK_CONNECTION_ID = "PROJECT_EXT_83"
@@ -41,28 +42,25 @@ enum class LinuxSize(val value: String) {
 }
 
 enum class JavaVersion(val version: String, val dockerImage: String) {
-  V_8(version = "8", dockerImage = "eclipse-temurin:8-jdk"),
-  V_11(version = "11", dockerImage = "eclipse-temurin:11-jdk"),
   V_17(version = "17", dockerImage = "eclipse-temurin:17-jdk"),
   V_21(version = "21", dockerImage = "eclipse-temurin:21-jdk"),
 }
 
 enum class ScalaVersion(val version: String) {
-  V2_12(version = "2.12"),
   V2_13(version = "2.13"),
 }
 
 enum class PythonVersion(val version: String) {
-  V3_9(version = "3.9"),
   V3_10(version = "3.10"),
   V3_11(version = "3.11"),
   V3_12(version = "3.12"),
   V3_13(version = "3.13"),
+  V3_14(version = "3.14"),
 }
 
 enum class SparkVersion(val short: String, val version: String) {
-  V3_4_4(short = "3", version = "3.4.4"),
-  V3_5_5(short = "3", version = "3.5.5"),
+  V4_0_1(short = "4", version = "4.0.1"),
+  V4_1_0(short = "4", version = "4.1.0"),
 }
 
 enum class PySparkVersion(
@@ -71,36 +69,34 @@ enum class PySparkVersion(
     val javaVersions: Set<JavaVersion>,
     val pythonVersions: Set<PythonVersion>,
 ) {
-  V3_4(
-      SparkVersion.V3_4_4,
-      ScalaVersion.V2_12,
+  V4_0(
+      SparkVersion.V4_0_1,
+      ScalaVersion.V2_13,
       setOf(
-          JavaVersion.V_8,
-          JavaVersion.V_11,
-          JavaVersion.V_17,
-      ),
-      setOf(
-          PythonVersion.V3_9,
-          PythonVersion.V3_10,
-          PythonVersion.V3_11,
-          PythonVersion.V3_12,
-      ),
-  ),
-  V3_5(
-      SparkVersion.V3_5_5,
-      ScalaVersion.V2_12,
-      setOf(
-          JavaVersion.V_8,
-          JavaVersion.V_11,
           JavaVersion.V_17,
           JavaVersion.V_21,
       ),
       setOf(
-          PythonVersion.V3_9,
           PythonVersion.V3_10,
           PythonVersion.V3_11,
           PythonVersion.V3_12,
           PythonVersion.V3_13,
+          PythonVersion.V3_14,
+      ),
+  ),
+  V4_1(
+      SparkVersion.V4_1_0,
+      ScalaVersion.V2_13,
+      setOf(
+          JavaVersion.V_17,
+          JavaVersion.V_21,
+      ),
+      setOf(
+          PythonVersion.V3_10,
+          PythonVersion.V3_11,
+          PythonVersion.V3_12,
+          PythonVersion.V3_13,
+          PythonVersion.V3_14,
       ),
   ),
 }
@@ -163,8 +159,15 @@ fun Requirements.runOnLinux(size: LinuxSize = LinuxSize.SMALL) {
   startsWith("cloud.amazon.agent-name-prefix", "linux-${size.value}")
 }
 
-fun BuildType.thisVcs() = vcs {
+fun BuildType.thisVcs(forBranch: String) = vcs {
   root(Neo4jSparkConnectorVcs)
+
+  branchSpec =
+      """
+    -:*
+    +:$forBranch  
+  """
+          .trimIndent()
 
   cleanCheckout = true
 }
