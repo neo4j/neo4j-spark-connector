@@ -23,9 +23,6 @@ import org.junit.rules.TestName
 import org.neo4j.Closeables.use
 import org.scalatestplus.junit.AssertionsForJUnit
 
-import java.time.ZoneId
-import java.util.TimeZone
-
 import scala.annotation.meta.getter
 
 object SparkConnectorScalaBaseTSE {
