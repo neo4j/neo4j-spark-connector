@@ -14,8 +14,6 @@ import jetbrains.buildServer.configs.kotlin.version
 version = "2025.11"
 
 project {
-  name = "5.0"
-
   params {
     text("osssonatypeorg-username", "%publish-username%")
     password("osssonatypeorg-password", "%publish-password%")
