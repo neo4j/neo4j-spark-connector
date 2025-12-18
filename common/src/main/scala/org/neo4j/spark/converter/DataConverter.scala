@@ -76,11 +76,8 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
 
   override def convert(value: Any, dataType: DataType): Value = {
     value match {
-      case date: java.sql.Date => convert(date.toLocalDate, dataType)
-      case timestamp: java.sql.Timestamp if dataType == DataTypes.TimestampType =>
-        convert(timestamp.toInstant.atZone(ZoneOffset.UTC), dataType)
-      case timestamp: java.sql.Timestamp if dataType == DataTypes.TimestampNTZType =>
-        convert(timestamp.toLocalDateTime, dataType)
+      case date: java.sql.Date           => convert(date.toLocalDate, dataType)
+      case timestamp: java.sql.Timestamp => convert(timestamp.toInstant.atZone(ZoneOffset.UTC), dataType)
       case intValue: Int if dataType == DataTypes.DateType =>
         convert(
           DateTimeUtils
