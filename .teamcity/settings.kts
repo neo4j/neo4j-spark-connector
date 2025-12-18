@@ -11,9 +11,11 @@ import jetbrains.buildServer.configs.kotlin.triggers.schedule
 import jetbrains.buildServer.configs.kotlin.triggers.vcs
 import jetbrains.buildServer.configs.kotlin.version
 
-version = "2025.03"
+version = "2025.11"
 
 project {
+  name = "5.0"
+
   params {
     text("osssonatypeorg-username", "%publish-username%")
     password("osssonatypeorg-password", "%publish-password%")
@@ -58,7 +60,16 @@ project {
           neo4jVersions = setOf(Neo4jVersion.V_4_4, Neo4jVersion.V_5, Neo4jVersion.V_2025),
           forPullRequests = true,
       ) {
-        triggers { vcs { this.branchFilter = "+:pull/*" } }
+        triggers {
+          vcs {
+            this.branchFilter =
+                """
+              +:$DEFAULT_BRANCH
+              +:pull/*
+            """
+                    .trimIndent()
+          }
+        }
       },
   )
 

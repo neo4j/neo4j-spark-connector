@@ -124,7 +124,7 @@ class Build(
           }
 
           bts.buildTypes().forEach {
-            it.thisVcs()
+            it.thisVcs(if (forPullRequests) "pull/*" else DEFAULT_BRANCH)
 
             it.features {
               loginToECR()
