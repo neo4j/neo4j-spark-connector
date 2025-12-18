@@ -209,8 +209,8 @@ fun CompoundStage.dependentBuildType(bt: BuildType, reuse: ReuseBuilds = ReuseBu
 fun collectArtifacts(buildType: BuildType): BuildType {
   buildType.artifactRules =
       """
-        +:spark-3/target/*_for_spark_*.jar => packages
-        +:spark-3/target/*.zip => packages
+        +:spark/target/*_for_spark_*.jar => packages
+        +:spark/target/*.zip => packages
     """
           .trimIndent()
 
