@@ -185,6 +185,7 @@ fun BuildFeatures.enablePullRequests() = pullRequests {
   provider = github {
     authType = token { token = "%github-pull-request-token%" }
     filterAuthorRole = PullRequests.GitHubRoleFilter.EVERYBODY
+    filterTargetBranch = "+:refs/heads/$DEFAULT_BRANCH"
   }
 }
 
