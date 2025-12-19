@@ -27,7 +27,7 @@ trap exit_script SIGINT SIGTERM
 
 GOAL=$1
 SCALA_VERSION=$2
-SPARK_VERSION=3
+SPARK_VERSION=4
 if [[ $# -eq 3 ]] ; then
   ALT_DEPLOYMENT_REPOSITORY="-DaltDeploymentRepository=$3"
 else
