@@ -162,12 +162,10 @@ fun Requirements.runOnLinux(size: LinuxSize = LinuxSize.SMALL) {
 fun BuildType.thisVcs(forBranch: String) = vcs {
   root(Neo4jSparkConnectorVcs)
 
-  branchSpec =
-      """
-    -:*
-    +:$forBranch
-  """
-          .trimIndent()
+  branchSpec = buildString {
+    appendLine("-:*")
+    appendLine("+:$forBranch")
+  }
 
   cleanCheckout = true
 }
@@ -185,7 +183,10 @@ fun BuildFeatures.enablePullRequests() = pullRequests {
   provider = github {
     authType = token { token = "%github-pull-request-token%" }
     filterAuthorRole = PullRequests.GitHubRoleFilter.EVERYBODY
-    filterTargetBranch = "+:refs/heads/$DEFAULT_BRANCH"
+    filterTargetBranch = buildString {
+      appendLine("+:$DEFAULT_BRANCH")
+      appendLine("+:refs/heads/$DEFAULT_BRANCH")
+    }
   }
 }
 
