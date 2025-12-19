@@ -947,14 +947,17 @@ object SchemaService {
   val DURATION_TYPE = "duration"
 
   def normalizedClassName(value: AnyRef): String = value match {
+    case binary: Array[Byte]           => "ByteArray"
     case list: java.util.List[_]       => "Array"
     case map: java.util.Map[String, _] => "Map"
     case null                          => "String"
     case _                             => value.getClass.getSimpleName
   }
 
-  // from nodes and relationships we cannot have maps as properties and elements in collections are the same type
+  // from nodes and relationships we cannot have maps as properties and elements in lists are the same type
+  // special treatment for ByteArray required (pattern matching on Array != List)
   def normalizedClassNameFromGraphEntity(value: AnyRef): String = value match {
+    case binary: Array[Byte]     => "ByteArray"
     case list: java.util.List[_] => s"${list.get(0).getClass.getSimpleName}Array"
     case null                    => "String"
     case _                       => value.getClass.getSimpleName
