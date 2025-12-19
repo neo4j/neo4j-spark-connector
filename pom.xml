@@ -31,7 +31,7 @@
     <modules>
         <module>common</module>
         <module>test-support</module>
-        <module>spark-3</module>
+        <module>spark</module>
     </modules>
     <scm>
         <url>https://github.com/neo4j/neo4j-spark-connector</url>
@@ -68,11 +68,11 @@
         <netty-bom.version>4.1.128.Final</netty-bom.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scala-maven-plugin.version>4.9.6</scala-maven-plugin.version>
-        <scala.binary.version>2.12</scala.binary.version>
-        <scala.version>2.12.20</scala.version>
+        <scala.binary.version>2.13</scala.binary.version>
+        <scala.version>2.13.18</scala.version>
         <slf4j-api.version>2.0.17</slf4j-api.version>
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
-        <spark.version>3.5.7</spark.version>
+        <spark.version>4.0.1</spark.version>
         <spotless-maven-plugin.version>3.0.0</spotless-maven-plugin.version>
         <surefire.jvm.args/>
         <testcontainers.version>2.0.2</testcontainers.version>

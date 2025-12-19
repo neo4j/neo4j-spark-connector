@@ -73,7 +73,7 @@ assemble:
           output: .
           includes:
             - '{{projectName}}-{{projectVersion}}*.jar'
-      templateDirectory: spark-3/src/jreleaser/assemblers/zip
+      templateDirectory: spark/src/jreleaser/assemblers/zip
 
 hooks:
   script:
@@ -88,7 +88,7 @@ hooks:
           includes: [ "assemble" ]
         matrix:
           vars:
-            scala: [ "2.12", "2.13" ]
+            scala: [ "2.13" ]
         continueOnError: false
         verbose: true
         shell: BASH
@@ -96,8 +96,8 @@ hooks:
           mkdir artifacts || true
           ./maven-release.sh deploy {{matrix.scala}} default::file://{{basedir}}/target/{{matrix.scala}}/maven-artifacts
           cp -r {{basedir}}/target/{{matrix.scala}}/maven-artifacts artifacts/
-          cp -r {{basedir}}/spark-3/target/{{projectName}}*.zip artifacts/
-          cp -r {{basedir}}/spark-3/target/{{projectName}}*.jar artifacts/
+          cp -r {{basedir}}/spark/target/{{projectName}}*.zip artifacts/
+          cp -r {{basedir}}/spark/target/{{projectName}}*.jar artifacts/
 
 signing:
   active: ALWAYS

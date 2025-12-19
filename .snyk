@@ -7,10 +7,14 @@ ignore:
         reason: Spark Core is provided dependency
         expires: 2050-01-01T00:00:00.000Z
         created: 2025-09-18T08:33:31.014
-    - 'org.apache.spark:spark-core_2.12':
         <<: *spark-core
-  'SNYK-JAVA-COMFASTERXMLJACKSONCORE-7569538': *spark-core-exclusions
-  'SNYK-JAVA-COMGOOGLEPROTOBUF-8055227': *spark-core-exclusions
-  'SNYK-JAVA-ORGAPACHEIVY-5847858': *spark-core-exclusions
-  'SNYK-JAVA-ORGAPACHEZOOKEEPER-5961102': *spark-core-exclusions
+  'SNYK-JAVA-ORGGLASSFISHJERSEYCORE-14049172': *spark-core-exclusions
+  'SNYK-JAVA-IOAIRLIFT-14412703': &spark-sql-exclusions
+    - 'org.apache.spark:spark-sql_2.13': &spark-sql
+        reason: Spark SQL is provided dependency
+        expires: 2050-01-01T00:00:00.000Z
+        created: 2025-09-18T08:35:12.345
+        <<: *spark-sql
+  'SNYK-JAVA-ORGLZ4-14151788': *spark-core-exclusions
+  'SNYK-JAVA-ORGLZ4-14219384': *spark-core-exclusions
 patch: {}

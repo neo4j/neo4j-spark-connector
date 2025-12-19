@@ -734,7 +734,7 @@ class SchemaService(
       tx => {
         tx.run(
           s"CREATE CONSTRAINT $constraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE ($props) IS $constraintType"
-        )
+        ).consume()
       },
       sessionTransactionConfig
     )
