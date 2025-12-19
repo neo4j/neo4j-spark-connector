@@ -134,9 +134,8 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val localDateTime = "2007-12-03T10:15:30"
     val df: DataFrame = initTest(s"CREATE (p:Person {aTime: localdatetime('$localDateTime')})")
 
-    val result = df.select("aTime").collectAsList().get(0).getTimestamp(0)
-
-    assertEquals(Timestamp.from(LocalDateTime.parse(localDateTime).toInstant(ZoneOffset.UTC)), result)
+    val result = df.select("aTime").collectAsList().get(0).getAs[LocalDateTime](0)
+    assertEquals(LocalDateTime.parse(localDateTime), result)
   }
 
   @Test

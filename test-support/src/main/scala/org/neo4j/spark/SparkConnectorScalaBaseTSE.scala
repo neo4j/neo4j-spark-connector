@@ -47,7 +47,6 @@ object SparkConnectorScalaBaseTSE {
 }
 
 class SparkConnectorScalaBaseTSE extends AssertionsForJUnit {
-
   val conf: SparkConf = SparkConnectorScalaSuiteIT.conf
   val ss: SparkSession = SparkConnectorScalaSuiteIT.ss
 
