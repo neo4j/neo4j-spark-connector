@@ -62,13 +62,10 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
     use(SparkConnectorScalaSuiteIT.session("db2")) { session =>
       session
-        .executeWrite(tx =>
-          {
-            tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE")
-            tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE")
-          }
-            .consume()
-        )
+        .executeWrite(tx => {
+          tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE").consume()
+          tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE").consume()
+        })
     }
 
     try {
@@ -146,13 +143,10 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       )
     } finally {
       SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
-        .executeWrite(tx =>
-          {
-            tx.run("DROP CONSTRAINT person_id")
-            tx.run("DROP CONSTRAINT product_id")
-          }
-            .consume()
-        )
+        .executeWrite(tx => {
+          tx.run("DROP CONSTRAINT person_id").consume()
+          tx.run("DROP CONSTRAINT product_id").consume()
+        })
     }
   }
 
@@ -178,13 +172,10 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
     use(SparkConnectorScalaSuiteIT.session("db2")) { session =>
       session
-        .executeWrite(tx =>
-          {
-            tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE")
-            tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE")
-          }
-            .consume()
-        )
+        .executeWrite(tx => {
+          tx.run("CREATE CONSTRAINT person_id FOR (p:Person) REQUIRE p.id IS UNIQUE").consume()
+          tx.run("CREATE CONSTRAINT product_id FOR (p:Product) REQUIRE p.id IS UNIQUE").consume()
+        })
     }
 
     try {
@@ -259,13 +250,10 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       )
     } finally {
       SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
-        .executeWrite(tx =>
-          {
-            tx.run("DROP CONSTRAINT person_id")
-            tx.run("DROP CONSTRAINT product_id")
-          }
-            .consume()
-        )
+        .executeWrite(tx => {
+          tx.run("DROP CONSTRAINT person_id").consume()
+          tx.run("DROP CONSTRAINT product_id").consume()
+        })
     }
   }
 

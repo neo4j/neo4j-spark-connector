@@ -260,13 +260,10 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
     val checkpointLocation = "/tmp/checkpoint/" + UUID.randomUUID().toString
 
     SparkConnectorScalaSuiteIT.driver.session()
-      .executeWrite(tx =>
-        {
-          tx.run("CREATE CONSTRAINT From_value FOR (p:From) REQUIRE p.value IS UNIQUE")
-          tx.run("CREATE CONSTRAINT To_value FOR (p:To) REQUIRE p.value IS UNIQUE")
-        }
-          .consume()
-      )
+      .executeWrite(tx => {
+        tx.run("CREATE CONSTRAINT From_value FOR (p:From) REQUIRE p.value IS UNIQUE").consume()
+        tx.run("CREATE CONSTRAINT To_value FOR (p:To) REQUIRE p.value IS UNIQUE").consume()
+      })
 
     query = memStream.toDF().writeStream
       .format(classOf[DataSource].getName)
@@ -317,12 +314,9 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
     )
 
     SparkConnectorScalaSuiteIT.driver.session()
-      .executeWrite(tx =>
-        {
-          tx.run("DROP CONSTRAINT From_value")
-          tx.run("DROP CONSTRAINT To_value")
-        }
-          .consume()
-      )
+      .executeWrite(tx => {
+        tx.run("DROP CONSTRAINT From_value").consume()
+        tx.run("DROP CONSTRAINT To_value").consume()
+      })
   }
 }

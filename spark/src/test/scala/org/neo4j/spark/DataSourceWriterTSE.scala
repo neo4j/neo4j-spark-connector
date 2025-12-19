@@ -604,7 +604,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       }
     } finally {
       SparkConnectorScalaSuiteIT.session()
-        .executeWrite(tx => tx.run("DROP CONSTRAINT person_surname"))
+        .executeWrite(tx => tx.run("DROP CONSTRAINT person_surname").consume())
     }
   }
 
@@ -639,7 +639,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals("Andrea", nodeList.head.get("n").asNode().get("name").asString())
 
     SparkConnectorScalaSuiteIT.session()
-      .executeWrite(tx => tx.run("DROP CONSTRAINT person_surname"))
+      .executeWrite(tx => tx.run("DROP CONSTRAINT person_surname").consume())
   }
 
   @Test
@@ -797,7 +797,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
 
     SparkConnectorScalaSuiteIT.session()
-      .executeWrite(tx => tx.run("DROP CONSTRAINT instrument_name"))
+      .executeWrite(tx => tx.run("DROP CONSTRAINT instrument_name").consume())
 
     val musicDfCheck = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
