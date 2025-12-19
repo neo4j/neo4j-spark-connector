@@ -38,6 +38,7 @@ import org.neo4j.spark.cypher.CypherVersionSelector.selectCypherVersionClause
 import org.neo4j.spark.service.SchemaService.normalizedClassName
 import org.neo4j.spark.service.SchemaService.normalizedClassNameFromGraphEntity
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
+import org.neo4j.spark.util.Neo4jImplicits.ValueImplicits
 import org.neo4j.spark.util.OptimizationType
 import org.neo4j.spark.util._
 
@@ -964,7 +965,13 @@ class SchemaService(
     }
   }
 
-  private def lastOffsetForNode(): Long = {
+  def lastOffset(): Option[Long] = options.query.queryType match {
+    case QueryType.LABELS       => lastOffsetForNode()
+    case QueryType.RELATIONSHIP => lastOffsetForRelationship()
+    case QueryType.QUERY        => lastOffsetForQuery()
+  }
+
+  private def lastOffsetForNode(): Option[Long] = {
     val label = options.nodeMetadata.labels.head
     session.run(
       s"""MATCH (n:$label)
@@ -973,10 +980,10 @@ class SchemaService(
     )
       .single()
       .get(options.streamingOptions.propertyName)
-      .asLong(-1)
+      .asOptionalLong()
   }
 
-  private def lastOffsetForRelationship(): Long = {
+  private def lastOffsetForRelationship(): Option[Long] = {
     val sourceLabel = options.relationshipMetadata.source.labels.head.quote()
     val targetLabel = options.relationshipMetadata.target.labels.head.quote()
     val relType = options.relationshipMetadata.relationshipType.quote()
@@ -988,18 +995,14 @@ class SchemaService(
     )
       .single()
       .get(options.streamingOptions.propertyName)
-      .asLong(-1)
+      .asOptionalLong()
   }
 
-  private def lastOffsetForQuery(): Long = session.run(options.streamingOptions.queryOffset, sessionTransactionConfig)
-    .single()
-    .get(0)
-    .asLong(-1)
-
-  def lastOffset(): Long = options.query.queryType match {
-    case QueryType.LABELS       => lastOffsetForNode()
-    case QueryType.RELATIONSHIP => lastOffsetForRelationship()
-    case QueryType.QUERY        => lastOffsetForQuery()
+  private def lastOffsetForQuery(): Option[Long] = {
+    session.run(options.streamingOptions.queryOffset, sessionTransactionConfig)
+      .single()
+      .get(0)
+      .asOptionalLong()
   }
 
   private def logResolutionChange(message: String, e: ClientException): Unit = {
