@@ -45,7 +45,7 @@ class Neo4jBatchWriter(
 
     if (neo4jOptions.indexAwait > 0) {
       val session = driverCache.getOrCreate().session(neo4jOptions.session.toNeo4jSession())
-      session.run(s"CALL db.awaitIndexes(${neo4jOptions.indexAwait})").consume()
+      session.executeRead(tx => tx.run(s"CALL db.awaitIndexes(${neo4jOptions.indexAwait})").consume())
     }
 
     new Neo4jDataWriterFactory(

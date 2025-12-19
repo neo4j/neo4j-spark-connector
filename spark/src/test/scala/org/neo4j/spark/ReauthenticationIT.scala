@@ -113,7 +113,6 @@ object ReauthenticationIT {
 class ReauthenticationIT extends SparkConnectorScalaSuiteIT {
 
   @Test
-  @Ignore("Ignored temporarily")
   def createAnInstanceOfReAuthDriver(): Unit = {
     val options = Map(
       "url" -> NEO4J.getBoltUrl,
