@@ -66,8 +66,7 @@ object ReauthenticationIT {
       "/opt/keycloak/data/import/neo4j-sso-test-realm.json"
     )
     .withEnv("KC_HOSTNAME", "https://keycloak:8443")
-    .withEnv("KC_HOSTNAME_STRICT", "false")
-    .withEnv("KC_HOSTNAME_STRICT_BACKCHANNEL", "false")
+    .withEnv("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true")
     .waitingFor(
       new WaitAllStrategy(WaitAllStrategy.Mode.WITH_INDIVIDUAL_TIMEOUTS_ONLY)
         .withStrategy(Wait.forListeningPort().withStartupTimeout(ofMinutes(2)))
