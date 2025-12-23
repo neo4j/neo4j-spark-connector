@@ -32,7 +32,10 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.Network
 import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.containers.wait.strategy.Wait
+import org.testcontainers.containers.wait.strategy.WaitAllStrategy
 import org.testcontainers.utility.MountableFile
+
+import java.time.Duration.ofMinutes
 
 object ReauthenticationIT {
 
@@ -64,9 +67,21 @@ object ReauthenticationIT {
     )
     .withEnv("KC_HOSTNAME", "https://keycloak:8443")
     .withEnv("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true")
-    .waitingFor(Wait.forHttp("/health/started").forPort(9000).usingTls().allowInsecure())
-    .withCommand("start-dev --import-realm")
+    .waitingFor(
+      new WaitAllStrategy(WaitAllStrategy.Mode.WITH_INDIVIDUAL_TIMEOUTS_ONLY)
+        .withStrategy(Wait.forListeningPort().withStartupTimeout(ofMinutes(2)))
+        .withStrategy(
+          Wait.forHttp("/health/started")
+            .forPort(9000)
+            .usingTls()
+            .allowInsecure()
+            .forStatusCode(200)
+            .withStartupTimeout(java.time.Duration.ofMinutes(5))
+        )
+    )
+    .withStartupAttempts(3)
     .withLogConsumer(new Slf4jLogConsumer(log))
+    .withCommand("start-dev --import-realm")
 
   private val NEO4J = new Neo4jContainerExtension()
     .withNetwork(NETWORK)
