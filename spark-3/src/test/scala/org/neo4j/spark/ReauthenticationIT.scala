@@ -69,15 +69,15 @@ object ReauthenticationIT {
     .withEnv("KC_HOSTNAME_STRICT", "false")
     .withEnv("KC_HOSTNAME_STRICT_BACKCHANNEL", "false")
     .waitingFor(
-      new WaitAllStrategy()
-        .withStrategy(Wait.forListeningPort().withStartupTimeout(ofMinutes(5)))
+      new WaitAllStrategy(WaitAllStrategy.Mode.WITH_INDIVIDUAL_TIMEOUTS_ONLY)
+        .withStrategy(Wait.forListeningPort().withStartupTimeout(ofMinutes(2)))
         .withStrategy(
           Wait.forHttp("/health/started")
             .forPort(9000)
             .usingTls()
             .allowInsecure()
             .forStatusCode(200)
-            .withStartupTimeout(java.time.Duration.ofMinutes(10))
+            .withStartupTimeout(java.time.Duration.ofMinutes(5))
         )
     )
     .withStartupAttempts(3)
