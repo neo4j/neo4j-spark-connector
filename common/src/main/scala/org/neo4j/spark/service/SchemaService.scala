@@ -148,7 +148,8 @@ class SchemaService(
     params: java.util.Map[String, AnyRef],
     extractFunction: Record => Map[String, AnyRef]
   ): mutable.Buffer[StructField] = {
-    session.executeRead(tx => tx.run(query, params).list.asScala, sessionTransactionConfig)
+    session.executeRead(tx => tx.run(query, params).list, sessionTransactionConfig)
+      .asScala
       .flatMap(extractFunction)
       .groupBy(_._1)
       .mapValues(_.map(_._2))
