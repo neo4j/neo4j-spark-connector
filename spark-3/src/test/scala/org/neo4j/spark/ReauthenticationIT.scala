@@ -64,7 +64,9 @@ object ReauthenticationIT {
     )
     .withEnv("KC_HOSTNAME", "https://keycloak:8443")
     .withEnv("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true")
-    .waitingFor(Wait.forHttp("/health/started").forPort(9000).usingTls().allowInsecure())
+    .waitingFor(Wait.forHttp(
+      "/health/started"
+    ).forPort(9000).forStatusCode(200).withStartupTimeout(java.time.Duration.ofMinutes(2)))
     .withCommand("start-dev --import-realm")
     .withLogConsumer(new Slf4jLogConsumer(log))
 
