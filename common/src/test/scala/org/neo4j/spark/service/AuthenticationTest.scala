@@ -18,15 +18,17 @@ package org.neo4j.spark.service
 
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.ArgumentMatchers
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito.times
+import org.neo4j.driver.AuthTokenManager
+import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.Config
 import org.neo4j.driver.GraphDatabase
-import org.neo4j.driver.internal.security.ExpirationBasedAuthTokenManager
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
 import org.powermock.api.mockito.PowerMockito
+import org.powermock.core.classloader.annotations.PowerMockIgnore
 import org.powermock.core.classloader.annotations.PrepareForTest
 import org.powermock.modules.junit4.PowerMockRunner
 import org.testcontainers.shaded.com.google.common.io.BaseEncoding
@@ -36,6 +38,7 @@ import java.util
 
 @PrepareForTest(Array(classOf[GraphDatabase]))
 @RunWith(classOf[PowerMockRunner])
+@PowerMockIgnore(Array("javax.management.*"))
 class AuthenticationTest {
 
   @Test
@@ -56,8 +59,9 @@ class AuthenticationTest {
     driverCache.getOrCreate()
 
     PowerMockito.verifyStatic(classOf[GraphDatabase], times(1))
-    // was GraphDatabase.driver(any[URI](), ArgumentMatchers.eq(AuthTokens.custom("", token, "", "")), any(classOf[Config]))
-    GraphDatabase.driver(any[URI](), ArgumentMatchers.any[ExpirationBasedAuthTokenManager], any[Config]())
+    val managerCaptor = ArgumentCaptor.forClass(classOf[AuthTokenManager])
+    GraphDatabase.driver(any[URI](), managerCaptor.capture(), any[Config]())
+    assert(AuthTokens.custom("", token, "", "") == managerCaptor.getValue.getToken.toCompletableFuture.join())
   }
 
   @Test
@@ -77,7 +81,8 @@ class AuthenticationTest {
     driverCache.getOrCreate()
 
     PowerMockito.verifyStatic(classOf[GraphDatabase], times(1))
-    // was GraphDatabase.driver(any[URI](), ArgumentMatchers.eq(AuthTokens.bearer(token)), any())
-    GraphDatabase.driver(any[URI](), ArgumentMatchers.any[ExpirationBasedAuthTokenManager], any[Config]())
+    val managerCaptor = ArgumentCaptor.forClass(classOf[AuthTokenManager])
+    GraphDatabase.driver(any[URI](), managerCaptor.capture(), any[Config]())
+    assert(AuthTokens.bearer(token) == managerCaptor.getValue.getToken.toCompletableFuture.join())
   }
 }

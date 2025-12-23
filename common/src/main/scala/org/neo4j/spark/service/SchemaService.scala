@@ -114,8 +114,7 @@ class SchemaService(
     query: String,
     params: java.util.Map[String, AnyRef]
   ): mutable.Buffer[StructField] = {
-    val fields = session.run(query, params, sessionTransactionConfig)
-      .list
+    val fields = session.executeRead(tx => tx.run(query, params).list(), sessionTransactionConfig)
       .asScala
       .filter(record => !record.get("propertyName").isNull && !record.get("propertyName").isEmpty)
       .map(record => {
@@ -149,7 +148,8 @@ class SchemaService(
     params: java.util.Map[String, AnyRef],
     extractFunction: Record => Map[String, AnyRef]
   ): mutable.Buffer[StructField] = {
-    session.run(query, params, sessionTransactionConfig).list.asScala
+    session.executeRead(tx => tx.run(query, params).list, sessionTransactionConfig)
+      .asScala
       .flatMap(extractFunction)
       .groupBy(_._1)
       .mapValues(_.map(_._2))
@@ -340,7 +340,7 @@ class SchemaService(
          |RETURN *
          |""".stripMargin
     val map: util.Map[String, AnyRef] = Map[String, AnyRef]("procName" -> options.query.value).asJava
-    val fields = session.run(query, map, sessionTransactionConfig).list.asScala
+    val fields = session.executeRead(tx => tx.run(query, map).list(), sessionTransactionConfig).asScala
       .map(r => r.get("field").asList((t: Value) => t.asString()).asScala)
       .map(r =>
         (
@@ -399,16 +399,15 @@ class SchemaService(
         |RETURN *
         |""".stripMargin
     val map: util.Map[String, AnyRef] = Map[String, AnyRef]("procName" -> procName).asJava
-    session.run(query, map, sessionTransactionConfig)
-      .list
+    session.executeRead(tx => tx.run(query, map).list(), sessionTransactionConfig)
       .asScala
       .map(r => (r.get("fieldName").asString(), r.get("optional").asBoolean()))
       .toSeq
   }
 
   private def getReturnedColumns(query: String): Array[String] =
-    session.run("EXPLAIN " + query, sessionTransactionConfig)
-      .keys().asScala.toArray
+    session.executeRead(tx => tx.run("EXPLAIN " + query).keys(), sessionTransactionConfig)
+      .asScala.toArray
 
   def struct(): StructType = {
     val struct = options.query.queryType match {
@@ -469,8 +468,7 @@ class SchemaService(
       queryReadStrategy.createStatementForRelationshipCount(options)
     }
     log.info(s"Executing the following counting query on Neo4j: $query")
-    session.run(query, sessionTransactionConfig)
-      .list()
+    session.executeRead(tx => tx.run(query).list(), sessionTransactionConfig)
       .asScala
       .map(_.get("count"))
       .map(count => if (count.isNull) 0L else count.asLong())
@@ -487,7 +485,7 @@ class SchemaService(
        */
       if (filters.isEmpty) {
         val query = "CALL apoc.meta.stats() yield labels RETURN labels"
-        val map = session.run(query, sessionTransactionConfig).single()
+        val map = session.executeRead(tx => tx.run(query).single(), sessionTransactionConfig)
           .asMap()
           .asScala
           .get("labels")
@@ -510,7 +508,7 @@ class SchemaService(
     try {
       if (filters.isEmpty) {
         val query = "CALL apoc.meta.stats() yield relTypes RETURN relTypes"
-        val map = session.run(query, sessionTransactionConfig).single()
+        val map = session.executeRead(tx => tx.run(query).single(), sessionTransactionConfig)
           .asMap()
           .asScala
           .get("relTypes")
@@ -579,29 +577,32 @@ class SchemaService(
            |RETURN count(*) AS count
            |""".stripMargin
       }
-      session.run(query, sessionTransactionConfig).single().get("count").asLong()
+      session.executeRead(tx => tx.run(query).single(), sessionTransactionConfig).get("count").asLong()
     }
   }
 
   def isGdsProcedure(procName: String): Boolean = {
     val params: util.Map[String, AnyRef] = Map[String, AnyRef]("procName" -> procName).asJava
-    session.run(
-      """
-        |CALL gds.list() YIELD name, type
-        |WHERE name = $procName AND type = 'procedure'
-        |RETURN count(*) = 1
-        |""".stripMargin,
-      params,
+    session.executeRead(
+      tx =>
+        tx.run(
+          """
+            |CALL gds.list() YIELD name, type
+            |WHERE name = $procName AND type = 'procedure'
+            |RETURN count(*) = 1
+            |""".stripMargin,
+          params
+        ).single(),
       sessionTransactionConfig
     )
-      .single()
       .get(0)
       .asBoolean()
   }
 
   def validateQuery(query: String, expectedQueryTypes: org.neo4j.driver.summary.QueryType*): String =
     try {
-      val queryType = session.run(s"EXPLAIN $query", sessionTransactionConfig).consume().queryType()
+      val queryType =
+        session.executeRead(tx => tx.run(s"EXPLAIN $query").consume(), sessionTransactionConfig).queryType()
       if (expectedQueryTypes.isEmpty || expectedQueryTypes.contains(queryType)) {
         ""
       } else {
@@ -624,7 +625,7 @@ class SchemaService(
 
   def validateQueryCount(query: String): String =
     try {
-      val resultSummary = session.run(s"EXPLAIN $query", sessionTransactionConfig).consume()
+      val resultSummary = session.executeRead(tx => tx.run(s"EXPLAIN $query").consume(), sessionTransactionConfig)
       val queryType = resultSummary.queryType()
       val plan = resultSummary.plan()
       val expectedQueryTypes =
@@ -642,7 +643,8 @@ class SchemaService(
 
   def isValidQuery(query: String, expectedQueryTypes: org.neo4j.driver.summary.QueryType*): Boolean =
     try {
-      val queryType = session.run(s"EXPLAIN $query", sessionTransactionConfig).consume().queryType()
+      val queryType =
+        session.executeRead(tx => tx.run(s"EXPLAIN $query").consume(), sessionTransactionConfig).queryType()
       expectedQueryTypes.isEmpty || expectedQueryTypes.contains(queryType)
     } catch {
       case e: Throwable => {
@@ -694,8 +696,7 @@ class SchemaService(
             "labels" -> Seq(label).asJava,
             "properties" -> props.asJava
           ).asJava.asInstanceOf[util.Map[String, AnyRef]]
-          val isPresent = session.run(queryCheck, params, sessionTransactionConfig)
-            .single()
+          val isPresent = session.executeRead(tx => tx.run(queryCheck, params).single(), sessionTransactionConfig)
             .get("isPresent")
             .asBoolean()
 
@@ -704,7 +705,7 @@ class SchemaService(
           } else {
             val query = s"$queryPrefix $querySuffix"
             log.info(s"Performing the following schema query: $query")
-            session.run(query, sessionTransactionConfig)
+            session.executeWrite(tx => tx.run(query).consume(), sessionTransactionConfig)
             "CREATED"
           }
           log.info(s"Status for $action named with label $quotedLabel and props $quotedProps is: $status")
@@ -730,7 +731,7 @@ class SchemaService(
       s"spark_${entityType}_${constraintType.replace(s"$entityType ", "")}-CONSTRAINT_${entityIdentifier}_$dashSeparatedProps".quote()
     val props = keys.values.map(_.quote()).map("e." + _).mkString(", ")
     val asciiRepresentation: String = createCypherPattern(entityType, entityIdentifier)
-    session.executeWrite(
+    session.executeWriteWithoutResult(
       tx => {
         tx.run(
           s"CREATE CONSTRAINT $constraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE ($props) IS $constraintType"
@@ -924,12 +925,12 @@ class SchemaService(
   def execute(queries: Seq[String]): util.List[util.Map[String, AnyRef]] = {
     val queryMap = queries
       .map(query => {
-        (session.run(s"EXPLAIN $query", sessionTransactionConfig).consume().queryType(), query)
+        (session.executeRead(tx => tx.run(s"EXPLAIN $query").consume(), sessionTransactionConfig).queryType(), query)
       })
       .groupBy(_._1)
       .mapValues(_.map(_._2))
     val schemaQueries = queryMap.getOrElse(org.neo4j.driver.summary.QueryType.SCHEMA_WRITE, Seq.empty[String])
-    schemaQueries.foreach(session.run(_, sessionTransactionConfig))
+    schemaQueries.foreach(q => session.executeWrite(tx => tx.run(q).consume(), sessionTransactionConfig))
     val others = queryMap
       .filterKeys(key => key != org.neo4j.driver.summary.QueryType.SCHEMA_WRITE)
       .values
@@ -965,12 +966,14 @@ class SchemaService(
 
   private def lastOffsetForNode(): Long = {
     val label = options.nodeMetadata.labels.head
-    session.run(
-      s"""MATCH (n:$label)
-         |RETURN max(n.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin,
+    session.executeRead(
+      tx =>
+        tx.run(
+          s"""MATCH (n:$label)
+             |RETURN max(n.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin
+        ).single(),
       sessionTransactionConfig
     )
-      .single()
       .get(options.streamingOptions.propertyName)
       .asLong(-1)
   }
@@ -980,20 +983,22 @@ class SchemaService(
     val targetLabel = options.relationshipMetadata.target.labels.head.quote()
     val relType = options.relationshipMetadata.relationshipType.quote()
 
-    session.run(
-      s"""MATCH (s:$sourceLabel)-[r:$relType]->(t:$targetLabel)
-         |RETURN max(r.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin,
+    session.executeRead(
+      tx =>
+        tx.run(
+          s"""MATCH (s:$sourceLabel)-[r:$relType]->(t:$targetLabel)
+             |RETURN max(r.${options.streamingOptions.propertyName}) AS ${options.streamingOptions.propertyName}""".stripMargin
+        ).single(),
       sessionTransactionConfig
     )
-      .single()
       .get(options.streamingOptions.propertyName)
       .asLong(-1)
   }
 
-  private def lastOffsetForQuery(): Long = session.run(options.streamingOptions.queryOffset, sessionTransactionConfig)
-    .single()
-    .get(0)
-    .asLong(-1)
+  private def lastOffsetForQuery(): Long =
+    session.executeRead(tx => tx.run(options.streamingOptions.queryOffset).single(), sessionTransactionConfig)
+      .get(0)
+      .asLong(-1)
 
   def lastOffset(): Long = options.query.queryType match {
     case QueryType.LABELS       => lastOffsetForNode()
