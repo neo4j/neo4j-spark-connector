@@ -108,15 +108,15 @@ class TransactionTimeoutIT extends SparkConnectorScalaSuiteWithApocIT {
   }
 
   @Test
-  def sparkConnectorExtendsDefaultTimeut(): Unit = {
+  def sparkConnectorExtendsDefaultTimeout(): Unit = {
     val cypher = "UNWIND range(1, 6) AS i " +
-      "CALL apoc.util.sleep(1000) " +
+      "CALL apoc.util.sleep(2000) " +
       "RETURN i as number"
     val df = ss.read.format("org.neo4j.spark.DataSource")
       .option("url", NEO4J_LOW_TX_TIMEOUT.getBoltUrl)
       .option("authentication.basic.username", "neo4j")
       .option("authentication.basic.password", NEO4J_LOW_TX_TIMEOUT.getAdminPassword)
-      .option("db.transaction.timeout", "7000")
+      .option("db.transaction.timeout", "15000")
       .option("query", cypher)
       .load()
       .toDF()
@@ -136,7 +136,7 @@ object TransactionTimeoutIT {
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     .withEnv("NEO4JLABS_PLUGINS", "[\"apoc\"]")
     .withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
-    .withNeo4jConfig("db.transaction.timeout", "5s")
+    .withNeo4jConfig("db.transaction.timeout", "10s")
     .withDatabases(Seq("db1", "db2"))
 
   @BeforeClass
