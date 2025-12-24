@@ -1,7 +1,6 @@
 package builds
 
 import jetbrains.buildServer.configs.kotlin.BuildType
-import jetbrains.buildServer.configs.kotlin.buildFeatures.buildCache
 import jetbrains.buildServer.configs.kotlin.buildSteps.ScriptBuildStep
 import jetbrains.buildServer.configs.kotlin.buildSteps.script
 import jetbrains.buildServer.configs.kotlin.toId
@@ -32,15 +31,7 @@ class Package(
         }
       }
 
-      features {
-        buildCache {
-          this.name = "neo4j-spark-connector"
-          publish = true
-          use = true
-          publishOnlyChanged = true
-          rules = ".m2/repository"
-        }
-      }
+      features { buildCache(javaVersion, scalaVersion) }
 
       requirements { runOnLinux(LinuxSize.SMALL) }
     })
