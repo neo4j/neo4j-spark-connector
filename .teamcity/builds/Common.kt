@@ -9,6 +9,7 @@ import jetbrains.buildServer.configs.kotlin.FailureAction
 import jetbrains.buildServer.configs.kotlin.Requirements
 import jetbrains.buildServer.configs.kotlin.ReuseBuilds
 import jetbrains.buildServer.configs.kotlin.buildFeatures.PullRequests
+import jetbrains.buildServer.configs.kotlin.buildFeatures.buildCache
 import jetbrains.buildServer.configs.kotlin.buildFeatures.commitStatusPublisher
 import jetbrains.buildServer.configs.kotlin.buildFeatures.dockerRegistryConnections
 import jetbrains.buildServer.configs.kotlin.buildFeatures.freeDiskSpace
@@ -189,6 +190,15 @@ fun BuildFeatures.loginToECR() = dockerRegistryConnections {
   loginToRegistry = on { dockerRegistryId = ECR_CONNECTION_ID }
 }
 
+fun BuildFeatures.buildCache(javaVersion: JavaVersion, scalaVersion: ScalaVersion) = buildCache {
+  this.name =
+      "neo4j-spark-connector-${DEFAULT_BRANCH}-${javaVersion.version}-${scalaVersion.version}"
+  publish = true
+  use = true
+  publishOnlyChanged = true
+  rules = ".m2/repository"
+}
+
 fun CompoundStage.dependentBuildType(bt: BuildType, reuse: ReuseBuilds = ReuseBuilds.SUCCESSFUL) =
     buildType(bt) {
       onDependencyCancel = FailureAction.CANCEL
@@ -213,6 +223,8 @@ fun BuildSteps.runMaven(javaVersion: JavaVersion, init: MavenBuildStep.() -> Uni
         dockerImagePlatform = MavenBuildStep.ImagePlatform.Linux
         dockerImage = javaVersion.dockerImage
         dockerRunParameters = "--volume /var/run/docker.sock:/var/run/docker.sock"
+
+        localRepoScope = MavenBuildStep.RepositoryScope.MAVEN_DEFAULT
       }
 
   init(maven)
