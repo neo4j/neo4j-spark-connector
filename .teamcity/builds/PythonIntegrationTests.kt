@@ -1,7 +1,6 @@
 package builds
 
 import jetbrains.buildServer.configs.kotlin.BuildType
-import jetbrains.buildServer.configs.kotlin.buildFeatures.buildCache
 import jetbrains.buildServer.configs.kotlin.buildSteps.ScriptBuildStep
 import jetbrains.buildServer.configs.kotlin.buildSteps.script
 import jetbrains.buildServer.configs.kotlin.toId
@@ -64,16 +63,6 @@ class PythonIntegrationTests(
               dockerImagePlatform = ScriptBuildStep.ImagePlatform.Linux
               dockerImage = javaVersion.dockerImage
               dockerRunParameters = "--volume /var/run/docker.sock:/var/run/docker.sock"
-            }
-          }
-
-          features {
-            buildCache {
-              this.name = "neo4j-spark-connector"
-              publish = true
-              use = true
-              publishOnlyChanged = true
-              rules = ".m2/repository"
             }
           }
 

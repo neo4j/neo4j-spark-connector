@@ -1,9 +1,6 @@
 package builds
 
 import jetbrains.buildServer.configs.kotlin.BuildType
-import jetbrains.buildServer.configs.kotlin.buildFeatures.buildCache
-import jetbrains.buildServer.configs.kotlin.buildSteps.MavenBuildStep
-import jetbrains.buildServer.configs.kotlin.buildSteps.maven
 import jetbrains.buildServer.configs.kotlin.toId
 
 class JavaIntegrationTests(
@@ -34,26 +31,14 @@ class JavaIntegrationTests(
               pullImage(neo4jVersion)
             }
 
-            maven {
+            runMaven(javaVersion) {
               this.goals = "verify"
               this.runnerArgs =
                   "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -Dscala-${scalaVersion.version} -DskipUnitTests"
-
-              dockerImagePlatform = MavenBuildStep.ImagePlatform.Linux
-              dockerImage = javaVersion.dockerImage
-              dockerRunParameters = "--volume /var/run/docker.sock:/var/run/docker.sock"
             }
           }
 
-          features {
-            buildCache {
-              this.name = "neo4j-spark-connector"
-              publish = true
-              use = true
-              publishOnlyChanged = true
-              rules = ".m2/repository"
-            }
-          }
+          features { buildCache(javaVersion, scalaVersion) }
 
           requirements { runOnLinux(LinuxSize.LARGE) }
         },
