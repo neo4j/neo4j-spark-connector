@@ -25,8 +25,16 @@ import jetbrains.buildServer.configs.kotlin.vcs.GitVcsRoot
 const val GITHUB_OWNER = "neo4j"
 const val GITHUB_REPOSITORY = "neo4j-spark-connector"
 const val DEFAULT_BRANCH = "6.0"
-const val MAVEN_DEFAULT_ARGS =
-    "--no-transfer-progress --batch-mode -Dmaven.repo.local=%teamcity.build.checkoutDir%/.m2/repository"
+val MAVEN_DEFAULT_ARGS = buildString {
+  append("--no-transfer-progress ")
+  append("--batch-mode ")
+  append("-Dmaven.repo.local=%teamcity.build.checkoutDir%/.m2/repository ")
+  append("-Dmaven.wagon.http.retryHandler.class=standard ")
+  append("-Dmaven.wagon.http.retryHandler.timeout=60 ")
+  append("-Dmaven.wagon.http.retryHandler.count=3 ")
+  append(
+      "-Dmaven.wagon.http.retryHandler.nonRetryableClasses=java.io.InterruptedIOException,java.net.UnknownHostException,java.net.ConnectException ")
+}
 
 val DEFAULT_JAVA_VERSION = JavaVersion.V_17
 
