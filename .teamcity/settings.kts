@@ -99,7 +99,7 @@ project {
                       appendLine("+:refs/heads/$DEFAULT_BRANCH")
                     }
                     schedulingPolicy = daily {
-                      hour = 7
+                      hour = 6
                       minute = 0
                     }
                     triggerBuild = always()
