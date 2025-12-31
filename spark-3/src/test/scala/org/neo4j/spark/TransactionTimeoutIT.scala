@@ -131,13 +131,14 @@ class TransactionTimeoutIT extends SparkConnectorScalaSuiteWithApocIT {
 
 object TransactionTimeoutIT {
 
-  private val NEO4J_LOW_TX_TIMEOUT = new Neo4jContainerExtension()
-    .withNeo4jConfig("dbms.security.auth_enabled", "false")
-    .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-    .withEnv("NEO4JLABS_PLUGINS", "[\"apoc\"]")
-    .withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
-    .withNeo4jConfig("db.transaction.timeout", "10s")
-    .withDatabases(Seq("db1", "db2"))
+  private val NEO4J_LOW_TX_TIMEOUT = new Neo4jContainerExtension {
+    withNeo4jConfig("dbms.security.auth_enabled", "false")
+    withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
+    withEnv("NEO4JLABS_PLUGINS", "[\"apoc\"]")
+    withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
+    withNeo4jConfig("db.transaction.timeout", "10s")
+    withDatabases(Seq("db1", "db2"))
+  }
 
   @BeforeClass
   def setUp(): Unit = {

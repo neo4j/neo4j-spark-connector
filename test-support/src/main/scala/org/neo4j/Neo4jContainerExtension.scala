@@ -22,10 +22,9 @@ import org.neo4j.driver.GraphDatabase
 import org.neo4j.driver.SessionConfig
 import org.neo4j.spark.TestUtil
 import org.rnorth.ducttape.unreliables.Unreliables
-import org.testcontainers.containers.Neo4jContainer
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy
 import org.testcontainers.containers.wait.strategy.WaitAllStrategy
-import org.testcontainers.utility.DockerImageName
+import org.testcontainers.neo4j.Neo4jContainer
 
 import java.time.Duration
 import java.util.concurrent.Callable
@@ -42,8 +41,8 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
     this
   }
 
-  override def waitUntilReady() {
-    val boltUrl = s"bolt://${waitStrategyTarget.getContainerIpAddress}:${waitStrategyTarget.getMappedPort(7687)}"
+  override def waitUntilReady(): Unit = {
+    val boltUrl = s"bolt://${waitStrategyTarget.getHost}:${waitStrategyTarget.getMappedPort(7687)}"
     val driver = GraphDatabase.driver(boltUrl, auth)
     val systemSession = driver.session(SessionConfig.forDatabase("system"))
     val tx = systemSession.beginTransaction()
@@ -97,7 +96,7 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
 
 // docker pull neo4j/neo4j-experimental:4.0.0-rc01-enterprise
 class Neo4jContainerExtension
-    extends Neo4jContainer[Neo4jContainerExtension](
+    extends Neo4jContainer(
       TestUtil.neo4jImage()
     ) {
   private var databases: Seq[String] = Seq.empty

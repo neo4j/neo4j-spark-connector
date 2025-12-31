@@ -36,12 +36,13 @@ import scala.annotation.meta.getter
 
 object SparkConnectorScalaSuiteWithGdsBase {
 
-  val server: Neo4jContainerExtension = new Neo4jContainerExtension()
-    .withNeo4jConfig("dbms.security.auth_enabled", "false")
-    .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-    .withEnv("NEO4JLABS_PLUGINS", "[\"graph-data-science\"]")
-    .withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
-    .withDatabases(Seq("db1", "db2"))
+  val server: Neo4jContainerExtension = new Neo4jContainerExtension {
+    withNeo4jConfig("dbms.security.auth_enabled", "false")
+    withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
+    withEnv("NEO4JLABS_PLUGINS", "[\"graph-data-science\"]")
+    withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
+    withDatabases(Seq("db1", "db2"))
+  }
 
   var conf: SparkConf = _
   var ss: SparkSession = _
