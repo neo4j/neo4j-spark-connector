@@ -30,7 +30,7 @@ class Build(
 
             parallel {
               scalaVersions.forEach { scala ->
-                SemGrepCheck(
+                SemgrepCheck(
                     "${name}-semgrep-check-${scala.version}",
                     "semgrep check (${scala.version})",
                     scala
