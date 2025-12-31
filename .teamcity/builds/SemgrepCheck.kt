@@ -2,7 +2,7 @@ package builds
 
 import jetbrains.buildServer.configs.kotlin.buildSteps.ScriptBuildStep
 
-class SemGrepCheck(
+class SemgrepCheck(
     id: String,
     name: String,
     scalaVersion: ScalaVersion
