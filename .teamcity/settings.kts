@@ -22,6 +22,7 @@ project {
     password("signing-key-passphrase", "%publish-signing-key-password%")
     password("github-commit-status-token", "%github-token%")
     password("github-pull-request-token", "%github-token%")
+    password("semgrep-app-token", "%semgrep-token%")
   }
 
   vcsRoot(Neo4jSparkConnectorVcs)

@@ -29,6 +29,14 @@ class Build(
             if (forPullRequests) dependentBuildType(PRCheck("${name}-pr-check", "pr check"))
 
             parallel {
+              scalaVersions.forEach { scala ->
+                SemGrepCheck(
+                    "${name}-semgrep-check-${scala.version}",
+                    "semgrep check (${scala.version})",
+                    scala
+                )
+              }
+
               javaVersions.cartesianProduct(scalaVersions, neo4jVersions).forEach {
                   (java, scala, neo4j) ->
                 sequential {
