@@ -622,7 +622,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     use(session()) { session =>
       session.run("MATCH (p:Human) REMOVE p:Human").consume()
     }
-    // 2nd trigger: nothing was processed again
+    // 2nd trigger: previous offset is kept intact
     streamTable = stream.writeStream
       .trigger(Trigger.AvailableNow())
       .option("checkpointLocation", checkpoint.getAbsolutePath)
