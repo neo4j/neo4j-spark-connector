@@ -21,7 +21,8 @@ import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.streaming.Trigger
 import org.hamcrest.Matchers
 import org.junit.After
-import org.junit.Assert.{assertEquals, assertTrue}
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -30,6 +31,7 @@ import org.neo4j.spark.SparkConnectorScalaSuiteIT.session
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+
 import scala.annotation.meta.getter
 
 class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
