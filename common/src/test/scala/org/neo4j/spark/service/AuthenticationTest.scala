@@ -27,6 +27,7 @@ import org.neo4j.driver.GraphDatabase
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
 import org.powermock.api.mockito.PowerMockito
+import org.powermock.core.classloader.annotations.PowerMockIgnore
 import org.powermock.core.classloader.annotations.PrepareForTest
 import org.powermock.modules.junit4.PowerMockRunner
 import org.testcontainers.shaded.com.google.common.io.BaseEncoding
@@ -36,6 +37,7 @@ import java.util
 
 @PrepareForTest(Array(classOf[GraphDatabase]))
 @RunWith(classOf[PowerMockRunner])
+@PowerMockIgnore(value = Array("javax.management.*"))
 class AuthenticationTest {
 
   @Test

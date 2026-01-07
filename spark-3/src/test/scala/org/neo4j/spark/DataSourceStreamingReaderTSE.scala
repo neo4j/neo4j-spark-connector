@@ -22,10 +22,12 @@ import org.apache.spark.sql.streaming.Trigger
 import org.hamcrest.Matchers
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.neo4j.Closeables.use
+import org.neo4j.spark.SparkConnectorScalaSuiteIT.session
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -586,20 +588,66 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     )
   }
 
-  private def createPersonNodes(from: Int, count: Int, delayMs: Int = 0, intervalMs: Int = 0): Unit = {
-    use(SparkConnectorScalaSuiteIT.session()) { session =>
+  @Test
+  def testStreamDoesNotReadAnyDataIfStreamingQueryReturnsNothing(): Unit = {
+    createPersonNodes(0, 50)
+    use(session()) { session =>
+      session.run("MATCH (p:Person) SET p:Human").consume()
+    }
+    val stream = ss.readStream.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("streaming.property.name", "timestamp")
+      .option("streaming.from", "ALL")
+      .option(
+        "query",
+        """
+          |MATCH (p:Person)
+          |WHERE p.timestamp > $stream.from AND p.timestamp <= $stream.to
+          |RETURN p.age AS age, p.timestamp AS timestamp
+          |""".stripMargin
+      )
+      .option("streaming.query.offset", "MATCH (p:Human) RETURN max(p.timestamp)")
+      .load()
+
+    val checkpoint = folder.newFolder()
+    // 1st trigger: every node was processed
+    var streamTable = stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("testStreamDoesNotReadAnyDataIfStreamingQueryReturnsNothing")
+    streamTable.awaitTermination()
+    val firstSource = streamTable.lastProgress.sources.head
+    assertEquals(50, firstSource.numInputRows)
+    val endOffset1 = firstSource.endOffset
+    use(session()) { session =>
+      session.run("MATCH (p:Human) REMOVE p:Human").consume()
+    }
+    // 2nd trigger: previous offset is kept intact
+    streamTable = stream.writeStream
+      .trigger(Trigger.AvailableNow())
+      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .toTable("testStreamDoesNotReadAnyDataIfStreamingQueryReturnsNothing")
+    streamTable.awaitTermination()
+    val source = streamTable.lastProgress.sources.head
+    assertEquals(endOffset1, source.startOffset)
+    assertEquals(endOffset1, source.endOffset)
+    assertEquals(0L, source.numInputRows)
+  }
+
+  private def createPersonNodes(minAge: Int, maxAge: Int, delayMs: Int = 0, intervalMs: Int = 0): Unit = {
+    use(session()) { session =>
       Thread.sleep(delayMs)
-      (from until from + count).foreach(index => {
+      (minAge until minAge + maxAge).foreach(age => {
         Thread.sleep(intervalMs)
         session.run(
-          s"CREATE (p:Person {age: '$index', timestamp: timestamp()})"
+          s"CREATE (p:Person {age: '$age', timestamp: timestamp()})"
         ).consume()
       })
     }
   }
 
   private def createMovieNodes(from: Int, count: Int, delayMs: Int = 0, intervalMs: Int = 0): Unit = {
-    use(SparkConnectorScalaSuiteIT.session()) { session =>
+    use(session()) { session =>
       Thread.sleep(delayMs)
       (from until from + count).foreach(index => {
         Thread.sleep(intervalMs)
@@ -611,7 +659,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
   }
 
   private def createLikesRelationships(from: Int, count: Int, delayMs: Int = 0, intervalMs: Int = 0): Unit = {
-    use(SparkConnectorScalaSuiteIT.session()) { session =>
+    use(session()) { session =>
       Thread.sleep(delayMs)
       (from until from + count).foreach(index => {
         Thread.sleep(intervalMs)
