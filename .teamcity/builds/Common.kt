@@ -35,6 +35,7 @@ val MAVEN_DEFAULT_ARGS = buildString {
   append(
       "-Dmaven.wagon.http.retryHandler.nonRetryableClasses=java.io.InterruptedIOException,java.net.UnknownHostException,java.net.ConnectException ")
 }
+const val SEMGREP_DOCKER_IMAGE = "semgrep/semgrep:1.146.0"
 
 val DEFAULT_JAVA_VERSION = JavaVersion.V_11
 
