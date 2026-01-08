@@ -69,9 +69,9 @@ class SchemaService(
 
   private val sessionTransactionConfig = options.toNeo4jTransactionConfig
 
-  private val cypherToSparkTypeConverter = CypherToSparkTypeConverter()
+  private val cypherToSparkTypeConverter = CypherToSparkTypeConverter(options)
 
-  private val sparkToCypherTypeConverter = SparkToCypherTypeConverter()
+  private val sparkToCypherTypeConverter = SparkToCypherTypeConverter(options)
 
   private def structForNode(labels: Seq[String] = options.nodeMetadata.labels) = {
     val structFields: mutable.Buffer[StructField] = (try {

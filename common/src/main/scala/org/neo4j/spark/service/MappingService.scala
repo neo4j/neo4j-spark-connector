@@ -46,7 +46,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     extends Neo4jMappingStrategy[InternalRow, Option[java.util.Map[String, AnyRef]]]
     with Logging {
 
-  private val dataConverter = SparkToNeo4jDataConverter()
+  private val dataConverter = SparkToNeo4jDataConverter(options)
 
   override def node(row: InternalRow, schema: StructType): Option[java.util.Map[String, AnyRef]] = {
     val rowMap: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
@@ -212,7 +212,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
 class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumns: StructType)
     extends Neo4jMappingStrategy[Record, InternalRow] {
 
-  private val dataConverter = Neo4jToSparkDataConverter()
+  private val dataConverter = Neo4jToSparkDataConverter(options)
 
   override def node(record: Record, schema: StructType): InternalRow = {
     if (requiredColumns.nonEmpty) {
