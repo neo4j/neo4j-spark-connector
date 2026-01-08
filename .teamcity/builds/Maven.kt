@@ -3,7 +3,7 @@ package builds
 import jetbrains.buildServer.configs.kotlin.BuildType
 import jetbrains.buildServer.configs.kotlin.toId
 
-class Maven(
+open class Maven(
     id: String,
     name: String,
     goals: String,
