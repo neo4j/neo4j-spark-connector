@@ -69,7 +69,7 @@ class CypherToSparkTypeConverter(options: Neo4jOptions) extends TypeConverter[St
 
   override def convert(sourceType: String, value: Any = null): DataType = {
     var cleanedSourceType = sourceType.replaceAll(cleanTerms, "")
-    if (options.legacyTimestampConversionEnabled) {
+    if (options.legacyTypeConversionEnabled) {
       cleanedSourceType = cleanedSourceType.replaceAll("Local|Zoned", "")
     }
     cleanedSourceType match {
@@ -84,7 +84,7 @@ class CypherToSparkTypeConverter(options: Neo4jOptions) extends TypeConverter[St
       case "Point"                      => pointType
       case "DateTime" | "ZonedDateTime" => DataTypes.TimestampType
       case "LocalDateTime" =>
-        if (options.legacyTimestampConversionEnabled) {
+        if (options.legacyTypeConversionEnabled) {
           DataTypes.TimestampType
         } else {
           DataTypes.TimestampNTZType
@@ -99,7 +99,7 @@ class CypherToSparkTypeConverter(options: Neo4jOptions) extends TypeConverter[St
         } else {
           val map = value.asInstanceOf[java.util.Map[String, AnyRef]].asScala
           val types = map.values
-            .map(normalizedClassName)
+            .map(value => normalizedClassName(value, options))
             .toSet
           if (types.size == 1) convert(types.head, map.values.head) else DataTypes.StringType
         }
@@ -111,7 +111,7 @@ class CypherToSparkTypeConverter(options: Neo4jOptions) extends TypeConverter[St
         } else {
           val list = value.asInstanceOf[java.util.List[AnyRef]].asScala
           val types = list
-            .map(normalizedClassName)
+            .map(value => normalizedClassName(value, options))
             .toSet
           if (types.size == 1) convert(types.head, list.head) else DataTypes.StringType
         }
@@ -177,7 +177,7 @@ object SparkToCypherTypeConverter {
 
   private def sourceTypeMappings(options: Neo4jOptions): Map[DataType, String] = {
     var result = baseMappings
-    if (options.legacyTimestampConversionEnabled) {
+    if (options.legacyTypeConversionEnabled) {
       result += (DataTypes.TimestampType -> "LOCAL DATETIME")
       result += (DataTypes.createArrayType(DataTypes.TimestampType, false) -> "LIST<LOCAL DATETIME NOT NULL>")
       result += (DataTypes.createArrayType(DataTypes.TimestampType, true) -> "LIST<LOCAL DATETIME NOT NULL>")

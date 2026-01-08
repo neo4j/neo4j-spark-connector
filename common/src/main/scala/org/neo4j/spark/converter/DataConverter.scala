@@ -76,10 +76,19 @@ object SparkToNeo4jDataConverter {
 class SparkToNeo4jDataConverter(options: Neo4jOptions) extends DataConverter[Value] {
 
   override def convert(value: Any, dataType: DataType): Value = {
+    if (options.legacyTypeConversionEnabled) {
+      dataType match {
+        case _: DayTimeIntervalType if value != null =>
+          return SparkToNeo4jDataConverter.dayTimeMicrosToNeo4jDuration(value.asInstanceOf[Long])
+        case _: YearMonthIntervalType if value != null =>
+          return SparkToNeo4jDataConverter.yearMonthIntervalToNeo4jDuration(value.asInstanceOf[Int])
+        case _ => // do nothing
+      }
+    }
     value match {
       case date: java.sql.Date => convert(date.toLocalDate, dataType)
       case timestamp: java.sql.Timestamp =>
-        if (options.legacyTimestampConversionEnabled) {
+        if (options.legacyTypeConversionEnabled) {
           convert(timestamp.toLocalDateTime, dataType)
         } else {
           convert(timestamp.toInstant.atZone(ZoneOffset.UTC), dataType)
@@ -94,9 +103,9 @@ class SparkToNeo4jDataConverter(options: Neo4jOptions) extends DataConverter[Val
         SparkToNeo4jDataConverter.yearMonthIntervalToNeo4jDuration(intValue)
       case longValue: Long if dataType == DataTypes.TimestampType =>
         convert(DateTimeUtils.toJavaTimestamp(longValue), dataType)
-      case longValue: Long if dataType == DataTypes.TimestampNTZType && !options.legacyTimestampConversionEnabled =>
+      case longValue: Long if dataType == DataTypes.TimestampNTZType && !options.legacyTypeConversionEnabled =>
         convert(DateTimeUtils.microsToLocalDateTime(longValue), dataType)
-      case longValue: Long if dataType.isInstanceOf[DayTimeIntervalType] =>
+      case longValue: Long if dataType.isInstanceOf[DayTimeIntervalType] && !options.legacyTypeConversionEnabled =>
         SparkToNeo4jDataConverter.dayTimeMicrosToNeo4jDuration(longValue)
       case unsafeRow: UnsafeRow => {
         val structType = extractStructType(dataType)
@@ -144,7 +153,7 @@ class SparkToNeo4jDataConverter(options: Neo4jOptions) extends DataConverter[Val
           case arrayType: ArrayType => arrayType.elementType
           case _                    => dataType
         }
-        if (sparkType == DataTypes.ByteType) {
+        if (sparkType == DataTypes.ByteType && !options.legacyTypeConversionEnabled) {
           Values.value(unsafeArray.toByteArray)
         } else {
           val javaList = unsafeArray.toSeq[AnyRef](sparkType)
@@ -224,7 +233,7 @@ class Neo4jToSparkDataConverter(options: Neo4jOptions) extends DataConverter[Any
         }
         case zt: ZonedDateTime => DateTimeUtils.instantToMicros(zt.toInstant)
         case dt: LocalDateTime => {
-          if (options.legacyTimestampConversionEnabled) {
+          if (options.legacyTypeConversionEnabled) {
             DateTimeUtils.instantToMicros(dt.toInstant(ZoneOffset.UTC))
           } else {
             DateTimeUtils.localDateTimeToMicros(dt)

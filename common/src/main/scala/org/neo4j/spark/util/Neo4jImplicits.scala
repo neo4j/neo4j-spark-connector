@@ -104,7 +104,7 @@ object Neo4jImplicits {
         .groupBy(_._1)
         .map(t => {
           val value = t._2.head._2
-          val cypherType = SchemaService.normalizedClassNameFromGraphEntity(value)
+          val cypherType = SchemaService.normalizedClassNameFromGraphEntity(value, options)
           StructField(t._1, CypherToSparkTypeConverter(options).convert(cypherType))
         })
       val entityFields = entity match {

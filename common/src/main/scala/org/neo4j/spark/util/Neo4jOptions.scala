@@ -180,9 +180,9 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
   val nodeMetadata: Neo4jNodeMetadata = initNeo4jNodeMetadata()
 
-  val legacyTimestampConversionEnabled: Boolean = getParameter(
-    LEGACY_TIMESTAMP_CONVERSION_ENABLED,
-    DEFAULT_LEGACY_TIMESTAMP_CONVERSION_ENABLED
+  val legacyTypeConversionEnabled: Boolean = getParameter(
+    LEGACY_TYPE_CONVERSION_ENABLED,
+    DEFAULT_TYPE_TIMESTAMP_CONVERSION_ENABLED
   ).toBoolean
 
   private def mapPropsString(strOpt: Option[String]): Option[Map[String, String]] = strOpt.map(str =>
@@ -627,7 +627,7 @@ object Neo4jOptions {
   val SCRIPT = "script"
 
   // Data conversion
-  val LEGACY_TIMESTAMP_CONVERSION_ENABLED = "conversion.timestamp.legacy_enabled"
+  val LEGACY_TYPE_CONVERSION_ENABLED = "conversion.timestamp.legacy_enabled"
 
   // defaults
   val DEFAULT_EMPTY = ""
@@ -670,7 +670,7 @@ object Neo4jOptions {
     Seq("username", "password", "ticket", "principal", "credentials", "realm", "scheme", "token")
       .map(name => name -> DEFAULT_EMPTY).toMap
 
-  private val DEFAULT_LEGACY_TIMESTAMP_CONVERSION_ENABLED = "false"
+  private val DEFAULT_TYPE_TIMESTAMP_CONVERSION_ENABLED = "false"
 
   def fromSession(sparkSession: Option[SparkSession], options: java.util.Map[String, String]): Neo4jOptions = {
     val sessionLevelOptions = sparkSession
