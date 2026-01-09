@@ -254,11 +254,6 @@
                     </configuration>
                 </plugin>
                 <plugin>
-                    <groupId>org.jreleaser</groupId>
-                    <artifactId>jreleaser-maven-plugin</artifactId>
-                    <version>${jreleaser-maven-plugin.version}</version>
-                </plugin>
-                <plugin>
                     <groupId>org.neo4j.build.plugins</groupId>
                     <artifactId>licensing-maven-plugin</artifactId>
                     <version>${licensing-maven-plugin.version}</version>
