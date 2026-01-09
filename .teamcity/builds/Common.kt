@@ -36,6 +36,9 @@ val MAVEN_DEFAULT_ARGS = buildString {
       "-Dmaven.wagon.http.retryHandler.nonRetryableClasses=java.io.InterruptedIOException,java.net.UnknownHostException,java.net.ConnectException ")
 }
 const val SEMGREP_DOCKER_IMAGE = "semgrep/semgrep:1.146.0"
+const val FULL_GITHUB_REPOSITORY = "$GITHUB_OWNER/$GITHUB_REPOSITORY"
+const val GITHUB_URL = "https://github.com/$FULL_GITHUB_REPOSITORY"
+
 
 val DEFAULT_JAVA_VERSION = JavaVersion.V_11
 
