@@ -33,6 +33,7 @@ import java.io.File
 import java.net.URI
 import java.time.Duration
 import java.util
+import java.util.Locale
 import java.util.ServiceLoader
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -181,9 +182,9 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   val nodeMetadata: Neo4jNodeMetadata = initNeo4jNodeMetadata()
 
   val legacyTypeConversionEnabled: Boolean = getParameter(
-    LEGACY_TYPE_CONVERSION_ENABLED,
-    DEFAULT_TYPE_TIMESTAMP_CONVERSION_ENABLED
-  ).toBoolean
+    TYPE_CONVERSION,
+    DEFAULT_TYPE_CONVERSION
+  ).toLowerCase(Locale.ROOT).equals("legacy")
 
   private def mapPropsString(strOpt: Option[String]): Option[Map[String, String]] = strOpt.map(str =>
     str.split(",")
@@ -627,7 +628,7 @@ object Neo4jOptions {
   val SCRIPT = "script"
 
   // Data conversion
-  val LEGACY_TYPE_CONVERSION_ENABLED = "conversion.timestamp.legacy_enabled"
+  val TYPE_CONVERSION = "type.conversion"
 
   // defaults
   val DEFAULT_EMPTY = ""
@@ -670,7 +671,7 @@ object Neo4jOptions {
     Seq("username", "password", "ticket", "principal", "credentials", "realm", "scheme", "token")
       .map(name => name -> DEFAULT_EMPTY).toMap
 
-  private val DEFAULT_TYPE_TIMESTAMP_CONVERSION_ENABLED = "false"
+  private val DEFAULT_TYPE_CONVERSION = "default"
 
   def fromSession(sparkSession: Option[SparkSession], options: java.util.Map[String, String]): Neo4jOptions = {
     val sessionLevelOptions = sparkSession

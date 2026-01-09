@@ -1134,7 +1134,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("labels", ":LegacyTypeConversionEnabled")
       .option("node.keys", "id")
-      .option(Neo4jOptions.LEGACY_TYPE_CONVERSION_ENABLED, "true")
+      .option(Neo4jOptions.TYPE_CONVERSION, "true")
       .save()
 
     val actual = SparkConnectorScalaSuiteIT.session().run(
