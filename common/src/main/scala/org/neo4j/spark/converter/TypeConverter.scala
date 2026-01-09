@@ -147,25 +147,18 @@ object SparkToCypherTypeConverter {
     DataTypes.FloatType -> "FLOAT",
     DataTypes.DoubleType -> "FLOAT",
     DataTypes.DateType -> "DATE",
-    DayTimeIntervalType() -> "DURATION",
-    YearMonthIntervalType() -> "DURATION",
     durationType -> "DURATION",
     pointType -> "POINT",
     // Cypher graph entities do not allow null values in arrays
     DataTypes.createArrayType(DataTypes.BooleanType, false) -> "LIST<BOOLEAN NOT NULL>",
     DataTypes.createArrayType(DataTypes.StringType, false) -> "LIST<STRING NOT NULL>",
     DataTypes.createArrayType(DecimalType.SYSTEM_DEFAULT, false) -> "LIST<STRING NOT NULL>",
-    DataTypes.createArrayType(DataTypes.ByteType, false) -> "ByteArray",
     DataTypes.createArrayType(DataTypes.ShortType, false) -> "LIST<INTEGER NOT NULL>",
     DataTypes.createArrayType(DataTypes.IntegerType, false) -> "LIST<INTEGER NOT NULL>",
     DataTypes.createArrayType(DataTypes.LongType, false) -> "LIST<INTEGER NOT NULL>",
     DataTypes.createArrayType(DataTypes.FloatType, false) -> "LIST<FLOAT NOT NULL>",
     DataTypes.createArrayType(DataTypes.DoubleType, false) -> "LIST<FLOAT NOT NULL>",
     DataTypes.createArrayType(DataTypes.DateType, false) -> "LIST<DATE NOT NULL>",
-    DataTypes.createArrayType(DayTimeIntervalType(), false) -> "LIST<DURATION NOT NULL>",
-    DataTypes.createArrayType(DayTimeIntervalType(), true) -> "LIST<DURATION NOT NULL>",
-    DataTypes.createArrayType(YearMonthIntervalType(), false) -> "LIST<DURATION NOT NULL>",
-    DataTypes.createArrayType(YearMonthIntervalType(), true) -> "LIST<DURATION NOT NULL>",
     DataTypes.createArrayType(durationType, false) -> "LIST<DURATION NOT NULL>",
     DataTypes.createArrayType(pointType, false) -> "LIST<POINT NOT NULL>"
   )
@@ -184,8 +177,15 @@ object SparkToCypherTypeConverter {
     } else {
       result += (DataTypes.TimestampType -> "ZONED DATETIME")
       result += (DataTypes.TimestampNTZType -> "LOCAL DATETIME")
+      result += (DayTimeIntervalType() -> "DURATION")
+      result += (YearMonthIntervalType() -> "DURATION")
+      result += (DataTypes.createArrayType(DataTypes.ByteType, false) -> "ByteArray")
       result += (DataTypes.createArrayType(DataTypes.TimestampType, false) -> "LIST<ZONED DATETIME NOT NULL>")
       result += (DataTypes.createArrayType(DataTypes.TimestampNTZType, false) -> "LIST<LOCAL DATETIME NOT NULL>")
+      result += (DataTypes.createArrayType(DayTimeIntervalType(), false) -> "LIST<DURATION NOT NULL>")
+      result += (DataTypes.createArrayType(DayTimeIntervalType(), true) -> "LIST<DURATION NOT NULL>")
+      result += (DataTypes.createArrayType(YearMonthIntervalType(), false) -> "LIST<DURATION NOT NULL>")
+      result += (DataTypes.createArrayType(YearMonthIntervalType(), true) -> "LIST<DURATION NOT NULL>")
     }
     result
   }

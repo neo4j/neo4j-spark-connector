@@ -76,15 +76,6 @@ object SparkToNeo4jDataConverter {
 class SparkToNeo4jDataConverter(options: Neo4jOptions) extends DataConverter[Value] {
 
   override def convert(value: Any, dataType: DataType): Value = {
-    if (options.legacyTypeConversionEnabled) {
-      dataType match {
-        case _: DayTimeIntervalType if value != null =>
-          return SparkToNeo4jDataConverter.dayTimeMicrosToNeo4jDuration(value.asInstanceOf[Long])
-        case _: YearMonthIntervalType if value != null =>
-          return SparkToNeo4jDataConverter.yearMonthIntervalToNeo4jDuration(value.asInstanceOf[Int])
-        case _ => // do nothing
-      }
-    }
     value match {
       case date: java.sql.Date => convert(date.toLocalDate, dataType)
       case timestamp: java.sql.Timestamp =>
@@ -99,7 +90,7 @@ class SparkToNeo4jDataConverter(options: Neo4jOptions) extends DataConverter[Val
             .toJavaDate(intValue),
           dataType
         )
-      case intValue: Int if dataType.isInstanceOf[YearMonthIntervalType] =>
+      case intValue: Int if dataType.isInstanceOf[YearMonthIntervalType] && !options.legacyTypeConversionEnabled =>
         SparkToNeo4jDataConverter.yearMonthIntervalToNeo4jDuration(intValue)
       case longValue: Long if dataType == DataTypes.TimestampType =>
         convert(DateTimeUtils.toJavaTimestamp(longValue), dataType)
