@@ -82,7 +82,7 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
                 # Get the jreleaser downloader
                 curl -sL https://raw.githubusercontent.com/jreleaser/release-action/refs/tags/2.5.0/get_jreleaser.java > get_jreleaser.java
 
-                # Download JReleaser with version = 1.22.0
+                # Download JReleaser
                 java get_jreleaser.java 1.22.0
 
                 if [ "%dry-run%" = "true" ]; then
