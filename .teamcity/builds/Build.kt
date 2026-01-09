@@ -30,11 +30,11 @@ class Build(
 
             parallel {
               scalaVersions.forEach { scala ->
-                dependentBuildType(SemgrepCheck(
-                    "${name}-semgrep-check-${scala.version}",
-                    "semgrep check (${scala.version})",
-                    scala
-                ))
+                dependentBuildType(
+                    SemgrepCheck(
+                        "${name}-semgrep-check-${scala.version}",
+                        "semgrep check (${scala.version})",
+                        scala))
               }
 
               javaVersions.cartesianProduct(scalaVersions, neo4jVersions).forEach {

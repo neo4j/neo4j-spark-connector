@@ -6,6 +6,8 @@ import builds.Neo4jVersion
 import builds.PySparkVersion
 import builds.ScalaVersion
 import jetbrains.buildServer.configs.kotlin.Project
+import jetbrains.buildServer.configs.kotlin.failureConditions.BuildFailureOnText
+import jetbrains.buildServer.configs.kotlin.failureConditions.failOnText
 import jetbrains.buildServer.configs.kotlin.project
 import jetbrains.buildServer.configs.kotlin.triggers.schedule
 import jetbrains.buildServer.configs.kotlin.triggers.vcs
@@ -69,6 +71,18 @@ project {
               appendLine("+:pull/*")
               appendLine("+:refs/heads/pull/*")
             }
+          }
+        }
+
+        // when a PR gets closed, TC falls back to main branch to run the pipeline, which we don't
+        // want
+        failureConditions {
+          failOnText {
+            conditionType = BuildFailureOnText.ConditionType.CONTAINS
+            pattern = "which does not correspond to any branch monitored by the build VCS roots"
+            failureMessage = "Error: The branch %teamcity.build.branch% does not exist"
+            reverse = false
+            stopBuildOnFailure = true
           }
         }
       },
