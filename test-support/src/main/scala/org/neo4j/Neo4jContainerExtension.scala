@@ -53,7 +53,7 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
             val session = driver.session(SessionConfig.forDatabase("system"))
             try {
               databases.foreach { db =>
-                session.writeTransaction(tx => tx.run(s"CREATE DATABASE $db IF NOT EXISTS WAIT").consume())
+                session.writeTransaction(tx => tx.run(s"CREATE DATABASE $db IF NOT EXISTS WAIT 30 SECONDS").consume())
 
                 val status = session.readTransaction(tx => {
                   tx.run(s"SHOW DATABASE $db YIELD currentStatus").single().get("currentStatus").asString()
