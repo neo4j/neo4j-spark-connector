@@ -44,51 +44,31 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
   override def waitUntilReady(): Unit = {
     val boltUrl = s"bolt://${waitStrategyTarget.getHost}:${waitStrategyTarget.getMappedPort(7687)}"
     val driver = GraphDatabase.driver(boltUrl, auth)
-    val systemSession = driver.session(SessionConfig.forDatabase("system"))
-    val tx = systemSession.beginTransaction()
     try {
-      databases.foreach { db => tx.run(s"CREATE DATABASE $db IF NOT EXISTS") }
-      tx.commit()
-    } finally {
-      tx.close()
-    }
-
-    try {
-
       Unreliables.retryUntilSuccess(
         startupTimeout.getSeconds.toInt,
         TimeUnit.SECONDS,
-        new Callable[Boolean] {
-          override def call(): Boolean = {
-            getRateLimiter.doWhenReady(new Runnable {
-              override def run(): Unit = {
-                if (databases.nonEmpty) {
-                  val tx = systemSession.beginTransaction()
-                  val databasesStatus =
-                    try {
-                      tx.run("SHOW DATABASES").list().asScala.map(db => {
-                        (db.get("name").asString(), db.get("currentStatus").asString())
-                      }).toMap
-                    } finally {
-                      tx.close()
-                    }
+        new Callable[Unit] {
+          override def call(): Unit = {
+            val session = driver.session(SessionConfig.forDatabase("system"))
+            try {
+              databases.foreach { db =>
+                session.writeTransaction(tx => tx.run(s"CREATE DATABASE $db IF NOT EXISTS WAIT 30 SECONDS").consume())
 
-                  val notOnline = databasesStatus.filter(it => {
-                    it._2 != "online"
-                  })
-
-                  if (databasesStatus.size < databases.size || notOnline.nonEmpty) {
-                    throw new RuntimeException(s"Cannot started because of the following databases: ${notOnline.keys}")
-                  }
+                val status = session.readTransaction(tx => {
+                  tx.run(s"SHOW DATABASE $db YIELD currentStatus").single().get("currentStatus").asString()
+                })
+                if (status != "online") {
+                  throw new RuntimeException(s"Database $db is not online yet, current status: $status")
                 }
               }
-            })
-            true
+            } finally {
+              session.close()
+            }
           }
         }
       )
     } finally {
-      systemSession.close()
       driver.close()
     }
   }
