@@ -19,14 +19,20 @@ package org.neo4j.spark
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.DayTimeIntervalType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.YearMonthIntervalType
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.neo4j.driver.types.IsoDuration
 import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.testsupport.TestUtil
@@ -39,6 +45,8 @@ import java.sql.Date
 import java.sql.Timestamp
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.util.TimeZone
 
@@ -905,5 +913,179 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     )
 
     assertEquals(expectedConstraint, actualConstraint)
+  }
+
+  @Test
+  def shouldWriteNodeWithLegacyTypeConversionDisabledByDefault(): Unit = {
+    val df = sparkSession.sql(
+      """
+        |SELECT
+        |  'legacy-type-conversion' AS id,
+        |  timestamp('2025-01-01 11:11:11') AS timestamp,
+        |  CAST('2025-01-01 11:11:11' AS TIMESTAMP_NTZ) AS timestampNtz,
+        |  INTERVAL '4' DAY AS dayInterval,
+        |  INTERVAL '10 05' DAY TO HOUR AS dayToHour,
+        |  timestamp('2025-01-02 18:30:00.454') - timestamp('2024-01-01 00:00:00') AS arithmeticDuration,
+        |  INTERVAL '3' YEAR AS yearInterval,
+        |  INTERVAL '1-2' YEAR TO MONTH AS yearToMonth,
+        |  CAST('erik' AS BINARY) AS binary,
+        |  CAST(array(1, 2, 3) AS array<tinyint>) AS byteArray
+        |""".stripMargin
+    )
+    assertTrue(df.schema("dayInterval").dataType.isInstanceOf[DayTimeIntervalType])
+    assertTrue(df.schema("dayToHour").dataType.isInstanceOf[DayTimeIntervalType])
+    assertTrue(df.schema("arithmeticDuration").dataType.isInstanceOf[DayTimeIntervalType])
+    assertTrue(df.schema("yearInterval").dataType.isInstanceOf[YearMonthIntervalType])
+    assertTrue(df.schema("yearToMonth").dataType.isInstanceOf[YearMonthIntervalType])
+
+    df.write
+      .mode(SaveMode.Overwrite)
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":LegacyTypeConversionDisabled")
+      .option("node.keys", "id")
+      .save()
+
+    val actual = SparkConnectorScalaSuiteIT.session().run(
+      """
+        |MATCH (n:LegacyTypeConversionDisabled {id: 'legacy-type-conversion'})
+        |RETURN n
+        |""".stripMargin
+    )
+      .single()
+      .get("n")
+      .asNode()
+      .asMap()
+      .asScala
+      .toMap
+    assertEquals(
+      Set(
+        "id",
+        "timestamp",
+        "timestampNtz",
+        "dayInterval",
+        "dayToHour",
+        "arithmeticDuration",
+        "yearInterval",
+        "yearToMonth",
+        "binary",
+        "byteArray"
+      ),
+      actual.keySet
+    )
+    assertEquals("legacy-type-conversion", actual("id"))
+    val expectedZoned = ZonedDateTime.of(2025, 1, 1, 11, 11, 11, 0, ZoneOffset.UTC)
+    assertEquals(expectedZoned, actual("timestamp"))
+    val expectedNtz = LocalDateTime.of(2025, 1, 1, 11, 11, 11)
+    assertEquals(expectedNtz, actual("timestampNtz"))
+    val dayInterval = actual("dayInterval").asInstanceOf[IsoDuration]
+    assertEquals(0L, dayInterval.months())
+    assertEquals(4L, dayInterval.days())
+    assertEquals(0L, dayInterval.seconds())
+    assertEquals(0, dayInterval.nanoseconds())
+    val dayToHour = actual("dayToHour").asInstanceOf[IsoDuration]
+    assertEquals(0L, dayToHour.months())
+    assertEquals(10L, dayToHour.days())
+    assertEquals(18000L, dayToHour.seconds())
+    assertEquals(0, dayToHour.nanoseconds())
+    val arithmetic = actual("arithmeticDuration").asInstanceOf[IsoDuration]
+    assertEquals(0L, arithmetic.months())
+    assertEquals(367L, arithmetic.days())
+    assertEquals(66600L, arithmetic.seconds())
+    assertEquals(454000000, arithmetic.nanoseconds())
+    val yearInterval = actual("yearInterval").asInstanceOf[IsoDuration]
+    assertEquals(36L, yearInterval.months())
+    assertEquals(0L, yearInterval.days())
+    assertEquals(0L, yearInterval.seconds())
+    assertEquals(0, yearInterval.nanoseconds())
+    val yearToMonth = actual("yearToMonth").asInstanceOf[IsoDuration]
+    assertEquals(14L, yearToMonth.months())
+    assertEquals(0L, yearToMonth.days())
+    assertEquals(0L, yearToMonth.seconds())
+    assertEquals(0, yearToMonth.nanoseconds())
+    assertArrayEquals(Array[Byte](101, 114, 105, 107), actual("binary").asInstanceOf[Array[Byte]])
+    assertArrayEquals(Array[Byte](1, 2, 3), actual("byteArray").asInstanceOf[Array[Byte]])
+  }
+
+  @Test
+  def shouldWriteNodeWithLegacyTypeConversionEnabled(): Unit = {
+    val df = sparkSession.sql(
+      """
+        |SELECT
+        |  'legacy-type-conversion' AS id,
+        |  timestamp('2025-01-01 11:11:11') AS timestamp,
+        |  CAST('2025-01-01 11:11:11' AS TIMESTAMP_NTZ) AS timestampNtz,
+        |  INTERVAL '4' DAY AS dayInterval,
+        |  INTERVAL '10 05' DAY TO HOUR AS dayToHour,
+        |  timestamp('2025-01-02 18:30:00.454') - timestamp('2024-01-01 00:00:00') AS arithmeticDuration,
+        |  INTERVAL '3' YEAR AS yearInterval,
+        |  INTERVAL '1-2' YEAR TO MONTH AS yearToMonth,
+        |  CAST('erik' AS BINARY) AS binary,
+        |  CAST(array(1, 2, 3) AS array<tinyint>) AS byteArray
+        |""".stripMargin
+    )
+    assertTrue(df.schema("dayInterval").dataType.isInstanceOf[DayTimeIntervalType])
+    assertTrue(df.schema("dayToHour").dataType.isInstanceOf[DayTimeIntervalType])
+    assertTrue(df.schema("arithmeticDuration").dataType.isInstanceOf[DayTimeIntervalType])
+    assertTrue(df.schema("yearInterval").dataType.isInstanceOf[YearMonthIntervalType])
+    assertTrue(df.schema("yearToMonth").dataType.isInstanceOf[YearMonthIntervalType])
+
+    df.write
+      .mode(SaveMode.Overwrite)
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":LegacyTypeConversionEnabled")
+      .option("node.keys", "id")
+      .option(Neo4jOptions.TYPE_CONVERSION, "legacy")
+      .save()
+
+    val actual = SparkConnectorScalaSuiteIT.session().run(
+      """
+        |MATCH (n:LegacyTypeConversionEnabled {id: 'legacy-type-conversion'})
+        |RETURN n
+        |""".stripMargin
+    )
+      .single()
+      .get("n")
+      .asNode()
+      .asMap()
+      .asScala
+      .toMap
+    assertEquals(
+      Set(
+        "id",
+        "timestamp",
+        "timestampNtz",
+        "dayInterval",
+        "dayToHour",
+        "arithmeticDuration",
+        "yearInterval",
+        "yearToMonth",
+        "binary",
+        "byteArray"
+      ),
+      actual.keySet
+    )
+    assertEquals("legacy-type-conversion", actual("id"))
+    val expectedTimestamp = ZonedDateTime.of(2025, 1, 1, 11, 11, 11, 0, ZoneOffset.UTC)
+      .withZoneSameInstant(ZoneId.systemDefault())
+      .toLocalDateTime
+    assertEquals(expectedTimestamp, actual("timestamp"))
+    assertEquals(
+      DateTimeUtils.localDateTimeToMicros(LocalDateTime.of(2025, 1, 1, 11, 11, 11)),
+      actual("timestampNtz").asInstanceOf[java.lang.Number].longValue()
+    )
+    assertEquals(4L * 24L * 3600L * 1000000L, actual("dayInterval").asInstanceOf[java.lang.Number].longValue())
+    assertEquals((10L * 24L + 5L) * 3600L * 1000000L, actual("dayToHour").asInstanceOf[java.lang.Number].longValue())
+    assertEquals(
+      (367L * 24L * 3600L + 66600L) * 1000000L + 454000L,
+      actual("arithmeticDuration").asInstanceOf[java.lang.Number].longValue()
+    )
+    assertEquals(36L, actual("yearInterval").asInstanceOf[java.lang.Number].longValue())
+    assertEquals(14L, actual("yearToMonth").asInstanceOf[java.lang.Number].longValue())
+    assertArrayEquals(Array[Byte](101, 114, 105, 107), actual("binary").asInstanceOf[Array[Byte]])
+    val byteArray = actual("byteArray").asInstanceOf[java.util.List[_]].asScala
+      .map(_.asInstanceOf[java.lang.Number].longValue())
+    assertEquals(Seq(1L, 2L, 3L), byteArray)
   }
 }

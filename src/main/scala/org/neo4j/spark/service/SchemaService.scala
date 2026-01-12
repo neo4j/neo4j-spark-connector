@@ -77,9 +77,9 @@ class SchemaService(
 
   private val sessionTransactionConfig = options.toNeo4jTransactionConfig
 
-  private val cypherToSparkTypeConverter = CypherToSparkTypeConverter()
+  private val cypherToSparkTypeConverter = CypherToSparkTypeConverter(options)
 
-  private val sparkToCypherTypeConverter = SparkToCypherTypeConverter()
+  private val sparkToCypherTypeConverter = SparkToCypherTypeConverter(options)
 
   private def structForNode(labels: Seq[String] = options.nodeMetadata.labels) = {
     val structFields: mutable.Buffer[StructField] = (try {
@@ -170,9 +170,9 @@ class SchemaService(
           case SchemaStrategy.SAMPLE => {
             val types = t._2.map(value => {
               if (options.query.queryType == QueryType.QUERY) {
-                normalizedClassName(value)
+                normalizedClassName(value, options)
               } else {
-                normalizedClassNameFromGraphEntity(value)
+                normalizedClassNameFromGraphEntity(value, options)
               }
             }).toSet
 
@@ -960,9 +960,9 @@ object SchemaService {
 
   val DURATION_TYPE = "duration"
 
-  def normalizedClassName(value: AnyRef): String = value match {
-    case _: Array[Byte]         => "ByteArray"
-    case _: java.util.List[_]   => "Array"
+  def normalizedClassName(value: AnyRef, options: Neo4jOptions): String = value match {
+    case _: Array[Byte]       => if (options.legacyTypeConversionEnabled) value.getClass.getSimpleName else "ByteArray"
+    case _: java.util.List[_] => "Array"
     case _: java.util.Map[_, _] => "Map"
     case null                   => "String"
     case _                      => value.getClass.getSimpleName
@@ -970,8 +970,8 @@ object SchemaService {
 
   // from nodes and relationships we cannot have maps as properties and elements in lists are the same type
   // special treatment for ByteArray required (pattern matching on Array != List)
-  def normalizedClassNameFromGraphEntity(value: AnyRef): String = value match {
-    case binary: Array[Byte]     => "ByteArray"
+  def normalizedClassNameFromGraphEntity(value: AnyRef, options: Neo4jOptions): String = value match {
+    case _: Array[Byte] => if (options.legacyTypeConversionEnabled) value.getClass.getSimpleName else "ByteArray"
     case list: java.util.List[_] => s"${list.get(0).getClass.getSimpleName}Array"
     case null                    => "String"
     case _                       => value.getClass.getSimpleName
