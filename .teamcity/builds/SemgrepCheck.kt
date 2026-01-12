@@ -15,7 +15,6 @@ class SemgrepCheck(id: String, name: String, scalaVersion: ScalaVersion) :
   init {
 
     params.password("env.SEMGREP_APP_TOKEN", "%semgrep-app-token%")
-    params.text("env.SEMGREP_BASELINE_REF", DEFAULT_BRANCH)
     params.text("env.SEMGREP_REPO_NAME", FULL_GITHUB_REPOSITORY)
     params.text("env.SEMGREP_REPO_URL", GITHUB_URL)
     params.text("env.SEMGREP_BRANCH", "%teamcity.build.branch%")
@@ -24,15 +23,7 @@ class SemgrepCheck(id: String, name: String, scalaVersion: ScalaVersion) :
 
     steps.step(
         ScriptBuildStep {
-          scriptContent = """
-            #!/bin/bash
-            set -eux
-            
-            unset SEMGREP_BASELINE_REF
-            export SEMGREP_BASELINE_COMMIT=$(git merge-base $DEFAULT_BRANCH %teamcity.build.branch%)
-            
-            semgrep ci --no-git-ignore
-            """.trimIndent()
+          scriptContent ="semgrep ci --no-git-ignore"
           dockerImagePlatform = ScriptBuildStep.ImagePlatform.Linux
           dockerImage = SEMGREP_DOCKER_IMAGE
           dockerRunParameters =
