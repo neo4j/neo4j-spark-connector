@@ -24,7 +24,15 @@ class SemgrepCheck(id: String, name: String, scalaVersion: ScalaVersion) :
 
     steps.step(
         ScriptBuildStep {
-          scriptContent = "semgrep ci --no-git-ignore"
+          scriptContent = """
+            #!/bin/bash
+            set -eux
+            
+            unset SEMGREP_BASELINE_REF
+            export SEMGREP_BASELINE_COMMIT=$(git merge-base $DEFAULT_BRANCH %teamcity.build.branch%)
+            
+            semgrep ci --no-git-ignore
+            """.trimIndent()
           dockerImagePlatform = ScriptBuildStep.ImagePlatform.Linux
           dockerImage = SEMGREP_DOCKER_IMAGE
           dockerRunParameters =
