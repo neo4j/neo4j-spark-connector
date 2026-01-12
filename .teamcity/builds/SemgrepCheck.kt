@@ -23,7 +23,7 @@ class SemgrepCheck(id: String, name: String, scalaVersion: ScalaVersion) :
 
     steps.step(
         ScriptBuildStep {
-          scriptContent ="semgrep ci --no-git-ignore"
+          scriptContent = "semgrep ci --no-git-ignore"
           dockerImagePlatform = ScriptBuildStep.ImagePlatform.Linux
           dockerImage = SEMGREP_DOCKER_IMAGE
           dockerRunParameters =
