@@ -15,6 +15,11 @@ class SemgrepCheck(id: String, name: String, scalaVersion: ScalaVersion) :
   init {
 
     params.password("env.SEMGREP_APP_TOKEN", "%semgrep-app-token%")
+    params.text("env.SEMGREP_REPO_NAME", FULL_GITHUB_REPOSITORY)
+    params.text("env.SEMGREP_REPO_URL", GITHUB_URL)
+    params.text("env.SEMGREP_BRANCH", "%teamcity.build.branch%")
+    params.text("env.SEMGREP_JOB_URL", "%env.BUILD_URL%")
+    params.text("env.SEMGREP_COMMIT", "%env.BUILD_VCS_NUMBER%")
 
     steps.step(
         ScriptBuildStep {
