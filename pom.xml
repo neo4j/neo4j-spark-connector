@@ -3,11 +3,11 @@
         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.neo4j</groupId>
-    <artifactId>neo4j-connector-apache-spark_parent</artifactId>
+    <artifactId>neo4j-connector-apache-spark</artifactId>
     <version>6.0.0-SNAPSHOT</version>
-    <packaging>pom</packaging>
-    <name>neo4j-connector-apache-spark_parent</name>
-    <description>Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
+    <packaging>jar</packaging>
+    <name>neo4j-connector-apache-spark-4</name>
+    <description>Neo4j Connector for Apache Spark 4 using the binary Bolt Driver</description>
     <url>https://github.com/neo4j/neo4j-spark-connector</url>
     <organization>
         <name>Neo4j, Inc.</name>
@@ -28,11 +28,6 @@
             <organizationUrl>https://neo4j.com</organizationUrl>
         </developer>
     </developers>
-    <modules>
-        <module>common</module>
-        <module>test-support</module>
-        <module>spark</module>
-    </modules>
     <scm>
         <url>https://github.com/neo4j/neo4j-spark-connector</url>
     </scm>
@@ -66,12 +61,17 @@
         <neo4j.experimental>false</neo4j.experimental>
         <neo4j.version>4.4.20</neo4j.version>
         <netty-bom.version>4.1.128.Final</netty-bom.version>
+        <powermock.version>2.0.9</powermock.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scala-maven-plugin.version>4.9.6</scala-maven-plugin.version>
         <scala.binary.version>2.13</scala.binary.version>
         <scala.version>2.13.18</scala.version>
         <slf4j-api.version>2.0.17</slf4j-api.version>
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
+        <spark-packages.artifactId>neo4j-spark-connector</spark-packages.artifactId>
+        <spark-packages.groupId>neo4j</spark-packages.groupId>
+        <spark-packages.packageName>${spark-packages.artifactId}-${spark-packages.version}</spark-packages.packageName>
+        <spark-packages.version/>
         <spark.version>4.0.1</spark.version>
         <spotless-maven-plugin.version>3.0.0</spotless-maven-plugin.version>
         <surefire.jvm.args/>
@@ -179,6 +179,11 @@
                 <version>${driver.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.objenesis</groupId>
+                <artifactId>objenesis</artifactId>
+                <version>3.4</version>
+            </dependency>
+            <dependency>
                 <groupId>org.scala-lang</groupId>
                 <artifactId>scala-library</artifactId>
                 <version>${scala.version}</version>
@@ -217,7 +222,145 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>caniuse-core</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.neo4j.driver</groupId>
+                    <artifactId>neo4j-java-driver</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.neo4j.driver</groupId>
+                    <artifactId>neo4j-java-driver-slim</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>caniuse-neo4j-detection</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.neo4j.driver</groupId>
+                    <artifactId>neo4j-java-driver</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.neo4j.driver</groupId>
+                    <artifactId>neo4j-java-driver-slim</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-dsl</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j.connectors</groupId>
+            <artifactId>commons-authn-spi</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j.driver</groupId>
+            <artifactId>neo4j-java-driver</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-core_${scala.binary.version}</artifactId>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.xbean</groupId>
+                    <artifactId>xbean-asm6-shaded</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql_${scala.binary.version}</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-reflect</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j.connectors</groupId>
+            <artifactId>commons-authn-provided</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j.connectors</groupId>
+            <artifactId>commons-authn-keycloak</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.powermock</groupId>
+            <artifactId>powermock-api-mockito2</artifactId>
+            <version>${powermock.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.powermock</groupId>
+            <artifactId>powermock-module-junit4</artifactId>
+            <version>${powermock.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_${scala.binary.version}</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scalatestplus</groupId>
+            <artifactId>junit-4-13_${scala.binary.version}</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jetbrains</groupId>
+                    <artifactId>annotations</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-neo4j</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>pl.pragmatists</groupId>
+            <artifactId>JUnitParams</artifactId>
+            <version>1.1.1</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
     <build>
+        <resources>
+            <resource>
+                <filtering>true</filtering>
+                <directory>src/main/resources</directory>
+            </resource>
+        </resources>
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -553,6 +696,46 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>${maven-resources-plugin.version}</version>
+                <configuration>
+                    <encoding>ISO-8859-1</encoding>
+                    <propertiesEncoding>${project.build.sourceEncoding}</propertiesEncoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>bin</id>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <phase>package</phase>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>src/main/assemblies/spark-packages-assembly.xml</descriptor>
+                            </descriptors>
+                            <appendAssemblyId>false</appendAssemblyId>
+                            <finalName>${spark-packages.packageName}</finalName>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

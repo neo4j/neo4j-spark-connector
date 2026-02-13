@@ -221,8 +221,10 @@ fun CompoundStage.dependentBuildType(bt: BuildType, reuse: ReuseBuilds = ReuseBu
 fun collectArtifacts(buildType: BuildType): BuildType {
   buildType.artifactRules =
       """
-        +:spark/target/*_for_spark_*.jar => packages
-        +:spark/target/*.zip => packages
+        +:target/neo4j-connector-apache-spark_*.jar => packages
+        -:target/*-sources.jar
+        -:target/*-javadoc.jar
+        +:target/*.zip => packages
     """
           .trimIndent()
 

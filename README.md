@@ -19,7 +19,7 @@ You can build for Spark 4.x with Scala 2.13
 ```
 
 These commands will generate the corresponding targets
-* `spark/target/neo4j-connector-apache-spark_2.13-<version>_for_spark_4.jar`
+* `spark/target/neo4j-connector-apache-spark_2.13-<version>.jar`
 
 
 ## Integration with Apache Spark Applications
