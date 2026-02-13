@@ -38,7 +38,7 @@
     </scm>
     <properties>
         <build-resources.version>2025.11.1</build-resources.version>
-        <caniuse.version>1.3.0</caniuse.version>
+        <caniuse.version>1.3.2</caniuse.version>
         <commons-compress.version>1.28.0</commons-compress.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <connectors-commons.version>1.0.0-rc2</connectors-commons.version>
