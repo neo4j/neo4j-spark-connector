@@ -37,7 +37,7 @@ project {
           javaVersions = setOf(JavaVersion.V_17, JavaVersion.V_21),
           scalaVersions = setOf(ScalaVersion.V2_13),
           pysparkVersions = setOf(PySparkVersion.V4_0, PySparkVersion.V4_1),
-          neo4jVersions = setOf(Neo4jVersion.V_4_4, Neo4jVersion.V_5, Neo4jVersion.V_2025),
+          neo4jVersions = setOf(Neo4jVersion.V_4_4, Neo4jVersion.V_5, Neo4jVersion.V_CALVER),
           forPullRequests = false,
       ) {
         triggers {
@@ -63,7 +63,7 @@ project {
           javaVersions = setOf(JavaVersion.V_17),
           scalaVersions = setOf(ScalaVersion.V2_13),
           pysparkVersions = setOf(PySparkVersion.V4_0),
-          neo4jVersions = setOf(Neo4jVersion.V_4_4, Neo4jVersion.V_5, Neo4jVersion.V_2025),
+          neo4jVersions = setOf(Neo4jVersion.V_4_4, Neo4jVersion.V_5, Neo4jVersion.V_CALVER),
           forPullRequests = true,
       ) {
         triggers {

@@ -39,7 +39,6 @@ const val SEMGREP_DOCKER_IMAGE = "semgrep/semgrep:1.146.0"
 const val FULL_GITHUB_REPOSITORY = "$GITHUB_OWNER/$GITHUB_REPOSITORY"
 const val GITHUB_URL = "https://github.com/$FULL_GITHUB_REPOSITORY"
 
-
 val DEFAULT_JAVA_VERSION = JavaVersion.V_17
 
 // Look into Root Project's settings -> Connections
@@ -129,10 +128,10 @@ enum class Neo4jVersion(val version: String, val dockerImage: String) {
       "5-dev",
       "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:5-enterprise-debian-nightly-bundle",
   ),
-  V_2025("2025", "neo4j:2025-enterprise"),
-  V_2025_DEV(
-      "2025-dev",
-      "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:2025-enterprise-debian-nightly-bundle",
+  V_CALVER("2026", "neo4j:2026-enterprise"),
+  V_CALVER_DEV(
+      "2026-dev",
+      "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:2026-enterprise-debian-nightly-bundle",
   ),
 }
 
