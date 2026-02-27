@@ -1,10 +1,10 @@
 {
   "devDependencies": {
-    "@commitlint/cli": "^20.1.0",
-    "@commitlint/config-conventional": "^20.0.0",
-    "@commitlint/lint": "^20.0.0",
-    "@commitlint/load": "^20.1.0",
-    "danger": "^13.0.4",
+    "@commitlint/cli": "^20.4.2",
+    "@commitlint/config-conventional": "^20.4.2",
+    "@commitlint/lint": "^20.4.2",
+    "@commitlint/load": "^20.4.0",
+    "danger": "^13.0.5",
     "husky": "^9.1.7"
   },
   "scripts": {
