@@ -60,6 +60,15 @@ object DataSourceSchemaWriterTSE {
 class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
   val timeZoneLock = "UTC" // to make TIMESTAMP_NTZ tests deterministic
 
+  final private val showConstraintsQuery =
+    "SHOW CONSTRAINTS \nYIELD name, type, entityType, labelsOrTypes, properties, ownedIndex"
+
+  final private val nodeUniquenessShowConstraintsQuery =
+    "SHOW CONSTRAINTS \nYIELD name, type AS ptype, entityType, labelsOrTypes, properties, ownedIndex\nRETURN name, entityType, labelsOrTypes, properties, ownedIndex,\nCASE ptype\n  WHEN \"UNIQUENESS\" THEN \"NODE_PROPERTY_UNIQUENESS\"\n  ELSE ptype\nEND AS type"
+
+  final private val relationshipUniquenessShowConstraintsQuery =
+    "SHOW CONSTRAINTS \nYIELD name, type AS ptype, entityType, labelsOrTypes, properties, ownedIndex\nRETURN name, entityType, labelsOrTypes, properties, ownedIndex,\nCASE ptype\n  WHEN \"RELATIONSHIP_UNIQUENESS\" THEN \"RELATIONSHIP_PROPERTY_UNIQUENESS\"\n  ELSE ptype\nEND AS type"
+
   val sparkSession = SparkSession.builder()
     .master("local[*]")
     .appName("DataSourceWriterTSE")
@@ -858,19 +867,18 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .toSet
     assertEquals(expected, records)
 
-    val actualConstraint = SparkConnectorScalaSuiteIT.session().run("SHOW CONSTRAINTS")
+    val actualConstraint = SparkConnectorScalaSuiteIT.session().run(nodeUniquenessShowConstraintsQuery)
       .list()
       .asScala
       .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_NODE_UNIQUE-CONSTRAINT_Person_surname",
-      "type" -> "UNIQUENESS",
+      "type" -> "NODE_PROPERTY_UNIQUENESS",
       "entityType" -> "NODE",
       "labelsOrTypes" -> Seq("Person"),
       "properties" -> Seq("surname"),
-      "ownedIndex" -> "spark_NODE_UNIQUE-CONSTRAINT_Person_surname",
-      "propertyType" -> null
+      "ownedIndex" -> "spark_NODE_UNIQUE-CONSTRAINT_Person_surname"
     )
     assertEquals(expectedConstraint, actualConstraint)
 
@@ -904,7 +912,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .toSet
     assertEquals(expected, records)
 
-    val actualConstraint = SparkConnectorScalaSuiteIT.session().run("SHOW CONSTRAINTS")
+    val actualConstraint = SparkConnectorScalaSuiteIT.session().run(showConstraintsQuery)
       .list()
       .asScala
       .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
@@ -915,8 +923,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       "entityType" -> "NODE",
       "labelsOrTypes" -> Seq("Person"),
       "properties" -> Seq("surname"),
-      "ownedIndex" -> "spark_NODE_KEY-CONSTRAINT_Person_surname",
-      "propertyType" -> null
+      "ownedIndex" -> "spark_NODE_KEY-CONSTRAINT_Person_surname"
     )
     assertEquals(expectedConstraint, actualConstraint)
 
@@ -950,19 +957,18 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(expectedMap, actualMap)
 
-    val actualConstraint = SparkConnectorScalaSuiteIT.session().run("SHOW CONSTRAINTS")
+    val actualConstraint = SparkConnectorScalaSuiteIT.session().run(relationshipUniquenessShowConstraintsQuery)
       .list()
       .asScala
       .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_RELATIONSHIP_UNIQUE-CONSTRAINT_MY_REL_string-int",
-      "type" -> "RELATIONSHIP_UNIQUENESS",
+      "type" -> "RELATIONSHIP_PROPERTY_UNIQUENESS",
       "entityType" -> "RELATIONSHIP",
       "labelsOrTypes" -> Seq("MY_REL"),
       "properties" -> Seq("string", "int"),
-      "ownedIndex" -> "spark_RELATIONSHIP_UNIQUE-CONSTRAINT_MY_REL_string-int",
-      "propertyType" -> null
+      "ownedIndex" -> "spark_RELATIONSHIP_UNIQUE-CONSTRAINT_MY_REL_string-int"
     )
     assertEquals(expectedConstraint, actualConstraint)
   }
@@ -995,7 +1001,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(expectedMap, actualMap)
 
-    val actualConstraint = SparkConnectorScalaSuiteIT.session().run("SHOW CONSTRAINTS")
+    val actualConstraint = SparkConnectorScalaSuiteIT.session().run(showConstraintsQuery)
       .list()
       .asScala
       .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
@@ -1006,8 +1012,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       "entityType" -> "RELATIONSHIP",
       "labelsOrTypes" -> Seq("MY_REL"),
       "properties" -> Seq("string", "int"),
-      "ownedIndex" -> "spark_RELATIONSHIP_KEY-CONSTRAINT_MY_REL_string-int",
-      "propertyType" -> null
+      "ownedIndex" -> "spark_RELATIONSHIP_KEY-CONSTRAINT_MY_REL_string-int"
     )
 
     assertEquals(expectedConstraint, actualConstraint)
