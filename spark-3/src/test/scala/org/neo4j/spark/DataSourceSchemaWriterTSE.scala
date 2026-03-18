@@ -60,14 +60,27 @@ object DataSourceSchemaWriterTSE {
 class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
   val timeZoneLock = "UTC" // to make TIMESTAMP_NTZ tests deterministic
 
-  final private val showConstraintsQuery =
-    "SHOW CONSTRAINTS \nYIELD name, type, entityType, labelsOrTypes, properties, ownedIndex"
+  final private val SHOW_CONSTRAINTS_QUERY =
+    """|SHOW CONSTRAINTS
+       |YIELD name, type, entityType, labelsOrTypes, properties, ownedIndex""".stripMargin
 
-  final private val nodeUniquenessShowConstraintsQuery =
-    "SHOW CONSTRAINTS \nYIELD name, type AS ptype, entityType, labelsOrTypes, properties, ownedIndex\nRETURN name, entityType, labelsOrTypes, properties, ownedIndex,\nCASE ptype\n  WHEN \"UNIQUENESS\" THEN \"NODE_PROPERTY_UNIQUENESS\"\n  ELSE ptype\nEND AS type"
+  final private val NODE_UNIQUENESS_SHOW_CONSTRAINTS_QUERY =
+    """|SHOW CONSTRAINTS
+       |YIELD name, type AS ptype, entityType, labelsOrTypes, properties, ownedIndex
+       |RETURN name, entityType, labelsOrTypes, properties, ownedIndex,
+       |CASE ptype
+       |  WHEN "UNIQUENESS" THEN "NODE_PROPERTY_UNIQUENESS"
+       |  ELSE ptype
+       |END AS type""".stripMargin
 
-  final private val relationshipUniquenessShowConstraintsQuery =
-    "SHOW CONSTRAINTS \nYIELD name, type AS ptype, entityType, labelsOrTypes, properties, ownedIndex\nRETURN name, entityType, labelsOrTypes, properties, ownedIndex,\nCASE ptype\n  WHEN \"RELATIONSHIP_UNIQUENESS\" THEN \"RELATIONSHIP_PROPERTY_UNIQUENESS\"\n  ELSE ptype\nEND AS type"
+  final private val RELATIONSHIP_UNIQUENESS_SHOW_CONSTRAINTS_QUERY =
+    """|SHOW CONSTRAINTS
+       |YIELD name, type AS ptype, entityType, labelsOrTypes, properties, ownedIndex
+       |RETURN name, entityType, labelsOrTypes, properties, ownedIndex,
+       |CASE ptype
+       |  WHEN "RELATIONSHIP_UNIQUENESS" THEN "RELATIONSHIP_PROPERTY_UNIQUENESS"
+       |  ELSE ptype
+       |END AS type""".stripMargin
 
   val sparkSession = SparkSession.builder()
     .master("local[*]")
@@ -867,7 +880,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .toSet
     assertEquals(expected, records)
 
-    val actualConstraint = SparkConnectorScalaSuiteIT.session().run(nodeUniquenessShowConstraintsQuery)
+    val actualConstraint = SparkConnectorScalaSuiteIT.session().run(NODE_UNIQUENESS_SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
       .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
@@ -912,7 +925,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .toSet
     assertEquals(expected, records)
 
-    val actualConstraint = SparkConnectorScalaSuiteIT.session().run(showConstraintsQuery)
+    val actualConstraint = SparkConnectorScalaSuiteIT.session().run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
       .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
@@ -957,7 +970,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(expectedMap, actualMap)
 
-    val actualConstraint = SparkConnectorScalaSuiteIT.session().run(relationshipUniquenessShowConstraintsQuery)
+    val actualConstraint = SparkConnectorScalaSuiteIT.session().run(RELATIONSHIP_UNIQUENESS_SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
       .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
@@ -1001,7 +1014,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(expectedMap, actualMap)
 
-    val actualConstraint = SparkConnectorScalaSuiteIT.session().run(showConstraintsQuery)
+    val actualConstraint = SparkConnectorScalaSuiteIT.session().run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
       .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
