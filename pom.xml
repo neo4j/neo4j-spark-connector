@@ -69,9 +69,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scala-maven-plugin.version>4.9.6</scala-maven-plugin.version>
         <scala.binary.version>2.13</scala.binary.version>
-        <scala.version>2.13.18</scala.version>
+        <scala.version>3.3.7</scala.version>
+        <scala2.library.version>${scala.version}</scala2.library.version>
         <slf4j-api.version>2.0.17</slf4j-api.version>
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
+        <spark.scala.binary.version>2.13</spark.scala.binary.version>
         <spark.version>4.0.1</spark.version>
         <spotless-maven-plugin.version>3.0.0</spotless-maven-plugin.version>
         <surefire.jvm.args/>
@@ -110,7 +112,7 @@
             </dependency>
             <dependency>
                 <groupId>org.apache.spark</groupId>
-                <artifactId>spark-sql_${scala.binary.version}</artifactId>
+                <artifactId>spark-sql_${spark.scala.binary.version}</artifactId>
                 <version>${spark.version}</version>
             </dependency>
             <dependency>
@@ -181,12 +183,12 @@
             <dependency>
                 <groupId>org.scala-lang</groupId>
                 <artifactId>scala-library</artifactId>
-                <version>${scala.version}</version>
+                <version>${scala2.library.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.scala-lang</groupId>
                 <artifactId>scala-reflect</artifactId>
-                <version>${scala.version}</version>
+                <version>${scala2.library.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.scalatest</groupId>
@@ -205,7 +207,7 @@
             </dependency>
             <dependency>
                 <groupId>org.apache.spark</groupId>
-                <artifactId>spark-core_${scala.binary.version}</artifactId>
+                <artifactId>spark-core_${spark.scala.binary.version}</artifactId>
                 <version>${spark.version}</version>
                 <scope>provided</scope>
                 <exclusions>
@@ -455,6 +457,14 @@
                                 <goal>add-source</goal>
                                 <goal>compile</goal>
                                 <goal>testCompile</goal>
+                            </goals>
+                            <phase>process-resources</phase>
+                        </execution>
+                        <!-- Separate execution so scala-3-poc can disable it: doc-jar uses Scala 2 scaladoc
+                             CLI flags that Scala 3 rejects, which breaks the build (see scala-maven-plugin #862). -->
+                        <execution>
+                            <id>scala-doc-jar</id>
+                            <goals>
                                 <goal>doc-jar</goal>
                             </goals>
                             <phase>process-resources</phase>
@@ -557,6 +567,52 @@
         </plugins>
     </build>
     <profiles>
+        <profile>
+            <id>scala-3-poc</id>
+            <properties>
+                <scala.binary.version>3</scala.binary.version>
+                <scala.version>3.3.7</scala.version>
+                <scala2.library.version>2.13.18</scala2.library.version>
+                <spark.scala.binary.version>2.13</spark.scala.binary.version>
+                <spotless.skip>true</spotless.skip>
+            </properties>
+            <dependencyManagement>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.scala-lang</groupId>
+                        <artifactId>scala3-library_3</artifactId>
+                        <version>${scala.version}</version>
+                    </dependency>
+                </dependencies>
+            </dependencyManagement>
+            <build>
+                <pluginManagement>
+                    <plugins>
+                        <plugin>
+                            <groupId>net.alchim31.maven</groupId>
+                            <artifactId>scala-maven-plugin</artifactId>
+                            <configuration>
+                                <scalaVersion>${scala.version}</scalaVersion>
+                                <scalaCompatVersion>3</scalaCompatVersion>
+                                <args>
+                                    <arg>-release:17</arg>
+                                    <arg>-source:3.0-migration</arg>
+                                    <arg>-explain</arg>
+                                </args>
+                            </configuration>
+                            <executions>
+                                <!-- scala-maven-plugin passes -doc-title / -doc-format for Scala 2 scaladoc;
+                                     Scala 3 ignores them and treats the title as a source path (build error). -->
+                                <execution>
+                                    <id>scala-doc-jar</id>
+                                    <phase>none</phase>
+                                </execution>
+                            </executions>
+                        </plugin>
+                    </plugins>
+                </pluginManagement>
+            </build>
+        </profile>
         <profile>
             <id>scala-2.13</id>
             <activation>

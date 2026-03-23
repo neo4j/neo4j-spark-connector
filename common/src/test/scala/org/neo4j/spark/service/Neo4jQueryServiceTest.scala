@@ -994,7 +994,7 @@ class Neo4jQueryServiceTest {
     )
   }
 
-  def versions_and_prefixes(): Array[Array[Any]] = {
+  def versions_and_prefixes(): Array[Array[org.neo4j.caniuse.Neo4j | String]] = {
     Array(
       Array(neo4j(version(4, 4), COMMUNITY), ""),
       Array(neo4j(version(4, 4), ENTERPRISE), ""),

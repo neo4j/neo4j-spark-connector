@@ -19,10 +19,13 @@ package org.neo4j.spark
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.SparkException
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.junit
-import org.junit.Assert._
+import org.junit.Assert.*
 import org.junit.Ignore
 import org.junit.Test
 import org.neo4j.driver.TransactionContext
@@ -36,15 +39,14 @@ import org.neo4j.driver.types.Type
 import org.neo4j.spark.RowUtil.getByName
 import org.neo4j.spark.util.Neo4jOptions
 import org.scalatest.matchers.must.Matchers.be
-import org.scalatest.matchers.must.Matchers.include
 import org.scalatest.matchers.must.Matchers.the
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.matchers.should.Matchers.convertToStringShouldWrapperForVerb
 
 import java.time.LocalTime
 import java.time.OffsetTime
 
-import scala.collection.JavaConverters._
 import scala.collection.immutable.ListMap
+import scala.jdk.CollectionConverters.*
 import scala.language.postfixOps
 import scala.math.Ordering.Implicits.infixOrderingOps
 import scala.util.Random
@@ -62,18 +64,362 @@ case class Time(`type`: String = "offset-time", value: String) extends Neo4jType
 
 case class LocalTimeValue(`type`: String = "local-time", value: String) extends Neo4jType(`type`)
 
-case class Person(name: String, surname: String, age: Int, livesIn: Point3d)
+case class Person(name: String, surname: String, age: Int, livesIn: Option[Point3d])
 
 case class Person_TimeAndLocalTime(name: String, time: Time, localTime: LocalTimeValue)
 
-case class SimplePerson(name: String, surname: String)
+case class SimplePerson(name: String, surname: Option[String])
 
 case class EmptyRow[T](data: T)
 
 class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
-  val sparkSession = SparkSession.builder().getOrCreate()
 
-  import sparkSession.implicits._
+  private def dfSingleFooString(values: Seq[String]): DataFrame = {
+    val st = StructType(Seq(StructField("foo", DataTypes.StringType, true)))
+    ss.createDataFrame(values.map(s => Row(s)).asJava, st)
+  }
+
+  private def dfSingleFooInt(values: Seq[Int]): DataFrame = {
+    val st = StructType(Seq(StructField("foo", DataTypes.IntegerType, true)))
+    ss.createDataFrame(values.map(i => Row(Int.box(i))).asJava, st)
+  }
+
+  private def dfSingleFooDate(values: Seq[java.sql.Date]): DataFrame = {
+    val st = StructType(Seq(StructField("foo", DataTypes.DateType, true)))
+    ss.createDataFrame(values.map(d => Row(d)).asJava, st)
+  }
+
+  private def dfSingleFooTimestamp(values: Seq[java.sql.Timestamp]): DataFrame = {
+    val st = StructType(Seq(StructField("foo", DataTypes.TimestampType, true)))
+    ss.createDataFrame(values.map(t => Row(t)).asJava, st)
+  }
+
+  private def dfSingleFooStringArray(rows: Seq[Array[String]]): DataFrame = {
+    val st = StructType(Seq(StructField("foo", DataTypes.createArrayType(DataTypes.StringType, false), true)))
+    ss.createDataFrame(rows.map(a => Row(a)).asJava, st)
+  }
+
+  private def dfSingleFooLongArray(rows: Seq[Array[Long]]): DataFrame = {
+    val st = StructType(Seq(StructField("foo", DataTypes.createArrayType(DataTypes.LongType, false), true)))
+    ss.createDataFrame(rows.map(a => Row(a)).asJava, st)
+  }
+
+  private def dfSingleFooMapStringInt(rows: Seq[Map[String, Int]]): DataFrame = {
+    val mt = DataTypes.createMapType(DataTypes.StringType, DataTypes.IntegerType)
+    val st = StructType(Seq(StructField("foo", mt, true)))
+    ss.createDataFrame(
+      rows.map(m => Row(m.map { case (k, v) => k -> Int.box(v) }.asJava)).asJava,
+      st
+    )
+  }
+
+  private def dfMusician3(rows: (Int, String, String)*): DataFrame = {
+    val st = StructType(
+      Seq(
+        StructField("experience", DataTypes.IntegerType, false),
+        StructField("name", DataTypes.StringType, false),
+        StructField("instrument", DataTypes.StringType, false)
+      )
+    )
+    ss.createDataFrame(rows.map { case (a, b, c) => Row(Int.box(a), b, c) }.asJava, st)
+  }
+
+  private def dfMusician3WhoName(rows: (Int, String, String)*): DataFrame = {
+    val st = StructType(
+      Seq(
+        StructField("experience", DataTypes.IntegerType, false),
+        StructField("who:name", DataTypes.StringType, false),
+        StructField("instrument", DataTypes.StringType, false)
+      )
+    )
+    ss.createDataFrame(rows.map { case (a, b, c) => Row(Int.box(a), b, c) }.asJava, st)
+  }
+
+  private def dfMusician4Unusual(rows: (Int, String, String, String)*): DataFrame = {
+    val st = StructType(
+      Seq(
+        StructField("experience", DataTypes.IntegerType, false),
+        StructField("name", DataTypes.StringType, false),
+        StructField("instrument", DataTypes.StringType, false),
+        StructField("fi``(╯°□°)╯︵ ┻━┻eld", DataTypes.StringType, false)
+      )
+    )
+    ss.createDataFrame(rows.map { case (a, b, c, d) => Row(Int.box(a), b, c, d) }.asJava, st)
+  }
+
+  private def dfMusician4WithId(rows: (Int, Int, String, String)*): DataFrame = {
+    val st = StructType(
+      Seq(
+        StructField("id", DataTypes.IntegerType, false),
+        StructField("experience", DataTypes.IntegerType, false),
+        StructField("name", DataTypes.StringType, false),
+        StructField("instrument", DataTypes.StringType, false)
+      )
+    )
+    ss.createDataFrame(rows.map { case (a, b, c, d) => Row(Int.box(a), Int.box(b), c, d) }.asJava, st)
+  }
+
+  private def dfMusician5(rows: (Int, String, String, Int, Boolean)*): DataFrame = {
+    val st = StructType(
+      Seq(
+        StructField("experience", DataTypes.IntegerType, false),
+        StructField("name", DataTypes.StringType, false),
+        StructField("instrument", DataTypes.StringType, false),
+        StructField("rating", DataTypes.IntegerType, false),
+        StructField("hasDiploma", DataTypes.BooleanType, false)
+      )
+    )
+    ss.createDataFrame(
+      rows.map { case (a, b, c, d, e) =>
+        Row(Int.box(a), b, c, Int.box(d), java.lang.Boolean.valueOf(e))
+      }.asJava,
+      st
+    )
+  }
+
+  private def dfSurnameStrings(values: Seq[String]): DataFrame = {
+    val st = StructType(Seq(StructField("surname", DataTypes.StringType, true)))
+    ss.createDataFrame(values.map(s => Row(s)).asJava, st)
+  }
+
+  private def dfNameInstrument(rows: (String, String)*): DataFrame = {
+    val st = StructType(
+      Seq(
+        StructField("name", DataTypes.StringType, false),
+        StructField("instrument", DataTypes.StringType, false)
+      )
+    )
+    ss.createDataFrame(rows.map { case (a, b) => Row(a, b) }.asJava, st)
+  }
+
+  /** Row/schema-based: Kryo on [[SimplePerson]] does not reliably round-trip `Option` fields for the write path. */
+  private def dfSimplePerson(seq: Seq[SimplePerson]): DataFrame = {
+    val st = StructType(
+      Seq(
+        StructField("name", DataTypes.StringType, false),
+        StructField("surname", DataTypes.StringType, true)
+      )
+    )
+    ss.createDataFrame(
+      seq.map { case SimplePerson(n, s) => Row(n, s.orNull) }.asJava,
+      st
+    )
+  }
+
+  private val point2dStruct: StructType = StructType(
+    Seq(
+      StructField("type", DataTypes.StringType, true),
+      StructField("srid", DataTypes.IntegerType, false),
+      StructField("x", DataTypes.DoubleType, false),
+      StructField("y", DataTypes.DoubleType, false)
+    )
+  )
+
+  private val point3dStruct: StructType = StructType(
+    Seq(
+      StructField("type", DataTypes.StringType, true),
+      StructField("srid", DataTypes.IntegerType, false),
+      StructField("x", DataTypes.DoubleType, false),
+      StructField("y", DataTypes.DoubleType, false),
+      StructField("z", DataTypes.DoubleType, false)
+    )
+  )
+
+  private val durationStruct: StructType = StructType(
+    Seq(
+      StructField("type", DataTypes.StringType, true),
+      StructField("months", DataTypes.LongType, false),
+      StructField("days", DataTypes.LongType, false),
+      StructField("seconds", DataTypes.LongType, false),
+      StructField("nanoseconds", DataTypes.LongType, false)
+    )
+  )
+
+  private val timeValueStruct: StructType = StructType(
+    Seq(
+      StructField("type", DataTypes.StringType, true),
+      StructField("value", DataTypes.StringType, false)
+    )
+  )
+
+  private def rowPoint2d(p: Point2d): Row =
+    Row(p.`type`, Int.box(p.srid), p.x, p.y)
+
+  private def rowPoint3d(p: Point3d): Row =
+    Row(p.`type`, Int.box(p.srid), p.x, p.y, p.z)
+
+  private def rowDuration(d: Duration): Row =
+    Row(d.`type`, Long.box(d.months), Long.box(d.days), Long.box(d.seconds), Long.box(d.nanoseconds))
+
+  private def rowTime(t: Time): Row = Row(t.`type`, t.value)
+
+  private def rowLocalTimeValue(l: LocalTimeValue): Row = Row(l.`type`, l.value)
+
+  private def tuplePoint2d(s: Row): (Int, Double, Double) =
+    (s.getInt(1), s.getDouble(2), s.getDouble(3))
+
+  private def tuplePoint3d3(s: Row): (Int, Double, Double) =
+    (s.getInt(1), s.getDouble(2), s.getDouble(3))
+
+  private def tuplePoint3d4(s: Row): (Int, Double, Double, Double) =
+    (s.getInt(1), s.getDouble(2), s.getDouble(3), s.getDouble(4))
+
+  private def tupleDuration(s: Row): (Long, Long, Long, Long) =
+    (s.getLong(1), s.getLong(2), s.getLong(3), s.getLong(4))
+
+  private def seqRow(cell: Any): Seq[Row] = cell match {
+    case null                       => Seq.empty
+    case s: scala.collection.Seq[?] => s.toSeq.asInstanceOf[Seq[Row]]
+    case l: java.util.List[?]       => l.asScala.toSeq.asInstanceOf[Seq[Row]]
+    case a: Array[?]                => (0 until a.length).map(i => a(i).asInstanceOf[Row]).toSeq
+  }
+
+  private def dfPerson(seq: Seq[Person]): DataFrame = {
+    val st = StructType(
+      Seq(
+        StructField("name", DataTypes.StringType, false),
+        StructField("surname", DataTypes.StringType, false),
+        StructField("age", DataTypes.IntegerType, false),
+        StructField("livesIn", point3dStruct, true)
+      )
+    )
+    ss.createDataFrame(
+      seq.map {
+        case Person(n, s, a, None)         => Row(n, s, Int.box(a), null)
+        case Person(n, s, a, Some(point3)) => Row(n, s, Int.box(a), rowPoint3d(point3))
+      }.asJava,
+      st
+    )
+  }
+
+  private def dfEmptyRowPoint2d(seq: Seq[EmptyRow[Point2d]]): DataFrame = {
+    val st = StructType(Seq(StructField("data", point2dStruct, false)))
+    ss.createDataFrame(seq.map { case EmptyRow(p) => Row(rowPoint2d(p)) }.asJava, st)
+  }
+
+  private def dfEmptyRowSeqPoint2d(seq: Seq[EmptyRow[Seq[Point2d]]]): DataFrame = {
+    val arr = DataTypes.createArrayType(point2dStruct, false)
+    val st = StructType(Seq(StructField("data", arr, false)))
+    ss.createDataFrame(
+      seq.map { case EmptyRow(points) => Row(points.map(rowPoint2d).toArray) }.asJava,
+      st
+    )
+  }
+
+  private def dfEmptyRowPoint3d(seq: Seq[EmptyRow[Point3d]]): DataFrame = {
+    val st = StructType(Seq(StructField("data", point3dStruct, false)))
+    ss.createDataFrame(seq.map { case EmptyRow(p) => Row(rowPoint3d(p)) }.asJava, st)
+  }
+
+  private def dfEmptyRowSeqPoint3d(seq: Seq[EmptyRow[Seq[Point3d]]]): DataFrame = {
+    val arr = DataTypes.createArrayType(point3dStruct, false)
+    val st = StructType(Seq(StructField("data", arr, false)))
+    ss.createDataFrame(
+      seq.map { case EmptyRow(points) => Row(points.map(rowPoint3d).toArray) }.asJava,
+      st
+    )
+  }
+
+  private def dfEmptyRowDuration(seq: Seq[EmptyRow[Duration]]): DataFrame = {
+    val st = StructType(Seq(StructField("data", durationStruct, false)))
+    ss.createDataFrame(seq.map { case EmptyRow(d) => Row(rowDuration(d)) }.asJava, st)
+  }
+
+  private def dfEmptyRowSeqDuration(seq: Seq[EmptyRow[Seq[Duration]]]): DataFrame = {
+    val arr = DataTypes.createArrayType(durationStruct, false)
+    val st = StructType(Seq(StructField("data", arr, false)))
+    ss.createDataFrame(
+      seq.map { case EmptyRow(durations) => Row(durations.map(rowDuration).toArray) }.asJava,
+      st
+    )
+  }
+
+  private def dfPersonTimeLocal(seq: Seq[Person_TimeAndLocalTime]): DataFrame = {
+    val st = StructType(
+      Seq(
+        StructField("name", DataTypes.StringType, false),
+        StructField("time", timeValueStruct, false),
+        StructField("localTime", timeValueStruct, false)
+      )
+    )
+    ss.createDataFrame(
+      seq.map { case Person_TimeAndLocalTime(n, t, lt) => Row(n, rowTime(t), rowLocalTimeValue(lt)) }.asJava,
+      st
+    )
+  }
+
+  private def dfOrderComplex(
+    rows: (String, Int, String, Seq[Map[String, Int]])*
+  ): DataFrame = {
+    val mapType = DataTypes.createMapType(DataTypes.StringType, DataTypes.IntegerType)
+    val productsType = DataTypes.createArrayType(mapType)
+    val st = StructType(
+      Seq(
+        StructField("actor_name", DataTypes.StringType, false),
+        StructField("order_id", DataTypes.IntegerType, false),
+        StructField("order_date", DataTypes.StringType, false),
+        StructField("products", productsType, false)
+      )
+    )
+    val sparkRows = rows.map { case (name, oid, date, products) =>
+      Row(
+        name,
+        Int.box(oid),
+        date,
+        products.map(m => m.map { case (k, v) => k -> Int.box(v) }.asJava).asJava
+      )
+    }
+    ss.createDataFrame(sparkRows.asJava, st)
+  }
+
+  private def dfNestedMapTable(rows: (String, Int, Map[String, Map[String, String]])*): DataFrame = {
+    val inner = DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType)
+    val tableType = DataTypes.createMapType(DataTypes.StringType, inner)
+    val st = StructType(
+      Seq(
+        StructField("id", DataTypes.StringType, false),
+        StructField("time", DataTypes.IntegerType, false),
+        StructField("table", tableType, false)
+      )
+    )
+    ss.createDataFrame(
+      rows.map { case (id, time, table) =>
+        Row(id, Int.box(time), table.map { case (k, v) => k -> v.asJava }.asJava)
+      }.asJava,
+      st
+    )
+  }
+
+  private def dfListMapTable(rows: (String, Int, ListMap[String, Map[String, String]])*): DataFrame = {
+    val inner = DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType)
+    val tableType = DataTypes.createMapType(DataTypes.StringType, inner)
+    val st = StructType(
+      Seq(
+        StructField("id", DataTypes.StringType, false),
+        StructField("time", DataTypes.IntegerType, false),
+        StructField("table", tableType, false)
+      )
+    )
+    ss.createDataFrame(
+      rows.map { case (id, time, table) =>
+        val jOuter = new java.util.LinkedHashMap[String, java.util.Map[String, String]]()
+        table.foreach { case (k, v) => jOuter.put(k, v.asJava) }
+        Row(id, Int.box(time), jOuter)
+      }.asJava,
+      st
+    )
+  }
+
+  private def dfWatched(rows: (String, String, String)*): DataFrame = {
+    val st = StructType(
+      Seq(
+        StructField("username", DataTypes.StringType, false),
+        StructField("movie_title", DataTypes.StringType, false),
+        StructField("watch_time", DataTypes.StringType, false)
+      )
+    )
+    ss.createDataFrame(rows.map { case (a, b, c) => Row(a, b, c) }.asJava, st)
+  }
 
   private def testType[T](ds: DataFrame, neo4jType: Type): Unit = {
     ds.write
@@ -183,9 +529,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write nodes with string values into Neo4j`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i => i.toString)
-      .toDF("foo")
+    val ds = dfSingleFooString((1 to total).map(_.toString).toSeq)
 
     testType[String](ds, InternalTypeSystem.TYPE_SYSTEM.STRING())
   }
@@ -193,10 +537,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write nodes with string array values into Neo4j`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i => i.toString)
-      .map(i => Array(i, i))
-      .toDF("foo")
+    val ds = dfSingleFooStringArray((1 to total).map(i => Array(i.toString, i.toString)).toSeq)
 
     testArray[String](ds)
   }
@@ -204,9 +545,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write nodes with int values into Neo4j`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i => i)
-      .toDF("foo")
+    val ds = dfSingleFooInt((1 to total).toSeq)
 
     testType[Int](ds, InternalTypeSystem.TYPE_SYSTEM.INTEGER())
   }
@@ -214,9 +553,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write nodes with date values into Neo4j`(): Unit = {
     val total = 5
-    val ds = (1 to total)
-      .map(i => java.sql.Date.valueOf("2020-01-0" + i))
-      .toDF("foo")
+    val ds = dfSingleFooDate((1 to total).map(i => java.sql.Date.valueOf("2020-01-0" + i)).toSeq)
 
     testType[java.sql.Date](ds, InternalTypeSystem.TYPE_SYSTEM.DATE())
   }
@@ -224,9 +561,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write nodes with timestamp values into Neo4j`(): Unit = {
     val total = 5
-    val ds = (1 to total)
-      .map(i => java.sql.Timestamp.valueOf(s"2020-01-0$i 11:11:11.11"))
-      .toDF("foo")
+    val ds = dfSingleFooTimestamp(
+      (1 to total).map(i => java.sql.Timestamp.valueOf(s"2020-01-0$i 11:11:11.11")).toSeq
+    )
 
     testType[java.sql.Timestamp](ds, InternalTypeSystem.TYPE_SYSTEM.LOCAL_DATE_TIME())
   }
@@ -234,10 +571,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write nodes with int array values into Neo4j`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i => i.toLong)
-      .map(i => Array(i, i))
-      .toDF("foo")
+    val ds = dfSingleFooLongArray((1 to total).map(i => Array(i.toLong, i.toLong)).toSeq)
 
     testArray[Long](ds)
   }
@@ -245,11 +579,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write nodes with point-2d values into Neo4j`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i => EmptyRow(Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble())))
-      .toDS()
+    val df = dfEmptyRowPoint2d(
+      (1 to total).map(i => EmptyRow(Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble()))).toSeq
+    )
 
-    ds.write
+    df.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -267,8 +601,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         (point.srid(), point.x(), point.y())
       })
       .toSet
-    val expected = ds.collect()
-      .map(point => (point.data.srid, point.data.x, point.data.y))
+    val expected = df.collect()
+      .map(r => tuplePoint2d(r.getStruct(0)))
       .toSet
     assertEquals(expected, records)
   }
@@ -276,16 +610,18 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write nodes with point-2d array values into Neo4j`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i =>
-        EmptyRow(Seq(
-          Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble()),
-          Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble())
-        ))
-      )
-      .toDS()
+    val df = dfEmptyRowSeqPoint2d(
+      (1 to total)
+        .map(i =>
+          EmptyRow(Seq(
+            Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble()),
+            Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble())
+          ))
+        )
+        .toSeq
+    )
 
-    ds.write
+    df.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -305,8 +641,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
           .map(point => (point.srid(), point.x(), point.y()))
       )
       .toSet
-    val expected = ds.collect()
-      .map(row => row.data.map(p => (p.srid, p.x, p.y)))
+    val expected = df.collect()
+      .map(r => seqRow(r.get(0)).map(tuplePoint2d).toSeq)
       .toSet
     assertEquals(expected, records)
   }
@@ -314,13 +650,15 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write nodes with point-3d values into Neo4j`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i =>
-        EmptyRow(Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble()))
-      )
-      .toDS()
+    val df = dfEmptyRowPoint3d(
+      (1 to total)
+        .map(i =>
+          EmptyRow(Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble()))
+        )
+        .toSeq
+    )
 
-    ds.write
+    df.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -338,8 +676,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         (point.srid(), point.x(), point.y())
       })
       .toSet
-    val expected = ds.collect()
-      .map(point => (point.data.srid, point.data.x, point.data.y))
+    val expected = df.collect()
+      .map(r => tuplePoint3d3(r.getStruct(0)))
       .toSet
     assertEquals(expected, records)
   }
@@ -347,16 +685,18 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write nodes with point-3d array values into Neo4j`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i =>
-        EmptyRow(Seq(
-          Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble()),
-          Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble())
-        ))
-      )
-      .toDS()
+    val df = dfEmptyRowSeqPoint3d(
+      (1 to total)
+        .map(i =>
+          EmptyRow(Seq(
+            Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble()),
+            Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble())
+          ))
+        )
+        .toSeq
+    )
 
-    ds.write
+    df.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -376,8 +716,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
           .map(point => (point.srid(), point.x(), point.y(), point.z()))
       )
       .toSet
-    val expected = ds.collect()
-      .map(row => row.data.map(p => (p.srid, p.x, p.y, p.z)))
+    val expected = df.collect()
+      .map(r => seqRow(r.get(0)).map(tuplePoint3d4).toSeq)
       .toSet
     assertEquals(expected, records)
   }
@@ -385,9 +725,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write nodes with map values into Neo4j`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i => Map("field" + i -> i))
-      .toDF("foo")
+    val ds = dfSingleFooMapStringInt((1 to total).map(i => Map("field" + i -> i)).toSeq)
 
     ds.write
       .format(classOf[DataSource].getName)
@@ -413,12 +751,13 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write nodes with duration values into Neo4j`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i => i.toLong)
-      .map(i => EmptyRow(Duration(months = i, days = i, seconds = i, nanoseconds = i)))
-      .toDS()
+    val df = dfEmptyRowDuration(
+      (1 to total).map(i => i.toLong).map(i =>
+        EmptyRow(Duration(months = i, days = i, seconds = i, nanoseconds = i))
+      ).toSeq
+    )
 
-    ds.write
+    df.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -434,8 +773,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .map(data => (data.months, data.days, data.seconds, data.nanoseconds))
       .toSet
 
-    val expected = ds.collect()
-      .map(row => (row.data.months, row.data.days, row.data.seconds, row.data.nanoseconds))
+    val expected = df.collect()
+      .map(r => tupleDuration(r.getStruct(0)))
       .toSet
 
     assertEquals(expected, records)
@@ -444,17 +783,19 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should write nodes with duration array values into Neo4j`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i => i.toLong)
-      .map(i =>
-        EmptyRow(Seq(
-          Duration(months = i, days = i, seconds = i, nanoseconds = i),
-          Duration(months = i, days = i, seconds = i, nanoseconds = i)
-        ))
-      )
-      .toDS()
+    val df = dfEmptyRowSeqDuration(
+      (1 to total)
+        .map(i => i.toLong)
+        .map(i =>
+          EmptyRow(Seq(
+            Duration(months = i, days = i, seconds = i, nanoseconds = i),
+            Duration(months = i, days = i, seconds = i, nanoseconds = i)
+          ))
+        )
+        .toSeq
+    )
 
-    ds.write
+    df.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -474,8 +815,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       )
       .toSet
 
-    val expected = ds.collect()
-      .map(row => row.data.map(data => (data.months, data.days, data.seconds, data.nanoseconds)))
+    val expected = df.collect()
+      .map(r => seqRow(r.get(0)).map(tupleDuration).toSeq)
       .toSet
 
     assertEquals(expected, records)
@@ -485,17 +826,20 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def `should write nodes into Neo4j with points`(): Unit = {
     val total = 10
     val rand = Random
-    val ds = (1 to total)
-      .map(i =>
-        Person(
-          name = "Andrea " + i,
-          "Santurbano " + i,
-          rand.nextInt(100),
-          Point3d(srid = 4979, x = 12.5811776, y = 41.9579492, z = 1.3)
+    val df = dfPerson(
+      (1 to total)
+        .map(i =>
+          Person(
+            name = "Andrea " + i,
+            "Santurbano " + i,
+            rand.nextInt(100),
+            Some(Point3d(srid = 4979, x = 12.5811776, y = 41.9579492, z = 1.3))
+          )
         )
-      ).toDS()
+        .toSeq
+    )
 
-    ds.write
+    df.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -533,16 +877,19 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def `should write nodes into Neo4j with Time and LocalTime Types`(): Unit = {
     val total = 1
     val rand = Random
-    val ds = (1 to total)
-      .map(i =>
-        Person_TimeAndLocalTime(
-          name = "Andrea",
-          time = Time(value = "12:50:35.556000000+01:00"),
-          localTime = LocalTimeValue(value = "12:50:35.556000000")
+    val df = dfPersonTimeLocal(
+      (1 to total)
+        .map(i =>
+          Person_TimeAndLocalTime(
+            name = "Andrea",
+            time = Time(value = "12:50:35.556000000+01:00"),
+            localTime = LocalTimeValue(value = "12:50:35.556000000")
+          )
         )
-      ).toDS()
+        .toSeq
+    )
 
-    ds.write
+    df.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Overwrite)
       .option("node.keys", "name")
@@ -582,11 +929,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     SparkConnectorScalaSuiteIT.session()
       .executeWrite(tx => tx.run("CREATE (p:Person{name: 'Andrea', surname: 'Santurbano'})").consume())
 
-    val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
+    val df = dfSimplePerson(Seq(SimplePerson("Andrea", Some("Santurbano"))))
 
     try {
       val thrown = the[SparkException] thrownBy {
-        ds.write
+        df.write
           .format(classOf[DataSource].getName)
           .mode(SaveMode.Append)
           .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -594,7 +941,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
           .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
       }
 
-      thrown.getMessage should include("org.neo4j.driver.exceptions.ClientException")
+      assert(thrown.getMessage contains "org.neo4j.driver.exceptions.ClientException")
       val rootCause = ExceptionUtils.getRootCause(thrown)
       // root cause is not always returned as a ClientException so we pass it through pattern matching to remove flakiness
       rootCause match {
@@ -617,9 +964,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     SparkConnectorScalaSuiteIT.session()
       .executeWrite(tx => tx.run("CREATE (p:Person{name: 'Federico', surname: 'Santurbano'})").consume())
 
-    val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
+    val df = dfSimplePerson(Seq(SimplePerson("Andrea", Some("Santurbano"))))
 
-    ds.write
+    df.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Overwrite)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -644,9 +991,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should skip null properties`(): Unit = {
-    val ds = Seq(SimplePerson("Andrea", null)).toDS()
+    val df = dfSimplePerson(Seq(SimplePerson("Andrea", None)))
 
-    ds.write
+    df.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -668,9 +1015,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should throw an error because SaveMode.Overwrite need node.keys`(): Unit = {
-    val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
+    val df = dfSimplePerson(Seq(SimplePerson("Andrea", Some("Santurbano"))))
     try {
-      ds.write
+      df.write
         .format(classOf[DataSource].getName)
         .mode(SaveMode.Overwrite)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -689,10 +1036,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write within partitions`(): Unit = {
-    val ds = (1 to 100).map(i => Person("Andrea " + i, "Santurbano " + i, 36, null)).toDS()
+    val df = dfPerson((1 to 100).map(i => Person("Andrea " + i, "Santurbano " + i, 36, None)).toSeq)
       .repartition(10)
 
-    ds.write
+    df.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -724,10 +1071,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   @Ignore("This won't work right now because we can't know if we are in a Write or Read context")
   def `should throw an exception for a read only query`(): Unit = {
-    val ds = (1 to 100).map(i => Person("Andrea " + i, "Santurbano " + i, 36, null)).toDS()
+    val df = dfPerson((1 to 100).map(i => Person("Andrea " + i, "Santurbano " + i, 36, None)).toSeq)
 
     try {
-      ds.write
+      df.write
         .mode(SaveMode.Overwrite)
         .format(classOf[DataSource].getName)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -745,9 +1092,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should insert data with a custom query`(): Unit = {
-    val ds = (1 to 100).map(i => Person("Andrea " + i, "Santurbano " + i, 36, null)).toDS()
+    val df = dfPerson((1 to 100).map(i => Person("Andrea " + i, "Santurbano " + i, 36, None)).toSeq)
 
-    ds.write
+    df.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -764,7 +1111,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         |RETURN count(p) AS count
         |""".stripMargin
     ).single().get("count").asLong()
-    assertEquals(ds.count(), count)
+    assertEquals(df.count(), count)
   }
 
   @Test
@@ -774,12 +1121,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         tx.run("CREATE CONSTRAINT instrument_name FOR (i:Instrument) REQUIRE i.name IS UNIQUE").consume()
       )
 
-    val musicDf = Seq(
+    val musicDf = dfMusician4Unusual(
       (12, "John Bonham", "Drums", "f``````oo"),
       (19, "John Mayer", "Guitar", "bar"),
       (32, "John Scofield", "Guitar", "ba` z"),
       (15, "John Butler", "Guitar", "qu   ux")
-    ).toDF("experience", "name", "instrument", "fi``(╯°□°)╯︵ ┻━┻eld")
+    )
 
     musicDf.write
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -831,12 +1178,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test(expected = classOf[SparkException])
   def `should give error if native mode doesn't find a valid schema`(): Unit = {
-    val musicDf = Seq(
+    val musicDf = dfMusician3(
       (12, "John Bonham", "Drums"),
       (19, "John Mayer", "Guitar"),
       (32, "John Scofield", "Guitar"),
       (15, "John Butler", "Guitar")
-    ).toDF("experience", "name", "instrument")
+    )
 
     try {
       musicDf.write
@@ -865,12 +1212,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write relations with KEYS mode`(): Unit = {
-    val musicDf = Seq(
+    val musicDf = dfMusician3(
       (12, "John Bonham", "Drums"),
       (19, "John Mayer", "Guitar"),
       (32, "John Scofield", "Guitar"),
       (15, "John Butler", "Guitar")
-    ).toDF("experience", "name", "instrument")
+    )
 
     musicDf.repartition(1).write
       .format(classOf[DataSource].getName)
@@ -914,12 +1261,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should fail validating options if ErrorIfExists is used`(): Unit = {
-    val musicDf = Seq(
+    val musicDf = dfMusician3(
       (12, "John Bonham", "Drums"),
       (19, "John Mayer", "Guitar"),
       (32, "John Scofield", "Guitar"),
       (15, "John Butler", "Guitar")
-    ).toDF("experience", "name", "instrument")
+    )
 
     try {
       musicDf.repartition(1).write
@@ -945,7 +1292,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   @Ignore("trying to recreate the deadlock issue")
   def `should give better errors if transaction fails`(): Unit = {
-    val df = List.fill(200)(("John Bonham", "Drums")).toDF("name", "instrument")
+    val df = dfNameInstrument(List.fill(200)(("John Bonham", "Drums")) *)
 
     df.write
       .format(classOf[DataSource].getName)
@@ -981,12 +1328,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def writeKeyModeRelationshipWriteDataSet(
     optionModifier: Map[String, String] => Map[String, String] = { m => m }
   ): DataFrame = {
-    val musicDf = Seq(
+    val musicDf = dfMusician5(
       (12, "John Bonham", "Drums", 2, true),
       (19, "John Mayer", "Guitar", 1, false),
       (32, "John Scofield", "Guitar", 3, true),
       (15, "John Butler", "Guitar", 4, false)
-    ).toDF("experience", "name", "instrument", "rating", "hasDiploma")
+    )
 
     val options = Map(
       "url" -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
@@ -1246,12 +1593,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     SparkConnectorScalaSuiteIT.driver.session()
       .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
-    val musicDf = Seq(
+    val musicDf = dfMusician4WithId(
       (1, 12, "John Henry Bonham", "Drums"),
       (2, 19, "John Mayer", "Guitar"),
       (3, 32, "John Scofield", "Guitar"),
       (4, 15, "John Butler", "Guitar")
-    ).toDF("id", "experience", "name", "instrument")
+    )
 
     musicDf.write
       .format(classOf[DataSource].getName)
@@ -1288,9 +1635,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should insert index while insert nodes`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i => i.toString)
-      .toDF("surname")
+    val ds = dfSurnameStrings((1 to total).map(_.toString).toSeq)
 
     ds.write
       .format(classOf[DataSource].getName)
@@ -1353,9 +1698,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should create constraint when insert nodes`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i => i.toString)
-      .toDF("surname")
+    val ds = dfSurnameStrings((1 to total).map(_.toString).toSeq)
 
     ds.write
       .format(classOf[DataSource].getName)
@@ -1393,9 +1736,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       "CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE (p.surname) IS UNIQUE"
     )
     val total = 10
-    val ds = (1 to total)
-      .map(i => i.toString)
-      .toDF("surname")
+    val ds = dfSurnameStrings((1 to total).map(_.toString).toSeq)
 
     ds.write
       .format(classOf[DataSource].getName)
@@ -1430,9 +1771,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should insert indexes while insert with query`(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i => i.toString)
-      .toDF("surname")
+    val ds = dfSurnameStrings((1 to total).map(_.toString).toSeq)
 
     ds.write
       .format(classOf[DataSource].getName)
@@ -1474,10 +1813,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should manage script passing the data to the executors`(): Unit = {
-    val ds = Seq(SimplePerson("Andrea", "Santurbano"), SimplePerson("Davide", "Fantuzzi")).toDS()
+    val df = dfSimplePerson(Seq(SimplePerson("Andrea", Some("Santurbano")), SimplePerson("Davide", Some("Fantuzzi"))))
       .repartition(2)
 
-    ds.write
+    df.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -1506,7 +1845,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .single()
       .get("count")
       .asLong()
-    val expected = ds.count
+    val expected = df.count
     assertEquals(expected, records)
 
     val uniqueFieldName = if (TestUtil.neo4jVersion(SparkConnectorScalaSuiteIT.session()) >= Versions.NEO4J_5)
@@ -1535,7 +1874,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should work create source node and match target node`() {
+  def `should work create source node and match target node`(): Unit = {
     val data = Seq(
       (12, "John Bonham", "Drums"),
       (19, "John Mayer", "Guitar"),
@@ -1547,7 +1886,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .toSet[String]
       .map(instrument => s"(:Instrument{name: '$instrument'})")
       .mkString(", "))
-    val musicDf = data.toDF("experience", "name", "instrument")
+    val musicDf = dfMusician3(data *)
 
     musicDf.write
       .mode(SaveMode.Overwrite)
@@ -1575,7 +1914,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should work match source node and merge target node`() {
+  def `should work match source node and merge target node`(): Unit = {
     SparkConnectorScalaSuiteIT.session().run(
       "CREATE CONSTRAINT musician_name FOR (m:Musician) REQUIRE (m.name) IS UNIQUE"
     )
@@ -1590,7 +1929,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .toSet[String]
       .map(name => s"(:Musician{name: '$name'})")
       .mkString(", "))
-    val musicDf = data.toDF("experience", "name", "instrument")
+    val musicDf = dfMusician3(data *)
 
     musicDf.repartition(1).write
       .mode(SaveMode.Overwrite)
@@ -1620,14 +1959,14 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should work match source node and merge target node with odd chars`() {
+  def `should work match source node and merge target node with odd chars`(): Unit = {
     val data = Seq(
       (12, "John Bonham", "Drums"),
       (19, "John Mayer", "Guitar"),
       (32, "John Scofield", "Guitar"),
       (15, "John Butler", "Guitar")
     )
-    val musicDf = data.toDF("experience", "who:name", "instrument")
+    val musicDf = dfMusician3WhoName(data *)
 
     musicDf.repartition(1).write
       .mode(SaveMode.Overwrite)
@@ -1656,7 +1995,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def shouldWriteComplexDF(): Unit = {
-    val data = Seq(
+    val data = dfOrderComplex(
       (
         "Cuba Gooding Jr.",
         1,
@@ -1669,7 +2008,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         "2022-07-07 00:00:00",
         Seq(Map("product_id" -> 11, "quantity" -> 2), Map("product_id" -> 22, "quantity" -> 4))
       )
-    ).toDF("actor_name", "order_id", "order_date", "products")
+    )
     data.write
       .mode(SaveMode.Overwrite)
       .format(classOf[DataSource].getName)
@@ -1724,10 +2063,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def shouldFix502(): Unit = {
-    val data = Seq(
+    val data = dfNestedMapTable(
       ("Foo", 1, Map("inner" -> Map("key" -> "innerValue"))),
       ("Bar", 1, Map("inner" -> Map("key" -> "innerValue1")))
-    ).toDF("id", "time", "table")
+    )
     data.write
       .mode(SaveMode.Append)
       .format(classOf[DataSource].getName)
@@ -1752,10 +2091,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def shouldFix502WithCollisions(): Unit = {
-    val data = Seq(
+    val data = dfListMapTable(
       ("Foo", 1, ListMap("key.inner" -> Map("key" -> "innerValue"), "key" -> Map("inner.key" -> "value"))),
       ("Bar", 1, ListMap("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1")))
-    ).toDF("id", "time", "table")
+    )
     data.write
       .mode(SaveMode.Append)
       .format(classOf[DataSource].getName)
@@ -1780,10 +2119,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def shouldFix502WithCollisionsAndAggregateValues(): Unit = {
-    val data = Seq(
+    val data = dfListMapTable(
       ("Foo", 1, ListMap("key.inner" -> Map("key" -> "innerValue"), "key" -> Map("inner.key" -> "value"))),
       ("Bar", 1, ListMap("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1")))
-    ).toDF("id", "time", "table")
+    )
     data.write
       .mode(SaveMode.Append)
       .format(classOf[DataSource].getName)
@@ -1809,11 +2148,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def doesNotWriteNodePropertiesToRelationship(): Unit = {
-    val data = Seq(
+    val data = dfWatched(
       ("john", "The Matrix", "today"),
       ("jane", "Oppenheimer", "yesterday"),
       ("şaban", "Hababam Sınıfı", "two days ago")
-    ).toDF("username", "movie_title", "watch_time")
+    )
     data.write
       .mode(SaveMode.Append)
       .format(classOf[DataSource].getName)

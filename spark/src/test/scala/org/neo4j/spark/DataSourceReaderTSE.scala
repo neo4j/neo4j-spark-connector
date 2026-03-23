@@ -1165,8 +1165,8 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
           && !row.getAs[String]("<rel.type>").isEmpty
           && row.getAs[Long]("<source.id>") >= 0
           && row.getAs[Long]("<target.id>") >= 0
-          && row.getAs[Double]("when") != null
-          && row.getAs[Double]("quantity") != null
+          && !row.isNullAt(row.fieldIndex("when"))
+          && !row.isNullAt(row.fieldIndex("quantity"))
       )
       .size
     assertEquals(100, countRel)

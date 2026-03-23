@@ -21,11 +21,16 @@ import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.scheduler.SparkListenerStageCompleted
 import org.apache.spark.scheduler.SparkListenerStageSubmitted
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.hamcrest.Matchers
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import org.neo4j.Closeables.use
 import org.neo4j.driver.Session
@@ -36,9 +41,48 @@ import org.neo4j.spark.writer.DataWriterMetrics
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
+import scala.jdk.CollectionConverters.SeqHasAsJava
+
 class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
-  import ss.implicits._
+  private def dfPlaysFromRows(rows: (Int, Int, String, String)*): DataFrame = {
+    val schema = StructType(
+      Seq(
+        StructField("experience", DataTypes.IntegerType, nullable = false),
+        StructField("age", DataTypes.IntegerType, nullable = false),
+        StructField("name", DataTypes.StringType, nullable = false),
+        StructField("instrument", DataTypes.StringType, nullable = false)
+      )
+    )
+    ss.createDataFrame(rows.map { case (a, b, c, d) => Row(a, b, c, d) }.asJava, schema)
+  }
+
+  private def dfMusicianRows(rows: (Int, Int, String, String)*): DataFrame = {
+    val schema = StructType(
+      Seq(
+        StructField("id", DataTypes.IntegerType, nullable = false),
+        StructField("experience", DataTypes.IntegerType, nullable = false),
+        StructField("name", DataTypes.StringType, nullable = false),
+        StructField("instrument", DataTypes.StringType, nullable = false)
+      )
+    )
+    ss.createDataFrame(rows.map { case (a, b, c, d) => Row(a, b, c, d) }.asJava, schema)
+  }
+
+  private def dfNames(names: Seq[String]): DataFrame = {
+    val schema = StructType(Seq(StructField("name", DataTypes.StringType, nullable = false)))
+    ss.createDataFrame(names.map(n => Row(n)).asJava, schema)
+  }
+
+  private def dfCityId(rows: (Int, String)*): DataFrame = {
+    val schema = StructType(
+      Seq(
+        StructField("id", DataTypes.IntegerType, nullable = false),
+        StructField("city", DataTypes.StringType, nullable = false)
+      )
+    )
+    ss.createDataFrame(rows.map { case (id, city) => Row(id, city) }.asJava, schema)
+  }
 
   @Test
   def `should read and write relations with append mode`(): Unit = {
@@ -408,9 +452,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
       .executeWrite((tx: TransactionContext) => tx.run(fixtureQuery).consume())
 
-    val musicDf = Seq(
-      (12, 32, "John Bonham", "Drums")
-    ).toDF("experience", "age", "name", "instrument")
+    val musicDf = dfPlaysFromRows((12, 32, "John Bonham", "Drums"))
 
     musicDf.write
       .format(classOf[DataSource].getName)
@@ -445,12 +487,12 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should give a more clear error if properties or keys are inverted`(): Unit = {
-    val musicDf = Seq(
+    val musicDf = dfMusicianRows(
       (1, 12, "John Henry Bonham", "Drums"),
       (2, 19, "John Mayer", "Guitar"),
       (3, 32, "John Scofield", "Guitar"),
       (4, 15, "John Butler", "Guitar")
-    ).toDF("id", "experience", "name", "instrument")
+    )
 
     try {
       musicDf.write
@@ -484,12 +526,12 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should give a more clear error if properties or keys are inverted on different options`(): Unit = {
-    val musicDf = Seq(
+    val musicDf = dfMusicianRows(
       (1, 12, "John Henry Bonham", "Drums"),
       (2, 19, "John Mayer", "Guitar"),
       (3, 32, "John Scofield", "Guitar"),
       (4, 15, "John Butler", "Guitar")
-    ).toDF("id", "experience", "name", "instrument")
+    )
 
     try {
       musicDf.write
@@ -524,12 +566,12 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should give a more clear error if node properties or keys are inverted`(): Unit = {
-    val musicDf = Seq(
+    val musicDf = dfMusicianRows(
       (1, 12, "John Henry Bonham", "Drums"),
       (2, 19, "John Mayer", "Guitar"),
       (3, 32, "John Scofield", "Guitar"),
       (4, 15, "John Butler", "Guitar")
-    ).toDF("id", "experience", "name", "instrument")
+    )
 
     try {
       musicDf.write
@@ -572,7 +614,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
     ss.sparkContext.addSparkListener(listener)
 
     try {
-      input.toDF("name")
+      dfNames(input)
         .repartition(1)
         .write
         .format(classOf[DataSource].getName)
@@ -604,11 +646,11 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `does not create constraint if schema validation fails`(): Unit = {
-    val cities = Seq(
+    val cities = dfCityId(
       (1, "Cherbourg en Cotentin"),
       (2, "London"),
       (3, "Malmö")
-    ).toDF("id", "city")
+    )
 
     try {
       cities.write

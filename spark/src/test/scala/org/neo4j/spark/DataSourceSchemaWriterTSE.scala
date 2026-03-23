@@ -17,8 +17,8 @@
 package org.neo4j.spark
 
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
@@ -37,6 +37,7 @@ import java.time.LocalDateTime
 
 import scala.collection.JavaConverters.iterableAsScalaIterableConverter
 import scala.collection.JavaConverters.mapAsScalaMapConverter
+import scala.jdk.CollectionConverters.SeqHasAsJava
 import scala.math.Ordering.Implicits.infixOrderingOps
 
 object DataSourceSchemaWriterTSE {
@@ -48,7 +49,6 @@ object DataSourceSchemaWriterTSE {
 }
 
 class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
-  val sparkSession = SparkSession.builder().getOrCreate()
 
   final private val SHOW_CONSTRAINTS_QUERY =
     """|SHOW CONSTRAINTS
@@ -72,7 +72,53 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
        |  ELSE ptype
        |END AS type""".stripMargin
 
-  import sparkSession.implicits._
+  /**
+   * Array columns use `containsNull = false` on elements so `SparkToCypherTypeConverter` can resolve
+   * `LIST<… NOT NULL>` constraint types (the connector maps `createArrayType(T, false)` only).
+   */
+  private def baseSchemaNodeWithSchemaColumns: Seq[StructField] = Seq(
+    StructField("string", DataTypes.StringType, true),
+    StructField("int", DataTypes.IntegerType, true),
+    StructField("boolean", DataTypes.BooleanType, true),
+    StructField("float", DataTypes.DoubleType, true),
+    StructField("date", DataTypes.DateType, true),
+    StructField("timestamp", DataTypes.TimestampType, true),
+    StructField("stringArray", DataTypes.createArrayType(DataTypes.StringType, false), true),
+    StructField("intArray", DataTypes.createArrayType(DataTypes.IntegerType, false), true),
+    StructField("booleanArray", DataTypes.createArrayType(DataTypes.BooleanType, false), true),
+    StructField("floatArray", DataTypes.createArrayType(DataTypes.DoubleType, false), true),
+    StructField("dateArray", DataTypes.createArrayType(DataTypes.DateType, false), true),
+    StructField("timestampArray", DataTypes.createArrayType(DataTypes.TimestampType, false), true)
+  )
+
+  /** `SchemaService` emits NOT NULL (existence) constraints only for fields with `nullable = false`. */
+  private def applyNodeNotNullSchemaOverrides(sf: StructField): StructField =
+    sf.name match {
+      case "timestampArray" =>
+        StructField(sf.name, DataTypes.createArrayType(DataTypes.TimestampType, false), sf.nullable)
+      case "stringArray" => StructField(sf.name, DataTypes.createArrayType(DataTypes.StringType, false), sf.nullable)
+      case "dateArray"   => StructField(sf.name, DataTypes.createArrayType(DataTypes.DateType, false), sf.nullable)
+      case "boolean"     => StructField(sf.name, DataTypes.BooleanType, false)
+      case "int"         => StructField(sf.name, DataTypes.IntegerType, false)
+      case "float"       => StructField(sf.name, DataTypes.DoubleType, false)
+      case "string"      => StructField(sf.name, DataTypes.StringType, false)
+      case _             => sf
+    }
+
+  private def applyRelDatasetSchemaOverrides(sf: StructField): StructField =
+    sf.name match {
+      case "timestampArray" =>
+        StructField(sf.name, DataTypes.createArrayType(DataTypes.TimestampType, false), sf.nullable)
+      case "stringArray" => StructField(sf.name, DataTypes.createArrayType(DataTypes.StringType, false), sf.nullable)
+      case "dateArray"   => StructField(sf.name, DataTypes.createArrayType(DataTypes.DateType, false), sf.nullable)
+      case "idSource"    => StructField(sf.name, DataTypes.StringType, false)
+      case "idTarget"    => StructField(sf.name, DataTypes.StringType, false)
+      case "boolean"     => StructField(sf.name, DataTypes.BooleanType, false)
+      case "int"         => StructField(sf.name, DataTypes.IntegerType, false)
+      case "float"       => StructField(sf.name, DataTypes.DoubleType, false)
+      // Relationship `string` stays nullable: tests expect TYPE but not EXISTS for this property.
+      case _ => sf
+    }
 
   private def mapData(x: Any): Any = x match {
     case null                 => null
@@ -481,21 +527,26 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       Seq(Date.valueOf("2023-11-22"), Date.valueOf("2023-11-23")),
       Seq(Timestamp.valueOf("2023-11-22 11:11:11.11"), Timestamp.valueOf("2023-11-23 12:12:12.12"))
     )
-    val data = Seq(row).toDF(colNames: _*)
+    val r = row
+    val sparkRow = Row(
+      r._1,
+      r._2,
+      r._3,
+      r._4,
+      r._5,
+      r._6,
+      r._7.toArray,
+      r._8.toArray,
+      r._9.toArray,
+      r._10.toArray,
+      r._11.toArray,
+      r._12.toArray
+    )
 
     val expectedNode = colNames.zip(row.productIterator.toSeq).toMap
 
-    val schema = StructType(data.schema.map { sf =>
-      sf.name match {
-        case "timestampArray" =>
-          StructField(sf.name, DataTypes.createArrayType(DataTypes.TimestampType, false), sf.nullable)
-        case "stringArray" => StructField(sf.name, DataTypes.createArrayType(DataTypes.StringType, false), sf.nullable)
-        case "dateArray"   => StructField(sf.name, DataTypes.createArrayType(DataTypes.DateType, false), sf.nullable)
-        case "string"      => StructField(sf.name, DataTypes.StringType, false)
-        case _             => sf
-      }
-    })
-    val df = ss.createDataFrame(data.rdd, schema)
+    val schema = StructType(baseSchemaNodeWithSchemaColumns.map(applyNodeNotNullSchemaOverrides))
+    val df = ss.createDataFrame(Seq(sparkRow).asJava, schema)
     (expectedNode, df)
   }
 
@@ -739,21 +790,33 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       Seq(Date.valueOf("2023-11-22"), Date.valueOf("2023-11-23")),
       Seq(Timestamp.valueOf("2023-11-22 11:11:11.11"), Timestamp.valueOf("2023-11-23 12:12:12.12"))
     )
-    val data = Seq(row).toDF(colNames: _*)
+    val r = row
+    val sparkRow = Row(
+      r._1,
+      r._2,
+      r._3,
+      r._4,
+      r._5,
+      r._6,
+      r._7,
+      r._8,
+      r._9.toArray,
+      r._10.toArray,
+      r._11.toArray,
+      r._12.toArray,
+      r._13.toArray,
+      r._14.toArray
+    )
 
-    val schema = StructType(data.schema.map { sf =>
-      sf.name match {
-        case "timestampArray" =>
-          StructField(sf.name, DataTypes.createArrayType(DataTypes.TimestampType, false), sf.nullable)
-        case "stringArray" => StructField(sf.name, DataTypes.createArrayType(DataTypes.StringType, false), sf.nullable)
-        case "dateArray"   => StructField(sf.name, DataTypes.createArrayType(DataTypes.DateType, false), sf.nullable)
-        case "idSource"    => StructField(sf.name, DataTypes.StringType, false)
-        case "idTarget"    => StructField(sf.name, DataTypes.StringType, false)
-        case _             => sf
-      }
-    })
+    val baseRelSchema = StructType(
+      Seq(
+        StructField("idSource", DataTypes.StringType, true),
+        StructField("idTarget", DataTypes.StringType, true)
+      ) ++ baseSchemaNodeWithSchemaColumns
+    )
+    val schema = StructType(baseRelSchema.map(applyRelDatasetSchemaOverrides))
 
-    ss.createDataFrame(data.rdd, schema)
+    ss.createDataFrame(Seq(sparkRow).asJava, schema)
       .write
       .mode(SaveMode.Overwrite)
       .format(classOf[DataSource].getName)
@@ -775,9 +838,11 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def shouldApplyUniqueConstraintForNode(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i => i.toString)
-      .toDF("surname")
+    val surnameSchema = StructType(Seq(StructField("surname", DataTypes.StringType, true)))
+    val ds = ss.createDataFrame(
+      (1 to total).map(i => Row(i.toString)).asJava,
+      surnameSchema
+    )
 
     ds.write
       .format(classOf[DataSource].getName)
@@ -820,9 +885,11 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def shouldApplyNodeKeyConstraintForNode(): Unit = {
     val total = 10
-    val ds = (1 to total)
-      .map(i => i.toString)
-      .toDF("surname")
+    val surnameSchema = StructType(Seq(StructField("surname", DataTypes.StringType, true)))
+    val ds = ss.createDataFrame(
+      (1 to total).map(i => Row(i.toString)).asJava,
+      surnameSchema
+    )
 
     ds.write
       .format(classOf[DataSource].getName)

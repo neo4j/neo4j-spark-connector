@@ -29,8 +29,8 @@ import org.neo4j.spark.SparkConnectorScalaSuiteWithGdsBase.neo4j
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.DummyNamedReference
 import org.neo4j.spark.util.Neo4jOptions
-import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
 import org.scalatest.matchers.must.Matchers.endWith
+import org.scalatest.matchers.should.Matchers.should
 
 import scala.language.postfixOps
 
@@ -80,7 +80,7 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
       )
     ).createQuery()
 
-    query must endWith(
+    query should endWith(
       """CALL gds.pageRank.stream($graphName)
         |YIELD nodeId, score
         |RETURN nodeId AS nodeId, max(score) AS `MAX(score)`, min(score) AS `MIN(score)`, count(score) AS `COUNT(score)`, count(DISTINCT score) AS `COUNT(DISTINCT score)`, sum(score) AS `SUM(score)`, sum(DISTINCT score) AS `SUM(DISTINCT score)`"""

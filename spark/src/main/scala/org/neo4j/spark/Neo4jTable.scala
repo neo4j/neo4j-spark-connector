@@ -36,7 +36,7 @@ import org.neo4j.spark.writer.Neo4jWriterBuilder
 
 import scala.collection.JavaConverters._
 
-class Neo4jTable(neo4j: Neo4j, schema: StructType, neo4jOptions: Neo4jOptions, jobId: String)
+class Neo4jTable(neo4j: Neo4j, tableSchema: StructType, neo4jOptions: Neo4jOptions, jobId: String)
     extends Table
     with SupportsRead
     with SupportsWrite
@@ -44,7 +44,7 @@ class Neo4jTable(neo4j: Neo4j, schema: StructType, neo4jOptions: Neo4jOptions, j
 
   override def name(): String = neo4jOptions.getTableName
 
-  override def schema(): StructType = schema
+  override def schema(): StructType = tableSchema
 
   override def capabilities(): java.util.Set[TableCapability] = Set(
     TableCapability.BATCH_READ,

@@ -739,15 +739,15 @@ class CaseInsensitiveEnumeration extends Enumeration {
 object StreamingFrom extends CaseInsensitiveEnumeration {
   val ALL, NOW = Value
 
-  class StreamingFromValue(value: Value) {
+  class StreamingFromValue(underlying: Value) {
 
-    def value(): Long = value match {
+    def value(): Long = underlying match {
       case ALL => -1L
       case NOW => System.currentTimeMillis()
     }
   }
 
-  implicit def valToStreamingFromValue(value: Value): StreamingFromValue = new StreamingFromValue(value)
+  implicit def valToStreamingFromValue(v: Value): StreamingFromValue = new StreamingFromValue(v)
 }
 
 object StorageType extends CaseInsensitiveEnumeration {

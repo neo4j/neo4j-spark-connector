@@ -17,25 +17,41 @@
 package org.neo4j.spark
 
 import org.apache.spark.SparkException
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.junit.Assume
 import org.junit.Test
 import org.neo4j.Closeables.use
 import org.neo4j.caniuse.CanIUse
 import org.neo4j.caniuse.Schema
 
+import scala.jdk.CollectionConverters.SeqHasAsJava
+
 class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   import ss.implicits._
 
+  def intOrNull(o: Option[Int]): Integer = o.map(Int.box).orNull
+
   @Test
   def `fails to write nodes when key properties contain null values`(): Unit = {
-    val cities = Seq(
-      (Some(1), "Cherbourg en Cotentin"),
-      (Some(2), "London"),
-      (Some(3), "Malmö"),
-      (None, "Moon")
-    ).toDF("id", "city")
+    val schema = StructType(
+      Seq(
+        StructField("id", IntegerType, nullable = true),
+        StructField("city", StringType, nullable = false)
+      )
+    )
+    val rows = Seq(
+      Row(intOrNull(Some(1)), "Cherbourg en Cotentin"),
+      Row(intOrNull(Some(2)), "London"),
+      Row(intOrNull(Some(3)), "Malmö"),
+      Row(intOrNull(None), "Moon")
+    )
+    val cities = ss.createDataFrame(rows.asJava, schema)
 
     val caught = intercept[SparkException] {
       cities.write
@@ -53,13 +69,21 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `fails to write relationships when source node key properties contain null values`(): Unit = {
     val caught = intercept[SparkException] {
-      val cities = Seq(
-        (Some(1), Some(2), "British Airways"),
-        (Some(2), Some(3), "Turkish Airlines"),
-        (None, Some(5), "Another Airline")
-      ).toDF("from", "to", "airline")
+      val schema = StructType(
+        Seq(
+          StructField("from", IntegerType, nullable = true),
+          StructField("to", IntegerType, nullable = true),
+          StructField("airline", StringType, nullable = false)
+        )
+      )
+      val rows = Seq(
+        Row(intOrNull(Some(1)), intOrNull(Some(2)), "British Airways"),
+        Row(intOrNull(Some(2)), intOrNull(Some(3)), "Turkish Airlines"),
+        Row(intOrNull(None), intOrNull(Some(5)), "Another Airline")
+      )
+      val flights = ss.createDataFrame(rows.asJava, schema)
 
-      cities.write
+      flights.write
         .format(classOf[DataSource].getName)
         .mode(SaveMode.Overwrite)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -81,13 +105,21 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `fails to write relationships when target node key properties contain null values`(): Unit = {
     val caught = intercept[SparkException] {
-      val cities = Seq(
-        (Some(1), Some(2), "British Airways"),
-        (Some(2), Some(3), "Turkish Airlines"),
-        (Some(3), None, "Another Airline")
-      ).toDF("from", "to", "airline")
+      val schema = StructType(
+        Seq(
+          StructField("from", IntegerType, nullable = true),
+          StructField("to", IntegerType, nullable = true),
+          StructField("airline", StringType, nullable = false)
+        )
+      )
+      val rows = Seq(
+        Row(intOrNull(Some(1)), intOrNull(Some(2)), "British Airways"),
+        Row(intOrNull(Some(2)), intOrNull(Some(3)), "Turkish Airlines"),
+        Row(intOrNull(None), intOrNull(Some(5)), "Another Airline")
+      )
+      val flights = ss.createDataFrame(rows.asJava, schema)
 
-      cities.write
+      flights.write
         .format(classOf[DataSource].getName)
         .mode(SaveMode.Overwrite)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -113,13 +145,22 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
     )
 
     val caught = intercept[SparkException] {
-      val cities = Seq(
-        (Some(1), Some(2), Some("BA721"), "British Airways"),
-        (Some(2), Some(3), Some("TK211"), "Turkish Airlines"),
-        (Some(3), Some(4), None, "Another Airline")
-      ).toDF("from", "to", "flight", "airline")
+      val schema = StructType(
+        Seq(
+          StructField("from", IntegerType, nullable = true),
+          StructField("to", IntegerType, nullable = true),
+          StructField("flight", StringType, nullable = true),
+          StructField("airline", StringType, nullable = false)
+        )
+      )
+      val rows = Seq(
+        Row(intOrNull(Some(1)), intOrNull(Some(2)), Some("BA721"), "British Airways"),
+        Row(intOrNull(Some(2)), intOrNull(Some(3)), Some("TK211"), "Turkish Airlines"),
+        Row(intOrNull(None), intOrNull(Some(5)), None, "Another Airline")
+      )
+      val flights = ss.createDataFrame(rows.asJava, schema)
 
-      cities.write
+      flights.write
         .format(classOf[DataSource].getName)
         .mode(SaveMode.Overwrite)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -137,17 +178,24 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
         .option("schema.optimization.relationship.keys", "KEY")
         .save()
     }
-    assert(caught.getMessage contains "Cannot merge the following relationship because of null property value")
+    assert(caught.getMessage contains "'MERGE' cannot be used with a graph element property value that is null")
   }
 
   @Test
   def `skips nodes when key properties contain null values with APPEND mode`(): Unit = {
-    val cities = Seq(
-      (Some(1), "Cherbourg en Cotentin"),
-      (Some(2), "London"),
-      (Some(3), "Malmö"),
-      (None, "Moon")
-    ).toDF("id", "city")
+    val schema = StructType(
+      Seq(
+        StructField("id", IntegerType, nullable = true),
+        StructField("city", StringType, nullable = false)
+      )
+    )
+    val rows = Seq(
+      Row(intOrNull(Some(1)), "Cherbourg en Cotentin"),
+      Row(intOrNull(Some(2)), "London"),
+      Row(intOrNull(Some(3)), "Malmö"),
+      Row(intOrNull(None), "Moon")
+    )
+    val cities = ss.createDataFrame(rows.asJava, schema)
 
     cities.write
       .format(classOf[DataSource].getName)
@@ -169,12 +217,19 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `skips nodes when key properties contain null values with OVERWRITE mode`(): Unit = {
-    val cities = Seq(
-      (Some(1), "Cherbourg en Cotentin"),
-      (Some(2), "London"),
-      (Some(3), "Malmö"),
-      (None, "Moon")
-    ).toDF("id", "city")
+    val schema = StructType(
+      Seq(
+        StructField("id", IntegerType, nullable = true),
+        StructField("city", StringType, nullable = false)
+      )
+    )
+    val rows = Seq(
+      Row(intOrNull(Some(1)), "Cherbourg en Cotentin"),
+      Row(intOrNull(Some(2)), "London"),
+      Row(intOrNull(Some(3)), "Malmö"),
+      Row(intOrNull(None), "Moon")
+    )
+    val cities = ss.createDataFrame(rows.asJava, schema)
 
     cities.write
       .format(classOf[DataSource].getName)
@@ -197,14 +252,22 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `skips relationships when source or target node key properties contain null values`(): Unit = {
-    val cities = Seq(
-      (Some(1), Some(2), "British Airways"),
-      (Some(2), Some(3), "Turkish Airlines"),
-      (None, Some(5), "Another Airline"),
-      (Some(5), None, "Another Airline")
-    ).toDF("from", "to", "airline")
+    val schema = StructType(
+      Seq(
+        StructField("from", IntegerType, nullable = true),
+        StructField("to", IntegerType, nullable = true),
+        StructField("airline", StringType, nullable = false)
+      )
+    )
+    val rows = Seq(
+      Row(intOrNull(Some(1)), intOrNull(Some(2)), "British Airways"),
+      Row(intOrNull(Some(2)), intOrNull(Some(3)), "Turkish Airlines"),
+      Row(intOrNull(None), intOrNull(Some(5)), "Another Airline"),
+      Row(intOrNull(Some(5)), intOrNull(None), "Another Airline")
+    )
+    val flights = ss.createDataFrame(rows.asJava, schema)
 
-    cities.write
+    flights.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Overwrite)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -250,14 +313,22 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       session.run("UNWIND [1,2,3,5] AS id CREATE (:City {id: id})").consume()
     }
 
-    val cities = Seq(
-      (Some(1), Some(2), "British Airways"),
-      (Some(2), Some(3), "Turkish Airlines"),
-      (None, Some(5), "Another Airline"),
-      (Some(5), None, "Another Airline")
-    ).toDF("from", "to", "airline")
+    val schema = StructType(
+      Seq(
+        StructField("from", IntegerType, nullable = true),
+        StructField("to", IntegerType, nullable = true),
+        StructField("airline", StringType, nullable = false)
+      )
+    )
+    val rows = Seq(
+      Row(intOrNull(Some(1)), intOrNull(Some(2)), "British Airways"),
+      Row(intOrNull(Some(2)), intOrNull(Some(3)), "Turkish Airlines"),
+      Row(intOrNull(None), intOrNull(Some(5)), "Another Airline"),
+      Row(intOrNull(Some(5)), intOrNull(None), "Another Airline")
+    )
+    val flights = ss.createDataFrame(rows.asJava, schema)
 
-    cities.write
+    flights.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Overwrite)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -292,14 +363,22 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `skips relationships when source or target node key properties contain null values when nodes are appended`()
     : Unit = {
-    val cities = Seq(
-      (Some(1), Some(2), "British Airways"),
-      (Some(3), Some(4), "Turkish Airlines"),
-      (None, Some(5), "Another Airline"),
-      (Some(5), None, "Another Airline")
-    ).toDF("from", "to", "airline")
+    val schema = StructType(
+      Seq(
+        StructField("from", IntegerType, nullable = true),
+        StructField("to", IntegerType, nullable = true),
+        StructField("airline", StringType, nullable = false)
+      )
+    )
+    val rows = Seq(
+      Row(intOrNull(Some(1)), intOrNull(Some(2)), "British Airways"),
+      Row(intOrNull(Some(2)), intOrNull(Some(3)), "Turkish Airlines"),
+      Row(intOrNull(None), intOrNull(Some(5)), "Another Airline"),
+      Row(intOrNull(Some(5)), intOrNull(None), "Another Airline")
+    )
+    val flights = ss.createDataFrame(rows.asJava, schema)
 
-    cities.write
+    flights.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Overwrite)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -339,14 +418,22 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `skips relationships when source or target node key properties contain null values with append mode`(): Unit = {
-    val cities = Seq(
-      (Some(1), Some(2), "British Airways"),
-      (Some(3), Some(4), "Turkish Airlines"),
-      (None, Some(5), "Another Airline"),
-      (Some(5), None, "Another Airline")
-    ).toDF("from", "to", "airline")
+    val schema = StructType(
+      Seq(
+        StructField("from", IntegerType, nullable = true),
+        StructField("to", IntegerType, nullable = true),
+        StructField("airline", StringType, nullable = false)
+      )
+    )
+    val rows = Seq(
+      Row(intOrNull(Some(1)), intOrNull(Some(2)), "British Airways"),
+      Row(intOrNull(Some(3)), intOrNull(Some(4)), "Turkish Airlines"),
+      Row(intOrNull(None), intOrNull(Some(5)), "Another Airline"),
+      Row(intOrNull(Some(5)), intOrNull(None), "Another Airline")
+    )
+    val flights = ss.createDataFrame(rows.asJava, schema)
 
-    cities.write
+    flights.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -392,14 +479,22 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       session.run("UNWIND [1,2,3,5] AS id CREATE (:City {id: id})").consume()
     }
 
-    val cities = Seq(
-      (Some(1), Some(2), "British Airways"),
-      (Some(2), Some(3), "Turkish Airlines"),
-      (None, Some(5), "Another Airline"),
-      (Some(5), None, "Another Airline")
-    ).toDF("from", "to", "airline")
+    val schema = StructType(
+      Seq(
+        StructField("from", IntegerType, nullable = true),
+        StructField("to", IntegerType, nullable = true),
+        StructField("airline", StringType, nullable = false)
+      )
+    )
+    val rows = Seq(
+      Row(intOrNull(Some(1)), intOrNull(Some(2)), "British Airways"),
+      Row(intOrNull(Some(2)), intOrNull(Some(3)), "Turkish Airlines"),
+      Row(intOrNull(None), intOrNull(Some(5)), "Another Airline"),
+      Row(intOrNull(Some(5)), intOrNull(None), "Another Airline")
+    )
+    val flights = ss.createDataFrame(rows.asJava, schema)
 
-    cities.write
+    flights.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -434,14 +529,22 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `skips relationships when source or target node key properties contain null values when nodes are appended with append mode`()
     : Unit = {
-    val cities = Seq(
-      (Some(1), Some(2), "British Airways"),
-      (Some(3), Some(4), "Turkish Airlines"),
-      (None, Some(5), "Another Airline"),
-      (Some(5), None, "Another Airline")
-    ).toDF("from", "to", "airline")
+    val schema = StructType(
+      Seq(
+        StructField("from", IntegerType, nullable = true),
+        StructField("to", IntegerType, nullable = true),
+        StructField("airline", StringType, nullable = false)
+      )
+    )
+    val rows = Seq(
+      Row(intOrNull(Some(1)), intOrNull(Some(2)), "British Airways"),
+      Row(intOrNull(Some(2)), intOrNull(Some(3)), "Turkish Airlines"),
+      Row(intOrNull(None), intOrNull(Some(5)), "Another Airline"),
+      Row(intOrNull(Some(5)), intOrNull(None), "Another Airline")
+    )
+    val flights = ss.createDataFrame(rows.asJava, schema)
 
-    cities.write
+    flights.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -485,13 +588,22 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       CanIUse.INSTANCE.canIUse(Schema.INSTANCE.relationshipKeyConstraints()).withNeo4j(SparkConnectorScalaSuiteIT.neo4j)
     )
 
-    val cities = Seq(
-      (Some(1), Some(2), Some("BA721"), "British Airways"),
-      (Some(2), Some(3), Some("TK211"), "Turkish Airlines"),
-      (Some(3), Some(5), None, "Another Airline")
-    ).toDF("from", "to", "flight", "airline")
+    val schema = StructType(
+      Seq(
+        StructField("from", IntegerType, nullable = true),
+        StructField("to", IntegerType, nullable = true),
+        StructField("flight", StringType, nullable = true),
+        StructField("airline", StringType, nullable = false)
+      )
+    )
+    val rows = Seq(
+      Row(intOrNull(Some(1)), intOrNull(Some(2)), Some("BA721"), "British Airways"),
+      Row(intOrNull(Some(2)), intOrNull(Some(3)), Some("TK211"), "Turkish Airlines"),
+      Row(intOrNull(None), intOrNull(Some(5)), None, "Another Airline")
+    )
+    val flights = ss.createDataFrame(rows.asJava, schema)
 
-    cities.write
+    flights.write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Overwrite)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)

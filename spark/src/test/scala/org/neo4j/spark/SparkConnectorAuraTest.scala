@@ -17,7 +17,11 @@
 package org.neo4j.spark
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.junit.AfterClass
 import org.junit.Assert._
 import org.junit.Assume.assumeTrue
@@ -27,6 +31,8 @@ import org.junit.Test
 import org.neo4j.Closeables.use
 import org.neo4j.driver._
 import org.neo4j.spark.SparkConnectorAuraTest._
+
+import scala.jdk.CollectionConverters.SeqHasAsJava
 
 object SparkConnectorAuraTest {
   private var neo4j: Driver = _
@@ -63,8 +69,6 @@ class SparkConnectorAuraTest {
 
   val ss: SparkSession = SparkSession.builder().getOrCreate()
 
-  import ss.implicits._
-
   @Before
   def setUp(): Unit = {
     use(neo4j.session(SessionConfig.forDatabase("system"))) {
@@ -75,8 +79,20 @@ class SparkConnectorAuraTest {
 
   @Test
   def shouldWriteToAndReadFromAura(): Unit = {
-    val df = Seq(("John Bonham", "Drums", 12), ("John Mayer", "Guitar", 8))
-      .toDF("name", "instrument", "experience")
+    val schema = StructType(
+      Seq(
+        StructField("name", DataTypes.StringType, false),
+        StructField("instrument", DataTypes.StringType, false),
+        StructField("experience", DataTypes.IntegerType, false)
+      )
+    )
+    val df = ss.createDataFrame(
+      Seq(
+        Row("John Bonham", "Drums", 12),
+        Row("John Mayer", "Guitar", 8)
+      ).asJava,
+      schema
+    )
 
     df.write
       .mode("Overwrite")
