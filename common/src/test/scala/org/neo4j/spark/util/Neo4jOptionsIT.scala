@@ -44,7 +44,6 @@ class Neo4jOptionsIT extends SparkConnectorScalaSuiteIT {
   }
 
   @Test
-  @Ignore("This requires a fix on driver, ignoring until it is implemented")
   def shouldConstructDriverWithResolver(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(
