@@ -98,6 +98,8 @@ hooks:
           cp -r {{basedir}}/target/{{matrix.scala}}/maven-artifacts artifacts/
           cp -r {{basedir}}/spark-3/target/{{projectName}}*.zip artifacts/
           cp -r {{basedir}}/spark-3/target/{{projectName}}*.jar artifacts/
+          cp -r {{basedir}}/spark-4/target/{{projectName}}*.zip artifacts/ || true
+          cp -r {{basedir}}/spark-4/target/{{projectName}}*.jar artifacts/ || true
 
 signing:
   active: ALWAYS

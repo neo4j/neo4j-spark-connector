@@ -29,7 +29,7 @@ class DataSourceReaderNeo4jWithApocTSE extends SparkConnectorScalaBaseWithApocTS
 
   @Test
   def testMultiDbJoin(): Unit = {
-    SparkConnectorScalaSuiteWithApocIT.driver.session(SessionConfig.forDatabase("db1"))
+    SparkConnectorScalaSuiteWithApocIT.driver.session(SessionConfig.forDatabase("neo4j"))
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(
@@ -42,7 +42,7 @@ class DataSourceReaderNeo4jWithApocTSE extends SparkConnectorScalaBaseWithApocTS
         }
       )
 
-    SparkConnectorScalaSuiteWithApocIT.driver.session(SessionConfig.forDatabase("db2"))
+    SparkConnectorScalaSuiteWithApocIT.driver.session(SessionConfig.forDatabase("neo4j"))
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(
@@ -56,13 +56,13 @@ class DataSourceReaderNeo4jWithApocTSE extends SparkConnectorScalaBaseWithApocTS
 
     val df1 = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
-      .option("database", "db1")
+      .option("database", "neo4j")
       .option("labels", "Person")
       .load()
 
     val df2 = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
-      .option("database", "db2")
+      .option("database", "neo4j")
       .option("labels", "Person")
       .load()
 

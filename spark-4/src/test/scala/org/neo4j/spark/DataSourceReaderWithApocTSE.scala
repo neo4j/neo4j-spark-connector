@@ -55,7 +55,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   def testReadNodeHasLabelsField(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person:Customer {name: 'John'})")
 
-    val result = df.select("<labels>").collectAsList().get(0).getAs[Seq[String]](0)
+    val result = df.select("<labels>").collectAsList().get(0).getAs[scala.collection.Seq[String]](0)
 
     assertEquals("Person", result.head)
     assertEquals("Customer", result(1))
@@ -65,7 +65,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   def testReadNodeHasUnusualLabelsField(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:`Foo Bar`:Person {name: 'John'})")
 
-    val result = df.select("<labels>").collectAsList().get(0).getAs[Seq[String]](0)
+    val result = df.select("<labels>").collectAsList().get(0).getAs[scala.collection.Seq[String]](0)
 
     assertEquals(Set("Person", "Foo Bar"), result.toSet[String])
   }
@@ -214,7 +214,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   def testReadNodeWithStringArray(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person {names: ['John', 'Doe']})")
 
-    val res = df.select("names").collectAsList().get(0).getAs[Seq[String]](0)
+    val res = df.select("names").collectAsList().get(0).getAs[scala.collection.Seq[String]](0)
 
     assertEquals("John", res.head)
     assertEquals("Doe", res(1))
@@ -224,7 +224,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   def testReadNodeWithLongArray(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person {ages: [22, 23]})")
 
-    val res = df.select("ages").collectAsList().get(0).getAs[Seq[Long]](0)
+    val res = df.select("ages").collectAsList().get(0).getAs[scala.collection.Seq[Long]](0)
 
     assertEquals(22, res.head)
     assertEquals(23, res(1))
@@ -234,7 +234,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   def testReadNodeWithDoubleArray(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person {scores: [22.33, 44.55]})")
 
-    val res = df.select("scores").collectAsList().get(0).getAs[Seq[Double]](0)
+    val res = df.select("scores").collectAsList().get(0).getAs[scala.collection.Seq[Double]](0)
 
     assertEquals(22.33, res.head, 0)
     assertEquals(44.55, res(1), 0)
@@ -245,7 +245,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val df: DataFrame =
       initTest(s"CREATE (p:Person {someTimes: [localtime({hour:12}), localtime({hour:1, minute: 3})]})")
 
-    val res = df.select("someTimes").collectAsList().get(0).getAs[Seq[GenericRowWithSchema]](0)
+    val res = df.select("someTimes").collectAsList().get(0).getAs[scala.collection.Seq[GenericRowWithSchema]](0)
 
     assertEquals("local-time", res.head.get(0))
     assertEquals("12:00:00", res.head.get(1))
@@ -257,7 +257,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   def testReadNodeWithBooleanArray(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person {bools: [true, false]})")
 
-    val res = df.select("bools").collectAsList().get(0).getAs[Seq[Boolean]](0)
+    val res = df.select("bools").collectAsList().get(0).getAs[scala.collection.Seq[Boolean]](0)
 
     assertEquals(true, res.head)
     assertEquals(false, res(1))
@@ -268,7 +268,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val df: DataFrame =
       initTest(s"CREATE (p:Person {locations: [point({x: 11, y: 33.111}), point({x: 22, y: 44.222})]})")
 
-    val res = df.select("locations").collectAsList().get(0).getAs[Seq[GenericRowWithSchema]](0)
+    val res = df.select("locations").collectAsList().get(0).getAs[scala.collection.Seq[GenericRowWithSchema]](0)
 
     assertEquals("point-2d", res.head.get(0))
     assertEquals(7203, res.head.get(1))
@@ -287,7 +287,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       s"CREATE (p:Person {locations: [point({longitude: 11, latitude: 33.111}), point({longitude: 22, latitude: 44.222})]})"
     )
 
-    val res = df.select("locations").collectAsList().get(0).getAs[Seq[GenericRowWithSchema]](0)
+    val res = df.select("locations").collectAsList().get(0).getAs[scala.collection.Seq[GenericRowWithSchema]](0)
 
     assertEquals("point-2d", res.head.get(0))
     assertEquals(4326, res.head.get(1))
@@ -305,7 +305,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val df: DataFrame =
       initTest(s"CREATE (p:Person {locations: [point({x: 11, y: 33.111, z: 12}), point({x: 22, y: 44.222, z: 99.1})]})")
 
-    val res = df.select("locations").collectAsList().get(0).getAs[Seq[GenericRowWithSchema]](0)
+    val res = df.select("locations").collectAsList().get(0).getAs[scala.collection.Seq[GenericRowWithSchema]](0)
 
     assertEquals("point-3d", res.head.get(0))
     assertEquals(9157, res.head.get(1))
@@ -324,7 +324,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   def testReadNodeWithArrayDate(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person {dates: [date('2009-10-10'), date('2009-10-11')]})")
 
-    val res = df.select("dates").collectAsList().get(0).getAs[Seq[java.sql.Date]](0)
+    val res = df.select("dates").collectAsList().get(0).getAs[scala.collection.Seq[java.sql.Date]](0)
 
     assertEquals(java.sql.Date.valueOf("2009-10-10"), res.head)
     assertEquals(java.sql.Date.valueOf("2009-10-11"), res(1))
@@ -341,7 +341,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
      ]})
      """)
 
-    val result = df.select("aTime").collectAsList().get(0).getAs[Seq[Timestamp]](0)
+    val result = df.select("aTime").collectAsList().get(0).getAs[scala.collection.Seq[Timestamp]](0)
 
     assertEquals(Timestamp.from(OffsetDateTime.parse(datetime1).toInstant), result.head)
     assertEquals(Timestamp.from(OffsetDateTime.parse(datetime2).toInstant), result(1))
@@ -351,7 +351,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   def testReadNodeWithArrayDurations(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person {durations: [duration({months: 0.75}), duration({weeks: 2.5})]})")
 
-    val res = df.select("durations").collectAsList().get(0).getAs[Seq[GenericRowWithSchema]](0)
+    val res = df.select("durations").collectAsList().get(0).getAs[scala.collection.Seq[GenericRowWithSchema]](0)
 
     assertEquals("duration", res.head.get(0))
     assertEquals(0L, res.head.get(1))
@@ -713,11 +713,11 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
           && row.getAs[Double]("rel.quantity") >= 0
           && row.getAs[Long]("<source.id>") >= 0
           && row.getAs[Long]("source.id") >= 0
-          && !row.getAs[Seq[String]]("<source.labels>").isEmpty
+          && !row.getAs[scala.collection.Seq[String]]("<source.labels>").isEmpty
           && row.getAs[String]("source.fullName") != null
           && row.getAs[Long]("<target.id>") >= 0
           && row.getAs[Double]("target.id") >= 0
-          && !row.getAs[Seq[String]]("<target.labels>").isEmpty
+          && !row.getAs[scala.collection.Seq[String]]("<target.labels>").isEmpty
           && row.getAs[String]("target.name") != null
       )
       .size

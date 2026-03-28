@@ -35,7 +35,8 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testMultiDbJoin(): Unit = {
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
+    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("neo4j"))
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(
@@ -48,7 +49,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
         }
       )
 
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
+    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("neo4j"))
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(
@@ -62,13 +63,13 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
     val df1 = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("database", "db1")
+      .option("database", "neo4j")
       .option("labels", "Person")
       .load()
 
     val df2 = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("database", "db2")
+      .option("database", "neo4j")
       .option("labels", "Person")
       .load()
 
@@ -356,6 +357,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testShouldThrowClearErrorIfAWrongDbIsSpecified(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     try {
       ss.read.format(classOf[DataSource].getName)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)

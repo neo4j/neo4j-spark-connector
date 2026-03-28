@@ -13,6 +13,9 @@ exit_script() {
   mv -f common/pom.xml.bak common/pom.xml
   mv -f test-support/pom.xml.bak test-support/pom.xml
   mv -f spark-3/pom.xml.bak spark-3/pom.xml
+  if [[ -f spark-4/pom.xml.bak ]]; then
+    mv -f spark-4/pom.xml.bak spark-4/pom.xml
+  fi
   trap - SIGINT SIGTERM # clear the trap
   kill -- -$$ || true # Sends SIGTERM to child/sub processes
 }
@@ -49,6 +52,7 @@ cp pom.xml pom.xml.bak
 cp common/pom.xml common/pom.xml.bak
 cp test-support/pom.xml test-support/pom.xml.bak
 cp spark-3/pom.xml spark-3/pom.xml.bak
+cp spark-4/pom.xml spark-4/pom.xml.bak
 
 ./mvnw -B versions:set -DnewVersion=${PROJECT_VERSION}_for_spark_${SPARK_VERSION} -DgenerateBackupPoms=false
 
@@ -66,6 +70,12 @@ sed_i "s/<artifactId>neo4j-connector-apache-spark_parent<\/artifactId>/<artifact
 sed_i "s/<artifactId>neo4j-connector-apache-spark_common<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_common<\/artifactId>/" "spark-3/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark_test-support<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_test-support<\/artifactId>/" "spark-3/pom.xml"
 sed_i "s/<spark-packages.version\/>/<spark-packages.version>${SPARK_PACKAGES_VERSION}<\/spark-packages.version>/" "spark-3/pom.xml"
+
+sed_i "s/<artifactId>neo4j-connector-apache-spark_4<\/artifactId>/<artifactId>neo4j-connector-apache-spark_4_${SCALA_VERSION}<\/artifactId>/" "spark-4/pom.xml"
+sed_i "s/<artifactId>neo4j-connector-apache-spark_parent<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_parent<\/artifactId>/" "spark-4/pom.xml"
+sed_i "s/<artifactId>neo4j-connector-apache-spark_common<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_common<\/artifactId>/" "spark-4/pom.xml"
+sed_i "s/<artifactId>neo4j-connector-apache-spark_test-support<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_test-support<\/artifactId>/" "spark-4/pom.xml"
+sed_i "s/<spark-packages.version\/>/<spark-packages.version>${SPARK_PACKAGES_VERSION}<\/spark-packages.version>/" "spark-4/pom.xml"
 
 # build
 ./mvnw -B clean "${GOAL}" -Dscala-"${SCALA_VERSION}" -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
