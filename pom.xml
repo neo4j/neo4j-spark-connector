@@ -551,6 +551,21 @@
         </profile>
         <!-- end scala profiles -->
         <!-- spark profiles -->
+        <profile>
+            <id>spark-4</id>
+            <activation>
+                <property>
+                    <name>spark-4</name>
+                </property>
+            </activation>
+            <modules>
+                <module>spark-4</module>
+            </modules>
+            <properties>
+                <scala.binary.version>2.13</scala.binary.version>
+                <scala.version>2.13.16</scala.version>
+            </properties>
+        </profile>
         <!-- end spark profiles -->
         <profile>
             <id>has-sources</id>
