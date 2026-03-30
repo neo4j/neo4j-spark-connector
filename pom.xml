@@ -65,7 +65,7 @@
         <maven-surefire-plugin.version>3.5.5</maven-surefire-plugin.version>
         <neo4j.experimental>false</neo4j.experimental>
         <neo4j.version>4.4.20</neo4j.version>
-        <netty-bom.version>4.1.131.Final</netty-bom.version>
+        <netty-bom.version>4.1.132.Final</netty-bom.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scala-maven-plugin.version>4.9.10</scala-maven-plugin.version>
         <scala.binary.version>2.12</scala.binary.version>
