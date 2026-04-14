@@ -804,14 +804,14 @@ class SchemaService(
         )
       }
       if (schemaMetadata.schemaConstraints.nonEmpty) {
-        val propFromStruct: Map[String, String] = struct
+        val propsFromStruct: Map[String, String] = struct
           .map(f => (f.name, f.name))
           .toMap
         val propsFromMeta: Map[String, String] = options.nodeMetadata.nodeKeys ++ options.nodeMetadata.properties
         createEntityTypeConstraint(
           "NODE",
           options.nodeMetadata.labels.head,
-          propsFromMeta ++ propFromStruct,
+          propsFromStruct ++ propsFromMeta,
           struct,
           schemaMetadata.schemaConstraints
         )
