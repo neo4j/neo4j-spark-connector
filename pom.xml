@@ -67,7 +67,7 @@
         <neo4j.version>4.4.20</neo4j.version>
         <netty-bom.version>4.1.128.Final</netty-bom.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <scala-maven-plugin.version>4.9.6</scala-maven-plugin.version>
+        <scala-maven-plugin.version>4.9.10</scala-maven-plugin.version>
         <scala.binary.version>2.13</scala.binary.version>
         <scala.version>2.13.18</scala.version>
         <slf4j-api.version>2.0.17</slf4j-api.version>
