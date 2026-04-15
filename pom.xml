@@ -46,7 +46,7 @@
         <driver.version>4.4.22</driver.version>
         <java.version>1.8</java.version>
         <!-- 3.4.3.Final is the latest jboss-logging version compatible with java 8 -->
-        <jboss-logging.version>3.4.3.Final</jboss-logging.version>
+        <jboss-logging.version>3.6.3.Final</jboss-logging.version>
         <junit.version>4.13.2</junit.version>
         <license-maven-plugin.version>4.6</license-maven-plugin.version>
         <licensing-maven-plugin.version>1.7.12</licensing-maven-plugin.version>
