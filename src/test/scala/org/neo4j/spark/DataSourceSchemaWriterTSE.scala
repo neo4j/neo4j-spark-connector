@@ -65,25 +65,44 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
 
   final private val SHOW_CONSTRAINTS_QUERY =
     """|SHOW CONSTRAINTS
-       |YIELD name, type, entityType, labelsOrTypes, properties, ownedIndex""".stripMargin
+       |YIELD name, type, entityType, labelsOrTypes, properties, ownedIndex, propertyType""".stripMargin
 
   final private val NODE_UNIQUENESS_SHOW_CONSTRAINTS_QUERY =
     """|SHOW CONSTRAINTS
-       |YIELD name, type AS ptype, entityType, labelsOrTypes, properties, ownedIndex
+       |YIELD name, type AS ptype, entityType, labelsOrTypes, properties, ownedIndex, propertyType
        |RETURN name, entityType, labelsOrTypes, properties, ownedIndex,
        |CASE ptype
        |  WHEN "UNIQUENESS" THEN "NODE_PROPERTY_UNIQUENESS"
        |  ELSE ptype
-       |END AS type""".stripMargin
+       |END AS type, propertyType
+       |ORDER BY type ASC""".stripMargin
 
   final private val RELATIONSHIP_UNIQUENESS_SHOW_CONSTRAINTS_QUERY =
     """|SHOW CONSTRAINTS
-       |YIELD name, type AS ptype, entityType, labelsOrTypes, properties, ownedIndex
+       |YIELD name, type AS ptype, entityType, labelsOrTypes, properties, ownedIndex, propertyType
        |RETURN name, entityType, labelsOrTypes, properties, ownedIndex,
        |CASE ptype
        |  WHEN "RELATIONSHIP_UNIQUENESS" THEN "RELATIONSHIP_PROPERTY_UNIQUENESS"
        |  ELSE ptype
-       |END AS type""".stripMargin
+       |END AS type, propertyType
+       |ORDER BY type ASC""".stripMargin
+
+  final private val ALL_TYPES_AS_COL_NAMES = Array(
+    "string",
+    "int",
+    "boolean",
+    "float",
+    "date",
+    "localDateTime",
+    "zonedDateTime",
+    "stringArray",
+    "intArray",
+    "booleanArray",
+    "floatArray",
+    "dateArray",
+    "localDateTimeArray",
+    "zonedDateTimeArray"
+  )
 
   import sparkSession.implicits._
 
@@ -100,6 +119,8 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     .filterNot(_ == SchemaConstraintsOptimizationType.NONE)
     .mkString(",")
 
+  private val nodeWithSchema = "NodeWithSchema"
+
   @Test
   def shouldApplySchemaForNodes(): Unit = {
     val (expectedNode: Map[_root_.java.lang.String, Any], df: DataFrame) = createNodesDataFrameWithNotNullColumns
@@ -109,14 +130,15 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .mode(SaveMode.Append)
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", ":NodeWithSchema")
+      .option("labels", s":$nodeWithSchema")
       .option(Neo4jOptions.SCHEMA_OPTIMIZATION, schemaOptimization)
       .save()
+
     val count: Long = SparkConnectorScalaSuiteIT.session().run(
-      """
-        |MATCH (n:NodeWithSchema)
-        |RETURN count(n)
-        |""".stripMargin
+      s"""
+         |MATCH (n:$nodeWithSchema)
+         |RETURN count(n)
+         |""".stripMargin
     )
       .single()
       .get(0)
@@ -125,164 +147,38 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(1L, count)
 
     val expectedSchema = Seq(
-      Map(
-        "name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeWithSchema-boolean",
-        "type" -> "NODE_PROPERTY_EXISTENCE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("boolean"),
-        "propertyType" -> null
-      ),
-      Map(
-        "name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeWithSchema-float",
-        "type" -> "NODE_PROPERTY_EXISTENCE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("float"),
-        "propertyType" -> null
-      ),
-      Map(
-        "name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeWithSchema-int",
-        "type" -> "NODE_PROPERTY_EXISTENCE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("int"),
-        "propertyType" -> null
-      ),
-      Map(
-        "name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeWithSchema-string",
-        "type" -> "NODE_PROPERTY_EXISTENCE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("string"),
-        "propertyType" -> null
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-boolean",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("boolean"),
-        "propertyType" -> "BOOLEAN"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-booleanArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("booleanArray"),
-        "propertyType" -> "LIST<BOOLEAN NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-date",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("date"),
-        "propertyType" -> "DATE"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-dateArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("dateArray"),
-        "propertyType" -> "LIST<DATE NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-float",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("float"),
-        "propertyType" -> "FLOAT"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-floatArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("floatArray"),
-        "propertyType" -> "LIST<FLOAT NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-int",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("int"),
-        "propertyType" -> "INTEGER"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-intArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("intArray"),
-        "propertyType" -> "LIST<INTEGER NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-localDateTime",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("localDateTime"),
-        "propertyType" -> "LOCAL DATETIME"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-localDateTimeArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("localDateTimeArray"),
-        "propertyType" -> "LIST<LOCAL DATETIME NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-string",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("string"),
-        "propertyType" -> "STRING"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-stringArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("stringArray"),
-        "propertyType" -> "LIST<STRING NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-zonedDateTime",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("zonedDateTime"),
-        "propertyType" -> "ZONED DATETIME"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-zonedDateTimeArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("zonedDateTimeArray"),
-        "propertyType" -> "LIST<ZONED DATETIME NOT NULL>"
-      )
+      constraintNodeNotNull(nodeWithSchema, "boolean"),
+      constraintNodeNotNull(nodeWithSchema, "float"),
+      constraintNodeNotNull(nodeWithSchema, "int"),
+      constraintNodeNotNull(nodeWithSchema, "string"),
+      constraintNodeType(nodeWithSchema, "boolean", "BOOLEAN"),
+      constraintNodeType(nodeWithSchema, "booleanArray", "LIST<BOOLEAN NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "date", "DATE"),
+      constraintNodeType(nodeWithSchema, "dateArray", "LIST<DATE NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "float", "FLOAT"),
+      constraintNodeType(nodeWithSchema, "floatArray", "LIST<FLOAT NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "int", "INTEGER"),
+      constraintNodeType(nodeWithSchema, "intArray", "LIST<INTEGER NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "localDateTime", "LOCAL DATETIME"),
+      constraintNodeType(nodeWithSchema, "localDateTimeArray", "LIST<LOCAL DATETIME NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "string", "STRING"),
+      constraintNodeType(nodeWithSchema, "stringArray", "LIST<STRING NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "zonedDateTime", "ZONED DATETIME"),
+      constraintNodeType(nodeWithSchema, "zonedDateTimeArray", "LIST<ZONED DATETIME NOT NULL>")
     )
 
-    val keys = Seq("name", "type", "entityType", "labelsOrTypes", "properties", "propertyType")
     val actualSchema = SparkConnectorScalaSuiteIT.session()
-      .run(s"SHOW CONSTRAINTS YIELD ${keys.mkString(", ")} RETURN * ORDER BY name")
+      .run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(r => keys.map(key => (key, mapData(r.get(key).asObject()))).toMap)
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
       .toSeq
+
     assertEquals(expectedSchema, actualSchema)
 
     val actualNode: Map[String, Any] = SparkConnectorScalaSuiteIT.session()
       .executeRead(tx =>
-        tx.run("MATCH (n:NodeWithSchema) RETURN n")
+        tx.run(s"MATCH (n:$nodeWithSchema) RETURN n")
           .list()
           .asScala
           .map(_.get("n").asNode())
@@ -299,193 +195,63 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def shouldApplySchemaAndNodeKeysForNodes(): Unit = {
     val (expectedNode: Map[_root_.java.lang.String, Any], df: DataFrame) = createNodesDataFrameWithNotNullColumns
+
     df.write
       .mode(SaveMode.Overwrite)
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", ":NodeWithSchema")
+      .option("labels", s":$nodeWithSchema")
       .option(Neo4jOptions.SCHEMA_OPTIMIZATION, schemaOptimization)
       .option(Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_KEY, ConstraintsOptimizationType.KEY.toString)
       .option("node.keys", "int,string")
       .save()
+
     val count: Long = SparkConnectorScalaSuiteIT.session().run(
-      """
-        |MATCH (n:NodeWithSchema)
-        |RETURN count(n)
-        |""".stripMargin
+      s"""
+         |MATCH (n:$nodeWithSchema)
+         |RETURN count(n)
+         |""".stripMargin
     )
       .single()
       .get(0)
       .asLong()
+
     assertEquals(1L, count)
 
     val expectedSchema = Seq(
-      Map(
-        "name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeWithSchema-boolean",
-        "type" -> "NODE_PROPERTY_EXISTENCE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("boolean"),
-        "propertyType" -> null
-      ),
-      Map(
-        "name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeWithSchema-float",
-        "type" -> "NODE_PROPERTY_EXISTENCE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("float"),
-        "propertyType" -> null
-      ),
-      Map(
-        "name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeWithSchema-int",
-        "type" -> "NODE_PROPERTY_EXISTENCE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("int"),
-        "propertyType" -> null
-      ),
-      Map(
-        "name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeWithSchema-string",
-        "type" -> "NODE_PROPERTY_EXISTENCE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("string"),
-        "propertyType" -> null
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-boolean",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("boolean"),
-        "propertyType" -> "BOOLEAN"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-booleanArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("booleanArray"),
-        "propertyType" -> "LIST<BOOLEAN NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-date",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("date"),
-        "propertyType" -> "DATE"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-dateArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("dateArray"),
-        "propertyType" -> "LIST<DATE NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-float",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("float"),
-        "propertyType" -> "FLOAT"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-floatArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("floatArray"),
-        "propertyType" -> "LIST<FLOAT NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-int",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("int"),
-        "propertyType" -> "INTEGER"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-intArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("intArray"),
-        "propertyType" -> "LIST<INTEGER NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-localDateTime",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("localDateTime"),
-        "propertyType" -> "LOCAL DATETIME"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-localDateTimeArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("localDateTimeArray"),
-        "propertyType" -> "LIST<LOCAL DATETIME NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-string",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("string"),
-        "propertyType" -> "STRING"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-stringArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("stringArray"),
-        "propertyType" -> "LIST<STRING NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-zonedDateTime",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("zonedDateTime"),
-        "propertyType" -> "ZONED DATETIME"
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeWithSchema-zonedDateTimeArray",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "entityType" -> "NODE",
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "properties" -> Seq("zonedDateTimeArray"),
-        "propertyType" -> "LIST<ZONED DATETIME NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_NODE_KEY-CONSTRAINT_NodeWithSchema_int-string",
-        "propertyType" -> null,
-        "properties" -> Seq("int", "string"),
-        "labelsOrTypes" -> Seq("NodeWithSchema"),
-        "entityType" -> "NODE",
-        "type" -> "NODE_KEY"
-      )
+      constraintNodeNotNull(nodeWithSchema, "boolean"),
+      constraintNodeNotNull(nodeWithSchema, "float"),
+      constraintNodeNotNull(nodeWithSchema, "int"),
+      constraintNodeNotNull(nodeWithSchema, "string"),
+      constraintNodeType(nodeWithSchema, "boolean", "BOOLEAN"),
+      constraintNodeType(nodeWithSchema, "booleanArray", "LIST<BOOLEAN NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "date", "DATE"),
+      constraintNodeType(nodeWithSchema, "dateArray", "LIST<DATE NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "float", "FLOAT"),
+      constraintNodeType(nodeWithSchema, "floatArray", "LIST<FLOAT NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "int", "INTEGER"),
+      constraintNodeType(nodeWithSchema, "intArray", "LIST<INTEGER NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "localDateTime", "LOCAL DATETIME"),
+      constraintNodeType(nodeWithSchema, "localDateTimeArray", "LIST<LOCAL DATETIME NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "string", "STRING"),
+      constraintNodeType(nodeWithSchema, "stringArray", "LIST<STRING NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "zonedDateTime", "ZONED DATETIME"),
+      constraintNodeType(nodeWithSchema, "zonedDateTimeArray", "LIST<ZONED DATETIME NOT NULL>"),
+      constraintNodeKey(nodeWithSchema, Seq("int", "string"))
     )
 
-    val keys = Seq("name", "type", "entityType", "labelsOrTypes", "properties", "propertyType")
     val actualSchema = SparkConnectorScalaSuiteIT.session()
-      .run(s"SHOW CONSTRAINTS YIELD ${keys.mkString(", ")} RETURN * ORDER BY name")
+      .run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(r => keys.map(key => (key, mapData(r.get(key).asObject()))).toMap)
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
       .toSeq
+
     assertEquals(expectedSchema, actualSchema)
 
     val actualNode: Map[String, Any] = SparkConnectorScalaSuiteIT.session()
       .executeRead(tx =>
-        tx.run("MATCH (n:NodeWithSchema) RETURN n")
+        tx.run(s"MATCH (n:$nodeWithSchema) RETURN n")
           .list()
           .asScala
           .map(_.get("n").asNode())
@@ -499,25 +265,119 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(expectedNode, actualNode)
   }
 
+  @Test
+  def shouldApplySchemaAndNodeKeysForNodesWhenRemapped(): Unit = {
+    val (node: Map[_root_.java.lang.String, Any], df: DataFrame) = createNodesDataFrameWithNotNullColumns
+
+    df.write
+      .mode(SaveMode.Overwrite)
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", s":$nodeWithSchema")
+      .option(Neo4jOptions.SCHEMA_OPTIMIZATION, schemaOptimization)
+      .option(Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_KEY, ConstraintsOptimizationType.KEY.toString)
+      .option("node.keys", "int:int_prop,string:string_prop")
+      .save()
+
+    val count: Long = SparkConnectorScalaSuiteIT.session().run(
+      s"""
+         |MATCH (n:$nodeWithSchema)
+         |RETURN count(n)
+         |""".stripMargin
+    )
+      .single()
+      .get(0)
+      .asLong()
+
+    assertEquals(1L, count)
+
+    val expectedSchema = Seq(
+      constraintNodeNotNull(nodeWithSchema, "boolean"),
+      constraintNodeNotNull(nodeWithSchema, "float"),
+      constraintNodeNotNull(nodeWithSchema, "int_prop"),
+      constraintNodeNotNull(nodeWithSchema, "string_prop"),
+      constraintNodeType(nodeWithSchema, "boolean", "BOOLEAN"),
+      constraintNodeType(nodeWithSchema, "booleanArray", "LIST<BOOLEAN NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "date", "DATE"),
+      constraintNodeType(nodeWithSchema, "dateArray", "LIST<DATE NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "float", "FLOAT"),
+      constraintNodeType(nodeWithSchema, "floatArray", "LIST<FLOAT NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "intArray", "LIST<INTEGER NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "int_prop", "INTEGER"),
+      constraintNodeType(nodeWithSchema, "localDateTime", "LOCAL DATETIME"),
+      constraintNodeType(nodeWithSchema, "localDateTimeArray", "LIST<LOCAL DATETIME NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "stringArray", "LIST<STRING NOT NULL>"),
+      constraintNodeType(nodeWithSchema, "string_prop", "STRING"),
+      constraintNodeType(nodeWithSchema, "zonedDateTime", "ZONED DATETIME"),
+      constraintNodeType(nodeWithSchema, "zonedDateTimeArray", "LIST<ZONED DATETIME NOT NULL>"),
+      constraintNodeKey(nodeWithSchema, Seq("int_prop", "string_prop"))
+    )
+
+    val actualSchema = SparkConnectorScalaSuiteIT.session()
+      .run(SHOW_CONSTRAINTS_QUERY)
+      .list()
+      .asScala
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .toSeq
+
+    assertEquals(expectedSchema, actualSchema)
+
+    val expectedNode =
+      node.map {
+        case (k, v) =>
+          if (k == "string" || k == "int") (k + "_prop", v)
+          else (k, v)
+      }
+
+    val actualNode = SparkConnectorScalaSuiteIT.session()
+      .executeRead(tx =>
+        tx.run(s"MATCH (n:$nodeWithSchema) RETURN n")
+          .list()
+          .asScala
+          .map(_.get("n").asNode())
+          .map(_.asMap())
+      )
+      .head
+      .asScala
+      .mapValues(mapData)
+      .toMap
+
+    assertEquals(expectedNode, actualNode)
+  }
+
+  final private def constraintNodeNotNull(node: String, prop: String): Map[String, Any] = Map(
+    "name" -> s"spark_NODE-NOT_NULL-CONSTRAINT-$node-$prop",
+    "type" -> "NODE_PROPERTY_EXISTENCE",
+    "entityType" -> "NODE",
+    "labelsOrTypes" -> Seq(node),
+    "properties" -> Seq(prop),
+    "ownedIndex" -> null,
+    "propertyType" -> null
+  )
+
+  final private def constraintNodeType(node: String, prop: String, expectedType: String): Map[String, Any] = Map(
+    "name" -> s"spark_NODE-TYPE-CONSTRAINT-$node-$prop",
+    "type" -> "NODE_PROPERTY_TYPE",
+    "entityType" -> "NODE",
+    "labelsOrTypes" -> Seq(node),
+    "properties" -> Seq(prop),
+    "ownedIndex" -> null,
+    "propertyType" -> expectedType
+  )
+
+  final private def constraintNodeKey(node: String, props: Seq[String]): Map[String, Any] = Map(
+    "name" -> s"spark_NODE_KEY-CONSTRAINT_${node}_${props.mkString("-")}",
+    "type" -> "NODE_KEY",
+    "entityType" -> "NODE",
+    "labelsOrTypes" -> Seq(node),
+    "properties" -> props,
+    "ownedIndex" -> s"spark_NODE_KEY-CONSTRAINT_${node}_${props.mkString("-")}",
+    "propertyType" -> null
+  )
+
   private def createNodesDataFrameWithNotNullColumns: (Map[String, Any], DataFrame) = {
     TimeZone.setDefault(TimeZone.getTimeZone(timeZoneLock))
 
-    val colNames = Array(
-      "string",
-      "int",
-      "boolean",
-      "float",
-      "date",
-      "localDateTime",
-      "zonedDateTime",
-      "stringArray",
-      "intArray",
-      "booleanArray",
-      "floatArray",
-      "dateArray",
-      "localDateTimeArray",
-      "zonedDateTimeArray"
-    )
     val row = (
       "Foo",
       1,
@@ -535,8 +395,8 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       Seq(Timestamp.valueOf("2023-11-22 11:11:11.11"), Timestamp.valueOf("2023-11-23 12:12:12.12"))
     )
 
-    val data = Seq(row).toDF(colNames: _*)
-    val expectedNode = colNames.zip(row.productIterator.toSeq).toMap
+    val data = Seq(row).toDF(ALL_TYPES_AS_COL_NAMES: _*)
+    val expectedNode = ALL_TYPES_AS_COL_NAMES.zip(row.productIterator.toSeq).toMap
 
     val schema = StructType(data.schema.map { sf =>
       sf.name match {
@@ -572,185 +432,38 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .single()
       .get(0)
       .asLong()
+
     assertEquals(1L, count)
 
     val expected = Seq(
-      Map(
-        "name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeA-id",
-        "propertyType" -> null,
-        "entityType" -> "NODE",
-        "type" -> "NODE_PROPERTY_EXISTENCE",
-        "properties" -> Seq("id"),
-        "labelsOrTypes" -> Seq("NodeA")
-      ),
-      Map(
-        "name" -> "spark_NODE-NOT_NULL-CONSTRAINT-NodeB-id",
-        "propertyType" -> null,
-        "entityType" -> "NODE",
-        "type" -> "NODE_PROPERTY_EXISTENCE",
-        "properties" -> Seq("id"),
-        "labelsOrTypes" -> Seq("NodeB")
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeA-id",
-        "propertyType" -> "STRING",
-        "entityType" -> "NODE",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "properties" -> Seq("id"),
-        "labelsOrTypes" -> Seq("NodeA")
-      ),
-      Map(
-        "name" -> "spark_NODE-TYPE-CONSTRAINT-NodeB-id",
-        "propertyType" -> "STRING",
-        "entityType" -> "NODE",
-        "type" -> "NODE_PROPERTY_TYPE",
-        "properties" -> Seq("id"),
-        "labelsOrTypes" -> Seq("NodeB")
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-NOT_NULL-CONSTRAINT-MY_REL-boolean",
-        "propertyType" -> null,
-        "entityType" -> "RELATIONSHIP",
-        "type" -> "RELATIONSHIP_PROPERTY_EXISTENCE",
-        "properties" -> Seq("boolean"),
-        "labelsOrTypes" -> Seq("MY_REL")
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-NOT_NULL-CONSTRAINT-MY_REL-float",
-        "propertyType" -> null,
-        "entityType" -> "RELATIONSHIP",
-        "type" -> "RELATIONSHIP_PROPERTY_EXISTENCE",
-        "properties" -> Seq("float"),
-        "labelsOrTypes" -> Seq("MY_REL")
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-NOT_NULL-CONSTRAINT-MY_REL-int",
-        "propertyType" -> null,
-        "entityType" -> "RELATIONSHIP",
-        "type" -> "RELATIONSHIP_PROPERTY_EXISTENCE",
-        "properties" -> Seq("int"),
-        "labelsOrTypes" -> Seq("MY_REL")
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-boolean",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("boolean"),
-        "propertyType" -> "BOOLEAN"
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-booleanArray",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("booleanArray"),
-        "propertyType" -> "LIST<BOOLEAN NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-date",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("date"),
-        "propertyType" -> "DATE"
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-dateArray",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("dateArray"),
-        "propertyType" -> "LIST<DATE NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-float",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("float"),
-        "propertyType" -> "FLOAT"
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-floatArray",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("floatArray"),
-        "propertyType" -> "LIST<FLOAT NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-int",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("int"),
-        "propertyType" -> "INTEGER"
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-intArray",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("intArray"),
-        "propertyType" -> "LIST<INTEGER NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-localDateTime",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("localDateTime"),
-        "propertyType" -> "LOCAL DATETIME"
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-localDateTimeArray",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("localDateTimeArray"),
-        "propertyType" -> "LIST<LOCAL DATETIME NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-string",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("string"),
-        "propertyType" -> "STRING"
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-stringArray",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("stringArray"),
-        "propertyType" -> "LIST<STRING NOT NULL>"
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-zonedDateTime",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("zonedDateTime"),
-        "propertyType" -> "ZONED DATETIME"
-      ),
-      Map(
-        "name" -> "spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-zonedDateTimeArray",
-        "type" -> "RELATIONSHIP_PROPERTY_TYPE",
-        "entityType" -> "RELATIONSHIP",
-        "labelsOrTypes" -> Seq("MY_REL"),
-        "properties" -> Seq("zonedDateTimeArray"),
-        "propertyType" -> "LIST<ZONED DATETIME NOT NULL>"
-      )
+      constraintNodeNotNull("NodeA", "id"),
+      constraintNodeNotNull("NodeB", "id"),
+      constraintNodeType("NodeA", "id", "STRING"),
+      constraintNodeType("NodeB", "id", "STRING"),
+      constraintRelNotNull("boolean"),
+      constraintRelNotNull("float"),
+      constraintRelNotNull("int"),
+      constraintRelType("boolean", "BOOLEAN"),
+      constraintRelType("booleanArray", "LIST<BOOLEAN NOT NULL>"),
+      constraintRelType("date", "DATE"),
+      constraintRelType("dateArray", "LIST<DATE NOT NULL>"),
+      constraintRelType("float", "FLOAT"),
+      constraintRelType("floatArray", "LIST<FLOAT NOT NULL>"),
+      constraintRelType("int", "INTEGER"),
+      constraintRelType("intArray", "LIST<INTEGER NOT NULL>"),
+      constraintRelType("localDateTime", "LOCAL DATETIME"),
+      constraintRelType("localDateTimeArray", "LIST<LOCAL DATETIME NOT NULL>"),
+      constraintRelType("string", "STRING"),
+      constraintRelType("stringArray", "LIST<STRING NOT NULL>"),
+      constraintRelType("zonedDateTime", "ZONED DATETIME"),
+      constraintRelType("zonedDateTimeArray", "LIST<ZONED DATETIME NOT NULL>")
     )
 
-    val keys = Seq("name", "type", "entityType", "labelsOrTypes", "properties", "propertyType")
     val actual = SparkConnectorScalaSuiteIT.session()
-      .run(s"SHOW CONSTRAINTS YIELD ${keys.mkString(", ")} RETURN * ORDER BY name")
+      .run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(r => keys.map(key => (key, mapData(r.get(key).asObject()))).toMap)
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
       .toSeq
 
     assertEquals(expected, actual)
@@ -775,28 +488,18 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(expectedMap, actualMap)
   }
 
-  private def createDatasetForRelationships(options: Map[String, String]) = {
+  private def createDatasetForRelationships(options: Map[String, String]): Map[String, Any] = {
+    val shouldRemap = options.contains(Neo4jOptions.RELATIONSHIP_PROPERTIES)
+
     SparkConnectorScalaSuiteIT.session()
       .run("CREATE (:NodeA{id: 'a'}), (:NodeB{id: 'b'})")
       .consume()
+
     val colNames = Array(
       "idSource",
-      "idTarget",
-      "string",
-      "int",
-      "boolean",
-      "float",
-      "date",
-      "localDateTime",
-      "zonedDateTime",
-      "stringArray",
-      "intArray",
-      "booleanArray",
-      "floatArray",
-      "dateArray",
-      "localDateTimeArray",
-      "zonedDateTimeArray"
-    )
+      "idTarget"
+    ) ++ ALL_TYPES_AS_COL_NAMES
+
     val row = (
       "a",
       "b",
@@ -815,6 +518,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       Seq(LocalDateTime.of(2023, 11, 22, 11, 11, 11), LocalDateTime.of(2023, 11, 23, 12, 12, 12)),
       Seq(Timestamp.valueOf("2023-11-22 11:11:11.11"), Timestamp.valueOf("2023-11-23 12:12:12.12"))
     )
+
     val data = Seq(row).toDF(colNames: _*)
 
     val schema = StructType(data.schema.map { sf =>
@@ -847,7 +551,108 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .options(options)
       .save()
 
-    colNames.zip(row.productIterator.toSeq).toMap
+    colNames.map(c =>
+      if (shouldRemap && (c == "string" || c == "int")) c + "_prop"
+      else c
+    ).zip(row.productIterator.toSeq).toMap
+  }
+
+  final private def constraintRelNotNull(prop: String): Map[String, Any] = Map(
+    "name" -> s"spark_RELATIONSHIP-NOT_NULL-CONSTRAINT-MY_REL-$prop",
+    "type" -> "RELATIONSHIP_PROPERTY_EXISTENCE",
+    "entityType" -> "RELATIONSHIP",
+    "labelsOrTypes" -> Seq("MY_REL"),
+    "properties" -> Seq(prop),
+    "ownedIndex" -> null,
+    "propertyType" -> null
+  )
+
+  final private def constraintRelType(prop: String, expectedType: String) = Map(
+    "name" -> s"spark_RELATIONSHIP-TYPE-CONSTRAINT-MY_REL-$prop",
+    "type" -> "RELATIONSHIP_PROPERTY_TYPE",
+    "entityType" -> "RELATIONSHIP",
+    "labelsOrTypes" -> Seq("MY_REL"),
+    "properties" -> Seq(prop),
+    "ownedIndex" -> null,
+    "propertyType" -> expectedType
+  )
+
+  @Test
+  def shouldApplySchemaForRelationshipsAndNodesWhenRemapped(): Unit = {
+    val expectedMap = createDatasetForRelationships(
+      Map(
+        Neo4jOptions.SCHEMA_OPTIMIZATION -> schemaOptimization,
+        Neo4jOptions.RELATIONSHIP_PROPERTIES -> ALL_TYPES_AS_COL_NAMES.map {
+          case "string" => "string:string_prop"
+          case "int"    => "int:int_prop"
+          case c        => c
+        }.mkString(",")
+      )
+    )
+
+    val count: Long = SparkConnectorScalaSuiteIT.session().run(
+      """
+        |MATCH p = (:NodeA)-[:MY_REL]->(:NodeB)
+        |RETURN count(p)
+        |""".stripMargin
+    )
+      .single()
+      .get(0)
+      .asLong()
+
+    assertEquals(1L, count)
+
+    val expected = Seq(
+      constraintNodeNotNull("NodeA", "id"),
+      constraintNodeNotNull("NodeB", "id"),
+      constraintNodeType("NodeA", "id", "STRING"),
+      constraintNodeType("NodeB", "id", "STRING"),
+      constraintRelNotNull("boolean"),
+      constraintRelNotNull("float"),
+      constraintRelNotNull("int_prop"),
+      constraintRelType("boolean", "BOOLEAN"),
+      constraintRelType("booleanArray", "LIST<BOOLEAN NOT NULL>"),
+      constraintRelType("date", "DATE"),
+      constraintRelType("dateArray", "LIST<DATE NOT NULL>"),
+      constraintRelType("float", "FLOAT"),
+      constraintRelType("floatArray", "LIST<FLOAT NOT NULL>"),
+      constraintRelType("intArray", "LIST<INTEGER NOT NULL>"),
+      constraintRelType("int_prop", "INTEGER"),
+      constraintRelType("localDateTime", "LOCAL DATETIME"),
+      constraintRelType("localDateTimeArray", "LIST<LOCAL DATETIME NOT NULL>"),
+      constraintRelType("stringArray", "LIST<STRING NOT NULL>"),
+      constraintRelType("string_prop", "STRING"),
+      constraintRelType("zonedDateTime", "ZONED DATETIME"),
+      constraintRelType("zonedDateTimeArray", "LIST<ZONED DATETIME NOT NULL>")
+    )
+
+    val actual = SparkConnectorScalaSuiteIT.session()
+      .run(SHOW_CONSTRAINTS_QUERY)
+      .list()
+      .asScala
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .toSeq
+
+    assertEquals(expected, actual)
+
+    val actualMap = SparkConnectorScalaSuiteIT.session().run(
+      """
+        |MATCH (s:NodeA)-[r:MY_REL]->(t:NodeB)
+        |RETURN s.id AS idSource, t.id AS idTarget, r
+        |""".stripMargin
+    )
+      .list()
+      .asScala
+      .map(r =>
+        Map("idSource" -> r.get("idSource").asString(), "idTarget" -> r.get("idTarget").asString()) ++ r.get(
+          "r"
+        ).asRelationship().asMap().asScala
+      )
+      .head
+      .mapValues(mapData)
+      .toMap
+
+    assertEquals(expectedMap, actualMap)
   }
 
   @Test
@@ -880,7 +685,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(NODE_UNIQUENESS_SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_NODE_UNIQUE-CONSTRAINT_Person_surname",
@@ -888,7 +693,8 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       "entityType" -> "NODE",
       "labelsOrTypes" -> Seq("Person"),
       "properties" -> Seq("surname"),
-      "ownedIndex" -> "spark_NODE_UNIQUE-CONSTRAINT_Person_surname"
+      "ownedIndex" -> "spark_NODE_UNIQUE-CONSTRAINT_Person_surname",
+      "propertyType" -> null
     )
     assertEquals(expectedConstraint, actualConstraint)
 
@@ -925,7 +731,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_NODE_KEY-CONSTRAINT_Person_surname",
@@ -933,11 +739,74 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       "entityType" -> "NODE",
       "labelsOrTypes" -> Seq("Person"),
       "properties" -> Seq("surname"),
-      "ownedIndex" -> "spark_NODE_KEY-CONSTRAINT_Person_surname"
+      "ownedIndex" -> "spark_NODE_KEY-CONSTRAINT_Person_surname",
+      "propertyType" -> null
     )
     assertEquals(expectedConstraint, actualConstraint)
 
     SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT `spark_NODE_KEY-CONSTRAINT_Person_surname`").consume()
+  }
+
+  @Test
+  def shouldApplyAppropriateConstraintsEvenWhenRemapped(): Unit = {
+    val total = 10
+    val ds = (1 to total)
+      .map(i => i.toString)
+      .toDF("surname")
+
+    ds.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Overwrite)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":SurnameKey")
+      .option("node.keys", "surname:surname_key")
+      .option(Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_KEY, ConstraintsOptimizationType.KEY.toString)
+      .save()
+
+    ds.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Overwrite)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":SurnameUnique")
+      .option("node.keys", "surname:surname_unique")
+      .option(Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_KEY, ConstraintsOptimizationType.UNIQUE.toString)
+      .save()
+
+    val actualConstraint = SparkConnectorScalaSuiteIT.session().run(NODE_UNIQUENESS_SHOW_CONSTRAINTS_QUERY)
+      .list()
+      .asScala
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .toSeq
+
+    val expectedConstraint = Seq(
+      Map(
+        "name" -> "spark_NODE_KEY-CONSTRAINT_SurnameKey_surname_key",
+        "type" -> "NODE_KEY",
+        "entityType" -> "NODE",
+        "labelsOrTypes" -> Seq("SurnameKey"),
+        "properties" -> Seq("surname_key"),
+        "ownedIndex" -> "spark_NODE_KEY-CONSTRAINT_SurnameKey_surname_key",
+        "propertyType" -> null
+      ),
+      Map(
+        "name" -> "spark_NODE_UNIQUE-CONSTRAINT_SurnameUnique_surname_unique",
+        "type" -> "NODE_PROPERTY_UNIQUENESS",
+        "entityType" -> "NODE",
+        "labelsOrTypes" -> Seq("SurnameUnique"),
+        "properties" -> Seq("surname_unique"),
+        "ownedIndex" -> "spark_NODE_UNIQUE-CONSTRAINT_SurnameUnique_surname_unique",
+        "propertyType" -> null
+      )
+    )
+
+    assertEquals(expectedConstraint, actualConstraint)
+
+    SparkConnectorScalaSuiteIT.session().run(
+      "DROP CONSTRAINT `spark_NODE_KEY-CONSTRAINT_SurnameKey_surname_key`"
+    ).consume()
+    SparkConnectorScalaSuiteIT.session().run(
+      "DROP CONSTRAINT `spark_NODE_UNIQUE-CONSTRAINT_SurnameUnique_surname_unique`"
+    ).consume()
   }
 
   @Test
@@ -970,7 +839,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(RELATIONSHIP_UNIQUENESS_SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_RELATIONSHIP_UNIQUE-CONSTRAINT_MY_REL_string-int",
@@ -978,7 +847,8 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       "entityType" -> "RELATIONSHIP",
       "labelsOrTypes" -> Seq("MY_REL"),
       "properties" -> Seq("string", "int"),
-      "ownedIndex" -> "spark_RELATIONSHIP_UNIQUE-CONSTRAINT_MY_REL_string-int"
+      "ownedIndex" -> "spark_RELATIONSHIP_UNIQUE-CONSTRAINT_MY_REL_string-int",
+      "propertyType" -> null
     )
     assertEquals(expectedConstraint, actualConstraint)
   }
@@ -1014,7 +884,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_RELATIONSHIP_KEY-CONSTRAINT_MY_REL_string-int",
@@ -1022,7 +892,8 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       "entityType" -> "RELATIONSHIP",
       "labelsOrTypes" -> Seq("MY_REL"),
       "properties" -> Seq("string", "int"),
-      "ownedIndex" -> "spark_RELATIONSHIP_KEY-CONSTRAINT_MY_REL_string-int"
+      "ownedIndex" -> "spark_RELATIONSHIP_KEY-CONSTRAINT_MY_REL_string-int",
+      "propertyType" -> null
     )
 
     assertEquals(expectedConstraint, actualConstraint)
