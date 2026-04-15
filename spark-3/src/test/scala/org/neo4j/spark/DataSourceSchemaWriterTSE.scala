@@ -179,7 +179,20 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(expectedSchema, actualSchema)
 
-    assertEquals(expectedNode, actualNodeWithSchema())
+    val actualNode = SparkConnectorScalaSuiteIT.session()
+      .readTransaction(tx =>
+        tx.run(s"MATCH (n:$nodeWithSchema) RETURN n")
+          .list()
+          .asScala
+          .map(_.get("n").asNode())
+          .map(_.asMap())
+      )
+      .head
+      .asScala
+      .mapValues(mapData)
+      .toMap
+
+    assertEquals(expectedNode, actualNode)
   }
 
   @Test
@@ -239,7 +252,20 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(expectedSchema, actualSchema)
 
-    assertEquals(expectedNode, actualNodeWithSchema())
+    val actualNode = SparkConnectorScalaSuiteIT.session()
+      .readTransaction(tx =>
+        tx.run(s"MATCH (n:$nodeWithSchema) RETURN n")
+          .list()
+          .asScala
+          .map(_.get("n").asNode())
+          .map(_.asMap())
+      )
+      .head
+      .asScala
+      .mapValues(mapData)
+      .toMap
+
+    assertEquals(expectedNode, actualNode)
   }
 
   @Test
@@ -306,7 +332,20 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
           else (k, v)
       }
 
-    assertEquals(expectedNode, actualNodeWithSchema())
+    val actualNode = SparkConnectorScalaSuiteIT.session()
+      .readTransaction(tx =>
+        tx.run(s"MATCH (n:$nodeWithSchema) RETURN n")
+          .list()
+          .asScala
+          .map(_.get("n").asNode())
+          .map(_.asMap())
+      )
+      .head
+      .asScala
+      .mapValues(mapData)
+      .toMap
+
+    assertEquals(expectedNode, actualNode)
   }
 
   final private def constraintNodeNotNull(node: String, prop: String): Map[String, Any] = Map(
@@ -338,19 +377,6 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     "ownedIndex" -> s"spark_NODE_KEY-CONSTRAINT_${node}_${props.mkString("-")}",
     "propertyType" -> null
   )
-
-  final private def actualNodeWithSchema(): Map[String, Any] = SparkConnectorScalaSuiteIT.session()
-    .readTransaction(tx =>
-      tx.run(s"MATCH (n:$nodeWithSchema) RETURN n")
-        .list()
-        .asScala
-        .map(_.get("n").asNode())
-        .map(_.asMap())
-    )
-    .head
-    .asScala
-    .mapValues(mapData)
-    .toMap
 
   private def createNodesDataFrameWithNotNullColumns: (Map[String, Any], DataFrame) = {
     TimeZone.setDefault(TimeZone.getTimeZone(timeZoneLock))
@@ -662,7 +688,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(NODE_UNIQUENESS_SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_NODE_UNIQUE-CONSTRAINT_Person_surname",
@@ -708,7 +734,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_NODE_KEY-CONSTRAINT_Person_surname",
@@ -752,7 +778,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(NODE_UNIQUENESS_SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
       .toSeq
 
     val expectedConstraint = Seq(
@@ -816,7 +842,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(RELATIONSHIP_UNIQUENESS_SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_RELATIONSHIP_UNIQUE-CONSTRAINT_MY_REL_string-int",
@@ -861,7 +887,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).filter(k => k._1 != "id").toMap)
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_RELATIONSHIP_KEY-CONSTRAINT_MY_REL_string-int",
