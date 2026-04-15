@@ -176,7 +176,7 @@
             <dependency>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest_${scala.binary.version}</artifactId>
-                <version>3.2.19</version>
+                <version>3.2.20</version>
             </dependency>
             <dependency>
                 <groupId>org.scalatestplus</groupId>
