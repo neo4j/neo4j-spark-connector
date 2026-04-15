@@ -84,6 +84,23 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
        |END AS type, propertyType
        |ORDER BY type ASC""".stripMargin
 
+  final private val ALL_TYPES_AS_COL_NAMES = Array(
+    "string",
+    "int",
+    "boolean",
+    "float",
+    "date",
+    "localDateTime",
+    "zonedDateTime",
+    "stringArray",
+    "intArray",
+    "booleanArray",
+    "floatArray",
+    "dateArray",
+    "localDateTimeArray",
+    "zonedDateTimeArray"
+  )
+
   val sparkSession = SparkSession.builder()
     .master("local[*]")
     .appName("DataSourceWriterTSE")
@@ -338,22 +355,6 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
   private def createNodesDataFrameWithNotNullColumns: (Map[String, Any], DataFrame) = {
     TimeZone.setDefault(TimeZone.getTimeZone(timeZoneLock))
 
-    val colNames = Array(
-      "string",
-      "int",
-      "boolean",
-      "float",
-      "date",
-      "localDateTime",
-      "zonedDateTime",
-      "stringArray",
-      "intArray",
-      "booleanArray",
-      "floatArray",
-      "dateArray",
-      "localDateTimeArray",
-      "zonedDateTimeArray"
-    )
     val row = (
       "Foo",
       1,
@@ -371,8 +372,8 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       Seq(Timestamp.valueOf("2023-11-22 11:11:11.11"), Timestamp.valueOf("2023-11-23 12:12:12.12"))
     )
 
-    val data = Seq(row).toDF(colNames: _*)
-    val expectedNode = colNames.zip(row.productIterator.toSeq).toMap
+    val data = Seq(row).toDF(ALL_TYPES_AS_COL_NAMES: _*)
+    val expectedNode = ALL_TYPES_AS_COL_NAMES.zip(row.productIterator.toSeq).toMap
 
     val schema = StructType(data.schema.map { sf =>
       sf.name match {
@@ -464,28 +465,18 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(expectedMap, actualMap)
   }
 
-  private def createDatasetForRelationships(options: Map[String, String]) = {
+  private def createDatasetForRelationships(options: Map[String, String]): Map[String, Any] = {
+    val shouldRemap = options.contains(Neo4jOptions.RELATIONSHIP_PROPERTIES)
+
     SparkConnectorScalaSuiteIT.session()
       .run("CREATE (:NodeA{id: 'a'}), (:NodeB{id: 'b'})")
       .consume()
+
     val colNames = Array(
       "idSource",
-      "idTarget",
-      "string",
-      "int",
-      "boolean",
-      "float",
-      "date",
-      "localDateTime",
-      "zonedDateTime",
-      "stringArray",
-      "intArray",
-      "booleanArray",
-      "floatArray",
-      "dateArray",
-      "localDateTimeArray",
-      "zonedDateTimeArray"
-    )
+      "idTarget"
+    ) ++ ALL_TYPES_AS_COL_NAMES
+
     val row = (
       "a",
       "b",
@@ -504,6 +495,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       Seq(LocalDateTime.of(2023, 11, 22, 11, 11, 11), LocalDateTime.of(2023, 11, 23, 12, 12, 12)),
       Seq(Timestamp.valueOf("2023-11-22 11:11:11.11"), Timestamp.valueOf("2023-11-23 12:12:12.12"))
     )
+
     val data = Seq(row).toDF(colNames: _*)
 
     val schema = StructType(data.schema.map { sf =>
@@ -536,7 +528,10 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .options(options)
       .save()
 
-    colNames.zip(row.productIterator.toSeq).toMap
+    colNames.map(c =>
+      if (shouldRemap && (c == "string" || c == "int")) c + "_prop"
+      else c
+    ).zip(row.productIterator.toSeq).toMap
   }
 
   final private def constraintRelNotNull(prop: String): Map[String, Any] = Map(
@@ -558,6 +553,84 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     "ownedIndex" -> null,
     "propertyType" -> expectedType
   )
+
+  @Test
+  def shouldApplySchemaForRelationshipsAndNodesWhenRemapped(): Unit = {
+    val expectedMap = createDatasetForRelationships(
+      Map(
+        Neo4jOptions.SCHEMA_OPTIMIZATION -> schemaOptimization,
+        Neo4jOptions.RELATIONSHIP_PROPERTIES -> ALL_TYPES_AS_COL_NAMES.map {
+          case "string" => "string:string_prop"
+          case "int"    => "int:int_prop"
+          case c        => c
+        }.mkString(",")
+      )
+    )
+
+    val count: Long = SparkConnectorScalaSuiteIT.session().run(
+      """
+        |MATCH p = (:NodeA)-[:MY_REL]->(:NodeB)
+        |RETURN count(p)
+        |""".stripMargin
+    )
+      .single()
+      .get(0)
+      .asLong()
+
+    assertEquals(1L, count)
+
+    val expected = Seq(
+      constraintNodeNotNull("NodeA", "id"),
+      constraintNodeNotNull("NodeB", "id"),
+      constraintNodeType("NodeA", "id", "STRING"),
+      constraintNodeType("NodeB", "id", "STRING"),
+      constraintRelNotNull("boolean"),
+      constraintRelNotNull("float"),
+      constraintRelNotNull("int_prop"),
+      constraintRelType("boolean", "BOOLEAN"),
+      constraintRelType("booleanArray", "LIST<BOOLEAN NOT NULL>"),
+      constraintRelType("date", "DATE"),
+      constraintRelType("dateArray", "LIST<DATE NOT NULL>"),
+      constraintRelType("float", "FLOAT"),
+      constraintRelType("floatArray", "LIST<FLOAT NOT NULL>"),
+      constraintRelType("intArray", "LIST<INTEGER NOT NULL>"),
+      constraintRelType("int_prop", "INTEGER"),
+      constraintRelType("localDateTime", "LOCAL DATETIME"),
+      constraintRelType("localDateTimeArray", "LIST<LOCAL DATETIME NOT NULL>"),
+      constraintRelType("stringArray", "LIST<STRING NOT NULL>"),
+      constraintRelType("string_prop", "STRING"),
+      constraintRelType("zonedDateTime", "ZONED DATETIME"),
+      constraintRelType("zonedDateTimeArray", "LIST<ZONED DATETIME NOT NULL>")
+    )
+
+    val actual = SparkConnectorScalaSuiteIT.session()
+      .run(SHOW_CONSTRAINTS_QUERY)
+      .list()
+      .asScala
+      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .toSeq
+
+    assertEquals(expected, actual)
+
+    val actualMap = SparkConnectorScalaSuiteIT.session().run(
+      """
+        |MATCH (s:NodeA)-[r:MY_REL]->(t:NodeB)
+        |RETURN s.id AS idSource, t.id AS idTarget, r
+        |""".stripMargin
+    )
+      .list()
+      .asScala
+      .map(r =>
+        Map("idSource" -> r.get("idSource").asString(), "idTarget" -> r.get("idTarget").asString()) ++ r.get(
+          "r"
+        ).asRelationship().asMap().asScala
+      )
+      .head
+      .mapValues(mapData)
+      .toMap
+
+    assertEquals(expectedMap, actualMap)
+  }
 
   @Test
   def shouldApplyUniqueConstraintForNode(): Unit = {
