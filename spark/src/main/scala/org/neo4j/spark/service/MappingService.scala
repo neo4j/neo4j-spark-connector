@@ -29,11 +29,7 @@ import org.neo4j.spark.converter.SparkToNeo4jDataConverter
 import org.neo4j.spark.service.Neo4jWriteMappingStrategy.KEYS
 import org.neo4j.spark.service.Neo4jWriteMappingStrategy.PROPERTIES
 import org.neo4j.spark.util.Neo4jImplicits._
-import org.neo4j.spark.util.Neo4jNodeMetadata
-import org.neo4j.spark.util.Neo4jOptions
-import org.neo4j.spark.util.Neo4jUtil
-import org.neo4j.spark.util.QueryType
-import org.neo4j.spark.util.RelationshipSaveStrategy
+import org.neo4j.spark.util._
 
 import java.util
 import java.util.function

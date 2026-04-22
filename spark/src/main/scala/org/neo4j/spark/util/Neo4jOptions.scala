@@ -20,11 +20,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.jetbrains.annotations.TestOnly
-import org.neo4j.connectors.authn.AuthenticationTokenSupplierFactory
-import org.neo4j.connectors.authn.BearerAuthenticationToken
-import org.neo4j.connectors.authn.CustomAuthenticationToken
-import org.neo4j.connectors.authn.KerberosAuthenticationToken
-import org.neo4j.connectors.authn.UserNameAndPasswordAuthenticationToken
+import org.neo4j.connectors.authn._
 import org.neo4j.driver.Config.TrustStrategy
 import org.neo4j.driver._
 import org.neo4j.driver.exceptions.Neo4jException

@@ -36,7 +36,6 @@ import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.QueryType
 
 import java.util
-import java.util.UUID
 
 @FixMethodOrder(MethodSorters.JVM)
 class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {

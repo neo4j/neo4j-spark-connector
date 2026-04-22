@@ -25,8 +25,6 @@ import org.apache.spark.sql.types.StructType
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.Record
 import org.neo4j.driver.Session
-import org.neo4j.driver.Transaction
-import org.neo4j.driver.TransactionCallback
 import org.neo4j.driver.TransactionContext
 import org.neo4j.driver.Value
 import org.neo4j.driver.Values
@@ -39,7 +37,6 @@ import org.neo4j.spark.cypher.CypherVersionSelector.selectCypherVersionClause
 import org.neo4j.spark.service.SchemaService.normalizedClassName
 import org.neo4j.spark.service.SchemaService.normalizedClassNameFromGraphEntity
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
-import org.neo4j.spark.util.OptimizationType
 import org.neo4j.spark.util._
 
 import java.util

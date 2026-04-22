@@ -20,14 +20,7 @@ import org.apache.spark.sql.connector.metric.CustomMetric
 import org.apache.spark.sql.connector.metric.CustomSumMetric
 import org.apache.spark.sql.connector.metric.CustomTaskMetric
 import org.neo4j.driver.summary.SummaryCounters
-import org.neo4j.spark.writer.DataWriterMetrics.LABELS_ADDED
-import org.neo4j.spark.writer.DataWriterMetrics.LABELS_REMOVED
-import org.neo4j.spark.writer.DataWriterMetrics.NODES_CREATED
-import org.neo4j.spark.writer.DataWriterMetrics.NODES_DELETED
-import org.neo4j.spark.writer.DataWriterMetrics.PROPERTIES_SET
-import org.neo4j.spark.writer.DataWriterMetrics.RECORDS_WRITTEN
-import org.neo4j.spark.writer.DataWriterMetrics.RELATIONSHIPS_CREATED
-import org.neo4j.spark.writer.DataWriterMetrics.RELATIONSHIPS_DELETED
+import org.neo4j.spark.writer.DataWriterMetrics._
 
 import java.util.concurrent.atomic.AtomicLong
 

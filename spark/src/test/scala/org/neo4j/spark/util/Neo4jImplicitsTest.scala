@@ -30,7 +30,6 @@ import org.junit.Test
 import org.neo4j.spark.util.Neo4jImplicits._
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.immutable.ListMap
 
