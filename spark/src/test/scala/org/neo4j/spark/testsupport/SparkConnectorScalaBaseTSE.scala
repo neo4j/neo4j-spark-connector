@@ -14,52 +14,61 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.spark
+package org.neo4j.spark.testsupport
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.junit._
 import org.junit.rules.TestName
-import org.neo4j.Closeables.use
+import org.neo4j.spark.testsupport.Closeables.use
+import org.scalatestplus.junit.AssertionsForJUnit
 
 import scala.annotation.meta.getter
 
-object SparkConnectorScalaBaseWithApocTSE {
+object SparkConnectorScalaBaseTSE {
 
   private var startedFromSuite = true
 
   @BeforeClass
   def setUpContainer() = {
-    if (!SparkConnectorScalaSuiteWithApocIT.server.isRunning) {
+    if (!SparkConnectorScalaSuiteIT.server.isRunning) {
       startedFromSuite = false
-      SparkConnectorScalaSuiteWithApocIT.setUpContainer()
+      SparkConnectorScalaSuiteIT.setUpContainer()
     }
   }
 
   @AfterClass
   def tearDownContainer() = {
     if (!startedFromSuite) {
-      SparkConnectorScalaSuiteWithApocIT.tearDownContainer()
+      SparkConnectorScalaSuiteIT.tearDownContainer()
     }
   }
 
 }
 
-class SparkConnectorScalaBaseWithApocTSE {
+class SparkConnectorScalaBaseTSE extends AssertionsForJUnit {
 
-  val conf: SparkConf = SparkConnectorScalaSuiteWithApocIT.conf
-  val ss: SparkSession = SparkConnectorScalaSuiteWithApocIT.ss
+  val conf: SparkConf = SparkConnectorScalaSuiteIT.conf
+  val ss: SparkSession = SparkConnectorScalaSuiteIT.ss
 
   @(Rule @getter)
   val testName: TestName = new TestName
 
   @Before
-  def before() {
-    use(SparkConnectorScalaSuiteWithApocIT.session("system")) {
-      session =>
-        session.run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds")
-          .consume()
+  def before(): Unit = {
+    use(SparkConnectorScalaSuiteIT.session("system")) { session =>
+      session
+        .run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds").consume()
     }
   }
 
+  @After
+  def after(): Unit = {
+    ss.catalog.listTables()
+      .collect()
+      .foreach(t => ss.catalog.dropTempView(t.name))
+    ss.catalog.listTables()
+      .collect()
+      .foreach(t => ss.catalog.dropGlobalTempView(t.name))
+  }
 }

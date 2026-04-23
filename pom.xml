@@ -29,7 +29,6 @@
         </developer>
     </developers>
     <modules>
-        <module>test-support</module>
         <module>spark</module>
     </modules>
     <scm>
@@ -65,6 +64,7 @@
         <neo4j.experimental>false</neo4j.experimental>
         <neo4j.version>4.4.20</neo4j.version>
         <netty-bom.version>4.1.128.Final</netty-bom.version>
+        <powermock.version>2.0.9</powermock.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scala-maven-plugin.version>4.9.10</scala-maven-plugin.version>
         <scala.binary.version>2.13</scala.binary.version>
@@ -213,6 +213,12 @@
                         <artifactId>xbean-asm6-shaded</artifactId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.objenesis</groupId>
+                <artifactId>objenesis</artifactId>
+                <version>3.4</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

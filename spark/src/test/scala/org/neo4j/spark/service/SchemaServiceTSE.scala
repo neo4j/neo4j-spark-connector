@@ -24,12 +24,12 @@ import org.junit.Before
 import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runners.MethodSorters
-import org.neo4j.Closeables.use
 import org.neo4j.driver.TransactionContext
-import org.neo4j.spark.SparkConnectorScalaBaseTSE
-import org.neo4j.spark.SparkConnectorScalaSuiteIT
-import org.neo4j.spark.SparkConnectorScalaSuiteIT.neo4j
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
+import org.neo4j.spark.testsupport.Closeables.use
+import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT.neo4j
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jUtil

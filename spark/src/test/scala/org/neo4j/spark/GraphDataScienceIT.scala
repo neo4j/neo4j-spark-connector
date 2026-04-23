@@ -29,8 +29,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Assume
 import org.junit.Test
-import org.neo4j.Closeables.use
 import org.neo4j.driver.Transaction
+import org.neo4j.spark.testsupport.Closeables.use
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithGdsBase
+import org.neo4j.spark.testsupport.TestUtil
+import org.neo4j.spark.testsupport.Versions
 
 import scala.math.Ordering.Implicits.infixOrderingOps
 

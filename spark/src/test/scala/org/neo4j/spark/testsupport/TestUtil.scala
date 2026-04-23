@@ -14,14 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.spark
+package org.neo4j.spark.testsupport
 
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
 import org.slf4j.Logger
 import org.testcontainers.utility.DockerImageName
-
-import java.util.Properties
 
 case class Version(major: Int, minor: Int, patch: Int) {
 

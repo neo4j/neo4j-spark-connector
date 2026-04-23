@@ -14,13 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j
+package org.neo4j.spark.testsupport
 
 import org.neo4j.driver.AuthToken
 import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.GraphDatabase
 import org.neo4j.driver.SessionConfig
-import org.neo4j.spark.TestUtil
 import org.rnorth.ducttape.unreliables.Unreliables
 import org.testcontainers.containers.Neo4jContainer
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy

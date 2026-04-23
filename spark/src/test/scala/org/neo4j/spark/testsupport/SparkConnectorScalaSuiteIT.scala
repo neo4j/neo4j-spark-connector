@@ -14,32 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.spark
+package org.neo4j.spark.testsupport
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.junit.AfterClass
 import org.junit.Assume
 import org.junit.BeforeClass
-import org.neo4j.Neo4jContainerExtension
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver._
 
+import java.io.File
+import java.nio.file.Files
 import java.util.TimeZone
 
-object SparkConnectorScalaSuiteWithApocIT {
+object SparkConnectorScalaSuiteIT {
 
   val server: Neo4jContainerExtension = new Neo4jContainerExtension()
     .withNeo4jConfig("dbms.security.auth_enabled", "false")
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-    .withEnv("NEO4JLABS_PLUGINS", "[\"apoc\"]")
     .withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
     .withDatabases(Seq("db1", "db2"))
 
   var conf: SparkConf = _
   var ss: SparkSession = _
   var driver: Driver = _
+  var tmpDir: File = _
   var neo4j: Neo4j = _
 
   @BeforeClass
@@ -51,15 +52,17 @@ object SparkConnectorScalaSuiteWithApocIT {
         case _: Throwable => //
       }
       Assume.assumeTrue("Neo4j container is not started", server.isRunning)
+      tmpDir = Files.createTempDirectory("spark-warehouse").toFile
+      tmpDir.deleteOnExit()
       conf = new SparkConf()
         .setAppName("neoTest")
         .setMaster("local[*]")
         .set("spark.driver.host", "127.0.0.1")
+        .set("spark.sql.warehouse.dir", tmpDir.getAbsolutePath)
       ss = SparkSession.builder.config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       neo4j = Neo4jDetector.INSTANCE.detect(driver)
     }
-    Assume.assumeTrue("Neo4j Preview versions doesn't have APOC", TestUtil.hasApoc(session()))
   }
 
   @AfterClass
@@ -78,4 +81,4 @@ object SparkConnectorScalaSuiteWithApocIT {
   }
 }
 
-class SparkConnectorScalaSuiteWithApocIT {}
+class SparkConnectorScalaSuiteIT {}

@@ -27,10 +27,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.neo4j.Closeables.use
 import org.neo4j.driver.Session
 import org.neo4j.driver.SessionConfig
 import org.neo4j.driver.TransactionContext
+import org.neo4j.spark.testsupport.Assert
+import org.neo4j.spark.testsupport.Closeables.use
+import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.writer.DataWriterMetrics
 
 import java.util.concurrent.TimeUnit

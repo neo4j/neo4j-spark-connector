@@ -26,6 +26,8 @@ import org.apache.spark.sql.types.StructType
 import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.TransactionContext
+import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 
 import java.sql.Timestamp
 import java.time._

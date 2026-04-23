@@ -24,12 +24,14 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
 import org.junit.Test
-import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver.exceptions.ClientException
-import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT.conf
-import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT.server
-import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT.ss
 import org.neo4j.spark.TransactionTimeoutIT.NEO4J_LOW_TX_TIMEOUT
+import org.neo4j.spark.testsupport.Neo4jContainerExtension
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithApocIT
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithApocIT.conf
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithApocIT.server
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithApocIT.ss
+import org.neo4j.spark.testsupport.TestUtil
 
 import java.util.TimeZone
 

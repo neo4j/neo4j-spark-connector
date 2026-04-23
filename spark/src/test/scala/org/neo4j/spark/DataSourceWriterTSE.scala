@@ -33,7 +33,11 @@ import org.neo4j.driver.internal.InternalPoint3D
 import org.neo4j.driver.internal.types.InternalTypeSystem
 import org.neo4j.driver.types.IsoDuration
 import org.neo4j.driver.types.Type
-import org.neo4j.spark.RowUtil.getByName
+import org.neo4j.spark.testsupport.RowUtil.getByName
+import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
+import org.neo4j.spark.testsupport.TestUtil
+import org.neo4j.spark.testsupport.Versions
 import org.neo4j.spark.util.Neo4jOptions
 import org.scalatest.matchers.must.Matchers.be
 import org.scalatest.matchers.must.Matchers.include

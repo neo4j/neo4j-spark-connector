@@ -10,7 +10,6 @@ fi
 exit_script() {
   echo "Process terminated cleaning up resources"
   mv -f pom.xml.bak pom.xml
-  mv -f test-support/pom.xml.bak test-support/pom.xml
   mv -f spark/pom.xml.bak spark/pom.xml
   trap - SIGINT SIGTERM # clear the trap
   kill -- -$$ || true # Sends SIGTERM to child/sub processes
@@ -45,19 +44,14 @@ SPARK_PACKAGES_VERSION="${PROJECT_VERSION}-s_$SCALA_VERSION"
 
 # backup files
 cp pom.xml pom.xml.bak
-cp test-support/pom.xml test-support/pom.xml.bak
 cp spark/pom.xml spark/pom.xml.bak
 
 ./mvnw -B versions:set -DnewVersion=${PROJECT_VERSION}_for_spark_${SPARK_VERSION} -DgenerateBackupPoms=false
 
 # replace pom files with target scala version
 sed_i "s/<artifactId>neo4j-connector-apache-spark_parent<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_parent<\/artifactId>/" pom.xml
-sed_i "s/<artifactId>neo4j-connector-apache-spark_parent<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_parent<\/artifactId>/" "test-support/pom.xml"
-sed_i "s/<artifactId>neo4j-connector-apache-spark_test-support<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_test-support<\/artifactId>/" "test-support/pom.xml"
-
 sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}<\/artifactId>/" "spark/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark_parent<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_parent<\/artifactId>/" "spark/pom.xml"
-sed_i "s/<artifactId>neo4j-connector-apache-spark_test-support<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_test-support<\/artifactId>/" "spark/pom.xml"
 sed_i "s/<spark-packages.version\/>/<spark-packages.version>${SPARK_PACKAGES_VERSION}<\/spark-packages.version>/" "spark/pom.xml"
 
 # build

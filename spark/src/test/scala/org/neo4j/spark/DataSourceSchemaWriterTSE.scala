@@ -26,6 +26,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assume
 import org.junit.BeforeClass
 import org.junit.Test
+import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
+import org.neo4j.spark.testsupport.TestUtil
+import org.neo4j.spark.testsupport.Versions
 import org.neo4j.spark.util.ConstraintsOptimizationType
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.SchemaConstraintsOptimizationType

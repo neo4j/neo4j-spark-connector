@@ -21,7 +21,10 @@ import org.apache.spark.sql.streaming.StreamingQuery
 import org.hamcrest.Matchers
 import org.junit.After
 import org.junit.Test
-import org.neo4j.spark.Assert.ThrowingSupplier
+import org.neo4j.spark.testsupport.Assert
+import org.neo4j.spark.testsupport.Assert.ThrowingSupplier
+import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 
 import java.util.UUID
 import java.util.concurrent.TimeUnit

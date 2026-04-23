@@ -21,13 +21,15 @@ import org.junit.Assert.assertEquals
 import org.junit.BeforeClass
 import org.junit.Ignore
 import org.junit.Test
-import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.Driver
 import org.neo4j.driver.GraphDatabase
 import org.neo4j.spark.ReauthenticationIT.KEYCLOAK
 import org.neo4j.spark.ReauthenticationIT.NEO4J
-import org.neo4j.spark.SparkConnectorScalaSuiteIT.ss
+import org.neo4j.spark.testsupport.Neo4jContainerExtension
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT.ss
+import org.neo4j.spark.testsupport.TestUtil
 import org.slf4j.LoggerFactory
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.Network

@@ -14,21 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.spark
+package org.neo4j.spark.testsupport
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.junit.AfterClass
-import org.junit.Assume
-import org.junit.Before
-import org.junit.BeforeClass
-import org.junit.Rule
+import org.junit._
 import org.junit.rules.TestName
-import org.neo4j.Closeables.use
-import org.neo4j.Neo4jContainerExtension
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver._
+import org.neo4j.spark.testsupport.Closeables.use
 
 import java.util.TimeZone
 

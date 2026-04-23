@@ -25,7 +25,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import org.neo4j.Closeables.use
+import org.neo4j.spark.testsupport.Assert
+import org.neo4j.spark.testsupport.Closeables.use
+import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit

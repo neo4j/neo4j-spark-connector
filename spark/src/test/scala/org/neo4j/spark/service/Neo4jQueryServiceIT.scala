@@ -24,8 +24,8 @@ import org.junit.After
 import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runners.MethodSorters
-import org.neo4j.spark.SparkConnectorScalaSuiteWithGdsBase
-import org.neo4j.spark.SparkConnectorScalaSuiteWithGdsBase.neo4j
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithGdsBase
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithGdsBase.neo4j
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.DummyNamedReference
 import org.neo4j.spark.util.Neo4jOptions

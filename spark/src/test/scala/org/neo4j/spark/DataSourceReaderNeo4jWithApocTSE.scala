@@ -20,6 +20,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.neo4j.driver.SessionConfig
 import org.neo4j.driver.TransactionContext
+import org.neo4j.spark.testsupport.SparkConnectorScalaBaseWithApocTSE
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithApocIT
 
 class DataSourceReaderNeo4jWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 

@@ -21,10 +21,12 @@ import org.apache.spark.sql.DataFrame
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.neo4j.Closeables.use
 import org.neo4j.driver.SessionConfig
 import org.neo4j.driver.TransactionContext
 import org.neo4j.driver.exceptions.ClientException
+import org.neo4j.spark.testsupport.Closeables.use
+import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 
 class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
 

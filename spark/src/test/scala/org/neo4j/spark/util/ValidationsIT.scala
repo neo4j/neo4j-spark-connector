@@ -21,8 +21,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.ExpectedException
 import org.neo4j.driver.AccessMode
-import org.neo4j.spark.SparkConnectorScalaSuiteIT
-import org.neo4j.spark.SparkConnectorScalaSuiteIT.neo4j
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT.neo4j
 
 import scala.annotation.meta.getter
 

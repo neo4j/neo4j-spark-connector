@@ -18,6 +18,8 @@ package org.neo4j.spark
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 
 class DefaultConfigTSE extends SparkConnectorScalaBaseTSE {
 

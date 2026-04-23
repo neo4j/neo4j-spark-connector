@@ -20,7 +20,7 @@ import org.apache.spark.sql.SparkSession
 import org.junit
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.neo4j.spark.SparkConnectorScalaBaseTSE
+import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
 
 class ValidationsTest extends SparkConnectorScalaBaseTSE {
 

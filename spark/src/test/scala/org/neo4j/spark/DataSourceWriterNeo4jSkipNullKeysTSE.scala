@@ -20,9 +20,11 @@ import org.apache.spark.SparkException
 import org.apache.spark.sql.SaveMode
 import org.junit.Assume
 import org.junit.Test
-import org.neo4j.Closeables.use
 import org.neo4j.caniuse.CanIUse
 import org.neo4j.caniuse.Schema
+import org.neo4j.spark.testsupport.Closeables.use
+import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 
 class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 

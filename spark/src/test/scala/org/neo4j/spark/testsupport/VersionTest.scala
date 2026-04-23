@@ -14,10 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.spark
+package org.neo4j.spark.testsupport
 
-import org.apache.spark.sql.Row
+import org.junit.Assert.assertEquals
+import org.junit.Test
 
-object RowUtil {
-  def getByName[T](row: Row, name: String): T = row.getAs[T](row.fieldIndex(name))
+class VersionTest {
+
+  @Test
+  def parses_versions(): Unit = {
+    assertEquals(Version(5, 26, 399), Version.parse("5.26.399"))
+    assertEquals(Version(2025, 11, 0), Version.parse("2025.11.0-41865"))
+  }
 }

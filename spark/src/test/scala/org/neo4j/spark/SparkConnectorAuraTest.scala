@@ -24,9 +24,10 @@ import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
-import org.neo4j.Closeables.use
 import org.neo4j.driver._
 import org.neo4j.spark.SparkConnectorAuraTest._
+import org.neo4j.spark.testsupport.Closeables.use
+import org.neo4j.spark.testsupport.TestUtil
 
 object SparkConnectorAuraTest {
   private var neo4j: Driver = _
