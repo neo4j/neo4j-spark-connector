@@ -16,7 +16,6 @@
  */
 package org.neo4j.spark
 
-import org.apache.spark.SparkException
 import org.apache.spark.sql.SparkSession
 import org.junit.AfterClass
 import org.junit.Assert.assertEquals

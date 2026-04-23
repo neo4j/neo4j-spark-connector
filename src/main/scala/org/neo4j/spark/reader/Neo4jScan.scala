@@ -28,11 +28,7 @@ import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.config.TopN
 import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.streaming.Neo4jMicroBatchReader
-import org.neo4j.spark.util.Neo4jOptions
-import org.neo4j.spark.util.Neo4jUtil
-import org.neo4j.spark.util.ValidateReadNotStreaming
-import org.neo4j.spark.util.ValidateReadStreaming
-import org.neo4j.spark.util.Validations
+import org.neo4j.spark.util._
 
 case class Neo4jPartition(partitionSkipLimit: PartitionPagination) extends InputPartition
 

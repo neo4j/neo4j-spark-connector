@@ -22,12 +22,7 @@ import org.apache.spark.sql.connector.expressions.SortOrder
 import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.expressions.filter.Predicate
-import org.apache.spark.sql.connector.read.Scan
-import org.apache.spark.sql.connector.read.SupportsPushDownAggregates
-import org.apache.spark.sql.connector.read.SupportsPushDownLimit
-import org.apache.spark.sql.connector.read.SupportsPushDownRequiredColumns
-import org.apache.spark.sql.connector.read.SupportsPushDownTopN
-import org.apache.spark.sql.connector.read.SupportsPushDownV2Filters
+import org.apache.spark.sql.connector.read._
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType

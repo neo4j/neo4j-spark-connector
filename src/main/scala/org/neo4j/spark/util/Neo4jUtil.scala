@@ -27,7 +27,6 @@ import org.neo4j.cypherdsl.core._
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.exceptions.RetryableException
-import org.neo4j.driver.internal.retry.ExponentialBackoffRetryLogic
 import org.neo4j.driver.types.Entity
 import org.neo4j.driver.types.Path
 import org.neo4j.spark.service.SchemaService

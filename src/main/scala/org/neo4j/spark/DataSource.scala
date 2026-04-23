@@ -26,13 +26,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDetector
-import org.neo4j.spark.util.DriverCache
-import org.neo4j.spark.util.Neo4jDriverOptions
-import org.neo4j.spark.util.Neo4jOptions
-import org.neo4j.spark.util.Neo4jUtil
-import org.neo4j.spark.util.ValidateConnection
-import org.neo4j.spark.util.ValidateSparkMinVersion
-import org.neo4j.spark.util.Validations
+import org.neo4j.spark.util._
 
 import java.util.UUID
 

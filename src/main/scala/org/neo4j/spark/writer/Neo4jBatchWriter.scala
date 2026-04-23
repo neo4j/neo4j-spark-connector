@@ -27,8 +27,6 @@ import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
 
-import java.util.Optional
-
 class Neo4jBatchWriter(
   neo4j: Neo4j,
   jobId: String,

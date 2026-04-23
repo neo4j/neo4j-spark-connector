@@ -18,22 +18,13 @@ package org.neo4j.spark.writer
 
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.connector.metric.CustomMetric
-import org.apache.spark.sql.connector.write.BatchWrite
-import org.apache.spark.sql.connector.write.SupportsOverwrite
-import org.apache.spark.sql.connector.write.SupportsTruncate
-import org.apache.spark.sql.connector.write.Write
-import org.apache.spark.sql.connector.write.WriteBuilder
+import org.apache.spark.sql.connector.write._
 import org.apache.spark.sql.connector.write.streaming.StreamingWrite
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.streaming.Neo4jStreamingWriter
-import org.neo4j.spark.util.Neo4jOptions
-import org.neo4j.spark.util.NodeSaveMode
-import org.neo4j.spark.util.ValidateSaveMode
-import org.neo4j.spark.util.ValidateWrite
-import org.neo4j.spark.util.ValidationUtil
-import org.neo4j.spark.util.Validations
+import org.neo4j.spark.util._
 
 class Neo4jWriterBuilder(
   neo4j: Neo4j,

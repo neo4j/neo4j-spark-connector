@@ -73,7 +73,7 @@ assemble:
           output: .
           includes:
             - '{{projectName}}-{{projectVersion}}*.jar'
-      templateDirectory: spark/src/jreleaser/assemblers/zip
+      templateDirectory: src/jreleaser/assemblers/zip
 
 hooks:
   script:
@@ -96,8 +96,8 @@ hooks:
           mkdir artifacts || true
           ./maven-release.sh deploy {{matrix.scala}} default::file://{{basedir}}/target/{{matrix.scala}}/maven-artifacts
           cp -r {{basedir}}/target/{{matrix.scala}}/maven-artifacts artifacts/
-          cp -r {{basedir}}/spark/target/{{projectName}}*.zip artifacts/
-          cp -r {{basedir}}/spark/target/{{projectName}}*.jar artifacts/
+          cp -r {{basedir}}/target/{{projectName}}*.zip artifacts/
+          cp -r {{basedir}}/target/{{projectName}}*.jar artifacts/
 
 signing:
   active: ALWAYS

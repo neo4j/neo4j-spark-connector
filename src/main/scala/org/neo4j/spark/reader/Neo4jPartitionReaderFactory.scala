@@ -24,7 +24,6 @@ import org.apache.spark.sql.connector.read.PartitionReaderFactory
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
 import org.neo4j.caniuse.Neo4j
-import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.util.Neo4jOptions
 
 class Neo4jPartitionReaderFactory(

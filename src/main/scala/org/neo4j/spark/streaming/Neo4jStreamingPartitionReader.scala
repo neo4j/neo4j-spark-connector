@@ -18,39 +18,32 @@ package org.neo4j.spark.streaming
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.expressions.aggregate.AggregateFunc
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.connector.read.PartitionReader
-import org.apache.spark.sql.connector.read.PartitionReaderFactory
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.util.AccumulatorV2
-import org.apache.spark.util.LongAccumulator
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.util.Neo4jOptions
 
-case class Neo4jStreamingPartition(partitionSkipLimit: PartitionPagination, filters: Array[Filter])
-    extends InputPartition
-
-class Neo4jStreamingPartitionReaderFactory(
+class Neo4jStreamingPartitionReader(
   private val neo4j: Neo4j,
-  private val neo4jOptions: Neo4jOptions,
+  private val options: Neo4jOptions,
+  private val filters: Array[Filter],
   private val schema: StructType,
   private val jobId: String,
+  private val partitionSkipLimit: PartitionPagination,
   private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
+  private val requiredColumns: StructType,
   private val aggregateColumns: Array[AggregateFunc]
-) extends PartitionReaderFactory {
-
-  override def createReader(partition: InputPartition): PartitionReader[InternalRow] =
-    new Neo4jStreamingPartitionReader(
+) extends BaseStreamingPartitionReader(
       neo4j,
-      neo4jOptions,
-      partition.asInstanceOf[Neo4jStreamingPartition].filters,
+      options,
+      filters,
       schema,
       jobId,
-      partition.asInstanceOf[Neo4jStreamingPartition].partitionSkipLimit,
+      partitionSkipLimit,
       scriptResult,
-      new StructType(),
+      requiredColumns,
       aggregateColumns
     )
-}
+    with PartitionReader[InternalRow] {}

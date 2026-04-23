@@ -30,8 +30,6 @@ import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jUtil
 
-import java.util.Optional
-
 class Neo4jStreamingWriter(
   val neo4j: Neo4j,
   val queryId: String,
