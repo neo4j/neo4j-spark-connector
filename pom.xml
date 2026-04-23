@@ -2,12 +2,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.neo4j</groupId>
-    <artifactId>neo4j-connector-apache-spark</artifactId>
+    <groupId>org.neo4j.connectors</groupId>
+    <artifactId>spark</artifactId>
     <version>6.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>neo4j-connector-apache-spark-${spark.version}</name>
-    <description>Spark ${spark.version} for Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
+    <description>Neo4j Connector for Apache Spark ${spark.version} using the binary Bolt Driver</description>
     <url>https://github.com/neo4j/neo4j-spark-connector</url>
     <organization>
         <name>Neo4j, Inc.</name>
@@ -600,7 +600,7 @@
                         <descriptorRefs>
                             <descriptorRef>jar-with-dependencies</descriptorRef>
                         </descriptorRefs>
-                        <finalName>${project.artifactId}-${project.version}</finalName>
+                        <finalName>neo4j-spark-connector-${project.version}</finalName>
                         <appendAssemblyId>false</appendAssemblyId>
                     </configuration>
                     <executions>

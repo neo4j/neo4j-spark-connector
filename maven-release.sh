@@ -39,16 +39,15 @@ esac
 
 
 PROJECT_VERSION=$(mvn_evaluate "project.version")
-SPARK_PACKAGES_VERSION="${PROJECT_VERSION}-s_$SCALA_VERSION"
+RELEASE_VERSION="${PROJECT_VERSION}-s_$SCALA_VERSION"
 
 # backup files
 cp pom.xml pom.xml.bak
 
-./mvnw -B versions:set -DnewVersion=${PROJECT_VERSION}_for_spark_${SPARK_VERSION} -DgenerateBackupPoms=false
+./mvnw -B versions:set -DnewVersion=${RELEASE_VERSION}_for_spark_${SPARK_VERSION} -DgenerateBackupPoms=false
 
 # replace pom files with target scala version
-sed_i "s/<artifactId>neo4j-connector-apache-spark<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}<\/artifactId>/" pom.xml
-sed_i "s/<spark-packages.version\/>/<spark-packages.version>${SPARK_PACKAGES_VERSION}<\/spark-packages.version>/" pom.xml
+sed_i "s/<spark-packages.version\/>/<spark-packages.version>${RELEASE_VERSION}<\/spark-packages.version>/" pom.xml
 
 # build
 ./mvnw -B clean "${GOAL}" -Dscala-"${SCALA_VERSION}" -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
