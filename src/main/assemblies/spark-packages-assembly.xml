@@ -11,7 +11,7 @@
 
     <files>
         <file>
-            <source>${project.build.directory}/${project.artifactId}-${project.version}.jar</source>
+            <source>${project.build.directory}/${project.build.finalName}.jar</source>
             <outputDirectory>/</outputDirectory>
             <destName>${spark-packages.packageName}.jar</destName>
         </file>

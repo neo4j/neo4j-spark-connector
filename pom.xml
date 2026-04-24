@@ -6,7 +6,7 @@
     <artifactId>spark</artifactId>
     <version>6.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
-    <name>neo4j-connector-apache-spark-${spark.version}</name>
+    <name>neo4j-connector-for-spark-${spark.version}</name>
     <description>Neo4j Connector for Apache Spark ${spark.version} using the binary Bolt Driver</description>
     <url>https://github.com/neo4j/neo4j-spark-connector</url>
     <organization>
@@ -337,6 +337,7 @@
         </dependency>
     </dependencies>
     <build>
+        <finalName>neo4j-spark-connector-${project.version}</finalName>
         <resources>
             <resource>
                 <filtering>true</filtering>
@@ -600,7 +601,7 @@
                         <descriptorRefs>
                             <descriptorRef>jar-with-dependencies</descriptorRef>
                         </descriptorRefs>
-                        <finalName>neo4j-spark-connector-${project.version}</finalName>
+                        <finalName>${project.build.finalName}</finalName>
                         <appendAssemblyId>false</appendAssemblyId>
                     </configuration>
                     <executions>
