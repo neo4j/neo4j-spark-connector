@@ -24,19 +24,11 @@ trap exit_script SIGINT SIGTERM
 
 GOAL=$1
 SCALA_VERSION=$2
-SPARK_VERSION=4
 if [[ $# -eq 3 ]] ; then
   ALT_DEPLOYMENT_REPOSITORY="-DaltDeploymentRepository=$3"
 else
   ALT_DEPLOYMENT_REPOSITORY=""
 fi
-
-case $(sed --help 2>&1) in
-  *GNU*) sed_i () { sed -i "$@"; };;
-  *) sed_i () { sed -i '' "$@"; };;
-esac
-
-
 
 PROJECT_VERSION=$(mvn_evaluate "project.version")
 RELEASE_VERSION="${PROJECT_VERSION}-s_$SCALA_VERSION"
@@ -44,10 +36,7 @@ RELEASE_VERSION="${PROJECT_VERSION}-s_$SCALA_VERSION"
 # backup files
 cp pom.xml pom.xml.bak
 
-./mvnw -B versions:set -DnewVersion=${RELEASE_VERSION}_for_spark_${SPARK_VERSION} -DgenerateBackupPoms=false
-
-# replace pom files with target scala version
-sed_i "s/<spark-packages.version\/>/<spark-packages.version>${RELEASE_VERSION}<\/spark-packages.version>/" pom.xml
+./mvnw -B versions:set -DnewVersion=${RELEASE_VERSION} -DgenerateBackupPoms=false
 
 # build
 ./mvnw -B clean "${GOAL}" -Dscala-"${SCALA_VERSION}" -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
