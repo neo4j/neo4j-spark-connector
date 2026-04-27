@@ -90,201 +90,131 @@
                 <scope>import</scope>
             </dependency>
             <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>${junit.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-compress</artifactId>
                 <version>${commons-compress.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-lang3</artifactId>
-                <version>${commons-lang3.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.spark</groupId>
-                <artifactId>spark-sql_${scala.binary.version}</artifactId>
-                <version>${spark.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.hamcrest</groupId>
-                <artifactId>hamcrest</artifactId>
-                <version>3.0</version>
             </dependency>
             <dependency>
                 <groupId>org.jboss.logging</groupId>
                 <artifactId>jboss-logging</artifactId>
                 <version>${jboss-logging.version}</version>
             </dependency>
-            <dependency>
-                <groupId>org.neo4j</groupId>
-                <artifactId>caniuse-core</artifactId>
-                <version>${caniuse.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.neo4j.driver</groupId>
-                        <artifactId>neo4j-java-driver</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.neo4j.driver</groupId>
-                        <artifactId>neo4j-java-driver-slim</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.neo4j</groupId>
-                <artifactId>caniuse-neo4j-detection</artifactId>
-                <version>${caniuse.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.neo4j.driver</groupId>
-                        <artifactId>neo4j-java-driver</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.neo4j.driver</groupId>
-                        <artifactId>neo4j-java-driver-slim</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.neo4j</groupId>
-                <artifactId>neo4j-cypher-dsl</artifactId>
-                <version>${cypherdsl.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.neo4j.connectors</groupId>
-                <artifactId>commons-authn-keycloak</artifactId>
-                <version>${connectors-commons.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.neo4j.connectors</groupId>
-                <artifactId>commons-authn-provided</artifactId>
-                <version>${connectors-commons.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.neo4j.connectors</groupId>
-                <artifactId>commons-authn-spi</artifactId>
-                <version>${connectors-commons.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.neo4j.driver</groupId>
-                <artifactId>neo4j-java-driver</artifactId>
-                <version>${driver.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.scala-lang</groupId>
-                <artifactId>scala-library</artifactId>
-                <version>${scala.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.scala-lang</groupId>
-                <artifactId>scala-reflect</artifactId>
-                <version>${scala.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.scalatest</groupId>
-                <artifactId>scalatest_${scala.binary.version}</artifactId>
-                <version>3.2.19</version>
-            </dependency>
-            <dependency>
-                <groupId>org.scalatestplus</groupId>
-                <artifactId>junit-4-13_${scala.binary.version}</artifactId>
-                <version>3.2.19.0</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-api</artifactId>
-                <version>${slf4j-api.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.spark</groupId>
-                <artifactId>spark-core_${scala.binary.version}</artifactId>
-                <version>${spark.version}</version>
-                <scope>provided</scope>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.apache.xbean</groupId>
-                        <artifactId>xbean-asm6-shaded</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.objenesis</groupId>
-                <artifactId>objenesis</artifactId>
-                <version>3.4</version>
-                <scope>test</scope>
-            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
         <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>${commons-lang3.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>caniuse-core</artifactId>
+            <version>${caniuse.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.neo4j.driver</groupId>
                     <artifactId>neo4j-java-driver</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.neo4j.driver</groupId>
+                    <artifactId>neo4j-java-driver-slim</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>caniuse-neo4j-detection</artifactId>
+            <version>${caniuse.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.neo4j.driver</groupId>
                     <artifactId>neo4j-java-driver</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.neo4j.driver</groupId>
+                    <artifactId>neo4j-java-driver-slim</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-cypher-dsl</artifactId>
+            <version>${cypherdsl.version}</version>
         </dependency>
         <dependency>
             <groupId>org.neo4j.connectors</groupId>
             <artifactId>commons-authn-spi</artifactId>
+            <version>${connectors-commons.version}</version>
         </dependency>
         <dependency>
             <groupId>org.neo4j.driver</groupId>
             <artifactId>neo4j-java-driver</artifactId>
+            <version>${driver.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j-api.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_${scala.binary.version}</artifactId>
+            <version>${spark.version}</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.xbean</groupId>
+                    <artifactId>xbean-asm6-shaded</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${scala.binary.version}</artifactId>
+            <version>${spark.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
+            <version>${scala.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-reflect</artifactId>
+            <version>${scala.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.neo4j.connectors</groupId>
             <artifactId>commons-authn-provided</artifactId>
+            <version>${connectors-commons.version}</version>
             <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest</artifactId>
+            <version>3.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.neo4j.connectors</groupId>
             <artifactId>commons-authn-keycloak</artifactId>
+            <version>${connectors-commons.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.objenesis</groupId>
+            <artifactId>objenesis</artifactId>
+            <version>3.4</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -302,11 +232,13 @@
         <dependency>
             <groupId>org.scalatest</groupId>
             <artifactId>scalatest_${scala.binary.version}</artifactId>
+            <version>3.2.19</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.scalatestplus</groupId>
             <artifactId>junit-4-13_${scala.binary.version}</artifactId>
+            <version>3.2.19.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
