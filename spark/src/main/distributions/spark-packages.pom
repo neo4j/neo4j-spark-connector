@@ -1,6 +1,0 @@
-<project>
-    <modelVersion>4.0.0</modelVersion>
-    <groupId>${spark-packages.groupId}</groupId>
-    <artifactId>${spark-packages.artifactId}</artifactId>
-    <version>${spark-packages.version}</version>
-</project>

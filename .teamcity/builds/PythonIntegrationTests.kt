@@ -54,7 +54,7 @@ class PythonIntegrationTests(
               pip install pyspark==${sparkVersion.version} "testcontainers[neo4j]" six tzlocal==2.1 
               
               project_version="$(./mvnw help:evaluate -Dexpression="project.version" --quiet -DforceStdout)"
-              jar_name="neo4j-connector-apache-spark_${scalaVersion.version}-${'$'}{project_version}_for_spark_${sparkVersion.short}.jar"
+              jar_name="neo4j-spark-connector-${'$'}{project_version}-s_${scalaVersion.version}.jar"
               cd ./scripts/python
               python test_spark.py "${'$'}{jar_name}" "${neo4jVersion.dockerImage}"
               """

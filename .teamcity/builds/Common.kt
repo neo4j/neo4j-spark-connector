@@ -70,9 +70,9 @@ enum class PythonVersion(val version: String) {
   V3_14(version = "3.14"),
 }
 
-enum class SparkVersion(val short: String, val version: String) {
-  V4_0_1(short = "4", version = "4.0.1"),
-  V4_1_0(short = "4", version = "4.1.0"),
+enum class SparkVersion(val version: String) {
+  V4_0_1(version = "4.0.1"),
+  V4_1_0(version = "4.1.0"),
 }
 
 enum class PySparkVersion(
@@ -220,8 +220,8 @@ fun CompoundStage.dependentBuildType(bt: BuildType, reuse: ReuseBuilds = ReuseBu
 fun collectArtifacts(buildType: BuildType): BuildType {
   buildType.artifactRules =
       """
-        +:spark/target/*_for_spark_*.jar => packages
-        +:spark/target/*.zip => packages
+        +:target/neo4j-spark-connector-*.jar => packages
+        +:target/*.zip => packages
     """
           .trimIndent()
 
