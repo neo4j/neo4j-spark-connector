@@ -19,7 +19,7 @@ package org.neo4j.spark;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.neo4j.driver.Session;
 import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE;
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT;

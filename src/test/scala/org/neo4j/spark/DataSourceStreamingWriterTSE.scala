@@ -19,8 +19,8 @@ package org.neo4j.spark
 import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.streaming.StreamingQuery
 import org.hamcrest.Matchers
-import org.junit.After
-import org.junit.Test
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Test
 import org.neo4j.spark.testsupport.Assert
 import org.neo4j.spark.testsupport.Assert.ThrowingSupplier
 import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
@@ -33,7 +33,7 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
 
   private var query: StreamingQuery = null
 
-  @After
+  @AfterEach
   def close(): Unit = {
     if (query != null) {
       query.stop()

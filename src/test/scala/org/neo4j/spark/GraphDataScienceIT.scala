@@ -17,12 +17,12 @@
 package org.neo4j.spark
 
 import org.apache.spark.sql.types._
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
-import org.junit.Assume
-import org.junit.Test
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.fail
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.Test
 import org.neo4j.spark.testsupport.Closeables.use
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithGdsBase
 import org.neo4j.spark.testsupport.TestUtil
@@ -32,7 +32,7 @@ import scala.math.Ordering.Implicits.infixOrderingOps
 
 class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
 
-  @After
+  @AfterEach
   def cleanData(): Unit = {
     use(SparkConnectorScalaSuiteWithGdsBase.session("system")) { session =>
       session.run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds").consume()
@@ -401,7 +401,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
   }
 
   private def initForHits(): Unit = {
-    Assume.assumeTrue(TestUtil.neo4jVersion(SparkConnectorScalaSuiteWithGdsBase.session()) >= Versions.NEO4J_5)
+    assumeTrue(TestUtil.neo4jVersion(SparkConnectorScalaSuiteWithGdsBase.session()) >= Versions.NEO4J_5)
     SparkConnectorScalaSuiteWithGdsBase.session()
       .executeWrite(tx =>
         tx.run(

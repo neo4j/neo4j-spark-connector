@@ -18,9 +18,9 @@ package org.neo4j.spark.testsupport
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.junit.AfterClass
-import org.junit.Assume
-import org.junit.BeforeClass
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.BeforeAll
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver._
@@ -41,7 +41,7 @@ object SparkConnectorScalaSuiteWithApocIT {
   var driver: Driver = _
   var neo4j: Neo4j = _
 
-  @BeforeClass
+  @BeforeAll
   def setUpContainer(): Unit = {
     if (!server.isRunning) {
       try {
@@ -49,7 +49,8 @@ object SparkConnectorScalaSuiteWithApocIT {
       } catch {
         case _: Throwable => //
       }
-      Assume.assumeTrue("Neo4j container is not started", server.isRunning)
+    }
+    if (server.isRunning && driver == null) {
       conf = new SparkConf()
         .setAppName("neoTest")
         .setMaster("local[*]")
@@ -58,12 +59,14 @@ object SparkConnectorScalaSuiteWithApocIT {
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       neo4j = Neo4jDetector.INSTANCE.detect(driver)
     }
-    Assume.assumeTrue("Neo4j Preview versions doesn't have APOC", TestUtil.hasApoc(session()))
+    assumeTrue(server.isRunning, "Neo4j container is not started")
+    assumeTrue(TestUtil.hasApoc(session()), "Neo4j Preview versions doesn't have APOC")
   }
 
-  @AfterClass
+  @AfterAll
   def tearDownContainer() = {
     TestUtil.closeSafely(driver)
+    driver = null
     TestUtil.closeSafely(server)
     TestUtil.closeSafely(ss)
   }

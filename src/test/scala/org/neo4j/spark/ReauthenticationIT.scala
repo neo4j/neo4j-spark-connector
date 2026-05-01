@@ -16,10 +16,10 @@
  */
 package org.neo4j.spark
 
-import org.junit.AfterClass
-import org.junit.Assert.assertEquals
-import org.junit.BeforeClass
-import org.junit.Test
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Test
 import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.Driver
 import org.neo4j.driver.GraphDatabase
@@ -112,13 +112,13 @@ object ReauthenticationIT {
     .withNeo4jConfig("dbms.security.oidc.keycloak.claims.groups", "groups")
     .withNeo4jConfig("dbms.security.auth_cache_ttl", "1s")
 
-  @BeforeClass
+  @BeforeAll
   def setUp(): Unit = {
     KEYCLOAK.start()
     NEO4J.start()
   }
 
-  @AfterClass
+  @AfterAll
   def tearDown() = {
     TestUtil.closeSafely(NEO4J)
     TestUtil.closeSafely(KEYCLOAK)

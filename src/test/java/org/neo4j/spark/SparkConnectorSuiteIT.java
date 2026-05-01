@@ -16,12 +16,12 @@
  */
 package org.neo4j.spark;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Suite;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT;
 
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
+@Suite
+@SelectClasses({
     DataSourceReaderTypesTSE.class
 })
 public class SparkConnectorSuiteIT extends SparkConnectorScalaSuiteIT {
