@@ -16,8 +16,8 @@
  */
 package org.neo4j.spark.testsupport
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class VersionTest {
 

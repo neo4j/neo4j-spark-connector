@@ -18,26 +18,22 @@ package org.neo4j.spark.testsupport
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.junit._
-import org.junit.rules.TestName
+import org.junit.jupiter.api._
 import org.neo4j.spark.testsupport.Closeables.use
-import org.scalatestplus.junit.AssertionsForJUnit
-
-import scala.annotation.meta.getter
 
 object SparkConnectorScalaBaseTSE {
 
   private var startedFromSuite = true
 
-  @BeforeClass
+  @BeforeAll
   def setUpContainer() = {
     if (!SparkConnectorScalaSuiteIT.server.isRunning) {
       startedFromSuite = false
-      SparkConnectorScalaSuiteIT.setUpContainer()
     }
+    SparkConnectorScalaSuiteIT.setUpContainer()
   }
 
-  @AfterClass
+  @AfterAll
   def tearDownContainer() = {
     if (!startedFromSuite) {
       SparkConnectorScalaSuiteIT.tearDownContainer()
@@ -46,23 +42,25 @@ object SparkConnectorScalaBaseTSE {
 
 }
 
-class SparkConnectorScalaBaseTSE extends AssertionsForJUnit {
+class SparkConnectorScalaBaseTSE {
 
   val conf: SparkConf = SparkConnectorScalaSuiteIT.conf
   val ss: SparkSession = SparkConnectorScalaSuiteIT.ss
 
-  @(Rule @getter)
-  val testName: TestName = new TestName
+  private var _testInfo: TestInfo = _
 
-  @Before
-  def before(): Unit = {
+  @BeforeEach
+  def before(testInfo: TestInfo): Unit = {
+    _testInfo = testInfo
     use(SparkConnectorScalaSuiteIT.session("system")) { session =>
       session
         .run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds").consume()
     }
   }
 
-  @After
+  def testName: String = _testInfo.getDisplayName
+
+  @AfterEach
   def after(): Unit = {
     ss.catalog.listTables()
       .collect()

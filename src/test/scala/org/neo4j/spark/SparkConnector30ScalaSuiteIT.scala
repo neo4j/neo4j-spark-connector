@@ -16,12 +16,12 @@
  */
 package org.neo4j.spark
 
-import org.junit.runner.RunWith
-import org.junit.runners.Suite
+import org.junit.platform.suite.api.SelectClasses
+import org.junit.platform.suite.api.Suite
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 
-@RunWith(classOf[Suite])
-@Suite.SuiteClasses(Array(
+@Suite
+@SelectClasses(Array(
   classOf[DataSourceReaderTSE],
   classOf[DataSourceReaderNeo4jTSE],
   classOf[DataSourceWriterNeo4jTSE],

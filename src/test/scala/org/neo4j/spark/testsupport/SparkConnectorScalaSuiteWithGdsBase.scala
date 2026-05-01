@@ -18,16 +18,16 @@ package org.neo4j.spark.testsupport
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.junit._
-import org.junit.rules.TestName
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api._
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver._
 import org.neo4j.spark.testsupport.Closeables.use
 
 import java.util.TimeZone
-
-import scala.annotation.meta.getter
 
 object SparkConnectorScalaSuiteWithGdsBase {
 
@@ -43,7 +43,7 @@ object SparkConnectorScalaSuiteWithGdsBase {
   var driver: Driver = _
   var neo4j: Neo4j = _
 
-  @BeforeClass
+  @BeforeAll
   def setUpContainer(): Unit = {
     if (!server.isRunning) {
       try {
@@ -51,7 +51,8 @@ object SparkConnectorScalaSuiteWithGdsBase {
       } catch {
         case _: Throwable => //
       }
-      Assume.assumeTrue("Neo4j container is not started", server.isRunning)
+    }
+    if (server.isRunning && driver == null) {
       conf = new SparkConf()
         .setAppName("neoTest")
         .setMaster("local[*]")
@@ -60,11 +61,13 @@ object SparkConnectorScalaSuiteWithGdsBase {
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       neo4j = Neo4jDetector.INSTANCE.detect(driver)
     }
+    assumeTrue(server.isRunning, "Neo4j container is not started")
   }
 
-  @AfterClass
+  @AfterAll
   def tearDownContainer(): Unit = {
     TestUtil.closeSafely(driver)
+    driver = null
     TestUtil.closeSafely(server)
     TestUtil.closeSafely(ss)
   }
@@ -83,10 +86,13 @@ class SparkConnectorScalaSuiteWithGdsBase {
   val conf: SparkConf = SparkConnectorScalaSuiteWithGdsBase.conf
   val ss: SparkSession = SparkConnectorScalaSuiteWithGdsBase.ss
 
-  @(Rule @getter)
-  val testName: TestName = new TestName
+  @Test
+  def myTest(testInfo: TestInfo): Unit = {
+    val testName = testInfo.getDisplayName
+    println(testName)
+  }
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     use(SparkConnectorScalaSuiteWithGdsBase.session("system")) {
       session =>

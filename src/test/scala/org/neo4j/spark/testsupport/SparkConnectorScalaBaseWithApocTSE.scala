@@ -18,25 +18,22 @@ package org.neo4j.spark.testsupport
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.junit._
-import org.junit.rules.TestName
+import org.junit.jupiter.api._
 import org.neo4j.spark.testsupport.Closeables.use
-
-import scala.annotation.meta.getter
 
 object SparkConnectorScalaBaseWithApocTSE {
 
   private var startedFromSuite = true
 
-  @BeforeClass
+  @BeforeAll
   def setUpContainer() = {
     if (!SparkConnectorScalaSuiteWithApocIT.server.isRunning) {
       startedFromSuite = false
-      SparkConnectorScalaSuiteWithApocIT.setUpContainer()
     }
+    SparkConnectorScalaSuiteWithApocIT.setUpContainer()
   }
 
-  @AfterClass
+  @AfterAll
   def tearDownContainer() = {
     if (!startedFromSuite) {
       SparkConnectorScalaSuiteWithApocIT.tearDownContainer()
@@ -50,11 +47,14 @@ class SparkConnectorScalaBaseWithApocTSE {
   val conf: SparkConf = SparkConnectorScalaSuiteWithApocIT.conf
   val ss: SparkSession = SparkConnectorScalaSuiteWithApocIT.ss
 
-  @(Rule @getter)
-  val testName: TestName = new TestName
+  @Test
+  def myTest(testInfo: TestInfo): Unit = {
+    val testName = testInfo.getDisplayName
+    println(testName)
+  }
 
-  @Before
-  def before() {
+  @BeforeEach
+  def before(): Unit = {
     use(SparkConnectorScalaSuiteWithApocIT.session("system")) {
       session =>
         session.run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds")

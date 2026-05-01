@@ -23,10 +23,8 @@ import org.apache.spark.scheduler.SparkListenerStageSubmitted
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
 import org.hamcrest.Matchers
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 import org.neo4j.driver.Session
 import org.neo4j.driver.SessionConfig
 import org.neo4j.driver.TransactionContext
