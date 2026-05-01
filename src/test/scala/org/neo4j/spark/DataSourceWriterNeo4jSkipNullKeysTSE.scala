@@ -18,9 +18,9 @@ package org.neo4j.spark
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.SaveMode
-import org.junit.Assert.assertThrows
-import org.junit.Assume
-import org.junit.Test
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.neo4j.caniuse.CanIUse
 import org.neo4j.caniuse.Schema
 import org.neo4j.spark.testsupport.Closeables.use
@@ -40,7 +40,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       (None, "Moon")
     ).toDF("id", "city")
 
-    val caught = org.junit.Assert.assertThrows(
+    val caught = assertThrows(
       classOf[SparkException],
       () => {
         cities.write
@@ -120,7 +120,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `fails to write relationships when relationship key properties contain null values`(): Unit = {
-    Assume.assumeTrue(
+    assumeTrue(
       CanIUse.INSTANCE.canIUse(Schema.INSTANCE.relationshipKeyConstraints()).withNeo4j(SparkConnectorScalaSuiteIT.neo4j)
     )
 
@@ -496,7 +496,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `skips relationships when relationship key properties contain null values`(): Unit = {
-    Assume.assumeTrue(
+    assumeTrue(
       CanIUse.INSTANCE.canIUse(Schema.INSTANCE.relationshipKeyConstraints()).withNeo4j(SparkConnectorScalaSuiteIT.neo4j)
     )
 
