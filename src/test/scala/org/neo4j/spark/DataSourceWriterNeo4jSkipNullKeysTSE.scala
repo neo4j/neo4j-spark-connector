@@ -18,9 +18,9 @@ package org.neo4j.spark
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.SaveMode
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.neo4j.caniuse.CanIUse
 import org.neo4j.caniuse.Schema
 import org.neo4j.spark.testsupport.Closeables.use
