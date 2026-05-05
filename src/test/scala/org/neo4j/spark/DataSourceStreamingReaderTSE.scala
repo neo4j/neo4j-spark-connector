@@ -36,9 +36,6 @@ import java.util.concurrent.TimeUnit
 
 class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
-//  @(Rule @getter)
-//  val folder: TemporaryFolder = new TemporaryFolder()
-
   @TempDir
   var folder: Path = _
 
