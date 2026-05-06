@@ -52,7 +52,7 @@ cp pom.xml pom.xml.bak
 cp common/pom.xml common/pom.xml.bak
 cp test-support/pom.xml test-support/pom.xml.bak
 cp spark-3/pom.xml spark-3/pom.xml.bak
-cp spark-4/pom.xml spark-4/pom.xml.bak
+test -f spark-4/pom.xml && cp spark-4/pom.xml spark-4/pom.xml.bak
 
 ./mvnw -B versions:set -DnewVersion=${PROJECT_VERSION}_for_spark_${SPARK_VERSION} -DgenerateBackupPoms=false
 
