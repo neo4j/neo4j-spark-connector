@@ -26,6 +26,7 @@ import org.hamcrest.Matchers
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume
 import org.junit.Test
 import org.neo4j.Closeables.use
 import org.neo4j.driver.Session
@@ -44,6 +45,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should read and write relations with append mode`(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
@@ -52,17 +54,11 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
          |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
          |RETURN *
     """.stripMargin
-
-    use(SparkConnectorScalaSuiteIT.session("system")) { session =>
-      session.run("CREATE OR REPLACE DATABASE db1 WAIT 30 seconds").consume()
-      session.run("CREATE OR REPLACE DATABASE db2 WAIT 30 seconds").consume()
-    }
-
-    use(SparkConnectorScalaSuiteIT.session("db1")) { session =>
+    use(SparkConnectorScalaSuiteIT.session("neo4j")) { session =>
       session.run(fixtureQuery).consume()
     }
 
-    use(SparkConnectorScalaSuiteIT.session("db2")) { session =>
+    use(SparkConnectorScalaSuiteIT.session("neo4j")) { session =>
       session
         .writeTransaction(
           new TransactionWork[Unit] {
@@ -77,7 +73,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
     try {
       val dfOriginal: DataFrame = ss.read.format(classOf[DataSource].getName)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db1")
+        .option("database", "neo4j")
         .option("relationship", "BOUGHT")
         .option("relationship.nodes.map", "false")
         .option("relationship.source.labels", ":Person")
@@ -88,7 +84,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .format(classOf[DataSource].getName)
         .mode(SaveMode.Append)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db2")
+        .option("database", "neo4j")
         .option("relationship", "SOLD")
         .option("relationship.save.strategy", "NATIVE")
         .option("relationship.source.labels", ":Person")
@@ -103,7 +99,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .format(classOf[DataSource].getName)
         .mode(SaveMode.Append)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db2")
+        .option("database", "neo4j")
         .option("relationship", "SOLD")
         .option("relationship.save.strategy", "NATIVE")
         .option("relationship.source.labels", ":Person")
@@ -117,7 +113,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
       val dfCopy = ss.read.format(classOf[DataSource].getName)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db2")
+        .option("database", "neo4j")
         .option("relationship", "SOLD")
         .option("relationship.nodes.map", "false")
         .option("relationship.source.labels", ":Person")
@@ -148,7 +144,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         dfCopy.where("`source.id` = 1").count()
       )
     } finally {
-      SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
+      SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("neo4j"))
         .writeTransaction(
           new TransactionWork[Unit] {
             override def execute(tx: Transaction): Unit = {
@@ -162,6 +158,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should read and write relations with overwrite mode`(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
@@ -170,17 +167,11 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
          |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
          |RETURN *
     """.stripMargin
-
-    use(SparkConnectorScalaSuiteIT.session("system")) { session =>
-      session.run("CREATE OR REPLACE DATABASE db1 WAIT 30 seconds").consume()
-      session.run("CREATE OR REPLACE DATABASE db2 WAIT 30 seconds").consume()
-    }
-
-    use(SparkConnectorScalaSuiteIT.session("db1")) { session =>
+    use(SparkConnectorScalaSuiteIT.session("neo4j")) { session =>
       session.run(fixtureQuery).consume()
     }
 
-    use(SparkConnectorScalaSuiteIT.session("db2")) { session =>
+    use(SparkConnectorScalaSuiteIT.session("neo4j")) { session =>
       session
         .writeTransaction(
           new TransactionWork[Unit] {
@@ -195,7 +186,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
     try {
       val dfOriginal: DataFrame = ss.read.format(classOf[DataSource].getName)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db1")
+        .option("database", "neo4j")
         .option("relationship", "BOUGHT")
         .option("relationship.nodes.map", "false")
         .option("relationship.source.labels", ":Person")
@@ -207,7 +198,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .format(classOf[DataSource].getName)
         .mode(SaveMode.Overwrite)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db2")
+        .option("database", "neo4j")
         .option("relationship", "SOLD")
         .option("relationship.save.strategy", "NATIVE")
         .option("relationship.source.labels", ":Person")
@@ -222,7 +213,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .format(classOf[DataSource].getName)
         .mode(SaveMode.Overwrite)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db2")
+        .option("database", "neo4j")
         .option("relationship", "SOLD")
         .option("relationship.save.strategy", "NATIVE")
         .option("relationship.source.labels", ":Person")
@@ -236,7 +227,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
       val dfCopy = ss.read.format(classOf[DataSource].getName)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db2")
+        .option("database", "neo4j")
         .option("relationship", "SOLD")
         .option("relationship.nodes.map", "false")
         .option("relationship.source.labels", ":Person")
@@ -263,7 +254,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         dfCopy.where("`source.id` = 1").count()
       )
     } finally {
-      SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
+      SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("neo4j"))
         .writeTransaction(
           new TransactionWork[Unit] {
             override def execute(tx: Transaction): Unit = {
@@ -285,23 +276,17 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
          |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
          |RETURN *
     """.stripMargin
-
-    use(SparkConnectorScalaSuiteIT.session("system")) { session =>
-      session.run("CREATE OR REPLACE DATABASE db1 WAIT 30 seconds").consume()
-      session.run("CREATE OR REPLACE DATABASE db2 WAIT 30 seconds").consume()
-    }
-
-    use(SparkConnectorScalaSuiteIT.session("db1")) { session =>
+    use(SparkConnectorScalaSuiteIT.session("neo4j")) { session =>
       session.run(fixtureQuery).consume()
     }
 
-    use(SparkConnectorScalaSuiteIT.session("db2")) { session =>
+    use(SparkConnectorScalaSuiteIT.session("neo4j")) { session =>
       session.run(fixtureQuery).consume()
     }
 
     val dfOriginal: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("database", "db1")
+      .option("database", "neo4j")
       .option("relationship", "BOUGHT")
       .option("relationship.nodes.map", "false")
       .option("relationship.source.labels", ":Person")
@@ -313,7 +298,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Overwrite)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("database", "db2")
+      .option("database", "neo4j")
       .option("relationship", "SOLD")
       .option("relationship.save.strategy", "NATIVE")
       .option("relationship.source.labels", ":Person")
@@ -327,7 +312,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
     val dfCopy = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("database", "db2")
+      .option("database", "neo4j")
       .option("relationship", "SOLD")
       .option("relationship.nodes.map", "false")
       .option("relationship.source.labels", ":Person")
@@ -357,19 +342,13 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
          |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
          |RETURN *
     """.stripMargin
-
-    use(SparkConnectorScalaSuiteIT.session("system")) { session =>
-      session.run("CREATE OR REPLACE DATABASE db1 WAIT 30 seconds").consume()
-      session.run("CREATE OR REPLACE DATABASE db2 WAIT 30 seconds").consume()
-    }
-
-    use(SparkConnectorScalaSuiteIT.session("db1")) { session =>
+    use(SparkConnectorScalaSuiteIT.session("neo4j")) { session =>
       session.run(fixtureQuery).consume()
     }
 
     val dfOriginal: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("database", "db1")
+      .option("database", "neo4j")
       .option("relationship", "BOUGHT")
       .option("relationship.nodes.map", "false")
       .option("relationship.source.labels", ":Person")
@@ -381,7 +360,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Overwrite)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("database", "db2")
+      .option("database", "neo4j")
       .option("relationship", "SOLD")
       .option("relationship.save.strategy", "NATIVE")
       .option("relationship.source.labels", ":Person")
@@ -395,7 +374,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
     val dfCopy = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("database", "db2")
+      .option("database", "neo4j")
       .option("relationship", "SOLD")
       .option("relationship.nodes.map", "false")
       .option("relationship.source.labels", ":Person")
@@ -423,7 +402,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
          |RETURN *
     """.stripMargin
 
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
+    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("neo4j"))
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
@@ -438,7 +417,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Overwrite)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("database", "db1")
+      .option("database", "neo4j")
       .option("relationship.nodes.map", "false")
       .option("relationship", "PLAYS")
       .option("relationship.source.save.mode", "Match")
@@ -452,7 +431,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
     val df2 = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("database", "db1")
+      .option("database", "neo4j")
       .option("relationship.nodes.map", "false")
       .option("relationship", "PLAYS")
       .option("relationship.source.labels", ":Musician")
@@ -479,7 +458,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .format(classOf[DataSource].getName)
         .mode(SaveMode.Overwrite)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db1")
+        .option("database", "neo4j")
         .option("relationship", "PLAYS")
         .option("relationship.source.save.mode", "Overwrite")
         .option("relationship.target.save.mode", "Overwrite")
@@ -518,7 +497,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .format(classOf[DataSource].getName)
         .mode(SaveMode.Overwrite)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db1")
+        .option("database", "neo4j")
         .option("relationship", "PLAYS")
         .option("relationship.source.save.mode", "Overwrite")
         .option("relationship.target.save.mode", "Overwrite")
@@ -558,7 +537,7 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .format(classOf[DataSource].getName)
         .mode(SaveMode.Append)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db1")
+        .option("database", "neo4j")
         .option("labels", "Person")
         .option("node.properties", "musician_name:name,another_name:name")
         .save()
@@ -600,12 +579,12 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
         .format(classOf[DataSource].getName)
         .mode(SaveMode.Append)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db1")
+        .option("database", "neo4j")
         .option("batch.size", 1) // TODO: remove this when https://issues.apache.org/jira/browse/SPARK-45759 is fixed
         .option("query", query)
         .save()
 
-      val db1Session = SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
+      val db1Session = SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("neo4j"))
       Assert.assertEventually(
         () => {
           db1Session.run(

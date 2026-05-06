@@ -32,6 +32,7 @@ import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.sql.types.YearMonthIntervalType
 import org.junit
 import org.junit.Assert._
+import org.junit.Assume
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -1798,6 +1799,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should manage script passing the data to the executors`(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     val ds = Seq(SimplePerson("Andrea", "Santurbano"), SimplePerson("Davide", "Fantuzzi")).toDS()
       .repartition(2)
 

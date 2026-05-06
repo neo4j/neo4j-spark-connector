@@ -589,8 +589,11 @@
                 <module>spark-4</module>
             </modules>
             <properties>
+                <!-- Spark 4.1 ships Netty 4.2.x internally; bump the BOM so runtime classes align -->
+                <netty-bom.version>4.2.13.Final</netty-bom.version>
                 <scala.binary.version>2.13</scala.binary.version>
-                <scala.version>2.13.16</scala.version>
+                <!-- Spark 4.1.1 requires Scala >= 2.13.17 (caseClassHash$default$2 added in 2.13.17) -->
+                <scala.version>2.13.17</scala.version>
                 <spark.version>4.1.1</spark.version>
                 <spark4.minor>1</spark4.minor>
             </properties>
