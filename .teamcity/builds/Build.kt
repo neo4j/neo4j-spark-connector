@@ -39,6 +39,9 @@ class Build(
 
               javaVersions.cartesianProduct(scalaVersions, neo4jVersions).forEach {
                   (java, scala, neo4j) ->
+                // Spark 4 requires Java 17+ and Scala 2.13 only; skip incompatible combinations
+                if (scala == ScalaVersion.V2_13 && java.version.toInt() < 17) return@forEach
+                val spark4Profiles = if (scala == ScalaVersion.V2_13) "-Pspark-4" else ""
                 sequential {
                   val packaging =
                       Package(
@@ -55,6 +58,7 @@ class Build(
                           "test-compile",
                           java,
                           scala,
+                          sparkProfiles = spark4Profiles,
                       ),
                   )
 
@@ -66,6 +70,7 @@ class Build(
                           java,
                           scala,
                           neo4j,
+                          sparkProfiles = spark4Profiles,
                       ),
                   )
 
@@ -83,6 +88,7 @@ class Build(
                             java,
                             scala,
                             neo4j,
+                            sparkProfiles = spark4Profiles,
                         ) {},
                     )
 

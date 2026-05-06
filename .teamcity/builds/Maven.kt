@@ -10,6 +10,7 @@ open class Maven(
     javaVersion: JavaVersion,
     scalaVersion: ScalaVersion,
     neo4jVersion: Neo4jVersion = Neo4jVersion.V_NONE,
+    sparkProfiles: String = "",
     args: String? = null
 ) :
     BuildType(
@@ -29,8 +30,9 @@ open class Maven(
 
             runMaven(javaVersion) {
               this.goals = goals
+              val profiles = if (sparkProfiles.isNotBlank()) " $sparkProfiles" else ""
               this.runnerArgs =
-                  "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -Dscala-${scalaVersion.version} ${args ?: ""}"
+                  "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -Dscala-${scalaVersion.version}$profiles ${args ?: ""}"
             }
           }
 

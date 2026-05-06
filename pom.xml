@@ -551,6 +551,13 @@
         </profile>
         <!-- end scala profiles -->
         <!-- spark profiles -->
+        <!--
+            The spark-4 profile adds the spark-4 module and forces Scala 2.13 for the
+            entire build. Spark 4.0 drops Scala 2.12 support entirely, so all shared
+            modules (common, test-support) must be compiled with Scala 2.13 when
+            targeting Spark 4. To build only Spark 4 artifacts without Spark 3:
+              mvn install -Pspark-4 -pl common,test-support,spark-4
+        -->
         <profile>
             <id>spark-4</id>
             <activation>

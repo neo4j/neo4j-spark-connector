@@ -9,6 +9,7 @@ class JavaIntegrationTests(
     javaVersion: JavaVersion,
     scalaVersion: ScalaVersion,
     neo4jVersion: Neo4jVersion,
+    sparkProfiles: String = "",
     init: BuildType.() -> Unit
 ) :
     BuildType(
@@ -33,8 +34,9 @@ class JavaIntegrationTests(
 
             runMaven(javaVersion) {
               this.goals = "verify"
+              val profiles = if (sparkProfiles.isNotBlank()) " $sparkProfiles" else ""
               this.runnerArgs =
-                  "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -Dscala-${scalaVersion.version} -DskipUnitTests"
+                  "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -Dscala-${scalaVersion.version}$profiles -DskipUnitTests"
             }
           }
 

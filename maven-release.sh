@@ -71,14 +71,17 @@ sed_i "s/<artifactId>neo4j-connector-apache-spark_common<\/artifactId>/<artifact
 sed_i "s/<artifactId>neo4j-connector-apache-spark_test-support<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_test-support<\/artifactId>/" "spark-3/pom.xml"
 sed_i "s/<spark-packages.version\/>/<spark-packages.version>${SPARK_PACKAGES_VERSION}<\/spark-packages.version>/" "spark-3/pom.xml"
 
+# spark-4 uses a separate _for_spark_4 stamp (Scala 2.13 only)
+SPARK4_VERSION="${PROJECT_VERSION}_for_spark_4"
+sed_i "s/<version>${PROJECT_VERSION}_for_spark_${SPARK_VERSION}<\/version>/<version>${SPARK4_VERSION}<\/version>/" "spark-4/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark_4<\/artifactId>/<artifactId>neo4j-connector-apache-spark_4_${SCALA_VERSION}<\/artifactId>/" "spark-4/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark_parent<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_parent<\/artifactId>/" "spark-4/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark_common<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_common<\/artifactId>/" "spark-4/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark_test-support<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_test-support<\/artifactId>/" "spark-4/pom.xml"
 sed_i "s/<spark-packages.version\/>/<spark-packages.version>${SPARK_PACKAGES_VERSION}<\/spark-packages.version>/" "spark-4/pom.xml"
 
-# build
-./mvnw -B clean "${GOAL}" -Dscala-"${SCALA_VERSION}" -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
+# build (spark-4 profile includes the spark-4 module alongside spark-3)
+./mvnw -B clean "${GOAL}" -Dscala-"${SCALA_VERSION}" -Pspark-4 -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
 
 if [ ! ${CI:-false} = true ]; then
   exit_script
