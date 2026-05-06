@@ -30,6 +30,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `fails to write nodes when key properties contain null values`(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     val cities = Seq(
       (Some(1), "Cherbourg en Cotentin"),
       (Some(2), "London"),
@@ -52,6 +53,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `fails to write relationships when source node key properties contain null values`(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     val caught = intercept[SparkException] {
       val cities = Seq(
         (Some(1), Some(2), "British Airways"),
@@ -80,6 +82,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `fails to write relationships when target node key properties contain null values`(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     val caught = intercept[SparkException] {
       val cities = Seq(
         (Some(1), Some(2), "British Airways"),
@@ -108,6 +111,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `fails to write relationships when relationship key properties contain null values`(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     Assume.assumeTrue(
       CanIUse.INSTANCE.canIUse(Schema.INSTANCE.relationshipKeyConstraints()).withNeo4j(SparkConnectorScalaSuiteIT.neo4j)
     )
@@ -142,6 +146,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `skips nodes when key properties contain null values with APPEND mode`(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     val cities = Seq(
       (Some(1), "Cherbourg en Cotentin"),
       (Some(2), "London"),
@@ -169,6 +174,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `skips nodes when key properties contain null values with OVERWRITE mode`(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     val cities = Seq(
       (Some(1), "Cherbourg en Cotentin"),
       (Some(2), "London"),
@@ -197,6 +203,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `skips relationships when source or target node key properties contain null values`(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     val cities = Seq(
       (Some(1), Some(2), "British Airways"),
       (Some(2), Some(3), "Turkish Airlines"),
@@ -246,6 +253,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `skips relationships when source or target node key properties contain null values when nodes are matched`()
     : Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
       session.run("UNWIND [1,2,3,5] AS id CREATE (:City {id: id})").consume()
     }
@@ -292,6 +300,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `skips relationships when source or target node key properties contain null values when nodes are appended`()
     : Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     val cities = Seq(
       (Some(1), Some(2), "British Airways"),
       (Some(3), Some(4), "Turkish Airlines"),
@@ -339,6 +348,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `skips relationships when source or target node key properties contain null values with append mode`(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     val cities = Seq(
       (Some(1), Some(2), "British Airways"),
       (Some(3), Some(4), "Turkish Airlines"),
@@ -388,6 +398,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `skips relationships when source or target node key properties contain null values when nodes are matched with append mode`()
     : Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
       session.run("UNWIND [1,2,3,5] AS id CREATE (:City {id: id})").consume()
     }
@@ -434,6 +445,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `skips relationships when source or target node key properties contain null values when nodes are appended with append mode`()
     : Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     val cities = Seq(
       (Some(1), Some(2), "British Airways"),
       (Some(3), Some(4), "Turkish Airlines"),
@@ -481,6 +493,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `skips relationships when relationship key properties contain null values`(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     Assume.assumeTrue(
       CanIUse.INSTANCE.canIUse(Schema.INSTANCE.relationshipKeyConstraints()).withNeo4j(SparkConnectorScalaSuiteIT.neo4j)
     )

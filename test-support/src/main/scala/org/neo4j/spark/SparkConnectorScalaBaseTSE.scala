@@ -55,9 +55,14 @@ class SparkConnectorScalaBaseTSE extends AssertionsForJUnit {
 
   @Before
   def before(): Unit = {
-    use(SparkConnectorScalaSuiteIT.session("system")) { session =>
-      session
-        .run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds").consume()
+    use(SparkConnectorScalaSuiteIT.session()) { session =>
+      session.run("MATCH (n) DETACH DELETE n").consume()
+      val constraints = session.run("SHOW CONSTRAINTS YIELD name RETURN name").list()
+      constraints.forEach(r => session.run(s"DROP CONSTRAINT `${r.get("name").asString}`").consume())
+      val indexes = session.run(
+        "SHOW INDEXES YIELD name, type WHERE type <> 'LOOKUP' RETURN name"
+      ).list()
+      indexes.forEach(r => session.run(s"DROP INDEX `${r.get("name").asString}`").consume())
     }
   }
 

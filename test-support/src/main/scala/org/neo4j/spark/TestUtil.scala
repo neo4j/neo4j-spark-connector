@@ -85,6 +85,18 @@ object TestUtil {
     result.single().get("hasApoc").asBoolean()
   }
 
+
+  def isEnterpriseEdition(session: Session): Boolean = {
+    try {
+      val result = session.run(
+        "CALL dbms.components() YIELD edition RETURN edition"
+      )
+      result.single().get("edition").asString().toLowerCase.contains("enterprise")
+    } catch {
+      case _: Throwable => false
+    }
+  }
+
   def closeSafely(autoCloseable: AutoCloseable, logger: Logger = null): Unit = {
     try {
       autoCloseable match {
