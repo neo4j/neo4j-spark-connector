@@ -34,8 +34,8 @@ import java.time.ZoneOffset
 import java.util.TimeZone
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArraySeq
 import scala.collection.immutable.Seq
+import scala.collection.mutable.ArraySeq
 
 class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
