@@ -38,10 +38,6 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
 
   @After
   def cleanData(): Unit = {
-    use(SparkConnectorScalaSuiteWithGdsBase.session("system")) { session =>
-      session.run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds").consume()
-    }
-
     use(SparkConnectorScalaSuiteWithGdsBase.session()) { session =>
       session
         .writeTransaction((tx: Transaction) => {

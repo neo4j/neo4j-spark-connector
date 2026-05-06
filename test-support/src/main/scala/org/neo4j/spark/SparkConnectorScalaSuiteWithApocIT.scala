@@ -35,7 +35,7 @@ object SparkConnectorScalaSuiteWithApocIT {
     withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     withEnv("NEO4JLABS_PLUGINS", "[\"apoc\"]")
     withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
-    withDatabases(Seq("db1", "db2"))
+
   }
 
   var conf: SparkConf = _

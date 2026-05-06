@@ -41,7 +41,7 @@ object SparkConnectorScalaSuiteWithGdsBase {
     withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     withEnv("NEO4JLABS_PLUGINS", "[\"graph-data-science\"]")
     withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
-    withDatabases(Seq("db1", "db2"))
+
   }
 
   var conf: SparkConf = _

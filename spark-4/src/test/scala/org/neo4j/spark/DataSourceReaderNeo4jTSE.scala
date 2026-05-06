@@ -35,6 +35,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testMultiDbJoin(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     Assume.assumeTrue(
       "Skipping: requires Neo4j Enterprise Edition",
       TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session())
@@ -360,6 +361,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testShouldThrowClearErrorIfAWrongDbIsSpecified(): Unit = {
+    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
     Assume.assumeTrue(
       "Skipping: requires Neo4j Enterprise Edition",
       TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session())
