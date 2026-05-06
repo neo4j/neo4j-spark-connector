@@ -552,11 +552,14 @@
         <!-- end scala profiles -->
         <!-- spark profiles -->
         <!--
-            The spark-4 profile adds the spark-4 module and forces Scala 2.13 for the
-            entire build. Spark 4.0 drops Scala 2.12 support entirely, so all shared
-            modules (common, test-support) must be compiled with Scala 2.13 when
-            targeting Spark 4. To build only Spark 4 artifacts without Spark 3:
-              mvn install -Pspark-4 -pl common,test-support,spark-4
+            The spark-4 and spark-4.1 profiles add the spark-4 module and force Scala 2.13
+            for the entire build. Spark 4.x drops Scala 2.12 support entirely, so all shared
+            modules (common, test-support) must be compiled with Scala 2.13 when targeting
+            Spark 4. The spark.version property selects the specific Spark 4 minor release.
+
+            To build only Spark 4 artifacts:
+              mvn install -Pspark-4   -pl common,test-support,spark-4  (Spark 4.0.2)
+              mvn install -Pspark-4.1 -pl common,test-support,spark-4  (Spark 4.1.1)
         -->
         <profile>
             <id>spark-4</id>
@@ -571,6 +574,25 @@
             <properties>
                 <scala.binary.version>2.13</scala.binary.version>
                 <scala.version>2.13.16</scala.version>
+                <spark.version>4.0.2</spark.version>
+                <spark4.minor>0</spark4.minor>
+            </properties>
+        </profile>
+        <profile>
+            <id>spark-4.1</id>
+            <activation>
+                <property>
+                    <name>spark-4.1</name>
+                </property>
+            </activation>
+            <modules>
+                <module>spark-4</module>
+            </modules>
+            <properties>
+                <scala.binary.version>2.13</scala.binary.version>
+                <scala.version>2.13.16</scala.version>
+                <spark.version>4.1.1</spark.version>
+                <spark4.minor>1</spark4.minor>
             </properties>
         </profile>
         <!-- end spark profiles -->

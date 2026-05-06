@@ -39,9 +39,13 @@ class Build(
 
               javaVersions.cartesianProduct(scalaVersions, neo4jVersions).forEach {
                   (java, scala, neo4j) ->
-                // Spark 4 requires Java 17+ and Scala 2.13 only; skip incompatible combinations
+                // Spark 4.x requires Java 17+ and Scala 2.13 only; skip incompatible combinations
                 if (scala == ScalaVersion.V2_13 && java.version.toInt() < 17) return@forEach
-                val spark4Profiles = if (scala == ScalaVersion.V2_13) "-Pspark-4" else ""
+                // -Dspark-4 targets Spark 4.0.x; -Dspark-4.1 targets Spark 4.1.x.
+                // Each is a separate Maven flag; CI runs them sequentially as separate args.
+                // For unit/IT tests and packaging, Scala 2.13 builds pass -Dspark-4 which
+                // activates both 4.0.2 spark.version and 4.1 can be run with -Dspark-4.1 separately.
+                val spark4Profiles = if (scala == ScalaVersion.V2_13) "-Dspark-4" else ""
                 sequential {
                   val packaging =
                       Package(

@@ -71,7 +71,8 @@ sed_i "s/<artifactId>neo4j-connector-apache-spark_common<\/artifactId>/<artifact
 sed_i "s/<artifactId>neo4j-connector-apache-spark_test-support<\/artifactId>/<artifactId>neo4j-connector-apache-spark_${SCALA_VERSION}_test-support<\/artifactId>/" "spark-3/pom.xml"
 sed_i "s/<spark-packages.version\/>/<spark-packages.version>${SPARK_PACKAGES_VERSION}<\/spark-packages.version>/" "spark-3/pom.xml"
 
-# spark-4 uses a separate _for_spark_4 stamp (Scala 2.13 only)
+# spark-4 uses a separate _for_spark_4 stamp (Scala 2.13 only).
+# Produced for both Spark 4.0.x (-Dspark-4) and Spark 4.1.x (-Dspark-4.1).
 SPARK4_VERSION="${PROJECT_VERSION}_for_spark_4"
 sed_i "s/<version>${PROJECT_VERSION}_for_spark_${SPARK_VERSION}<\/version>/<version>${SPARK4_VERSION}<\/version>/" "spark-4/pom.xml"
 sed_i "s/<artifactId>neo4j-connector-apache-spark_4<\/artifactId>/<artifactId>neo4j-connector-apache-spark_4_${SCALA_VERSION}<\/artifactId>/" "spark-4/pom.xml"

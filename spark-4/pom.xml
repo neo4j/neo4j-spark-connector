@@ -13,13 +13,10 @@
     <description>Spark ${spark.version} for Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
     <properties>
         <java.version>17</java.version>
-        <scala.binary.version>2.13</scala.binary.version>
-        <scala.version>2.13.16</scala.version>
         <spark-packages.artifactId>neo4j-spark-connector</spark-packages.artifactId>
         <spark-packages.groupId>neo4j</spark-packages.groupId>
         <spark-packages.packageName>${spark-packages.artifactId}-${spark-packages.version}</spark-packages.packageName>
         <spark-packages.version/>
-        <spark.version>4.0.2</spark.version>
     </properties>
     <dependencies>
         <dependency>
@@ -191,4 +188,34 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>spark-4.1-compat-sources</id>
+            <activation>
+                <property>
+                    <name>spark-4.1</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>net.alchim31.maven</groupId>
+                        <artifactId>scala-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>add-spark-4.1-compat-test-source</id>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <phase>initialize</phase>
+                                <configuration>
+                                    <testSourceDir>src/test/scala-spark-4.1</testSourceDir>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

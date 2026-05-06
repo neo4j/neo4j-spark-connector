@@ -35,7 +35,7 @@ project {
           javaVersions =
               setOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
           scalaVersions = setOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
-          pysparkVersions = setOf(PySparkVersion.V3_4, PySparkVersion.V3_5, PySparkVersion.V4_0),
+          pysparkVersions = setOf(PySparkVersion.V3_4, PySparkVersion.V3_5, PySparkVersion.V4_0, PySparkVersion.V4_1),
           neo4jVersions = setOf(Neo4jVersion.V_4_4, Neo4jVersion.V_5, Neo4jVersion.V_CALVER),
           forPullRequests = false,
       ) {
@@ -61,7 +61,7 @@ project {
           name = "pull-request",
           javaVersions = setOf(JavaVersion.V_8, JavaVersion.V_11, JavaVersion.V_17, JavaVersion.V_21),
           scalaVersions = setOf(ScalaVersion.V2_12, ScalaVersion.V2_13),
-          pysparkVersions = setOf(PySparkVersion.V3_5, PySparkVersion.V4_0),
+          pysparkVersions = setOf(PySparkVersion.V3_5, PySparkVersion.V4_0, PySparkVersion.V4_1),
           neo4jVersions = setOf(Neo4jVersion.V_4_4, Neo4jVersion.V_5, Neo4jVersion.V_CALVER),
           forPullRequests = true,
       ) {

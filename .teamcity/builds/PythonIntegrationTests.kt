@@ -39,6 +39,12 @@ class PythonIntegrationTests(
           } else {
             "neo4j-connector-apache-spark_\${scala_version}-\${project_version}_for_spark_${sparkVersion.short}.jar"
           }
+          // Maven flag to activate the appropriate Spark 4.x sub-version
+          val spark4MavenFlag = when (sparkVersion) {
+            SparkVersion.V4_0_2 -> "-Dspark-4"
+            SparkVersion.V4_1_1 -> "-Dspark-4.1"
+            else -> ""
+          }
 
           steps {
             if (neo4jVersion != Neo4jVersion.V_NONE) {
@@ -66,6 +72,8 @@ class PythonIntegrationTests(
               project_version="${'$'}(./mvnw help:evaluate -Dexpression="project.version" --quiet -DforceStdout)"
               scala_version="${scalaVersion.version}"
               jar_name="$jarNameExpr"
+              # Build the connector jar for the target Spark version if not already built
+              ./mvnw install -pl common,test-support,spark-4 $spark4MavenFlag -DskipTests --quiet ${'\$'}{MAVEN_DEFAULT_ARGS:-}
               cd ./scripts/python
               python $testScript "${'$'}{jar_name}" "${neo4jVersion.dockerImage}"
               """

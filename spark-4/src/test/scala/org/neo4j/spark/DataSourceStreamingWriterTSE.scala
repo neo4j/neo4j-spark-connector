@@ -42,6 +42,7 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def testSinkStreamWithLabelsWithAppend(): Unit = {
     implicit val ctx = ss.sqlContext
+    implicit val spark = ss
     import ss.implicits._
     val memStream = MemoryStream[Int]
     val recordSize = 2000
@@ -91,6 +92,7 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def testSinkStreamWithRelationshipWithAppend(): Unit = {
     implicit val ctx = ss.sqlContext
+    implicit val spark = ss
     import ss.implicits._
     val memStream = MemoryStream[Int]
     val recordSize = 2000
@@ -152,6 +154,7 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def testSinkStreamWithQuery(): Unit = {
     implicit val ctx = ss.sqlContext
+    implicit val spark = ss
     import ss.implicits._
     val memStream = MemoryStream[Int]
     val recordSize = 2000
@@ -205,6 +208,7 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def testSinkStreamWithLabelsWithOverwrite(): Unit = {
     implicit val ctx = ss.sqlContext
+    implicit val spark = ss
     import ss.implicits._
     val memStream = MemoryStream[Int]
     val partition = 5
@@ -256,6 +260,7 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def testSinkStreamWithRelationshipWithAppendAndOverwrite(): Unit = {
     implicit val ctx = ss.sqlContext
+    implicit val spark = ss
     import ss.implicits._
     val memStream = MemoryStream[Int]
     val partition = 5
