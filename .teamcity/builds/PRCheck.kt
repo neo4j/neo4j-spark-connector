@@ -28,7 +28,7 @@ class PRCheck(id: String, name: String) :
             """
                   .trimIndent()
 
-          dockerImage = "node:18.4"
+          dockerImage = NODE_DOCKER_IMAGE
           dockerImagePlatform = ScriptBuildStep.ImagePlatform.Linux
         }
       }

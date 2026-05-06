@@ -40,16 +40,8 @@ class PythonIntegrationTests(
                   """
               #!/bin/bash -eu
               
-              apt-get update
-              apt-get install -o Acquire::Retries=10 --yes build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev curl git libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
-              curl -fsSL https://pyenv.run | bash
-              
-              export PYENV_ROOT="${'$'}HOME/.pyenv"
-              export PATH="${'$'}PYENV_ROOT/bin:${'$'}PATH"
-              eval "$(pyenv init - bash)"
-              pyenv install ${pythonVersion.version}
-              pyenv global ${pythonVersion.version}
-                 
+              mise use -g python@${pythonVersion.version}
+                
               python -m pip install --upgrade pip
               pip install pyspark==${sparkVersion.version} "testcontainers[neo4j]" six tzlocal==2.1 
               

@@ -26,8 +26,7 @@ class SemgrepCheck(id: String, name: String, scalaVersion: ScalaVersion) :
           scriptContent = "semgrep ci --no-git-ignore"
           dockerImagePlatform = ScriptBuildStep.ImagePlatform.Linux
           dockerImage = SEMGREP_DOCKER_IMAGE
-          dockerRunParameters =
-              "--volume /var/run/docker.sock:/var/run/docker.sock --volume %teamcity.build.checkoutDir%/signingkeysandbox:/root/.gnupg"
+          dockerRunParameters = "--volume /var/run/docker.sock:/var/run/docker.sock"
         })
   }
 }
