@@ -93,7 +93,7 @@ class Neo4jMicroBatchReader(
           try {
             schemaService.lastOffset()
           } catch {
-case _: Throwable => None
+            case _: Throwable => None
           }
       }
     )
