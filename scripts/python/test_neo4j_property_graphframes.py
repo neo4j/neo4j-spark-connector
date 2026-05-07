@@ -30,7 +30,7 @@ Usage:
 
 Example:
     python test_neo4j_property_graphframes.py \
-        /workspace/spark-4/target/neo4j-connector-apache-spark_4-5.4.2-SNAPSHOT.jar \
+        /workspace/spark-4/target/neo4j-connector-apache-spark_4-5.4.3-SNAPSHOT.jar \
         neo4j:5
 """
 import sys
