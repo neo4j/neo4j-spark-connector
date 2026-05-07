@@ -28,6 +28,7 @@ const val DEFAULT_BRANCH = "6.0"
 val MAVEN_DEFAULT_ARGS = buildString {
   append("--no-transfer-progress ")
   append("--batch-mode ")
+  append("--threads 1C ")
   append("-Dmaven.repo.local=%teamcity.build.checkoutDir%/.m2/repository ")
   append("-Dmaven.wagon.http.retryHandler.class=standard ")
   append("-Dmaven.wagon.http.retryHandler.timeout=60 ")
@@ -35,9 +36,12 @@ val MAVEN_DEFAULT_ARGS = buildString {
   append(
       "-Dmaven.wagon.http.retryHandler.nonRetryableClasses=java.io.InterruptedIOException,java.net.UnknownHostException,java.net.ConnectException ")
 }
-const val SEMGREP_DOCKER_IMAGE = "semgrep/semgrep:1.146.0"
 const val FULL_GITHUB_REPOSITORY = "$GITHUB_OWNER/$GITHUB_REPOSITORY"
 const val GITHUB_URL = "https://github.com/$FULL_GITHUB_REPOSITORY"
+
+const val NODE_DOCKER_IMAGE = "%ecr-registry-connectors%:node-24-latest"
+
+const val SEMGREP_DOCKER_IMAGE = "%ecr-registry-connectors%:semgrep-latest"
 
 val DEFAULT_JAVA_VERSION = JavaVersion.V_17
 
@@ -46,7 +50,8 @@ const val SLACK_CONNECTION_ID = "PROJECT_EXT_83"
 const val SLACK_CHANNEL = "#team-connectors-feed"
 
 // Look into Root Project's settings -> Connections
-const val ECR_CONNECTION_ID = "PROJECT_EXT_124"
+const val ECR_CONNECTION_ID_ENG = "PROJECT_EXT_124"
+const val ECR_CONNECTION_ID_BUILD = "PROJECT_EXT_107"
 
 enum class LinuxSize(val value: String) {
   SMALL("small"),
@@ -54,8 +59,8 @@ enum class LinuxSize(val value: String) {
 }
 
 enum class JavaVersion(val version: String, val dockerImage: String) {
-  V_17(version = "17", dockerImage = "eclipse-temurin:17-jdk"),
-  V_21(version = "21", dockerImage = "eclipse-temurin:21-jdk"),
+  V_17(version = "17", dockerImage = "%ecr-registry-connectors%:jdk-17-latest"),
+  V_21(version = "21", dockerImage = "%ecr-registry-connectors%:jdk-21-latest"),
 }
 
 enum class ScalaVersion(val version: String) {
@@ -198,7 +203,8 @@ fun BuildFeatures.requireDiskSpace(size: String = "3gb") = freeDiskSpace {
 
 fun BuildFeatures.loginToECR() = dockerRegistryConnections {
   cleanupPushedImages = true
-  loginToRegistry = on { dockerRegistryId = ECR_CONNECTION_ID }
+  loginToRegistry = on { dockerRegistryId = ECR_CONNECTION_ID_ENG }
+  loginToRegistry = on { dockerRegistryId = ECR_CONNECTION_ID_BUILD }
 }
 
 fun BuildFeatures.buildCache(javaVersion: JavaVersion, scalaVersion: ScalaVersion) = buildCache {
