@@ -288,6 +288,198 @@ cc = g.connectedComponents()
 cc.groupBy("component").count().orderBy(desc("count")).show(5)
 ```
 
+### PropertyGraphFrame: heterogeneous schemas (GraphFrames 0.11)
+
+GraphFrames 0.11 brings the **PropertyGraphFrame** API to PySpark
+([user guide](https://graphframes.io/04-user-guide/11-property-graphs.html)).
+Unlike the flat `GraphFrame` shown above — which forces all vertices into one
+schema and all edges into another — a `PropertyGraphFrame` preserves
+per-label and per-relationship-type schemas. This is the natural API to use
+when the source of truth is a property graph store like Neo4j.
+
+The recipe is: **one `VertexPropertyGroup` per Neo4j label**, **one
+`EdgePropertyGroup` per relationship type**, then compose into a
+`PropertyGraphFrame`.
+
+#### Vertex property groups (one per Neo4j label)
+
+```python
+from graphframes.pg import (
+    EdgePropertyGroup, PropertyGraphFrame, VertexPropertyGroup,
+)
+
+people_df = (
+    neo4j_read(labels="Person")
+    .select(col("id").cast("string").alias("id"), col("name"), col("born"))
+)
+movies_df = (
+    neo4j_read(labels="Movie")
+    .select(col("id").cast("string").alias("id"), col("title"), col("released"))
+)
+
+# apply_mask_on_id=False: see "Tip" below — recommended for Neo4j sources.
+people_g = VertexPropertyGroup("Person", people_df, "id", apply_mask_on_id=False)
+movies_g = VertexPropertyGroup("Movie",  movies_df, "id", apply_mask_on_id=False)
+```
+
+```scala
+import org.graphframes.propertygraph.property.{EdgePropertyGroup, VertexPropertyGroup}
+import org.graphframes.propertygraph.PropertyGraphFrame
+import org.apache.spark.sql.functions._
+
+val peopleDf = neo4jRead("labels" -> "Person")
+  .select($"id".cast("string").as("id"), $"name", $"born")
+val moviesDf = neo4jRead("labels" -> "Movie")
+  .select($"id".cast("string").as("id"), $"title", $"released")
+
+val peopleG = VertexPropertyGroup("Person", peopleDf, "id", applyMaskOnId = false)
+val moviesG = VertexPropertyGroup("Movie",  moviesDf, "id", applyMaskOnId = false)
+```
+
+#### Edge property groups (one per Neo4j relationship type)
+
+```python
+likes_df = (
+    neo4j_read(
+        relationship="LIKES",
+        **{"relationship.source.labels": "Person",
+           "relationship.target.labels": "Movie"},
+    )
+    .select(
+        col("`source.id`").cast("string").alias("src"),
+        col("`target.id`").cast("string").alias("dst"),
+    )
+)
+messages_df = (
+    neo4j_read(
+        relationship="MESSAGES",
+        **{"relationship.source.labels": "Person",
+           "relationship.target.labels": "Person"},
+    )
+    .select(
+        col("`source.id`").cast("string").alias("src"),
+        col("`target.id`").cast("string").alias("dst"),
+        col("`rel.weight`").cast("double").alias("weight"),
+    )
+)
+
+likes_g = EdgePropertyGroup(
+    "LIKES", likes_df, people_g, movies_g,
+    is_directed=False, src_column_name="src", dst_column_name="dst",
+    weight_column_name=None,                     # auto-fills lit(1.0)
+)
+messages_g = EdgePropertyGroup(
+    "MESSAGES", messages_df, people_g, people_g,
+    is_directed=True,  src_column_name="src", dst_column_name="dst",
+    weight_column_name="weight",
+)
+```
+
+```scala
+val likesG = EdgePropertyGroup(
+  "LIKES", likesDf, peopleG, moviesG,
+  isDirected = false, "src", "dst", lit(1.0))   // unweighted
+
+val messagesG = EdgePropertyGroup(
+  "MESSAGES", messagesDf, peopleG, peopleG,
+  isDirected = true,  "src", "dst", col("weight"))
+```
+
+#### Compose into a PropertyGraphFrame
+
+```python
+pg = PropertyGraphFrame(
+    vertex_property_groups=[people_g, movies_g],
+    edges_property_groups=[likes_g, messages_g],
+)
+```
+
+```scala
+val pg = PropertyGraphFrame(Seq(peopleG, moviesG), Seq(likesG, messagesG))
+```
+
+#### Convert to a flat GraphFrame for algorithms (with optional filters)
+
+```python
+from pyspark.sql.functions import lit
+
+g = pg.to_graphframe(
+    vertex_property_groups=["Person", "Movie"],
+    edge_property_groups=["LIKES"],
+    edge_group_filters={"LIKES": lit(True)},                 # optional
+    vertex_group_filters={"Person": col("born") > 1980},     # optional
+)
+pr = g.pageRank(resetProbability=0.15, maxIter=10)
+pr.vertices.orderBy(desc("pagerank")).show(5)
+```
+
+```scala
+val g = pg.toGraphFrame(
+  Seq("Person", "Movie"), Seq("LIKES"),
+  Map("LIKES" -> lit(true)), Map("Person" -> ($"born" > 1980)))
+val pr = g.pageRank.resetProbability(0.15).maxIter(10).run()
+pr.vertices.orderBy(desc("pagerank")).show(5)
+```
+
+#### Bipartite projection
+
+> "Two people who liked the same movie" — collapse `Person ─LIKES→ Movie`
+> down to direct `Person ─Person` edges in one call:
+
+```python
+people_only = pg.projection_by(
+    left_bi_graph_part="Person",
+    right_bi_graph_part="Movie",
+    edge_group="LIKES",
+)
+# people_only is a new PropertyGraphFrame whose only edge group is
+# 'projected_LIKES' (Person ↔ Person, undirected).
+```
+
+```scala
+val peopleOnly = pg.projectionBy("Person", "Movie", "LIKES")
+```
+
+#### Join algorithm results back to original Neo4j properties
+
+`join_vertices` (Python) / `joinVertices` (Scala) maps each algorithm result
+row back to its original `(external_id, property_group)` pair. To attach the
+original Neo4j properties, do a regular DataFrame join on `external_id`:
+
+```python
+spark.sparkContext.setCheckpointDir("/tmp/cc_checkpoint")
+cc = g.connectedComponents().dropDuplicates(["id", "property_group"])
+
+joined = pg.join_vertices(cc, ["Person", "Movie"])  # external_id, property_group, component
+person_results = (
+    joined.filter(col("property_group") == lit("Person"))
+          .join(people_df, joined["external_id"] == people_df["id"])
+          .select("name", "born", "component")
+)
+person_results.show()
+```
+
+> **Note** — GraphFrames 0.11's default `two_phase` ConnectedComponents
+> algorithm emits one row per vertex per edge incidence, so dedupe with
+> `.dropDuplicates(["id", "property_group"])` before downstream joins.
+
+#### Tip — turn off ID masking for Neo4j sources
+
+By default, `VertexPropertyGroup` hashes vertex IDs with the group name
+(`concat(group_name, sha2(id, 256))`) to prevent collisions when different
+vertex types share an ID space. **Neo4j users never have that problem** —
+Neo4j's `<id>` is globally unique across all labels in a database — so pass
+`apply_mask_on_id=False` (Python) / `applyMaskOnId = false` (Scala) to every
+group. This:
+
+- avoids one SHA-256 per vertex (real perf win on large graphs),
+- keeps the resulting `GraphFrame.id` column equal to the original Neo4j id,
+  which makes debugging much easier,
+- takes `join_vertices` down the simpler "direct join on id" code path.
+
+A complete runnable integration test mirroring all of the above lives at
+`scripts/python/test_neo4j_property_graphframes.py`.
+
 ---
 
 ## Using with Spark Connect (Spark 4.1)
