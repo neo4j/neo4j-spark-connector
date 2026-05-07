@@ -4,4 +4,3 @@ $(git rev-parse --show-toplevel)/mvnw sortpom:sort spotless:apply -f .teamcity
 $(git rev-parse --show-toplevel)/mvnw sortpom:sort spotless:apply
 
 git update-index --again
-
