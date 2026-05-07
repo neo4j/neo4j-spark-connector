@@ -45,7 +45,10 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should read and write relations with append mode`(): Unit = {
-    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
+    Assume.assumeTrue(
+      "Skipping: requires Neo4j Enterprise Edition",
+      TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session())
+    )
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
@@ -158,7 +161,10 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should read and write relations with overwrite mode`(): Unit = {
-    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
+    Assume.assumeTrue(
+      "Skipping: requires Neo4j Enterprise Edition",
+      TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session())
+    )
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id

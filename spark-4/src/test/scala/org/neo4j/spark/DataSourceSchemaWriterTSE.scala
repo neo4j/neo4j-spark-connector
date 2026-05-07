@@ -105,7 +105,10 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def shouldApplySchemaForNodes(): Unit = {
-    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
+    Assume.assumeTrue(
+      "Skipping: requires Neo4j Enterprise Edition",
+      TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session())
+    )
     val (expectedNode: Map[_root_.java.lang.String, Any], df: DataFrame) = createNodesDataFrameWithNotNullColumns
 
     df
@@ -302,7 +305,10 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def shouldApplySchemaAndNodeKeysForNodes(): Unit = {
-    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
+    Assume.assumeTrue(
+      "Skipping: requires Neo4j Enterprise Edition",
+      TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session())
+    )
     val (expectedNode: Map[_root_.java.lang.String, Any], df: DataFrame) = createNodesDataFrameWithNotNullColumns
     df.write
       .mode(SaveMode.Overwrite)
@@ -562,7 +568,10 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def shouldApplySchemaForRelationshipsAndNodes(): Unit = {
-    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
+    Assume.assumeTrue(
+      "Skipping: requires Neo4j Enterprise Edition",
+      TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session())
+    )
     val expectedMap = createDatasetForRelationships(
       Map(
         Neo4jOptions.SCHEMA_OPTIMIZATION -> schemaOptimization
@@ -903,7 +912,10 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def shouldApplyNodeKeyConstraintForNode(): Unit = {
-    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
+    Assume.assumeTrue(
+      "Skipping: requires Neo4j Enterprise Edition",
+      TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session())
+    )
     val total = 10
     val ds = (1 to total)
       .map(i => i.toString)
@@ -992,7 +1004,10 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def shouldApplyRelUniqueConstraintForRelationship(): Unit = {
-    Assume.assumeTrue("Skipping: requires Neo4j Enterprise Edition", TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session()))
+    Assume.assumeTrue(
+      "Skipping: requires Neo4j Enterprise Edition",
+      TestUtil.isEnterpriseEdition(SparkConnectorScalaSuiteIT.session())
+    )
     val expectedMap = createDatasetForRelationships(
       Map(
         Neo4jOptions.SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY -> ConstraintsOptimizationType.KEY.toString,

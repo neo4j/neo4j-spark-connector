@@ -85,7 +85,6 @@ object TestUtil {
     result.single().get("hasApoc").asBoolean()
   }
 
-
   def isEnterpriseEdition(session: Session): Boolean = {
     try {
       val result = session.run(
