@@ -804,14 +804,14 @@ class SchemaService(
         )
       }
       if (schemaMetadata.schemaConstraints.nonEmpty) {
-        val propFromStruct: Map[String, String] = struct
+        val propsFromStruct: Map[String, String] = struct
           .map(f => (f.name, f.name))
           .toMap
         val propsFromMeta: Map[String, String] = options.nodeMetadata.nodeKeys ++ options.nodeMetadata.properties
         createEntityTypeConstraint(
           "NODE",
           options.nodeMetadata.labels.head,
-          propsFromMeta ++ propFromStruct,
+          propsFromStruct ++ propsFromMeta,
           struct,
           schemaMetadata.schemaConstraints
         )
@@ -866,7 +866,7 @@ class SchemaService(
           options.relationshipMetadata.target.nodeKeys ++ options.relationshipMetadata.target.properties
         val allNodeProps: Map[String, String] = sourceNodeProps ++ targetNodeProps
         val relStruct: StructType = StructType(struct.filterNot(f => allNodeProps.contains(f.name)))
-        val relFromStruct: Map[String, String] = relStruct
+        val propsFromRelStruct: Map[String, String] = relStruct
           .map(f => (f.name, f.name))
           .toMap
         val propsFromMeta: Map[String, String] =
@@ -874,7 +874,7 @@ class SchemaService(
         createEntityTypeConstraint(
           "RELATIONSHIP",
           options.relationshipMetadata.relationshipType,
-          propsFromMeta ++ relFromStruct,
+          propsFromRelStruct ++ propsFromMeta,
           struct,
           schemaMetadata.schemaConstraints
         )
