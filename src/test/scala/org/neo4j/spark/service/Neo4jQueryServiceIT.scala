@@ -33,7 +33,6 @@ import org.neo4j.spark.util.Neo4jOptions
 
 import scala.language.postfixOps
 
-@TestMethodOrder(classOf[MethodOrderer.MethodName])
 class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
 
   @AfterEach

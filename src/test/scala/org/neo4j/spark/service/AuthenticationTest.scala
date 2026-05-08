@@ -21,6 +21,7 @@ import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito
 import org.mockito.Mockito.times
+import org.neo4j.driver.AuthToken
 import org.neo4j.driver.AuthTokenManager
 import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.Config
@@ -44,26 +45,7 @@ class AuthenticationTest {
     options.put("authentication.custom.credentials", token)
     options.put("labels", "Person")
 
-    val neo4jOptions = new Neo4jOptions(options)
-    val neo4jDriverOptions = neo4jOptions.connection
-    val driverCache = new DriverCache(neo4jDriverOptions)
-
-    val mockedGraphDatabase = Mockito.mockStatic(classOf[GraphDatabase])
-    try {
-      mockedGraphDatabase.when(() => GraphDatabase.driver(any[URI](), any[AuthTokenManager](), any[Config]()))
-        .thenReturn(Mockito.mock(classOf[Driver]))
-
-      driverCache.getOrCreate()
-
-      val managerCaptor = ArgumentCaptor.forClass(classOf[AuthTokenManager])
-      mockedGraphDatabase.verify(
-        () => GraphDatabase.driver(any[URI](), managerCaptor.capture(), any[Config]()),
-        times(1)
-      )
-      assert(AuthTokens.custom("", token, "", "") == managerCaptor.getValue.getToken.toCompletableFuture.join())
-    } finally {
-      mockedGraphDatabase.close()
-    }
+    stubGraphDatabaseConnectionCallAndAssertToken(options, AuthTokens.custom("", token, "", ""))
   }
 
   @Test
@@ -74,10 +56,13 @@ class AuthenticationTest {
     options.put("authentication.type", "bearer")
     options.put("authentication.bearer.token", token)
 
+    stubGraphDatabaseConnectionCallAndAssertToken(options, AuthTokens.bearer(token))
+  }
+
+  def stubGraphDatabaseConnectionCallAndAssertToken(options: java.util.Map[String, String], token: AuthToken): Unit = {
     val neo4jOptions = new Neo4jOptions(options)
     val neo4jDriverOptions = neo4jOptions.connection
     val driverCache = new DriverCache(neo4jDriverOptions)
-
     val mockedGraphDatabase = Mockito.mockStatic(classOf[GraphDatabase])
     try {
       mockedGraphDatabase.when(() => GraphDatabase.driver(any[URI](), any[AuthTokenManager](), any[Config]()))
@@ -90,7 +75,7 @@ class AuthenticationTest {
         () => GraphDatabase.driver(any[URI](), managerCaptor.capture(), any[Config]()),
         times(1)
       )
-      assert(AuthTokens.bearer(token) == managerCaptor.getValue.getToken.toCompletableFuture.join())
+      assert(token == managerCaptor.getValue.getToken.toCompletableFuture.join())
     } finally {
       mockedGraphDatabase.close()
     }

@@ -39,11 +39,17 @@ class DriverCache(private val options: Neo4jDriverOptions) extends Serializable
   }
 
   def close(): Unit = {
-    Option(cache.get(options)).foreach { case (driver, counter) =>
+    Option(cache.get(options)).map { case (driver, counter) =>
       if (counter.decrementAndGet() == 0) {
         cache.remove(options)
         Neo4jUtil.closeSafely(driver)
       }
-    }
+    }.orElse(None)
+//    Option(cache.get(options)).foreach { case (driver, counter) =>
+//      if (counter.decrementAndGet() == 0) {
+//        cache.remove(options)
+//        Neo4jUtil.closeSafely(driver)
+//      }
+//    }
   }
 }

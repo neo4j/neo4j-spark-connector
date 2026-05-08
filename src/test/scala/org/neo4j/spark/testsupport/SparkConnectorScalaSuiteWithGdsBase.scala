@@ -86,12 +86,6 @@ class SparkConnectorScalaSuiteWithGdsBase {
   val conf: SparkConf = SparkConnectorScalaSuiteWithGdsBase.conf
   val ss: SparkSession = SparkConnectorScalaSuiteWithGdsBase.ss
 
-  @Test
-  def myTest(testInfo: TestInfo): Unit = {
-    val testName = testInfo.getDisplayName
-    println(testName)
-  }
-
   @BeforeEach
   def before(): Unit = {
     use(SparkConnectorScalaSuiteWithGdsBase.session("system")) {

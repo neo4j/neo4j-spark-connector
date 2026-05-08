@@ -152,11 +152,11 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       )
     )
 
-    val checkpoint = Files.createTempDirectory(folder, "checkpoint")
+    val checkpoint = Files.createTempDirectory(folder, "checkpoint").toAbsolutePath.toString
 
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.toAbsolutePath.toString)
+      .option("checkpointLocation", checkpoint)
       .toTable("readStreamWithLabelsCheckpoint")
       .awaitTermination()
 
@@ -167,7 +167,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     // fetch whatever is available
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.toAbsolutePath.toString)
+      .option("checkpointLocation", checkpoint)
       .toTable("readStreamWithLabelsCheckpoint")
       .awaitTermination()
 
@@ -177,7 +177,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     // fetch rest of the items from where we left off
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.toAbsolutePath.toString)
+      .option("checkpointLocation", checkpoint)
       .toTable("readStreamWithLabelsCheckpoint")
       .awaitTermination()
 
