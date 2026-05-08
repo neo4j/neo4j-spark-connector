@@ -37,7 +37,6 @@ import org.neo4j.spark.util.QueryType
 
 import java.util
 
-@TestMethodOrder(classOf[MethodOrderer.MethodName])
 class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
 
   @BeforeEach

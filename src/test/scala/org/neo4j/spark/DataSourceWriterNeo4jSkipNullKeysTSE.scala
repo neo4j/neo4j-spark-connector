@@ -58,7 +58,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `fails to write relationships when source node key properties contain null values`(): Unit = {
-    val caught = org.junit.Assert.assertThrows(
+    val caught = assertThrows(
       classOf[SparkException],
       () => {
         val cities = Seq(
@@ -89,7 +89,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `fails to write relationships when target node key properties contain null values`(): Unit = {
-    val caught = org.junit.Assert.assertThrows(
+    val caught = assertThrows(
       classOf[SparkException],
       () => {
         val cities = Seq(
@@ -124,7 +124,7 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       CanIUse.INSTANCE.canIUse(Schema.INSTANCE.relationshipKeyConstraints()).withNeo4j(SparkConnectorScalaSuiteIT.neo4j)
     )
 
-    val caught = org.junit.Assert.assertThrows(
+    val caught = assertThrows(
       classOf[SparkException],
       () => {
         val cities = Seq(

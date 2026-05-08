@@ -47,12 +47,6 @@ class SparkConnectorScalaBaseWithApocTSE {
   val conf: SparkConf = SparkConnectorScalaSuiteWithApocIT.conf
   val ss: SparkSession = SparkConnectorScalaSuiteWithApocIT.ss
 
-  @Test
-  def myTest(testInfo: TestInfo): Unit = {
-    val testName = testInfo.getDisplayName
-    println(testName)
-  }
-
   @BeforeEach
   def before(): Unit = {
     use(SparkConnectorScalaSuiteWithApocIT.session("system")) {
