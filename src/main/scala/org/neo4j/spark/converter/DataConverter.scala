@@ -160,7 +160,7 @@ class Neo4jToSparkDataConverter extends DataConverter[Any] {
           val fields = structType
             .filter(field => field.name != Neo4jUtil.INTERNAL_ID_FIELD && field.name != Neo4jUtil.INTERNAL_LABELS_FIELD)
             .map(field => convert(map.get(field.name), field.dataType))
-          InternalRow.fromSeq(Seq(convert(node.id()), convert(node.labels())) ++ fields)
+          InternalRow.fromSeq(Seq(convert(node.elementId()), convert(node.labels())) ++ fields)
         }
         case rel: Relationship => {
           val map = rel.asMap()
@@ -174,10 +174,10 @@ class Neo4jToSparkDataConverter extends DataConverter[Any] {
             )
             .map(field => convert(map.get(field.name), field.dataType))
           InternalRow.fromSeq(Seq(
-            convert(rel.id()),
+            convert(rel.elementId()),
             convert(rel.`type`()),
-            convert(rel.startNodeId()),
-            convert(rel.endNodeId())
+            convert(rel.startNodeElementId()),
+            convert(rel.endNodeElementId())
           ) ++ fields)
         }
         case d: IsoDuration => {

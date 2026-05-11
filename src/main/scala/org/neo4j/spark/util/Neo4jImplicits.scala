@@ -121,14 +121,14 @@ object Neo4jImplicits {
       val entityMap = entity.asMap().asScala
       val entityFields = entity match {
         case node: Node => {
-          Map(Neo4jUtil.INTERNAL_ID_FIELD -> node.id(), Neo4jUtil.INTERNAL_LABELS_FIELD -> node.labels())
+          Map(Neo4jUtil.INTERNAL_ID_FIELD -> node.elementId(), Neo4jUtil.INTERNAL_LABELS_FIELD -> node.labels())
         }
         case relationship: Relationship => {
           Map(
-            Neo4jUtil.INTERNAL_REL_ID_FIELD -> relationship.id(),
+            Neo4jUtil.INTERNAL_REL_ID_FIELD -> relationship.elementId().toLong,
             Neo4jUtil.INTERNAL_REL_TYPE_FIELD -> relationship.`type`(),
-            Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD -> relationship.startNodeId(),
-            Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD -> relationship.endNodeId()
+            Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD -> relationship.startNodeElementId(),
+            Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD -> relationship.endNodeElementId()
           )
         }
       }

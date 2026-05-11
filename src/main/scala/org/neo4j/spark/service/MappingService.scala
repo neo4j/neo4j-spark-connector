@@ -216,7 +216,7 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumn
     } else {
       val node = record.get(Neo4jUtil.NODE_ALIAS).asNode()
       val nodeMap = new util.HashMap[String, Any](node.asMap())
-      nodeMap.put(Neo4jUtil.INTERNAL_ID_FIELD, node.id())
+      nodeMap.put(Neo4jUtil.INTERNAL_ID_FIELD, node.elementId())
       nodeMap.put(Neo4jUtil.INTERNAL_LABELS_FIELD, node.labels())
 
       mapToInternalRow(nodeMap, schema)
@@ -236,7 +236,7 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumn
           Neo4jUtil.INTERNAL_ID_FIELD
             .replaceAll("[<|>]", "")
         }>",
-      node.id()
+      node.elementId()
     )
     nodeMap.put(
       s"<$alias.${
@@ -254,7 +254,7 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumn
         override def apply(t: Value): String = t.toString
       }))
 
-    nodeMap.put(Neo4jUtil.INTERNAL_ID_FIELD, Neo4jUtil.mapper.writeValueAsString(node.id()))
+    nodeMap.put(Neo4jUtil.INTERNAL_ID_FIELD, Neo4jUtil.mapper.writeValueAsString(node.elementId()))
     nodeMap.put(Neo4jUtil.INTERNAL_LABELS_FIELD, Neo4jUtil.mapper.writeValueAsString(node.labels()))
     Map(s"<$alias>" -> nodeMap)
   }
@@ -268,7 +268,7 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumn
         .asScala
         .map(t => (s"rel.${t._1}", t._2))
         .asJava
-      relMap.put(Neo4jUtil.INTERNAL_REL_ID_FIELD, rel.id())
+      relMap.put(Neo4jUtil.INTERNAL_REL_ID_FIELD, rel.elementId())
       relMap.put(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, rel.`type`())
 
       val source = record.get(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS).asNode()
