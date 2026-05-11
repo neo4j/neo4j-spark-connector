@@ -16,8 +16,6 @@ import jetbrains.buildServer.configs.kotlin.version
 version = "2025.11"
 
 project {
-  name = "6.0"
-
   params {
     text("default-spark-branch", DEFAULT_BRANCH)
 
