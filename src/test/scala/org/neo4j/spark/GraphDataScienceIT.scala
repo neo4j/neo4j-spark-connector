@@ -178,7 +178,8 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
       .orderBy("name")
       .collect()
 
-    val (sourceId, targetId) = (sourceTargetNodes(0).getAs[Long]("<id>"), sourceTargetNodes(1).getAs[Long]("<id>"))
+    val (sourceId, targetId) =
+      (sourceTargetNodes(0).getAs[String]("<elementId>"), sourceTargetNodes(1).getAs[String]("<elementId>"))
 
     val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)

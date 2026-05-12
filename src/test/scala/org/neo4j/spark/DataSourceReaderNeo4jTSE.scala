@@ -195,11 +195,11 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", "Product")
       .option("relationship.target.labels", "Person")
       .load
-      .select("`source.name`", "`<source.id>`")
+      .select("`source.name`", "`<source.elementId>`")
 
     df.count()
 
-    assertEquals(Seq("source.name", "<source.id>"), df.columns.toSeq)
+    assertEquals(Seq("source.name", "<source.elementId>"), df.columns.toSeq)
   }
 
   @Test
@@ -223,11 +223,11 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", "Person")
       .option("relationship.target.labels", "Product")
       .load
-      .select("`target.(╯°□°)╯︵ ┻━┻`", "`<source.id>`")
+      .select("`target.(╯°□°)╯︵ ┻━┻`", "`<source.elementId>`")
 
     df.count()
 
-    assertEquals(Seq("target.(╯°□°)╯︵ ┻━┻", "<source.id>"), df.columns.toSeq)
+    assertEquals(Seq("target.(╯°□°)╯︵ ┻━┻", "<source.elementId>"), df.columns.toSeq)
   }
 
   @Test
@@ -279,7 +279,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
     df.count()
 
-    assertEquals(Seq("<id>", "<labels>", "name", "id"), df.columns.toSeq)
+    assertEquals(Seq("<elementId>", "<labels>", "name", "id"), df.columns.toSeq)
   }
 
   @Test

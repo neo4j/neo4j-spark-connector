@@ -232,7 +232,7 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
   private def getExpectedStructType(structFields: Seq[StructField]): StructType = {
     val additionalFields: Seq[StructField] = Seq(
       StructField(Neo4jUtil.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true),
-      StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.LongType, nullable = false)
+      StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.StringType, nullable = false)
     )
     StructType(structFields.union(additionalFields).reverse)
   }

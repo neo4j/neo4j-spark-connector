@@ -96,7 +96,7 @@ object Neo4jImplicits {
       val entityFields = entity match {
         case _: Node => {
           Seq(
-            StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.LongType, nullable = false),
+            StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.StringType, nullable = false),
             StructField(
               Neo4jUtil.INTERNAL_LABELS_FIELD,
               DataTypes.createArrayType(DataTypes.StringType),
@@ -106,10 +106,10 @@ object Neo4jImplicits {
         }
         case _: Relationship => {
           Seq(
-            StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.LongType, nullable = false),
+            StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.StringType, nullable = false),
             StructField(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, DataTypes.StringType, nullable = false),
-            StructField(Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD, DataTypes.LongType, nullable = false),
-            StructField(Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD, DataTypes.LongType, nullable = false)
+            StructField(Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD, DataTypes.StringType, nullable = false),
+            StructField(Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD, DataTypes.StringType, nullable = false)
           )
         }
       }
@@ -120,17 +120,15 @@ object Neo4jImplicits {
     def toMap: java.util.Map[String, Any] = {
       val entityMap = entity.asMap().asScala
       val entityFields = entity match {
-        case node: Node => {
+        case node: Node =>
           Map(Neo4jUtil.INTERNAL_ID_FIELD -> node.elementId(), Neo4jUtil.INTERNAL_LABELS_FIELD -> node.labels())
-        }
-        case relationship: Relationship => {
-          Map(
-            Neo4jUtil.INTERNAL_REL_ID_FIELD -> relationship.elementId().toLong,
+        case relationship: Relationship =>
+          Map[String, Any](
+            Neo4jUtil.INTERNAL_REL_ID_FIELD -> relationship.elementId(),
             Neo4jUtil.INTERNAL_REL_TYPE_FIELD -> relationship.`type`(),
             Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD -> relationship.startNodeElementId(),
             Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD -> relationship.endNodeElementId()
           )
-        }
       }
       (entityFields ++ entityMap).asJava
     }
@@ -346,7 +344,7 @@ object Neo4jImplicits {
     propertyMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
 
     private def nestingMap(data: Map[String, String]): java.util.Map[String, Any] = {
-      val map = new java.util.HashMap[String, Any]();
+      val map = new java.util.HashMap[String, Any]()
       data.foreach(t => {
         val splitted = t._1.split("\\.")
         if (splitted.size == 1) {

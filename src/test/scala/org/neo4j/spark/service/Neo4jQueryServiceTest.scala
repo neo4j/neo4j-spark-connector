@@ -135,10 +135,10 @@ class Neo4jQueryServiceTest {
 
     val query: String = new Neo4jQueryService(
       neo4jOptions,
-      new Neo4jQueryReadStrategy(neo4j, Array.empty[Filter], PartitionPagination.EMPTY, List("<id>"))
+      new Neo4jQueryReadStrategy(neo4j, Array.empty[Filter], PartitionPagination.EMPTY, List("<elementId>"))
     ).createQuery()
 
-    assertEquals(s"${prefix}MATCH (n:`Person`) RETURN id(n) AS `<id>`", query)
+    assertEquals(s"${prefix}MATCH (n:`Person`) RETURN id(n) AS `<elementId>`", query)
   }
 
   @Test
@@ -284,14 +284,14 @@ class Neo4jQueryServiceTest {
         neo4j,
         Array.empty[Filter],
         PartitionPagination.EMPTY,
-        List("source.name", "<source.id>")
+        List("source.name", "<source.elementId>")
       )
     ).createQuery()
 
     assertEquals(
       s"${prefix}MATCH (source:`Person`) " +
         "MATCH (target:`Person`) " +
-        "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, id(source) AS `<source.id>`",
+        "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, id(source) AS `<source.elementId>`",
       query
     )
   }
@@ -313,7 +313,7 @@ class Neo4jQueryServiceTest {
         neo4j,
         Array.empty[Filter],
         PartitionPagination(0, 0, TopN(limit = 100)),
-        List("source.name", "<source.id>")
+        List("source.name", "<source.elementId>")
       )
     ).createQuery()
 
@@ -321,7 +321,7 @@ class Neo4jQueryServiceTest {
       s"""${prefix}MATCH (source:`Person`)
          |MATCH (target:`Person`)
          |MATCH (source)-[rel:`KNOWS`]->(target)
-         |RETURN source.name AS `source.name`, id(source) AS `<source.id>`
+         |RETURN source.name AS `source.name`, id(source) AS `<source.elementId>`
          |LIMIT 100"""
         .stripMargin
         .replace(System.lineSeparator(), " "),

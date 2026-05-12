@@ -103,7 +103,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
      * internally by org.neo4j.neo4j, we just check that the <id> field is an integer and is greater
      * than -1
      */
-    assertTrue(df.select("<id>").collectAsList().get(0).getLong(0) > -1)
+    assertTrue(df.select("<elementId>").collectAsList().get(0).getString(0) != null)
   }
 
   @Test
@@ -923,8 +923,8 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .load()
 
     assertEquals(5, partitionedDf.rdd.getNumPartitions)
-    assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("<rel.id>")).toSet.size)
-    assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("<rel.id>")).size)
+    assertEquals(100, partitionedDf.collect().map(_.getAs[String]("<rel.elementId>")).toSet.size)
+    assertEquals(100, partitionedDf.collect().map(_.getAs[String]("<rel.elementId>")).size)
   }
 
   @Test
@@ -1012,15 +1012,15 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     val count = df.collectAsList()
       .asScala
       .filter(row =>
-        row.getAs[Long]("<rel.id>") >= 0
+        row.getAs[String]("<rel.elementId>") != null
           && row.getAs[String]("<rel.type>") != null
           && row.getAs[Double]("rel.when") >= 0
           && row.getAs[Double]("rel.quantity") >= 0
-          && row.getAs[Long]("<source.id>") >= 0
-          && row.getAs[Long]("source.id") >= 0
+          && row.getAs[String]("<source.elementId>") != null
+          && row.getAs[String]("source.id") != null
           && !row.getAs[Seq[String]]("<source.labels>").isEmpty
           && row.getAs[String]("source.fullName") != null
-          && row.getAs[Long]("<target.id>") >= 0
+          && row.getAs[String]("<target.elementId>") != null
           && row.getAs[Double]("target.id") >= 0
           && !row.getAs[Seq[String]]("<target.labels>").isEmpty
           && row.getAs[String]("target.name") != null
@@ -1054,7 +1054,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     val rows = df.collectAsList().asScala
     val count = rows
       .filter(row =>
-        row.getAs[Long]("<rel.id>") >= 0
+        row.getAs[String]("<rel.elementId>") != null
           && row.getAs[String]("<rel.type>") != null
           && row.getAs[Double]("rel.when") >= 0
           && row.getAs[Double]("rel.quantity") >= 0
@@ -1065,11 +1065,11 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(total, count)
 
     val countSourceMap = rows.map(row => row.getAs[Map[String, String]]("<source>"))
-      .filter(row => row.keys == Set("id", "fullName", "<id>", "<labels>"))
+      .filter(row => row.keys == Set("id", "fullName", "<elementId>", "<labels>"))
       .size
     assertEquals(total, countSourceMap)
     val countTargetMap = rows.map(row => row.getAs[Map[String, String]]("<target>"))
-      .filter(row => row.keys == Set("id", "name", "<id>", "<labels>"))
+      .filter(row => row.keys == Set("id", "name", "<elementId>", "<labels>"))
       .size
     assertEquals(total, countTargetMap)
   }
@@ -1123,7 +1123,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     val data = df.collect()
     val count = data.flatMap(row => row.getAs[Seq[Row]]("nodes"))
       .filter(row =>
-        row.getAs[Long]("<id>") >= 0
+        !row.getAs[String]("<elementId>").isEmpty
           && !row.getAs[Seq[String]]("<labels>").isEmpty
           && !row.getAs[String]("fullName").isEmpty
           && row.getAs[Long]("id") >= 0
@@ -1163,10 +1163,10 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     val countRel = dataRel
       .map(_.getAs[Row]("rel"))
       .filter(row =>
-        row.getAs[Long]("<rel.id>") >= 0
+        !row.getAs[String]("<rel.elementId>").isEmpty
           && !row.getAs[String]("<rel.type>").isEmpty
-          && row.getAs[Long]("<source.id>") >= 0
-          && row.getAs[Long]("<target.id>") >= 0
+          && !row.getAs[String]("<source.elementId>").isEmpty
+          && !row.getAs[String]("<target.elementId>").isEmpty
           && row.getAs[Double]("when") != null
           && row.getAs[Double]("quantity") != null
       )
@@ -1491,11 +1491,11 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", "Product")
       .option("relationship.target.labels", "Person")
       .load
-      .select("`source.name`", "`<source.id>`")
+      .select("`source.name`", "`<source.elementId>`")
 
     df.count()
 
-    assertEquals(Set("source.name", "<source.id>"), df.columns.toSet)
+    assertEquals(Set("source.name", "<source.elementId>"), df.columns.toSet)
   }
 
   @Test
@@ -1519,11 +1519,11 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", "Person")
       .option("relationship.target.labels", "Product")
       .load
-      .select("`target.(╯°□°)╯︵ ┻━┻`", "`<source.id>`")
+      .select("`target.(╯°□°)╯︵ ┻━┻`", "`<source.elementId>`")
 
     df.count()
 
-    assertEquals(Set("target.(╯°□°)╯︵ ┻━┻", "<source.id>"), df.columns.toSet)
+    assertEquals(Set("target.(╯°□°)╯︵ ┻━┻", "<source.elementId>"), df.columns.toSet)
   }
 
   @Test
@@ -1575,7 +1575,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
     df.count()
 
-    assertEquals(Set("<id>", "<labels>", "name", "id"), df.columns.toSet)
+    assertEquals(Set("<elementId>", "<labels>", "name", "id"), df.columns.toSet)
   }
 
   @Test
@@ -1654,7 +1654,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .limit(10)
 
     assertEquals(10, df.count())
-    assertEquals(Set("<id>", "<labels>", "name", "id"), df.columns.toSet)
+    assertEquals(Set("<elementId>", "<labels>", "name", "id"), df.columns.toSet)
   }
 
   @Test
