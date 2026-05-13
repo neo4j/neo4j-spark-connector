@@ -56,7 +56,7 @@
         <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
         <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <maven-site-plugin.version>3.21.0</maven-site-plugin.version>
-        <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
+        <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
         <maven-surefire-plugin.version>3.5.5</maven-surefire-plugin.version>
         <neo4j.experimental>false</neo4j.experimental>
         <neo4j.version>4.4.20</neo4j.version>
