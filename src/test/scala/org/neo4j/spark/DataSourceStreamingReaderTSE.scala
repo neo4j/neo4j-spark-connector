@@ -19,7 +19,6 @@ package org.neo4j.spark
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.streaming.Trigger
-import org.hamcrest.Matchers
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -80,12 +79,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
-        override def get(): Seq[Map[String, Any]] = {
-          selectRowsFromTable("select * from readStreamWithLabels order by timestamp", mapMovie)
-        }
+      expected,
+      () => {
+        selectRowsFromTable("select * from readStreamWithLabels order by timestamp", mapMovie)
       },
-      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -122,12 +119,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     )
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
-        override def get(): Seq[Map[String, Any]] = {
-          selectRowsFromTable("select * from readStreamWithLabelsAll order by timestamp", mapMovie)
-        }
+      expected,
+      () => {
+        selectRowsFromTable("select * from readStreamWithLabelsAll order by timestamp", mapMovie)
       },
-      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -225,12 +220,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
-        override def get(): Seq[Map[String, Any]] = {
-          selectRowsFromTable("select * from readStreamWithRelationship order by `rel.timestamp`", mapLikes)
-        }
+      expected,
+      () => {
+        selectRowsFromTable("select * from readStreamWithRelationship order by `rel.timestamp`", mapLikes)
       },
-      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -273,12 +266,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
-        override def get(): Seq[Map[String, Any]] = {
-          selectRowsFromTable("select * from readStreamWithRelationshipAll order by `rel.timestamp`", mapLikes)
-        }
+      expected,
+      () => {
+        selectRowsFromTable("select * from readStreamWithRelationshipAll order by `rel.timestamp`", mapLikes)
       },
-      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -388,12 +379,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
-        override def get(): Seq[Map[String, Any]] = {
-          selectRowsFromTable("select * from readStreamWithQuery order by timestamp", mapPerson)
-        }
+      expected,
+      () => {
+        selectRowsFromTable("select * from readStreamWithQuery order by timestamp", mapPerson)
       },
-      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -443,12 +432,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
-        override def get(): Seq[Map[String, Any]] = {
-          selectRowsFromTable("select * from readStreamWithQueryAll order by timestamp", mapPerson)
-        }
+      expected,
+      () => {
+        selectRowsFromTable("select * from readStreamWithQueryAll order by timestamp", mapPerson)
       },
-      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )

@@ -22,7 +22,6 @@ import org.apache.spark.scheduler.SparkListenerStageCompleted
 import org.apache.spark.scheduler.SparkListenerStageSubmitted
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
-import org.hamcrest.Matchers
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 import org.neo4j.driver.Session
@@ -586,12 +585,12 @@ class DataSourceWriterNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
       val db1Session = SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
       Assert.assertEventually(
+        4L,
         () => {
           db1Session.run(
             "MATCH (:Name)-[r:STARTS_WITH]->(:Letter) RETURN count(r) as cnt"
           ).single().get("cnt").asLong()
         },
-        Matchers.equalTo(4L),
         30L,
         TimeUnit.SECONDS
       )
