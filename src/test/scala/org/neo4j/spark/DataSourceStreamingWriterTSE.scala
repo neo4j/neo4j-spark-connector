@@ -18,11 +18,9 @@ package org.neo4j.spark
 
 import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.streaming.StreamingQuery
-import org.hamcrest.Matchers
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.neo4j.spark.testsupport.Assert
-import org.neo4j.spark.testsupport.Assert.ThrowingSupplier
 import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 
@@ -65,25 +63,23 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
-          val dataFrame = ss.read.format(classOf[DataSource].getName)
-            .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-            .option("labels", "Timestamp")
-            .load()
+      true,
+      () => {
+        val dataFrame = ss.read.format(classOf[DataSource].getName)
+          .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+          .option("labels", "Timestamp")
+          .load()
 
-          val collect = dataFrame.collect()
-          val data = if (dataFrame.columns.contains("value")) {
-            collect
-              .map(row => row.getAs[Long]("value").toInt)
-              .sorted
-          } else {
-            Array.empty[Int]
-          }
-          data.toList == (1 to (recordSize * partition)).toList
+        val collect = dataFrame.collect()
+        val data = if (dataFrame.columns.contains("value")) {
+          collect
+            .map(row => row.getAs[Long]("value").toInt)
+            .sorted
+        } else {
+          Array.empty[Int]
         }
+        data.toList == (1 to (recordSize * partition)).toList
       },
-      Matchers.equalTo(true),
       30L,
       TimeUnit.SECONDS
     )
@@ -121,30 +117,28 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean =
-          try {
-            val dataFrame = ss.read.format(classOf[DataSource].getName)
-              .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-              .option("relationship", "PAIRS")
-              .option("relationship.source.labels", ":From")
-              .option("relationship.target.labels", ":To")
-              .load()
+      true,
+      () =>
+        try {
+          val dataFrame = ss.read.format(classOf[DataSource].getName)
+            .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+            .option("relationship", "PAIRS")
+            .option("relationship.source.labels", ":From")
+            .option("relationship.target.labels", ":To")
+            .load()
 
-            val collect = dataFrame.collect()
-            val data = if (dataFrame.columns.contains("source.value") && dataFrame.columns.contains("target.value")) {
-              collect
-                .map(row => (row.getAs[Long]("source.value").toInt, row.getAs[Long]("target.value").toInt))
-                .sorted
-            } else {
-              Array.empty[(Int, Int)]
-            }
-            data.toList == (1 to (recordSize * partition)).map(v => (v, v)).toList
-          } catch {
-            case _: Throwable => false
+          val collect = dataFrame.collect()
+          val data = if (dataFrame.columns.contains("source.value") && dataFrame.columns.contains("target.value")) {
+            collect
+              .map(row => (row.getAs[Long]("source.value").toInt, row.getAs[Long]("target.value").toInt))
+              .sorted
+          } else {
+            Array.empty[(Int, Int)]
           }
-      },
-      Matchers.equalTo(true),
+          data.toList == (1 to (recordSize * partition)).map(v => (v, v)).toList
+        } catch {
+          case _: Throwable => false
+        },
       30L,
       TimeUnit.SECONDS
     )
@@ -174,30 +168,28 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean =
-          try {
-            val dataFrame = ss.read.format(classOf[DataSource].getName)
-              .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-              .option("labels", "MyNewNode")
-              .load()
+      true,
+      () =>
+        try {
+          val dataFrame = ss.read.format(classOf[DataSource].getName)
+            .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+            .option("labels", "MyNewNode")
+            .load()
 
-            val collect = dataFrame.collect()
-            val data = if (dataFrame.columns.contains("the_value")) {
-              collect
-                .map(row => row.getAs[Long]("the_value").toInt)
-                .sorted
-            } else {
-              Array.empty[Int]
-            }
-            val l1 = data.toList
-            val l2 = (1 to (recordSize * partition)).map(v => v).toList
-            l1 == l2
-          } catch {
-            case _: Throwable => false
+          val collect = dataFrame.collect()
+          val data = if (dataFrame.columns.contains("the_value")) {
+            collect
+              .map(row => row.getAs[Long]("the_value").toInt)
+              .sorted
+          } else {
+            Array.empty[Int]
           }
-      },
-      Matchers.equalTo(true),
+          val l1 = data.toList
+          val l2 = (1 to (recordSize * partition)).map(v => v).toList
+          l1 == l2
+        } catch {
+          case _: Throwable => false
+        },
       30L,
       TimeUnit.SECONDS
     )
@@ -228,25 +220,23 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean = {
-          val dataFrame = ss.read.format(classOf[DataSource].getName)
-            .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-            .option("labels", "Timestamp")
-            .load()
+      true,
+      () => {
+        val dataFrame = ss.read.format(classOf[DataSource].getName)
+          .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+          .option("labels", "Timestamp")
+          .load()
 
-          val collect = dataFrame.collect()
-          val data = if (dataFrame.columns.contains("value")) {
-            collect
-              .map(row => row.getAs[Long]("value").toInt)
-              .sorted
-          } else {
-            Array.empty[Int]
-          }
-          data.toList == (1 to 500).toList
+        val collect = dataFrame.collect()
+        val data = if (dataFrame.columns.contains("value")) {
+          collect
+            .map(row => row.getAs[Long]("value").toInt)
+            .sorted
+        } else {
+          Array.empty[Int]
         }
+        data.toList == (1 to 500).toList
       },
-      Matchers.equalTo(true),
       30L,
       TimeUnit.SECONDS
     )
@@ -288,30 +278,28 @@ class DataSourceStreamingWriterTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new ThrowingSupplier[Boolean, Exception] {
-        override def get(): Boolean =
-          try {
-            val dataFrame = ss.read.format(classOf[DataSource].getName)
-              .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-              .option("relationship", "PAIRS")
-              .option("relationship.source.labels", ":From")
-              .option("relationship.target.labels", ":To")
-              .load()
+      true,
+      () =>
+        try {
+          val dataFrame = ss.read.format(classOf[DataSource].getName)
+            .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+            .option("relationship", "PAIRS")
+            .option("relationship.source.labels", ":From")
+            .option("relationship.target.labels", ":To")
+            .load()
 
-            val collect = dataFrame.collect()
-            val data = if (dataFrame.columns.contains("source.value") && dataFrame.columns.contains("target.value")) {
-              collect
-                .map(row => (row.getAs[Long]("source.value").toInt, row.getAs[Long]("target.value").toInt))
-                .sorted
-            } else {
-              Array.empty[(Int, Int)]
-            }
-            data.toList == (1 to 500).flatMap(v => (1 to 5).map(_ => (v, v)))
-          } catch {
-            case _: Throwable => false
+          val collect = dataFrame.collect()
+          val data = if (dataFrame.columns.contains("source.value") && dataFrame.columns.contains("target.value")) {
+            collect
+              .map(row => (row.getAs[Long]("source.value").toInt, row.getAs[Long]("target.value").toInt))
+              .sorted
+          } else {
+            Array.empty[(Int, Int)]
           }
-      },
-      Matchers.equalTo(true),
+          data.toList == (1 to 500).flatMap(v => (1 to 5).map(_ => (v, v)))
+        } catch {
+          case _: Throwable => false
+        },
       30L,
       TimeUnit.SECONDS
     )

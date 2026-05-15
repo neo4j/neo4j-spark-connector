@@ -585,7 +585,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
 
     try {
-      val thrown = org.junit.Assert.assertThrows(
+      val thrown = assertThrows(
         classOf[SparkException],
         () => {
           ds.write
