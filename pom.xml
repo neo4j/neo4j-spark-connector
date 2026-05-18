@@ -43,7 +43,7 @@
         <!-- 3.4.3.Final is the latest jboss-logging version compatible with java 8 -->
         <jboss-logging.version>3.6.3.Final</jboss-logging.version>
         <junit.version>6.0.3</junit.version>
-        <license-maven-plugin.version>4.6</license-maven-plugin.version>
+        <license-maven-plugin.version>5.0.0</license-maven-plugin.version>
         <licensing-maven-plugin.version>1.7.12</licensing-maven-plugin.version>
         <licensing.prepend.text>/license/neo4j_apache_v2/notice.txt</licensing.prepend.text>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
