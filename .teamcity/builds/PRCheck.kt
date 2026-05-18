@@ -1,7 +1,6 @@
 package builds
 
 import jetbrains.buildServer.configs.kotlin.BuildType
-import jetbrains.buildServer.configs.kotlin.buildFeatures.dockerSupport
 import jetbrains.buildServer.configs.kotlin.buildSteps.ScriptBuildStep
 import jetbrains.buildServer.configs.kotlin.buildSteps.script
 import jetbrains.buildServer.configs.kotlin.toId
@@ -32,8 +31,6 @@ class PRCheck(id: String, name: String) :
           dockerImagePlatform = ScriptBuildStep.ImagePlatform.Linux
         }
       }
-
-      features { dockerSupport {} }
 
       requirements { runOnLinux(LinuxSize.SMALL) }
     })
