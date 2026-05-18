@@ -124,11 +124,6 @@ fun PySparkVersion.shouldTestWith(javaVersion: JavaVersion, scalaVersion: ScalaV
 
 enum class Neo4jVersion(val version: String, val dockerImage: String) {
   V_NONE("", ""),
-  V_4_4("4.4", "neo4j:4.4-enterprise"),
-  V_4_4_DEV(
-      "4.4-dev",
-      "535893049302.dkr.ecr.eu-west-1.amazonaws.com/build-service/neo4j:4.4-enterprise-debian-nightly",
-  ),
   V_5("5", "neo4j:5-enterprise"),
   V_5_DEV(
       "5-dev",
