@@ -1136,7 +1136,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .option(
         "query",
         """MATCH (p:Person)-[b:BOUGHT]->(pr:Product)
-          |RETURN id(p) AS personId, id(pr) AS productId, {quantity: b.quantity, when: b.when} AS map""".stripMargin
+          |RETURN elementId(p) AS personId, elementId(pr) AS productId, {quantity: b.quantity, when: b.when} AS map""".stripMargin
       )
       .option("schema.strategy", "string")
       .load()
@@ -1195,7 +1195,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     val df = ss.read
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("query", "MATCH (e:ID_DO_NOT_EXIST) RETURN id(e) as f, 1 as g")
+      .option("query", "MATCH (e:ID_DO_NOT_EXIST) RETURN elementId(e) as f, 1 as g")
       .load
 
     assertEquals(0, df.count())
@@ -1212,7 +1212,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     val df = ss.read
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("query", "MATCH (i:Instrument) RETURN id(i) as internal_id, i.id as id, i.name as name, i.name")
+      .option("query", "MATCH (i:Instrument) RETURN elementId(i) as internal_id, i.id as id, i.name as name, i.name")
       .load()
       .orderBy("id")
 
@@ -1241,7 +1241,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .option(
         "query",
         """MATCH (p:Person)-[b:BOUGHT]->(pr:Product)
-          |RETURN id(p) AS personId, id(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201"} as map2""".stripMargin
+          |RETURN elementId(p) AS personId, elementId(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201"} as map2""".stripMargin
       )
       .option("schema.strategy", "string")
       .load()
@@ -1257,7 +1257,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .option(
         "query",
         """MATCH (p:Person)-[b:BOUGHT]->(pr:Product)
-          |RETURN id(p) AS personId, id(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201", and: 1} as map2""".stripMargin
+          |RETURN elementId(p) AS personId, elementId(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201", and: 1} as map2""".stripMargin
       )
       .option("schema.strategy", "string")
       .load()
@@ -1290,7 +1290,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       ss.read
         .format(classOf[DataSource].getName)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("query", "MATCH (n:Label) RETURN id(n) as id LIMIT 100")
+        .option("query", "MATCH (n:Label) RETURN elementId(n) as id LIMIT 100")
         .option("partitions", 2)
         .option("query.count", 2)
         .load()
@@ -1310,7 +1310,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       ss.read
         .format(classOf[DataSource].getName)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("query", "MATCH (n:Label) RETURN id(n) as id limit 100 skip 2")
+        .option("query", "MATCH (n:Label) RETURN elementId(n) as id limit 100 skip 2")
         .option("partitions", 2)
         .option("query.count", 2)
         .load()
@@ -1330,7 +1330,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       ss.read
         .format(classOf[DataSource].getName)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("query", "MATCH (n:Label) RETURN id(n) as id LiMIt 100 skIp 2")
+        .option("query", "MATCH (n:Label) RETURN elementId(n) as id LiMIt 100 skIp 2")
         .option("partitions", 2)
         .option("query.count", 2)
         .load()
@@ -1353,7 +1353,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
         .option(
           "query",
           "MATCH (n:Label)\n" +
-            "RETURN id(n) as id\n" +
+            "RETURN elementId(n) as id\n" +
             "LIMIT 100"
         )
         .option("partitions", 2)
