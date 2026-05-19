@@ -347,7 +347,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
         "query",
         """
           |MATCH (p:Person)
-          |WHERE p.timestamp > $stream.offset
+          |WHERE p.timestamp > $stream.from AND p.timestamp <= $stream.to
           |RETURN p.age AS age, p.timestamp AS timestamp
           |""".stripMargin
       )
@@ -400,7 +400,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
         "query",
         """
           |MATCH (p:Person)
-          |WHERE p.timestamp > $stream.offset
+          |WHERE p.timestamp > $stream.from AND p.timestamp <= $stream.to
           |RETURN p.age AS age, p.timestamp AS timestamp
           |""".stripMargin
       )
@@ -453,7 +453,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
         "query",
         """
           |MATCH (p:Person)
-          |WHERE p.timestamp > $stream.offset
+          |WHERE p.timestamp > $stream.from AND p.timestamp <= $stream.to
           |RETURN p.age AS age, p.timestamp AS timestamp
           |""".stripMargin
       )

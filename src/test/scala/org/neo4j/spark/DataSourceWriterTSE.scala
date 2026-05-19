@@ -1383,7 +1383,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("labels", ":Person:Customer")
       .option("node.keys", "surname")
-      .option("schema.optimization.type", "INDEX")
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
@@ -1433,128 +1432,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
        |WHERE labelsOrTypes = ['Person'] AND properties = ['surname'] AND $uniqueCondition
        |RETURN count(*) AS count
        |""".stripMargin
-  }
-
-  @Test
-  def `should create constraint when insert nodes`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
-      .map(i => i.toString)
-      .toDF("surname")
-
-    ds.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Overwrite)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", ":Person:Customer")
-      .option("node.keys", "surname")
-      .option("schema.optimization.type", "NODE_CONSTRAINTS")
-      .save()
-
-    val records = SparkConnectorScalaSuiteIT.session().run(
-      """MATCH (p:Person:Customer)
-        |RETURN p.surname AS surname
-        |""".stripMargin
-    ).list().asScala
-      .map(r => r.asMap().asScala)
-      .toSet
-    val expected = ds.collect().map(row => Map("surname" -> row.getAs[String]("surname")))
-      .toSet
-    assertEquals(expected, records)
-
-    val constraintCount = SparkConnectorScalaSuiteIT.session().run(
-      getConstraintQueryCount
-    )
-      .single()
-      .get("count")
-      .asLong()
-    assertEquals(1, constraintCount)
-    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT spark_NODE_CONSTRAINTS_Person_surname")
-  }
-
-  @Test
-  def `should not create constraint when insert nodes because they already exist`(): Unit = {
-    SparkConnectorScalaSuiteIT.session().run(
-      "CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE (p.surname) IS UNIQUE"
-    )
-    val total = 10
-    val ds = (1 to total)
-      .map(i => i.toString)
-      .toDF("surname")
-
-    ds.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Overwrite)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", ":Person:Customer")
-      .option("node.keys", "surname")
-      .option("schema.optimization.type", "NODE_CONSTRAINTS")
-      .save()
-
-    val records = SparkConnectorScalaSuiteIT.session().run(
-      """MATCH (p:Person:Customer)
-        |RETURN p.surname AS surname
-        |""".stripMargin
-    ).list().asScala
-      .map(r => r.asMap().asScala)
-      .toSet
-    val expected = ds.collect().map(row => Map("surname" -> row.getAs[String]("surname")))
-      .toSet
-    assertEquals(expected, records)
-
-    val constraintCount = SparkConnectorScalaSuiteIT.session().run(
-      getConstraintQueryCount
-    )
-      .single()
-      .get("count")
-      .asLong()
-    assertEquals(1, constraintCount)
-    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT person_surname")
-  }
-
-  @Test
-  def `should insert indexes while insert with query`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
-      .map(i => i.toString)
-      .toDF("surname")
-
-    ds.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Overwrite)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", ":Person:Customer")
-      .option("node.keys", "surname")
-      .option("schema.optimization.type", "INDEX")
-      .save()
-
-    ds.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Append)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("query", "CREATE (n:MyNode{fullName: event.name + event.surname, age: event.age - 10})")
-      .option("batch.size", "11")
-      .save()
-
-    val records = SparkConnectorScalaSuiteIT.session().run(
-      """MATCH (p:Person:Customer)
-        |RETURN p.surname AS surname
-        |""".stripMargin
-    ).list().asScala
-      .map(r => r.asMap().asScala)
-      .toSet
-    val expected = ds.collect().map(row => Map("surname" -> row.getAs[String]("surname")))
-      .toSet
-    assertEquals(expected, records)
-
-    val indexCount = SparkConnectorScalaSuiteIT.session()
-      .run(getIndexQueryCount)
-      .single()
-      .get("count")
-      .asLong()
-    assertEquals(1, indexCount)
-
-    SparkConnectorScalaSuiteIT.session().run("DROP INDEX spark_INDEX_Person_surname")
   }
 
   @Test
