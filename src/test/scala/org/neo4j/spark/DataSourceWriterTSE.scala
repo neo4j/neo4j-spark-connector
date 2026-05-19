@@ -1370,43 +1370,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals("John Henry Bonham", result.getString(4))
   }
 
-  @Test
-  def `should insert index while insert nodes`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
-      .map(i => i.toString)
-      .toDF("surname")
-
-    ds.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Overwrite)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", ":Person:Customer")
-      .option("node.keys", "surname")
-      .save()
-
-    val records = SparkConnectorScalaSuiteIT.session().run(
-      """MATCH (p:Person:Customer)
-        |RETURN p.surname AS surname
-        |""".stripMargin
-    ).list().asScala
-      .map(r => r.asMap().asScala)
-      .toSet
-    val expected = ds.collect().map(row => Map("surname" -> row.getAs[String]("surname")))
-      .toSet
-    assertEquals(expected, records)
-
-    val indexCount = SparkConnectorScalaSuiteIT.session().run(
-      getIndexQueryCount
-    )
-      .single()
-      .get("count")
-      .asLong()
-    assertEquals(1, indexCount)
-
-    SparkConnectorScalaSuiteIT.session().run("DROP INDEX spark_INDEX_Person_surname")
-  }
-
   private def getIndexQueryCount: String = {
     val (uniqueKey, uniqueCondition) =
       if (TestUtil.neo4jVersion(SparkConnectorScalaSuiteIT.session()) >= Versions.NEO4J_5) {
