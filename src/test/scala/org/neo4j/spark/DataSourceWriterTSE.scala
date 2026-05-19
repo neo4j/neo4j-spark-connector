@@ -21,10 +21,10 @@ import org.apache.spark.SparkException
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
-import org.junit
-import org.junit.Assert._
-import org.junit.Ignore
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.function.Executable
 import org.neo4j.driver.TransactionContext
 import org.neo4j.driver.Value
 import org.neo4j.driver.exceptions.ClientException
@@ -39,10 +39,6 @@ import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.testsupport.TestUtil
 import org.neo4j.spark.testsupport.Versions
 import org.neo4j.spark.util.Neo4jOptions
-import org.scalatest.matchers.must.Matchers.be
-import org.scalatest.matchers.must.Matchers.include
-import org.scalatest.matchers.must.Matchers.the
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import java.time.LocalTime
 import java.time.OffsetTime
@@ -589,21 +585,24 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
 
     try {
-      val thrown = the[SparkException] thrownBy {
-        ds.write
-          .format(classOf[DataSource].getName)
-          .mode(SaveMode.Append)
-          .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-          .option("labels", "Person")
-          .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
-      }
+      val thrown = assertThrows(
+        classOf[SparkException],
+        () => {
+          ds.write
+            .format(classOf[DataSource].getName)
+            .mode(SaveMode.Append)
+            .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+            .option("labels", "Person")
+            .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
+        }
+      )
 
-      thrown.getMessage should include("org.neo4j.driver.exceptions.ClientException")
+      assertTrue(thrown.getMessage.contains("org.neo4j.driver.exceptions.ClientException"))
       val rootCause = ExceptionUtils.getRootCause(thrown)
       // root cause is not always returned as a ClientException so we pass it through pattern matching to remove flakiness
       rootCause match {
         case c: ClientException =>
-          c.code() should be("Neo.ClientError.Schema.ConstraintValidationFailed")
+          assertEquals("Neo.ClientError.Schema.ConstraintValidationFailed", c.code())
         case _ =>
       }
     } finally {
@@ -667,7 +666,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .asScala
     assertEquals(1, nodeList.size)
     val node = nodeList.head.get("n").asNode()
-    assertFalse("surname should not exist", node.asMap().containsKey("surname"))
+    assertFalse(
+      node.asMap().containsKey("surname"),
+      "surname should not exist"
+    )
   }
 
   @Test
@@ -726,7 +728,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  @Ignore("This won't work right now because we can't know if we are in a Write or Read context")
+  @Disabled("This won't work right now because we can't know if we are in a Write or Read context")
   def `should throw an exception for a read only query`(): Unit = {
     val ds = (1 to 100).map(i => Person("Andrea " + i, "Santurbano " + i, 36, null)).toDS()
 
@@ -833,38 +835,43 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals("Guitar", res.get(3).getString(8))
   }
 
-  @Test(expected = classOf[SparkException])
+  @Test
   def `should give error if native mode doesn't find a valid schema`(): Unit = {
-    val musicDf = Seq(
-      (12, "John Bonham", "Drums"),
-      (19, "John Mayer", "Guitar"),
-      (32, "John Scofield", "Guitar"),
-      (15, "John Butler", "Guitar")
-    ).toDF("experience", "name", "instrument")
+    assertThrows(
+      classOf[SparkException],
+      () => {
+        val musicDf = Seq(
+          (12, "John Bonham", "Drums"),
+          (19, "John Mayer", "Guitar"),
+          (32, "John Scofield", "Guitar"),
+          (15, "John Butler", "Guitar")
+        ).toDF("experience", "name", "instrument")
 
-    try {
-      musicDf.write
-        .format(classOf[DataSource].getName)
-        .mode(SaveMode.Append)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("relationship", "PLAYS")
-        .option("relationship.save.strategy", "NATIVE")
-        .option("relationship.source.labels", ":Person")
-        .option("relationship.source.save.mode", "Overwrite")
-        .option("relationship.target.labels", ":Instrument")
-        .option("relationship.target.save.mode", "Overwrite")
-        .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
-    } catch {
-      case sparkException: SparkException => {
-        val clientException = ExceptionUtils.getRootCause(sparkException)
-        assertTrue(clientException.getMessage.equals(
-          "NATIVE write strategy requires a schema like: rel.[props], source.[props], target.[props]. " +
-            "All of these columns are empty in the current schema."
-        ))
-        throw sparkException
+        try {
+          musicDf.write
+            .format(classOf[DataSource].getName)
+            .mode(SaveMode.Append)
+            .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+            .option("relationship", "PLAYS")
+            .option("relationship.save.strategy", "NATIVE")
+            .option("relationship.source.labels", ":Person")
+            .option("relationship.source.save.mode", "Overwrite")
+            .option("relationship.target.labels", ":Instrument")
+            .option("relationship.target.save.mode", "Overwrite")
+            .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
+        } catch {
+          case sparkException: SparkException => {
+            val clientException = ExceptionUtils.getRootCause(sparkException)
+            assertTrue(clientException.getMessage.equals(
+              "NATIVE write strategy requires a schema like: rel.[props], source.[props], target.[props]. " +
+                "All of these columns are empty in the current schema."
+            ))
+            throw sparkException
+          }
+          case _: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}")
+        }
       }
-      case _: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}")
-    }
+    )
   }
 
   @Test
@@ -947,7 +954,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  @Ignore("trying to recreate the deadlock issue")
+  @Disabled("trying to recreate the deadlock issue")
   def `should give better errors if transaction fails`(): Unit = {
     val df = List.fill(200)(("John Bonham", "Drums")).toDF("name", "instrument")
 
@@ -1036,60 +1043,82 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals("Drums", getByName[String](res.get(0), "rel.instrument"))
     assertEquals(12, getByName[Long](res.get(0), "rel.experience"))
     assertEquals(2, getByName[Long](res.get(0), "rel.avgRating"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have hasDiploma field",
-      res.get(0).fieldIndex("rel.hasDiploma")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(0).fieldIndex("rel.hasDiploma")): Executable,
+      "relationship should not have hasDiploma field"
     )
-    assertThrows[IllegalArgumentException](
-      "relationship should not have rating field",
-      res.get(0).fieldIndex("rel.rating")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(0).fieldIndex("rel.rating")): Executable,
+      "relationship should not have rating field"
     )
-    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(0).fieldIndex("rel.name"))
-
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(0).fieldIndex("rel.name")): Executable,
+      "relationship should not have name field"
+    )
     assertEquals("John Butler", getByName[String](res.get(1), "source.name"))
     assertEquals("Guitar", getByName[String](res.get(1), "target.name"))
     assertEquals("Guitar", getByName[String](res.get(1), "rel.instrument"))
     assertEquals(15, getByName[Long](res.get(1), "rel.experience"))
     assertEquals(4, getByName[Long](res.get(1), "rel.avgRating"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have hasDiploma field",
-      res.get(1).fieldIndex("rel.hasDiploma")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(1).fieldIndex("rel.hasDiploma")): Executable,
+      "relationship should not have hasDiploma field"
     )
-    assertThrows[IllegalArgumentException](
-      "relationship should not have rating field",
-      res.get(1).fieldIndex("rel.rating")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(1).fieldIndex("rel.rating")): Executable,
+      "relationship should not have rating field"
     )
-    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(1).fieldIndex("rel.name"))
-
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(1).fieldIndex("rel.name")): Executable,
+      "relationship should not have name field"
+    )
     assertEquals("John Mayer", getByName[String](res.get(2), "source.name"))
     assertEquals("Guitar", getByName[String](res.get(2), "target.name"))
     assertEquals("Guitar", getByName[String](res.get(2), "rel.instrument"))
     assertEquals(19, getByName[Long](res.get(2), "rel.experience"))
     assertEquals(1, getByName[Long](res.get(2), "rel.avgRating"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have hasDiploma field",
-      res.get(2).fieldIndex("rel.hasDiploma")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(2).fieldIndex("rel.hasDiploma")): Executable,
+      "relationship should not have hasDiploma field"
     )
-    assertThrows[IllegalArgumentException](
-      "relationship should not have rating field",
-      res.get(2).fieldIndex("rel.rating")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(2).fieldIndex("rel.rating")): Executable,
+      "relationship should not have rating field"
     )
-    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(2).fieldIndex("rel.name"))
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(2).fieldIndex("rel.name")): Executable,
+      "relationship should not have name field"
+    )
 
     assertEquals("John Scofield", getByName[String](res.get(3), "source.name"))
     assertEquals("Guitar", getByName[String](res.get(3), "target.name"))
     assertEquals("Guitar", getByName[String](res.get(3), "rel.instrument"))
     assertEquals(32, getByName[Long](res.get(3), "rel.experience"))
     assertEquals(3, getByName[Long](res.get(3), "rel.avgRating"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have hasDiploma field",
-      res.get(3).fieldIndex("rel.hasDiploma")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(3).fieldIndex("rel.hasDiploma")): Executable,
+      "relationship should not have hasDiploma field"
     )
-    assertThrows[IllegalArgumentException](
-      "relationship should not have rating field",
-      res.get(3).fieldIndex("rel.rating")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(3).fieldIndex("rel.rating")): Executable,
+      "relationship should not have rating field"
     )
-    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(3).fieldIndex("rel.name"))
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(3).fieldIndex("rel.name")): Executable,
+      "relationship should not have name field"
+    )
   }
 
   @Test
@@ -1105,82 +1134,114 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals("John Bonham", getByName[String](res.get(0), "source.name"))
     assertEquals("Drums", getByName[String](res.get(0), "target.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have experience field",
-      res.get(0).fieldIndex("rel.experience")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(0).fieldIndex("rel.experience")): Executable,
+      "relationship should not have experience field"
     )
-    assertThrows[IllegalArgumentException](
-      "relationship should not have hasDiploma field",
-      res.get(0).fieldIndex("rel.hasDiploma")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(0).fieldIndex("rel.hasDiploma")): Executable,
+      "relationship should not have hasDiploma field"
     )
-    assertThrows[IllegalArgumentException](
-      "relationship should not have rating field",
-      res.get(0).fieldIndex("rel.rating")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(0).fieldIndex("rel.rating")): Executable,
+      "relationship should not have rating field"
     )
-    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(0).fieldIndex("rel.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have instrument field",
-      res.get(0).fieldIndex("rel.instrument")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(0).fieldIndex("rel.name")): Executable,
+      "relationship should not have name field"
+    )
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(0).fieldIndex("rel.instrument")): Executable,
+      "relationship should not have instrument field"
     )
 
     assertEquals("John Butler", getByName[String](res.get(1), "source.name"))
     assertEquals("Guitar", getByName[String](res.get(1), "target.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have experience field",
-      res.get(1).fieldIndex("rel.experience")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(1).fieldIndex("rel.experience")): Executable,
+      "relationship should not have experience field"
     )
-    assertThrows[IllegalArgumentException](
-      "relationship should not have hasDiploma field",
-      res.get(1).fieldIndex("rel.hasDiploma")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(1).fieldIndex("rel.hasDiploma")): Executable,
+      "relationship should not have hasDiploma field"
     )
-    assertThrows[IllegalArgumentException](
-      "relationship should not have rating field",
-      res.get(1).fieldIndex("rel.rating")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(1).fieldIndex("rel.rating")): Executable,
+      "relationship should not have rating field"
     )
-    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(1).fieldIndex("rel.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have instrument field",
-      res.get(1).fieldIndex("rel.instrument")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(1).fieldIndex("rel.name")): Executable,
+      "relationship should not have name field"
+    )
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(1).fieldIndex("rel.instrument")): Executable,
+      "relationship should not have instrument field"
     )
 
     assertEquals("John Mayer", getByName[String](res.get(2), "source.name"))
     assertEquals("Guitar", getByName[String](res.get(2), "target.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have experience field",
-      res.get(2).fieldIndex("rel.experience")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(2).fieldIndex("rel.experience")): Executable,
+      "relationship should not have experience field"
     )
-    assertThrows[IllegalArgumentException](
-      "relationship should not have hasDiploma field",
-      res.get(2).fieldIndex("rel.hasDiploma")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(2).fieldIndex("rel.hasDiploma")): Executable,
+      "relationship should not have hasDiploma field"
     )
-    assertThrows[IllegalArgumentException](
-      "relationship should not have rating field",
-      res.get(2).fieldIndex("rel.rating")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(2).fieldIndex("rel.rating")): Executable,
+      "relationship should not have rating field"
     )
-    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(2).fieldIndex("rel.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have instrument field",
-      res.get(2).fieldIndex("rel.instrument")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(2).fieldIndex("rel.name")): Executable,
+      "relationship should not have name field"
+    )
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(2).fieldIndex("rel.instrument")): Executable,
+      "relationship should not have instrument field"
     )
 
     assertEquals("John Scofield", getByName[String](res.get(3), "source.name"))
     assertEquals("Guitar", getByName[String](res.get(3), "target.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have experience field",
-      res.get(3).fieldIndex("rel.experience")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(3).fieldIndex("rel.experience")): Executable,
+      "relationship should not have experience field"
     )
-    assertThrows[IllegalArgumentException](
-      "relationship should not have hasDiploma field",
-      res.get(3).fieldIndex("rel.hasDiploma")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(3).fieldIndex("rel.hasDiploma")): Executable,
+      "relationship should not have hasDiploma field"
     )
-    assertThrows[IllegalArgumentException](
-      "relationship should not have rating field",
-      res.get(3).fieldIndex("rel.rating")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(3).fieldIndex("rel.rating")): Executable,
+      "relationship should not have rating field"
     )
-    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(3).fieldIndex("rel.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have instrument field",
-      res.get(3).fieldIndex("rel.instrument")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(3).fieldIndex("rel.name")): Executable,
+      "relationship should not have name field"
+    )
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(3).fieldIndex("rel.instrument")): Executable,
+      "relationship should not have instrument field"
     )
   }
 
@@ -1198,10 +1259,15 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(12, getByName[Long](res.get(0), "rel.experience"))
     assertEquals(true, getByName[Boolean](res.get(0), "rel.hasDiploma"))
     assertEquals(2, getByName[Long](res.get(0), "rel.rating"))
-    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(0).fieldIndex("rel.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have instrument field",
-      res.get(0).fieldIndex("rel.instrument")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(0).fieldIndex("rel.name")): Executable,
+      "relationship should not have name field"
+    )
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(0).fieldIndex("rel.instrument")): Executable,
+      "relationship should not have instrument field"
     )
 
     assertEquals("John Butler", getByName[String](res.get(1), "source.name"))
@@ -1209,10 +1275,15 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(15, getByName[Long](res.get(1), "rel.experience"))
     assertEquals(false, getByName[Boolean](res.get(1), "rel.hasDiploma"))
     assertEquals(4, getByName[Long](res.get(1), "rel.rating"))
-    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(1).fieldIndex("rel.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have instrument field",
-      res.get(1).fieldIndex("rel.instrument")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(1).fieldIndex("rel.name")): Executable,
+      "relationship should not have name field"
+    )
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(1).fieldIndex("rel.instrument")): Executable,
+      "relationship should not have instrument field"
     )
 
     assertEquals("John Mayer", getByName[String](res.get(2), "source.name"))
@@ -1220,10 +1291,15 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(19, getByName[Long](res.get(2), "rel.experience"))
     assertEquals(false, getByName[Boolean](res.get(2), "rel.hasDiploma"))
     assertEquals(1, getByName[Long](res.get(2), "rel.rating"))
-    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(2).fieldIndex("rel.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have instrument field",
-      res.get(2).fieldIndex("rel.instrument")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(2).fieldIndex("rel.name")): Executable,
+      "relationship should not have name field"
+    )
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(2).fieldIndex("rel.instrument")): Executable,
+      "relationship should not have instrument field"
     )
 
     assertEquals("John Scofield", getByName[String](res.get(3), "source.name"))
@@ -1231,10 +1307,15 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(32, getByName[Long](res.get(3), "rel.experience"))
     assertEquals(true, getByName[Boolean](res.get(3), "rel.hasDiploma"))
     assertEquals(3, getByName[Long](res.get(3), "rel.rating"))
-    assertThrows[IllegalArgumentException]("relationship should not have name field", res.get(3).fieldIndex("rel.name"))
-    assertThrows[IllegalArgumentException](
-      "relationship should not have instrument field",
-      res.get(3).fieldIndex("rel.instrument")
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(3).fieldIndex("rel.name")): Executable,
+      "relationship should not have name field"
+    )
+    assertThrows(
+      classOf[IllegalArgumentException],
+      (() => res.get(3).fieldIndex("rel.instrument")): Executable,
+      "relationship should not have instrument field"
     )
   }
 
@@ -1751,7 +1832,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .single()
       .get(0)
       .asLong()
-    junit.Assert.assertEquals(2L, count)
+    assertEquals(2L, count)
   }
 
   @Test
@@ -1779,7 +1860,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .single()
       .get(0)
       .asLong()
-    junit.Assert.assertEquals(2L, count)
+    assertEquals(2L, count)
   }
 
   @Test
@@ -1808,7 +1889,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .single()
       .get(0)
       .asLong()
-    junit.Assert.assertEquals(2L, count)
+    assertEquals(2L, count)
   }
 
   @Test
@@ -1843,7 +1924,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .get(0)
       .asList((value: Value) => value.asMap().asScala)
       .asScala
-    junit.Assert.assertEquals(
+    assertEquals(
       List(
         Map("watch_time" -> "today"),
         Map("watch_time" -> "two days ago"),

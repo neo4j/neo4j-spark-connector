@@ -23,9 +23,10 @@ import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.junit.Assert.assertEquals
-import org.junit.Assume
-import org.junit.BeforeClass
-import org.junit.Test
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.testsupport.TestUtil
@@ -45,9 +46,9 @@ import scala.math.Ordering.Implicits.infixOrderingOps
 
 object DataSourceSchemaWriterTSE {
 
-  @BeforeClass
+  @BeforeAll
   def checkNeo4jVersion() {
-    Assume.assumeTrue(TestUtil.neo4jVersion(SparkConnectorScalaSuiteIT.session()) >= Versions.NEO4J_5_13)
+    assumeTrue(TestUtil.neo4jVersion(SparkConnectorScalaSuiteIT.session()) >= Versions.NEO4J_5_13)
   }
 }
 

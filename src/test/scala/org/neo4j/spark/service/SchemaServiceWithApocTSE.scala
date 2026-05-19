@@ -20,10 +20,10 @@ import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.junit.Assert._
-import org.junit.Before
-import org.junit.FixMethodOrder
-import org.junit.Test
-import org.junit.runners.MethodSorters
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestMethodOrder
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDeploymentType
 import org.neo4j.caniuse.Neo4jEdition
@@ -40,10 +40,9 @@ import org.neo4j.spark.util.QueryType
 
 import java.util
 
-@FixMethodOrder(MethodSorters.JVM)
 class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
-  @Before
+  @BeforeEach
   def beforeEach(): Unit = {
     use(SparkConnectorScalaSuiteWithApocIT.session("system")) {
       session =>

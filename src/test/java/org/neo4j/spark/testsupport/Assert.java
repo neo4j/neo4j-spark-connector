@@ -19,16 +19,15 @@ package org.neo4j.spark.testsupport;//
 // (powered by Fernflower decompiler)
 //
 
+import org.junit.jupiter.api.Assertions;
+
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.StringDescription;
-import org.hamcrest.core.StringContains;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public final class Assert {
     private Assert() {
@@ -66,44 +65,37 @@ public final class Assert {
     public static <E extends Exception> void assertException(ThrowingAction<E> f, Class<?> typeOfException, String partOfErrorMessage) {
         try {
             f.apply();
-            org.junit.Assert.fail("Expected exception of type " + typeOfException + ", but no exception was thrown");
+            fail("Expected exception of type " + typeOfException + ", but no exception was thrown");
         } catch (Exception var4) {
             if (typeOfException.isInstance(var4)) {
                 if (partOfErrorMessage != null) {
-                    MatcherAssert.assertThat(var4.getMessage(), StringContains.containsString(partOfErrorMessage));
+                    Assertions.assertTrue(var4.getMessage() != null  && var4.getMessage().contains(partOfErrorMessage), "Expected exception message to be present");
                 }
             } else {
-                org.junit.Assert.fail("Got unexpected exception " + var4.getClass() + "\nExpected: " + typeOfException);
+                fail("Got unexpected exception " + var4.getClass() + "\nExpected: " + typeOfException);
             }
         }
 
     }
 
-    public static <T, E extends Exception> void assertEventually(ThrowingSupplier<T, E> actual, Matcher<? super T> matcher, long timeout, TimeUnit timeUnit) throws E, InterruptedException {
-        assertEventually((ignored) -> {
-            return "";
-        }, actual, matcher, timeout, timeUnit);
+    public static <T, E extends Exception> void assertEventually(T expected, ThrowingSupplier<T, E> actual, long timeout, TimeUnit timeUnit) throws E, InterruptedException {
+        assertEventually((ignored) -> "", actual, expected, timeout, timeUnit);
     }
 
-    public static <T, E extends Exception> void assertEventually(String reason, ThrowingSupplier<T, E> actual, Matcher<? super T> matcher, long timeout, TimeUnit timeUnit) throws E, InterruptedException {
-        assertEventually((ignored) -> {
-            return reason;
-        }, actual, matcher, timeout, timeUnit);
-    }
-
-    public static <T, E extends Exception> void assertEventually(Function<T, String> reason, ThrowingSupplier<T, E> actual, Matcher<? super T> matcher, long timeout, TimeUnit timeUnit) throws E, InterruptedException {
+    public static <T, E extends Exception> void assertEventually(Function<T, String> reason, ThrowingSupplier<T, E> actual, T expected, long timeout, TimeUnit timeUnit) throws E, InterruptedException {
         long endTimeMillis = System.currentTimeMillis() + timeUnit.toMillis(timeout);
 
         while (true) {
             long sampleTime = System.currentTimeMillis();
             T last = actual.get();
-            boolean matched = matcher.matches(last);
+            boolean matched = Objects.equals(expected, last);
             if (matched || sampleTime > endTimeMillis) {
                 if (!matched) {
-                    Description description = new StringDescription();
-                    description.appendText((String) reason.apply(last)).appendText("\nExpected: ").appendDescriptionOf(matcher).appendText("\n     but: ");
-                    matcher.describeMismatch(last, description);
-                    throw new AssertionError("Timeout hit (" + timeout + " " + timeUnit.toString().toLowerCase() + ") while waiting for condition to match: " + description.toString());
+                    throw new AssertionError(
+                        "Timeout hit (" + timeout + " " + timeUnit.toString().toLowerCase()
+                            + ") while waiting for condition to match: " + reason.apply(last)
+                            + "\nExpected: " + prettyPrint(expected)
+                            + "\n     but: " + prettyPrint(last));
                 } else {
                     return;
                 }
@@ -111,10 +103,6 @@ public final class Assert {
 
             Thread.sleep(100L);
         }
-    }
-
-    private static AssertionError newAssertionError(String message, Object expected, Object actual) {
-        return new AssertionError((message != null && !message.isEmpty() ? message + "\n" : "") + "Expected: " + prettyPrint(expected) + ", actual: " + prettyPrint(actual));
     }
 
     private static String prettyPrint(Object o) {

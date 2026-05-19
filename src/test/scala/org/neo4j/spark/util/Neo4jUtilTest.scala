@@ -17,8 +17,8 @@
 package org.neo4j.spark.util
 
 import org.apache.commons.lang3.StringUtils
-import org.junit.Assert
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class Neo4jUtilTest {
 
@@ -35,14 +35,14 @@ class Neo4jUtilTest {
       "spark"
     }
     val actual = Neo4jUtil.connectorEnv
-    Assert.assertEquals(expected, actual)
+    assertEquals(expected, actual)
   }
 
   @Test
   def testConnectorEnvForCustom(): Unit = {
     System.setProperty("neo4j.spark.platform", "abc")
     val actual = Neo4jUtil.connectorEnv
-    Assert.assertEquals("abc", actual)
+    assertEquals("abc", actual)
   }
 
 }

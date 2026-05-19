@@ -20,24 +20,22 @@ import org.apache.spark.sql.connector.expressions.aggregate.Count
 import org.apache.spark.sql.connector.expressions.aggregate.Max
 import org.apache.spark.sql.connector.expressions.aggregate.Min
 import org.apache.spark.sql.connector.expressions.aggregate.Sum
-import org.junit.After
-import org.junit.FixMethodOrder
-import org.junit.Test
-import org.junit.runners.MethodSorters
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestMethodOrder
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithGdsBase
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithGdsBase.neo4j
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.DummyNamedReference
 import org.neo4j.spark.util.Neo4jOptions
-import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
-import org.scalatest.matchers.must.Matchers.endWith
 
 import scala.language.postfixOps
 
-@FixMethodOrder(MethodSorters.JVM)
 class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
 
-  @After
+  @AfterEach
   def cleanUp(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
@@ -80,13 +78,13 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
       )
     ).createQuery()
 
-    query must endWith(
+    assertTrue(query.endsWith(
       """CALL gds.pageRank.stream($graphName)
         |YIELD nodeId, score
         |RETURN nodeId AS nodeId, max(score) AS `MAX(score)`, min(score) AS `MIN(score)`, count(score) AS `COUNT(score)`, count(DISTINCT score) AS `COUNT(DISTINCT score)`, sum(score) AS `SUM(score)`, sum(DISTINCT score) AS `SUM(DISTINCT score)`"""
         .stripMargin
         .replaceAll("\n", " ")
-    )
+    ))
   }
 
 }

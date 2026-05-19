@@ -16,34 +16,31 @@
  */
 package org.neo4j.spark.util
 
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.function.Executable
 import org.neo4j.driver.AccessMode
 import org.neo4j.driver.net.ServerAddress
 
 import java.net.URI
 import java.time.Duration
 
-import scala.annotation.meta.getter
 import scala.collection.JavaConverters._
 
 class Neo4jOptionsTest {
-
-  import org.junit.Rule
-  import org.junit.rules.ExpectedException
-
-  @(Rule @getter)
-  val _expectedException: ExpectedException = ExpectedException.none
 
   @Test
   def testUrlIsRequired(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(QueryType.QUERY.toString.toLowerCase, "Person")
 
-    _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage("Parameter 'url' is required")
-
-    new Neo4jOptions(options)
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      new Executable {
+        override def execute(): Unit = new Neo4jOptions(options)
+      }
+    )
+    assertTrue(exception.getMessage.contains("Parameter 'url' is required"))
   }
 
   @Test
@@ -93,10 +90,13 @@ class Neo4jOptionsTest {
     options.put(QueryType.LABELS.toString.toLowerCase, "PERSON")
     options.put("relationship.save.strategy", "nope")
 
-    _expectedException.expect(classOf[NoSuchElementException])
-    _expectedException.expectMessage("No value found for 'NOPE'")
-
-    new Neo4jOptions(options)
+    val exception = assertThrows(
+      classOf[NoSuchElementException],
+      new Executable {
+        override def execute(): Unit = new Neo4jOptions(options)
+      }
+    )
+    assertEquals("No value found for 'NOPE'", exception.getMessage)
   }
 
   @Test

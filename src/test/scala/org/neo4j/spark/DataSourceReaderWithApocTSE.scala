@@ -18,8 +18,8 @@ package org.neo4j.spark
 
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 import org.neo4j.driver.TransactionContext
 import org.neo4j.spark.testsupport.SparkConnectorScalaBaseWithApocTSE
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithApocIT
