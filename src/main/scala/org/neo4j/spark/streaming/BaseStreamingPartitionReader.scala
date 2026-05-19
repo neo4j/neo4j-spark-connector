@@ -81,7 +81,7 @@ class BaseStreamingPartitionReader(
       .flatMap(f => f.getValue)
       .get
       .asInstanceOf[Long]
-    map.put(Neo4jQueryStrategy.VARIABLE_STREAM, Map("offset" -> start, "from" -> start, "to" -> end).asJava)
+    map.put(Neo4jQueryStrategy.VARIABLE_STREAM, Map("offset" -> start, "from" -> start, "to" -> end).asJava) // TODO: remove "offset" -> start from Map
     map
   }
 
@@ -96,9 +96,10 @@ class BaseStreamingPartitionReader(
         val originalQuery = super.query()
 
         if (offsetUsagePatterns.exists(_.test(originalQuery))) {
-          logWarning(
-            "Usage of '$stream.offset' is deprecated in favor of '$stream.from' and '$stream.to' parameters which "
-              + "describes the range of changes the micro batch refers to. Please update your queries accordingly."
+          throw new IllegalArgumentException(
+            "Usage of '$stream.offset' is no longer supported. Use '$stream.from' and '$stream.to' parameters "
+              + "instead, which describe the range of changes the micro batch refers to. "
+              + "Please update your queries accordingly."
           )
         }
 

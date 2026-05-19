@@ -85,37 +85,13 @@ case class ValidateSchemaMetadataWrite(neo4jOptions: Neo4jOptions, saveMode: Sav
     val schemaMetadata = neo4jOptions.schemaMetadata
     val hasNodeOptimizations = (schemaMetadata.optimizationType == OptimizationType.NODE_CONSTRAINTS
       || schemaMetadata.optimization.nodeConstraint != ConstraintsOptimizationType.NONE)
-    val hasOptimizations = (schemaMetadata.optimizationType != OptimizationType.NONE
-      && (schemaMetadata.optimization.nodeConstraint != ConstraintsOptimizationType.NONE
-        || schemaMetadata.optimization.relConstraint != ConstraintsOptimizationType.NONE
-        || schemaMetadata.optimization.schemaConstraints != Set(SchemaConstraintsOptimizationType.NONE)))
-    if (hasOptimizations) {
-      throw new IllegalArgumentException(
-        s"""You cannot combine `${Neo4jOptions.SCHEMA_OPTIMIZATION_TYPE}` with:
-           |- `${Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_KEY}`
-           |- `${Neo4jOptions.SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY}`
-           |- `${Neo4jOptions.SCHEMA_OPTIMIZATION}`
-      """
-      )
-    }
+
     neo4jOptions.query.queryType match {
-      case QueryType.QUERY => {
+      case QueryType.QUERY =>
         neo4jOptions.schemaMetadata.optimizationType match {
           case OptimizationType.NONE => // are valid
-          case _ => ValidationUtil.isNotValid(
-              s"""With Query Type ${neo4jOptions.query.queryType} you can
-                 |only use `${Neo4jOptions.SCHEMA_OPTIMIZATION_TYPE}`
-                 |`${OptimizationType.NONE}`
-                 |""".stripMargin
-            )
         }
-        if (hasOptimizations) {
-          throw new IllegalArgumentException(
-            s"With Query Type ${neo4jOptions.query.queryType} you cannot define any optimization"
-          )
-        }
-      }
-      case QueryType.LABELS => {
+      case QueryType.LABELS =>
         if (hasNodeOptimizations) {
           ValidationUtil.isTrue(saveMode == SaveMode.Overwrite, "This works only with `mode` `Overwrite`")
           ValidationUtil.isNotEmpty(
@@ -123,8 +99,7 @@ case class ValidateSchemaMetadataWrite(neo4jOptions: Neo4jOptions, saveMode: Sav
             s"${Neo4jOptions.NODE_KEYS} is required to define the constraints"
           )
         }
-      }
-      case QueryType.RELATIONSHIP => {
+      case QueryType.RELATIONSHIP =>
         if (hasNodeOptimizations) {
           ValidationUtil.isNotEmpty(
             neo4jOptions.relationshipMetadata.source.nodeKeys,
@@ -150,7 +125,6 @@ case class ValidateSchemaMetadataWrite(neo4jOptions: Neo4jOptions, saveMode: Sav
             s"${Neo4jOptions.RELATIONSHIP_KEYS} is required to define the constraints"
           )
         }
-      }
       case _ => // do nothing
     }
     neo4jOptions.schemaMetadata.optimizationType match {
@@ -271,7 +245,7 @@ case class ValidateWrite(
       ValidateSchemaMetadataWrite(neo4jOptions, saveMode).validate()
 
       neo4jOptions.query.queryType match {
-        case QueryType.QUERY => {
+        case QueryType.QUERY =>
           val error = schemaService.validateQuery(
             s"""WITH {} AS ${Neo4jQueryStrategy.VARIABLE_EVENT}, [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
                |${neo4jOptions.query.value}
@@ -282,14 +256,7 @@ case class ValidateWrite(
           ValidationUtil.isTrue(error.isEmpty, error)
           neo4jOptions.schemaMetadata.optimizationType match {
             case OptimizationType.NONE => // are valid
-            case _ => ValidationUtil.isNotValid(
-                s"""With Query Type ${neo4jOptions.query.queryType} you can
-                   |only use `${Neo4jOptions.SCHEMA_OPTIMIZATION_TYPE}`
-                   |`${OptimizationType.NONE}`
-                   |""".stripMargin
-              )
           }
-        }
         case QueryType.LABELS => {
           saveMode match {
             case SaveMode.Overwrite => {
@@ -301,7 +268,7 @@ case class ValidateWrite(
             case _ => ()
           }
         }
-        case QueryType.RELATIONSHIP => {
+        case QueryType.RELATIONSHIP =>
           ValidationUtil.isNotEmpty(
             neo4jOptions.relationshipMetadata.target.labels,
             s"${Neo4jOptions.RELATIONSHIP_SOURCE_LABELS} is required when Save Mode is Overwrite"
@@ -310,7 +277,6 @@ case class ValidateWrite(
             neo4jOptions.relationshipMetadata.target.labels,
             s"${Neo4jOptions.RELATIONSHIP_TARGET_LABELS} is required when Save Mode is Overwrite"
           )
-        }
       }
       neo4jOptions.script.foreach(query =>
         ValidationUtil.isTrue(
