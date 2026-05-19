@@ -652,66 +652,6 @@ class SchemaService(
       }
     }
 
-  @deprecated("use createEntityConstraint instead")
-  private def createIndexOrConstraint(action: OptimizationType.Value, label: String, props: Seq[String]): Unit =
-    action match {
-      case OptimizationType.NONE => log.info("No optimization type provided")
-      case _ => {
-        try {
-          val quotedLabel = label.quote()
-          val quotedProps = props
-            .map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.quote()}")
-            .mkString(", ")
-          val isNeo4j4 = neo4j.getVersion.getMajor == 4
-          val uniqueFieldName = if (!isNeo4j4) "owningConstraint" else "uniqueness"
-          val dashSeparatedProps = props.mkString("-")
-          val (querySuffix, uniqueCondition) = action match {
-            case OptimizationType.INDEX => (
-                s"FOR (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ON ($quotedProps)",
-                if (!isNeo4j4) s"$uniqueFieldName IS NULL" else s"$uniqueFieldName = 'NONUNIQUE'"
-              )
-            case OptimizationType.NODE_CONSTRAINTS => {
-              val assertType = if (props.size > 1) "NODE KEY" else "UNIQUE"
-              (
-                s"FOR (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) REQUIRE ($quotedProps) IS $assertType",
-                if (!isNeo4j4) s"$uniqueFieldName IS NOT NULL" else s"$uniqueFieldName = 'UNIQUE'"
-              )
-            }
-          }
-          val actionName = s"spark_${action.toString}_${label}_$dashSeparatedProps".quote()
-          val queryPrefix = action match {
-            case OptimizationType.INDEX            => s"CREATE INDEX $actionName"
-            case OptimizationType.NODE_CONSTRAINTS => s"CREATE CONSTRAINT $actionName"
-          }
-          val queryCheck =
-            s"""SHOW INDEXES YIELD labelsOrTypes, properties, $uniqueFieldName
-               |WHERE labelsOrTypes = ${'$'}labels
-               |AND properties = ${'$'}properties
-               |AND $uniqueCondition
-               |RETURN count(*) > 0 AS isPresent""".stripMargin
-          val params: util.Map[String, AnyRef] = Map(
-            "labels" -> Seq(label).asJava,
-            "properties" -> props.asJava
-          ).asJava.asInstanceOf[util.Map[String, AnyRef]]
-          val isPresent = session.executeRead(tx => tx.run(queryCheck, params).single(), sessionTransactionConfig)
-            .get("isPresent")
-            .asBoolean()
-
-          val status = if (isPresent) {
-            "KEPT"
-          } else {
-            val query = s"$queryPrefix $querySuffix"
-            log.info(s"Performing the following schema query: $query")
-            session.executeWrite(tx => tx.run(query).consume(), sessionTransactionConfig)
-            "CREATED"
-          }
-          log.info(s"Status for $action named with label $quotedLabel and props $quotedProps is: $status")
-        } catch {
-          case e: Throwable => log.info("Cannot perform the optimization query because of the following exception:", e)
-        }
-      }
-    }
-
   private def createEntityConstraint(
     entityType: String,
     entityIdentifier: String,
@@ -814,17 +754,6 @@ class SchemaService(
           schemaMetadata.schemaConstraints
         )
       }
-    } else { // TODO old behaviour, remove it in the future
-      options.schemaMetadata.optimizationType match {
-        case OptimizationType.INDEX | OptimizationType.NODE_CONSTRAINTS => {
-          createIndexOrConstraint(
-            options.schemaMetadata.optimizationType,
-            options.nodeMetadata.labels.head,
-            options.nodeMetadata.nodeKeys.values.toSeq
-          )
-        }
-        case _ => // do nothing
-      }
     }
   }
 
@@ -890,22 +819,6 @@ class SchemaService(
           struct,
           schemaMetadata.schemaConstraints
         )
-      }
-    } else { // TODO old behaviour, remove it in the future
-      options.schemaMetadata.optimizationType match {
-        case OptimizationType.INDEX | OptimizationType.NODE_CONSTRAINTS => {
-          createIndexOrConstraint(
-            options.schemaMetadata.optimizationType,
-            options.relationshipMetadata.source.labels.head,
-            options.relationshipMetadata.source.nodeKeys.values.toSeq
-          )
-          createIndexOrConstraint(
-            options.schemaMetadata.optimizationType,
-            options.relationshipMetadata.target.labels.head,
-            options.relationshipMetadata.target.nodeKeys.values.toSeq
-          )
-        }
-        case _ => // do nothing
       }
     }
   }

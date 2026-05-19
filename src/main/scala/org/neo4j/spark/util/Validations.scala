@@ -83,14 +83,9 @@ case class ValidateSchemaMetadataWrite(neo4jOptions: Neo4jOptions, saveMode: Sav
 
   override def validate(): Unit = {
     val schemaMetadata = neo4jOptions.schemaMetadata
-    val hasNodeOptimizations = (schemaMetadata.optimizationType == OptimizationType.NODE_CONSTRAINTS
-      || schemaMetadata.optimization.nodeConstraint != ConstraintsOptimizationType.NONE)
+    val hasNodeOptimizations = schemaMetadata.optimization.nodeConstraint != ConstraintsOptimizationType.NONE
 
     neo4jOptions.query.queryType match {
-      case QueryType.QUERY =>
-        neo4jOptions.schemaMetadata.optimizationType match {
-          case OptimizationType.NONE => // are valid
-        }
       case QueryType.LABELS =>
         if (hasNodeOptimizations) {
           ValidationUtil.isTrue(saveMode == SaveMode.Overwrite, "This works only with `mode` `Overwrite`")
@@ -126,23 +121,6 @@ case class ValidateSchemaMetadataWrite(neo4jOptions: Neo4jOptions, saveMode: Sav
           )
         }
       case _ => // do nothing
-    }
-    neo4jOptions.schemaMetadata.optimizationType match {
-      case OptimizationType.NONE => // skip it
-      case _ => neo4jOptions.query.queryType match {
-          case QueryType.LABELS =>
-            ValidationUtil.isTrue(saveMode == SaveMode.Overwrite, "This works only with `mode` `SaveMode.Overwrite`")
-          case QueryType.RELATIONSHIP => {
-            ValidationUtil.isTrue(
-              neo4jOptions.relationshipMetadata.sourceSaveMode == NodeSaveMode.Overwrite,
-              s"This works only with `${Neo4jOptions.RELATIONSHIP_SOURCE_SAVE_MODE}` `Overwrite`"
-            )
-            ValidationUtil.isTrue(
-              neo4jOptions.relationshipMetadata.targetSaveMode == NodeSaveMode.Overwrite,
-              s"This works only with `${Neo4jOptions.RELATIONSHIP_TARGET_SAVE_MODE}` `Overwrite`"
-            )
-          }
-        }
     }
   }
 }
@@ -254,9 +232,6 @@ case class ValidateWrite(
             org.neo4j.driver.summary.QueryType.READ_WRITE
           )
           ValidationUtil.isTrue(error.isEmpty, error)
-          neo4jOptions.schemaMetadata.optimizationType match {
-            case OptimizationType.NONE => // are valid
-          }
         case QueryType.LABELS => {
           saveMode match {
             case SaveMode.Overwrite => {
