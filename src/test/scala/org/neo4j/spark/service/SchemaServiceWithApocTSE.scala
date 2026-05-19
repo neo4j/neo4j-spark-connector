@@ -234,7 +234,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   private def getExpectedStructType(structFields: Seq[StructField]): StructType = {
     val additionalFields: Seq[StructField] = Seq(
       StructField(Neo4jUtil.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true),
-      StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.LongType, nullable = false)
+      StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.StringType, nullable = false)
     )
     StructType(structFields.union(additionalFields).reverse)
   }
@@ -249,7 +249,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val driverCache = new DriverCache(neo4jOptions.connection)
-    val neo4j = new Neo4j(new Neo4jVersion(4, 4, 0), Neo4jEdition.ENTERPRISE, Neo4jDeploymentType.SELF_MANAGED)
+    val neo4j = new Neo4j(new Neo4jVersion(5, 0, 0), Neo4jEdition.ENTERPRISE, Neo4jDeploymentType.SELF_MANAGED)
     val schemaService: SchemaService = new SchemaService(neo4j, neo4jOptions, driverCache)
 
     val schema: StructType = schemaService.struct()

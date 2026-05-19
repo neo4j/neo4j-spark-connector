@@ -75,12 +75,11 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
             .toJavaTimestamp(longValue),
           dataType
         )
-      case unsafeRow: UnsafeRow => {
+      case unsafeRow: UnsafeRow =>
         val structType = extractStructType(dataType)
         val row = new GenericRowWithSchema(unsafeRow.toSeq(structType).toArray, structType)
         convert(row)
-      }
-      case struct: GenericRow => {
+      case struct: GenericRow =>
         def toMap(struct: GenericRow): Value = {
           Values.value(
             struct.schema.fields.map(f => f.name -> convert(struct.getAs(f.name), f.dataType)).toMap.asJava
@@ -115,8 +114,7 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
         } catch {
           case _: Throwable => toMap(struct)
         }
-      }
-      case unsafeArray: ArrayData => {
+      case unsafeArray: ArrayData =>
         val sparkType = dataType match {
           case arrayType: ArrayType => arrayType.elementType
           case _                    => dataType
@@ -125,8 +123,7 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
           .map(elem => convert(elem, sparkType))
           .asJava
         Values.value(javaList)
-      }
-      case unsafeMapData: MapData => { // Neo4j only supports Map[String, AnyRef]
+      case unsafeMapData: MapData => // Neo4j only supports Map[String, AnyRef]
         val mapType = dataType.asInstanceOf[MapType]
         val map: Map[String, AnyRef] = (0 until unsafeMapData.numElements())
           .map(i =>
@@ -136,7 +133,6 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
           .mapValues(innerValue => convert(innerValue, mapType.valueType))
           .toMap[String, AnyRef]
         Values.value(map.asJava)
-      }
       case string: UTF8String => convert(string.toString)
       case _                  => Values.value(value)
     }
@@ -154,15 +150,14 @@ class Neo4jToSparkDataConverter extends DataConverter[Any] {
       convert(Neo4jUtil.mapper.writeValueAsString(value), dataType)
     } else {
       value match {
-        case node: Node => {
+        case node: Node =>
           val map = node.asMap()
           val structType = extractStructType(dataType)
           val fields = structType
             .filter(field => field.name != Neo4jUtil.INTERNAL_ID_FIELD && field.name != Neo4jUtil.INTERNAL_LABELS_FIELD)
             .map(field => convert(map.get(field.name), field.dataType))
-          InternalRow.fromSeq(Seq(convert(node.id()), convert(node.labels())) ++ fields)
-        }
-        case rel: Relationship => {
+          InternalRow.fromSeq(Seq(convert(node.elementId()), convert(node.labels())) ++ fields)
+        case rel: Relationship =>
           val map = rel.asMap()
           val structType = extractStructType(dataType)
           val fields = structType
@@ -174,13 +169,12 @@ class Neo4jToSparkDataConverter extends DataConverter[Any] {
             )
             .map(field => convert(map.get(field.name), field.dataType))
           InternalRow.fromSeq(Seq(
-            convert(rel.id()),
+            convert(rel.elementId()),
             convert(rel.`type`()),
-            convert(rel.startNodeId()),
-            convert(rel.endNodeId())
+            convert(rel.startNodeElementId()),
+            convert(rel.endNodeElementId())
           ) ++ fields)
-        }
-        case d: IsoDuration => {
+        case d: IsoDuration =>
           val months = d.months()
           val days = d.days()
           val nanoseconds: Integer = d.nanoseconds()
@@ -193,42 +187,35 @@ class Neo4jToSparkDataConverter extends DataConverter[Any] {
             nanoseconds,
             UTF8String.fromString(d.toString)
           ))
-        }
         case zt: ZonedDateTime => DateTimeUtils.instantToMicros(zt.toInstant)
         case dt: LocalDateTime => DateTimeUtils.instantToMicros(dt.toInstant(ZoneOffset.UTC))
         case d: LocalDate      => d.toEpochDay.toInt
-        case lt: LocalTime => {
+        case lt: LocalTime =>
           InternalRow.fromSeq(Seq(
             UTF8String.fromString(SchemaService.TIME_TYPE_LOCAL),
             UTF8String.fromString(lt.format(DateTimeFormatter.ISO_TIME))
           ))
-        }
-        case t: OffsetTime => {
+        case t: OffsetTime =>
           InternalRow.fromSeq(Seq(
             UTF8String.fromString(SchemaService.TIME_TYPE_OFFSET),
             UTF8String.fromString(t.format(DateTimeFormatter.ISO_TIME))
           ))
-        }
-        case p: InternalPoint2D => {
+        case p: InternalPoint2D =>
           val srid: Integer = p.srid()
           InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.POINT_TYPE_2D), srid, p.x(), p.y(), null))
-        }
-        case p: InternalPoint3D => {
+        case p: InternalPoint3D =>
           val srid: Integer = p.srid()
           InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.POINT_TYPE_3D), srid, p.x(), p.y(), p.z()))
-        }
-        case l: java.util.List[_] => {
+        case l: java.util.List[_] =>
           val elementType = if (dataType != null) dataType.asInstanceOf[ArrayType].elementType else null
           ArrayData.toArrayData(l.asScala.map(e => convert(e, elementType)).toArray)
-        }
-        case map: java.util.Map[_, _] => {
+        case map: java.util.Map[_, _] =>
           if (dataType != null) {
             val mapType = dataType.asInstanceOf[MapType]
             ArrayBasedMapData(map.asScala.map(t => (convert(t._1, mapType.keyType), convert(t._2, mapType.valueType))))
           } else {
             ArrayBasedMapData(map.asScala.map(t => (convert(t._1), convert(t._2))))
           }
-        }
         case s: String => UTF8String.fromString(s)
         case _         => value
       }

@@ -196,11 +196,11 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", "Product")
       .option("relationship.target.labels", "Person")
       .load
-      .select("`source.name`", "`<source.id>`")
+      .select("`source.name`", "`<source.elementId>`")
 
     df.count()
 
-    assertEquals(Seq("source.name", "<source.id>"), df.columns.toSeq)
+    assertEquals(Seq("source.name", "<source.elementId>"), df.columns.toSeq)
   }
 
   @Test
@@ -224,11 +224,11 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", "Person")
       .option("relationship.target.labels", "Product")
       .load
-      .select("`target.(╯°□°)╯︵ ┻━┻`", "`<source.id>`")
+      .select("`target.(╯°□°)╯︵ ┻━┻`", "`<source.elementId>`")
 
     df.count()
 
-    assertEquals(Seq("target.(╯°□°)╯︵ ┻━┻", "<source.id>"), df.columns.toSeq)
+    assertEquals(Seq("target.(╯°□°)╯︵ ┻━┻", "<source.elementId>"), df.columns.toSeq)
   }
 
   @Test
@@ -280,7 +280,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
 
     df.count()
 
-    assertEquals(Seq("<id>", "<labels>", "name", "id"), df.columns.toSeq)
+    assertEquals(Seq("<elementId>", "<labels>", "name", "id"), df.columns.toSeq)
   }
 
   @Test
@@ -318,7 +318,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       ss.read.format(classOf[DataSource].getName)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
         .option("database", "not_existing_db")
-        .option("labels", "MATCH (h:Household) RETURN id(h)")
+        .option("labels", "MATCH (h:Household) RETURN elementId(h)")
         .load()
         .show()
     } catch {
@@ -337,7 +337,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
     val df = ss.read
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("query", "MATCH (e:ID_DO_NOT_EXIST) RETURN id(e) as f, 1 as g")
+      .option("query", "MATCH (e:ID_DO_NOT_EXIST) RETURN elementId(e) as f, 1 as g")
       .load
 
     assertEquals(0, df.count())
@@ -356,7 +356,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
     val df = ss.read
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("query", "MATCH (i:Instrument) RETURN id(i) as internal_id, i.id as id, i.name as name, i.name")
+      .option("query", "MATCH (i:Instrument) RETURN elementId(i) as internal_id, i.id as id, i.name as name, i.name")
       .load
       .orderBy("id")
 
@@ -386,7 +386,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .option(
         "query",
         """MATCH (p:Person)-[b:BOUGHT]->(pr:Product)
-          |RETURN id(p) AS personId, id(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201"} as map2""".stripMargin
+          |RETURN elementId(p) AS personId, elementId(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201"} as map2""".stripMargin
       )
       .option("schema.strategy", "string")
       .load()
@@ -402,7 +402,7 @@ class DataSourceReaderNeo4jTSE extends SparkConnectorScalaBaseTSE {
       .option(
         "query",
         """MATCH (p:Person)-[b:BOUGHT]->(pr:Product)
-          |RETURN id(p) AS personId, id(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201", and: 1} as map2""".stripMargin
+          |RETURN elementId(p) AS personId, elementId(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201", and: 1} as map2""".stripMargin
       )
       .option("schema.strategy", "string")
       .load()

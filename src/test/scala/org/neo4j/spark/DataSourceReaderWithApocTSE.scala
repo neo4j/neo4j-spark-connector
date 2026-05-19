@@ -40,10 +40,9 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
     /**
      * utnaf: Since we can't be sure we are in total isolation, and the id is generated
-     * internally by org.neo4j.neo4j, we just check that the <id> field is an integer and is greater
-     * than -1
+     * internally by org.neo4j.neo4j, we just check that the <elementId> field is a String and is not null
      */
-    assertTrue(df.select("<id>").collectAsList().get(0).getLong(0) > -1)
+    assertTrue(df.select("<elementId>").collectAsList().get(0).getString(0) != null)
   }
 
   @Test
@@ -691,15 +690,15 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val count = df.collectAsList()
       .asScala
       .filter(row =>
-        row.getAs[Long]("<rel.id>") >= 0
+        row.getAs[String]("<rel.elementId>") != null
           && row.getAs[String]("<rel.type>") != null
           && row.getAs[Double]("rel.when") >= 0
           && row.getAs[Double]("rel.quantity") >= 0
-          && row.getAs[Long]("<source.id>") >= 0
+          && row.getAs[String]("<source.elementId>") != null
           && row.getAs[Long]("source.id") >= 0
           && !row.getAs[Seq[String]]("<source.labels>").isEmpty
           && row.getAs[String]("source.fullName") != null
-          && row.getAs[Long]("<target.id>") >= 0
+          && row.getAs[String]("<target.elementId>") != null
           && row.getAs[Double]("target.id") >= 0
           && !row.getAs[Seq[String]]("<target.labels>").isEmpty
           && row.getAs[String]("target.name") != null
@@ -733,7 +732,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val rows = df.collectAsList().asScala
     val count = rows
       .filter(row =>
-        row.getAs[Long]("<rel.id>") >= 0
+        row.getAs[String]("<rel.elementId>") != null
           && row.getAs[String]("<rel.type>") != null
           && row.getAs[Double]("rel.when") >= 0
           && row.getAs[Double]("rel.quantity") >= 0
@@ -744,11 +743,11 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     assertEquals(total, count)
 
     val countSourceMap = rows.map(row => row.getAs[Map[String, String]]("<source>"))
-      .filter(row => row.keys == Set("id", "fullName", "<id>", "<labels>"))
+      .filter(row => row.keys == Set("id", "fullName", "<elementId>", "<labels>"))
       .size
     assertEquals(total, countSourceMap)
     val countTargetMap = rows.map(row => row.getAs[Map[String, String]]("<target>"))
-      .filter(row => row.keys == Set("id", "name", "<id>", "<labels>"))
+      .filter(row => row.keys == Set("id", "name", "<elementId>", "<labels>"))
       .size
     assertEquals(total, countTargetMap)
   }
@@ -802,13 +801,13 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       .sort("name")
 
     val cols = df.columns.toSeq.sorted
-    val expectedCols = Seq("name", "born", "actor", "soccerPlayer", "writer", "<id>", "<labels>")
+    val expectedCols = Seq("name", "born", "actor", "soccerPlayer", "writer", "<elementId>", "<labels>")
       .sorted
     assertEquals(expectedCols, cols)
 
     val data = df.collect().toSeq
       .map(row =>
-        expectedCols.filterNot(_ == "<id>").map(col => {
+        expectedCols.filterNot(_ == "<elementId>").map(col => {
           row.getAs[Any](col) match {
             case array: Array[String] => array.toList
             case null                 => null
@@ -842,13 +841,13 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       .sort("prop")
 
     val cols = df.columns.toSeq.sorted
-    val expectedCols = Seq("prop", "<id>", "<labels>")
+    val expectedCols = Seq("prop", "<elementId>", "<labels>")
       .sorted
     assertEquals(expectedCols, cols)
 
     val data = df.collect().toSeq
       .map(row =>
-        expectedCols.filterNot(_ == "<id>").map(col => {
+        expectedCols.filterNot(_ == "<elementId>").map(col => {
           row.getAs[Any](col) match {
             case array: Array[String] => array.toList
             case null                 => null
@@ -911,7 +910,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       .load()
 
     assertEquals(5, partitionedDf.rdd.getNumPartitions)
-    assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("<rel.id>")).toSet.size)
+    assertEquals(100, partitionedDf.collect().map(_.getAs[String]("<rel.elementId>")).toSet.size)
   }
 
   @Test
