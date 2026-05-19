@@ -138,7 +138,7 @@ class Neo4jQueryServiceTest {
       new Neo4jQueryReadStrategy(neo4j, Array.empty[Filter], PartitionPagination.EMPTY, List("<elementId>"))
     ).createQuery()
 
-    assertEquals(s"${prefix}MATCH (n:`Person`) RETURN ${elementIdFn(neo4j, "n")} AS `<elementId>`", query)
+    assertEquals(s"${prefix}MATCH (n:`Person`) RETURN elementId(n) AS `<elementId>`", query)
   }
 
   @Test
@@ -291,7 +291,7 @@ class Neo4jQueryServiceTest {
     assertEquals(
       s"${prefix}MATCH (source:`Person`) " +
         "MATCH (target:`Person`) " +
-        s"MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, ${elementIdFn(neo4j, "source")} AS `<source.elementId>`",
+        s"MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, elementId(source) AS `<source.elementId>`",
       query
     )
   }
@@ -321,7 +321,7 @@ class Neo4jQueryServiceTest {
       s"""${prefix}MATCH (source:`Person`)
          |MATCH (target:`Person`)
          |MATCH (source)-[rel:`KNOWS`]->(target)
-         |RETURN source.name AS `source.name`, ${elementIdFn(neo4j, "source")} AS `<source.elementId>`
+         |RETURN source.name AS `source.name`, elementId(source) AS `<source.elementId>`
          |LIMIT 100"""
         .stripMargin
         .replace(System.lineSeparator(), " "),
@@ -996,8 +996,6 @@ class Neo4jQueryServiceTest {
 
   def versions_and_prefixes(): Array[Array[Any]] = {
     Array(
-      Array(neo4j(version(4, 4), COMMUNITY), ""),
-      Array(neo4j(version(4, 4), ENTERPRISE), ""),
       Array(neo4j(version(5, 0), COMMUNITY), ""),
       Array(neo4j(version(5, 0), ENTERPRISE), ""),
       Array(neo4j(version(5, 21), COMMUNITY), "CYPHER 5 "),
@@ -1017,11 +1015,4 @@ class Neo4jQueryServiceTest {
     new Neo4jVersion(major, minor, 0)
   }
 
-  private def elementIdFn(neo4j: Neo4j, varName: String): String = {
-    if (neo4j.getVersion.compareTo(new Neo4jVersion(5, 0, 0)) < 0) {
-      s"toString(id($varName))"
-    } else {
-      s"elementId($varName)"
-    }
-  }
 }
