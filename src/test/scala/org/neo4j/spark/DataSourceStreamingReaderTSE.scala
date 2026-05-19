@@ -19,30 +19,28 @@ package org.neo4j.spark
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.streaming.Trigger
-import org.hamcrest.Matchers
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Rule
-import org.junit.Test
-import org.junit.rules.TemporaryFolder
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import org.neo4j.spark.testsupport.Assert
 import org.neo4j.spark.testsupport.Closeables.use
 import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-import scala.annotation.meta.getter
-
 class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
 
-  @(Rule @getter)
-  val folder: TemporaryFolder = new TemporaryFolder()
+  @TempDir
+  var folder: Path = _
 
   private var query: StreamingQuery = _
 
-  @After
+  @AfterEach
   def close(): Unit = {
     if (query != null) {
       query.stop()
@@ -81,12 +79,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
-        override def get(): Seq[Map[String, Any]] = {
-          selectRowsFromTable("select * from readStreamWithLabels order by timestamp", mapMovie)
-        }
+      expected,
+      () => {
+        selectRowsFromTable("select * from readStreamWithLabels order by timestamp", mapMovie)
       },
-      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -123,12 +119,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     )
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
-        override def get(): Seq[Map[String, Any]] = {
-          selectRowsFromTable("select * from readStreamWithLabelsAll order by timestamp", mapMovie)
-        }
+      expected,
+      () => {
+        selectRowsFromTable("select * from readStreamWithLabelsAll order by timestamp", mapMovie)
       },
-      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -153,11 +147,11 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       )
     )
 
-    val checkpoint = folder.newFolder()
+    val checkpoint = Files.createTempDirectory(folder, "checkpoint").toAbsolutePath.toString
 
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .option("checkpointLocation", checkpoint)
       .toTable("readStreamWithLabelsCheckpoint")
       .awaitTermination()
 
@@ -168,7 +162,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     // fetch whatever is available
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .option("checkpointLocation", checkpoint)
       .toTable("readStreamWithLabelsCheckpoint")
       .awaitTermination()
 
@@ -178,7 +172,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     // fetch rest of the items from where we left off
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .option("checkpointLocation", checkpoint)
       .toTable("readStreamWithLabelsCheckpoint")
       .awaitTermination()
 
@@ -226,12 +220,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
-        override def get(): Seq[Map[String, Any]] = {
-          selectRowsFromTable("select * from readStreamWithRelationship order by `rel.timestamp`", mapLikes)
-        }
+      expected,
+      () => {
+        selectRowsFromTable("select * from readStreamWithRelationship order by `rel.timestamp`", mapLikes)
       },
-      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -274,12 +266,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
-        override def get(): Seq[Map[String, Any]] = {
-          selectRowsFromTable("select * from readStreamWithRelationshipAll order by `rel.timestamp`", mapLikes)
-        }
+      expected,
+      () => {
+        selectRowsFromTable("select * from readStreamWithRelationshipAll order by `rel.timestamp`", mapLikes)
       },
-      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -310,11 +300,11 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       )
     )
 
-    val checkpoint = folder.newFolder()
+    val checkpoint = Files.createTempDirectory(folder, "checkpoint")
 
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .option("checkpointLocation", checkpoint.toAbsolutePath.toString)
       .toTable("readStreamWithRelationshipCheckpoint")
       .awaitTermination()
 
@@ -325,7 +315,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     // fetch whatever is available
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .option("checkpointLocation", checkpoint.toAbsolutePath.toString)
       .toTable("readStreamWithRelationshipCheckpoint")
       .awaitTermination()
 
@@ -335,7 +325,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     // fetch rest of the items from where we left off
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .option("checkpointLocation", checkpoint.toAbsolutePath.toString)
       .toTable("readStreamWithRelationshipCheckpoint")
       .awaitTermination()
 
@@ -389,12 +379,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
-        override def get(): Seq[Map[String, Any]] = {
-          selectRowsFromTable("select * from readStreamWithQuery order by timestamp", mapPerson)
-        }
+      expected,
+      () => {
+        selectRowsFromTable("select * from readStreamWithQuery order by timestamp", mapPerson)
       },
-      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -444,12 +432,10 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     })
 
     Assert.assertEventually(
-      new Assert.ThrowingSupplier[Seq[Map[String, Any]], Exception] {
-        override def get(): Seq[Map[String, Any]] = {
-          selectRowsFromTable("select * from readStreamWithQueryAll order by timestamp", mapPerson)
-        }
+      expected,
+      () => {
+        selectRowsFromTable("select * from readStreamWithQueryAll order by timestamp", mapPerson)
       },
-      Matchers.equalTo(expected),
       30L,
       TimeUnit.SECONDS
     )
@@ -487,11 +473,11 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       )
     ).toList
 
-    val checkpoint = folder.newFolder()
+    val checkpoint = Files.createTempDirectory(folder, "checkpoint")
 
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .option("checkpointLocation", checkpoint.toAbsolutePath.toString)
       .toTable("readStreamWithQueryCheckpoint")
       .awaitTermination()
 
@@ -502,7 +488,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     // fetch whatever is available
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .option("checkpointLocation", checkpoint.toAbsolutePath.toString)
       .toTable("readStreamWithQueryCheckpoint")
       .awaitTermination()
 
@@ -512,7 +498,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     // fetch rest of the items from where we left off
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .option("checkpointLocation", checkpoint.toAbsolutePath.toString)
       .toTable("readStreamWithQueryCheckpoint")
       .awaitTermination()
 
@@ -554,11 +540,11 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
       )
     ).toList
 
-    val checkpoint = folder.newFolder()
+    val checkpoint = Files.createTempDirectory(folder, "checkpoint")
 
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .option("checkpointLocation", checkpoint.toAbsolutePath.toString)
       .toTable("readStreamWithQueryCheckpointNewParams")
       .awaitTermination()
 
@@ -569,7 +555,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     // fetch whatever is available
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .option("checkpointLocation", checkpoint.toAbsolutePath.toString)
       .toTable("readStreamWithQueryCheckpointNewParams")
       .awaitTermination()
 
@@ -579,7 +565,7 @@ class DataSourceStreamingReaderTSE extends SparkConnectorScalaBaseTSE {
     // fetch rest of the items from where we left off
     stream.writeStream
       .trigger(Trigger.AvailableNow())
-      .option("checkpointLocation", checkpoint.getAbsolutePath)
+      .option("checkpointLocation", checkpoint.toAbsolutePath.toString)
       .toTable("readStreamWithQueryCheckpointNewParams")
       .awaitTermination()
 

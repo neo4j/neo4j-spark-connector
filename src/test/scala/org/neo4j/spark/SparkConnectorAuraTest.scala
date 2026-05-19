@@ -18,12 +18,12 @@ package org.neo4j.spark
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.junit.AfterClass
-import org.junit.Assert._
-import org.junit.Assume.assumeTrue
-import org.junit.Before
-import org.junit.BeforeClass
-import org.junit.Test
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.neo4j.driver._
 import org.neo4j.spark.SparkConnectorAuraTest._
 import org.neo4j.spark.testsupport.Closeables.use
@@ -37,7 +37,7 @@ object SparkConnectorAuraTest {
 
   var sparkSession: SparkSession = _
 
-  @BeforeClass
+  @BeforeAll
   def setUpClass(): Unit = {
     assumeTrue(username.isDefined)
     assumeTrue(password.isDefined)
@@ -53,7 +53,7 @@ object SparkConnectorAuraTest {
     neo4j = GraphDatabase.driver(url.get, AuthTokens.basic(username.get, password.get))
   }
 
-  @AfterClass
+  @AfterAll
   def tearDown(): Unit = {
     TestUtil.closeSafely(neo4j)
     TestUtil.closeSafely(sparkSession)
@@ -66,7 +66,7 @@ class SparkConnectorAuraTest {
 
   import ss.implicits._
 
-  @Before
+  @BeforeEach
   def setUp(): Unit = {
     use(neo4j.session(SessionConfig.forDatabase("system"))) {
       session =>

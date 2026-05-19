@@ -17,9 +17,8 @@
 package org.neo4j.spark.util
 
 import org.apache.spark.sql.SparkSession
-import org.junit
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
 
 class ValidationsTest extends SparkConnectorScalaBaseTSE {
@@ -63,13 +62,13 @@ class ValidationsTest extends SparkConnectorScalaBaseTSE {
   @Test
   def testVersionShouldValidateTheVersion(): Unit = {
     val version = ValidateSparkMinVersion("2.3.0")
-    junit.Assert.assertTrue(version.isSupported("2.3.0-amzn-1"))
-    junit.Assert.assertTrue(version.isSupported("2.3.1-amzn-1"))
-    junit.Assert.assertTrue(version.isSupported("3.3.0-amzn-1"))
-    junit.Assert.assertTrue(version.isSupported("3.3.0"))
-    junit.Assert.assertTrue(version.isSupported("3.1.0"))
-    junit.Assert.assertTrue(version.isSupported("3.2.0"))
-    junit.Assert.assertFalse(version.isSupported("2.2.10"))
+    assertTrue(version.isSupported("2.3.0-amzn-1"))
+    assertTrue(version.isSupported("2.3.1-amzn-1"))
+    assertTrue(version.isSupported("3.3.0-amzn-1"))
+    assertTrue(version.isSupported("3.3.0"))
+    assertTrue(version.isSupported("3.1.0"))
+    assertTrue(version.isSupported("3.2.0"))
+    assertFalse(version.isSupported("2.2.10"))
   }
 
 }

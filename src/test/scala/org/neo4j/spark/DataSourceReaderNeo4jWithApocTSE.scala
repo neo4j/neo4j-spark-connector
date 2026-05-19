@@ -17,7 +17,7 @@
 package org.neo4j.spark
 
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.neo4j.driver.SessionConfig
 import org.neo4j.driver.TransactionContext
 import org.neo4j.spark.testsupport.SparkConnectorScalaBaseWithApocTSE

@@ -19,11 +19,11 @@ package org.neo4j.spark.service
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
-import org.junit.Assert._
-import org.junit.Before
-import org.junit.FixMethodOrder
-import org.junit.Test
-import org.junit.runners.MethodSorters
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestMethodOrder
 import org.neo4j.driver.TransactionContext
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.testsupport.Closeables.use
@@ -37,10 +37,9 @@ import org.neo4j.spark.util.QueryType
 
 import java.util
 
-@FixMethodOrder(MethodSorters.JVM)
 class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
 
-  @Before
+  @BeforeEach
   def beforeEach(): Unit = {
     use(SparkConnectorScalaSuiteIT.session("system")) {
       session =>

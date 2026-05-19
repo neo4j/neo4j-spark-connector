@@ -16,29 +16,24 @@
  */
 package org.neo4j.spark.service
 
-import org.junit.Test
-import org.junit.runner.RunWith
+import org.junit.jupiter.api.Test
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers._
+import org.mockito.Mockito
 import org.mockito.Mockito.times
+import org.neo4j.driver.AuthToken
 import org.neo4j.driver.AuthTokenManager
 import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.Config
+import org.neo4j.driver.Driver
 import org.neo4j.driver.GraphDatabase
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
-import org.powermock.api.mockito.PowerMockito
-import org.powermock.core.classloader.annotations.PowerMockIgnore
-import org.powermock.core.classloader.annotations.PrepareForTest
-import org.powermock.modules.junit4.PowerMockRunner
 import org.testcontainers.shaded.com.google.common.io.BaseEncoding
 
 import java.net.URI
 import java.util
 
-@PrepareForTest(Array(classOf[GraphDatabase]))
-@RunWith(classOf[PowerMockRunner])
-@PowerMockIgnore(Array("javax.management.*"))
 class AuthenticationTest {
 
   @Test
@@ -50,18 +45,7 @@ class AuthenticationTest {
     options.put("authentication.custom.credentials", token)
     options.put("labels", "Person")
 
-    val neo4jOptions = new Neo4jOptions(options)
-    val neo4jDriverOptions = neo4jOptions.connection
-    val driverCache = new DriverCache(neo4jDriverOptions)
-
-    PowerMockito.spy(classOf[GraphDatabase])
-
-    driverCache.getOrCreate()
-
-    PowerMockito.verifyStatic(classOf[GraphDatabase], times(1))
-    val managerCaptor = ArgumentCaptor.forClass(classOf[AuthTokenManager])
-    GraphDatabase.driver(any[URI](), managerCaptor.capture(), any[Config]())
-    assert(AuthTokens.custom("", token, "", "") == managerCaptor.getValue.getToken.toCompletableFuture.join())
+    stubGraphDatabaseConnectionCallAndAssertToken(options, AuthTokens.custom("", token, "", ""))
   }
 
   @Test
@@ -72,17 +56,28 @@ class AuthenticationTest {
     options.put("authentication.type", "bearer")
     options.put("authentication.bearer.token", token)
 
+    stubGraphDatabaseConnectionCallAndAssertToken(options, AuthTokens.bearer(token))
+  }
+
+  def stubGraphDatabaseConnectionCallAndAssertToken(options: java.util.Map[String, String], token: AuthToken): Unit = {
     val neo4jOptions = new Neo4jOptions(options)
     val neo4jDriverOptions = neo4jOptions.connection
     val driverCache = new DriverCache(neo4jDriverOptions)
+    val mockedGraphDatabase = Mockito.mockStatic(classOf[GraphDatabase])
+    try {
+      mockedGraphDatabase.when(() => GraphDatabase.driver(any[URI](), any[AuthTokenManager](), any[Config]()))
+        .thenReturn(Mockito.mock(classOf[Driver]))
 
-    PowerMockito.spy(classOf[GraphDatabase])
+      driverCache.getOrCreate()
 
-    driverCache.getOrCreate()
-
-    PowerMockito.verifyStatic(classOf[GraphDatabase], times(1))
-    val managerCaptor = ArgumentCaptor.forClass(classOf[AuthTokenManager])
-    GraphDatabase.driver(any[URI](), managerCaptor.capture(), any[Config]())
-    assert(AuthTokens.bearer(token) == managerCaptor.getValue.getToken.toCompletableFuture.join())
+      val managerCaptor = ArgumentCaptor.forClass(classOf[AuthTokenManager])
+      mockedGraphDatabase.verify(
+        () => GraphDatabase.driver(any[URI](), managerCaptor.capture(), any[Config]()),
+        times(1)
+      )
+      assert(token == managerCaptor.getValue.getToken.toCompletableFuture.join())
+    } finally {
+      mockedGraphDatabase.close()
+    }
   }
 }
