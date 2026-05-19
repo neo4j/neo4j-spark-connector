@@ -16,10 +16,9 @@
  */
 package org.neo4j.spark.util
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Ignore
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Test
 import org.neo4j.spark.testsupport.Closeables.use
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT.server
@@ -44,7 +43,7 @@ class Neo4jOptionsIT extends SparkConnectorScalaSuiteIT {
   }
 
   @Test
-  @Ignore("This requires a fix on driver, ignoring until it is implemented")
+  @Disabled("This requires a fix on driver, ignoring until it is implemented")
   def shouldConstructDriverWithResolver(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(

@@ -24,9 +24,8 @@ import org.apache.spark.sql.sources.EqualTo
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
-import org.junit.Assert
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 import org.neo4j.spark.util.Neo4jImplicits._
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
@@ -189,7 +188,7 @@ class Neo4jImplicitsTest {
       "key.innerKey.innerKey2" -> "value"
     )
     val actual = input.flattenMap()
-    Assert.assertEquals(expected, actual)
+    assertEquals(expected, actual)
   }
 
   @Test
@@ -206,7 +205,7 @@ class Neo4jImplicitsTest {
       "my.inner.key" -> 42
     )
     val actual = input.flattenMap()
-    Assert.assertEquals(expected, actual)
+    assertEquals(expected, actual)
   }
 
   @Test
@@ -223,7 +222,7 @@ class Neo4jImplicitsTest {
       "my.inner.key" -> Seq(42424242, 424242, 4242, 42).asJava
     )
     val actual = input.flattenMap(groupDuplicateKeys = true)
-    Assert.assertEquals(expected, actual)
+    assertEquals(expected, actual)
   }
 
   @Test
@@ -238,7 +237,7 @@ class Neo4jImplicitsTest {
     )
     val expected = Seq("my.inner.key", "my.inner.key", "my.inner.key", "my.inner.key")
     val actual = input.flattenKeys()
-    Assert.assertEquals(expected, actual)
+    assertEquals(expected, actual)
   }
 
   @Test
@@ -269,7 +268,7 @@ class Neo4jImplicitsTest {
         ).asJava
       ).asJava
     ).asJava
-    Assert.assertEquals(expected, actual)
+    assertEquals(expected, actual)
 
     val ucActual = Map(
       "graphName" -> "myGraph",
@@ -285,6 +284,6 @@ class Neo4jImplicitsTest {
         ).asJava
       ).asJava
     ).asJava
-    Assert.assertEquals(ucExpected, ucActual)
+    assertEquals(ucExpected, ucActual)
   }
 }

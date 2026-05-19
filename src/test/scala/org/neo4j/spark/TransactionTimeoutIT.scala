@@ -17,12 +17,10 @@
 package org.neo4j.spark
 
 import org.apache.spark.sql.SparkSession
-import org.junit.AfterClass
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
-import org.junit.Assert.assertTrue
-import org.junit.BeforeClass
-import org.junit.Test
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Test
 import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.spark.TransactionTimeoutIT.NEO4J_LOW_TX_TIMEOUT
 import org.neo4j.spark.testsupport.Neo4jContainerExtension
@@ -140,12 +138,12 @@ object TransactionTimeoutIT {
     .withNeo4jConfig("db.transaction.timeout", "10s")
     .withDatabases(Seq("db1", "db2"))
 
-  @BeforeClass
+  @BeforeAll
   def setUp(): Unit = {
     NEO4J_LOW_TX_TIMEOUT.start()
   }
 
-  @AfterClass
+  @AfterAll
   def tearDown() = {
     TestUtil.closeSafely(NEO4J_LOW_TX_TIMEOUT)
   }

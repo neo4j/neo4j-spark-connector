@@ -16,137 +16,169 @@
  */
 package org.neo4j.spark.util
 
-import org.hamcrest.CoreMatchers
-import org.junit.Rule
-import org.junit.Test
-import org.junit.rules.ExpectedException
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 import org.neo4j.driver.AccessMode
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT.neo4j
 
-import scala.annotation.meta.getter
-
 class ValidationsIT extends SparkConnectorScalaSuiteIT {
-
-  @(Rule @getter)
-  val expectedException: ExpectedException = ExpectedException.none
 
   @Test
   def testReadQueryShouldBeSyntacticallyInvalid(): Unit = {
-    // then
-    expectedException.expect(classOf[IllegalArgumentException])
-    expectedException.expectMessage(
-      CoreMatchers.containsString("Query not compiled for the following exception: ClientException: Invalid input ")
-    )
-    val query = "MATCH (f{) RETURN f"
-    expectedException.expectMessage(CoreMatchers.containsString(query))
-
     // given
     val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    val query = "MATCH (f{) RETURN f"
     readOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
     readOpts.put("query", query)
 
-    // when
-    Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
+    // when & then
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      () => {
+        Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
+      }
+    )
+    assertTrue(
+      exception.getMessage.contains(
+        "Query not compiled for the following exception: ClientException: Invalid input "
+      )
+    )
+    assertTrue(
+      exception.getMessage.contains(query)
+    )
   }
 
   @Test
   def testReadQueryShouldBeSemanticallyInvalid(): Unit = {
-    // then
-    val query = "MERGE (n:TestNode{id: 1}) RETURN n"
-    expectedException.expect(classOf[IllegalArgumentException])
-    expectedException.expectMessage(
-      s"Invalid query `$query` because the accepted types are [READ_ONLY], but the actual type is READ_WRITE"
-    )
-
     // given
+    val query = "MERGE (n:TestNode{id: 1}) RETURN n"
     val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     readOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
     readOpts.put("query", query)
 
-    // when
-    Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
+    // when & then
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      () => {
+        Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
+      }
+    )
+    assertTrue(
+      exception.getMessage.contains(
+        s"Invalid query `$query` because the accepted types are [READ_ONLY], but the actual type is READ_WRITE"
+      )
+    )
   }
 
   @Test
   def testReadQueryCountBeSyntacticallyInvalid(): Unit = {
-    // then
-    val query = "MATCH (f{) RETURN f"
-    expectedException.expect(classOf[IllegalArgumentException])
-    expectedException.expectMessage(CoreMatchers.containsString(
-      "Query count not compiled for the following exception: ClientException: Invalid input "
-    ))
-    expectedException.expectMessage(CoreMatchers.containsString(s"EXPLAIN $query"))
-
     // given
+    val query = "MATCH (f{) RETURN f"
     val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     readOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
     readOpts.put("query", "MATCH (f) RETURN f")
     readOpts.put("query.count", query)
 
-    // when
-    Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
+    // when & then
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      () => {
+        Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
+      }
+    )
+    assertTrue(
+      exception.getMessage.contains(
+        "Query count not compiled for the following exception: ClientException: Invalid input "
+      )
+    )
+    assertTrue(
+      exception.getMessage.contains(s"EXPLAIN $query")
+    )
   }
 
   @Test
   def testScriptQueryCountShouldContainAnInvalidQuery(): Unit = {
-    // then
-    expectedException.expect(classOf[IllegalArgumentException])
-    expectedException.expectMessage(
-      CoreMatchers.containsString("The following queries inside the `script` are not valid,")
-    )
-    expectedException.expectMessage(
-      CoreMatchers.containsString("Query not compiled for the following exception: ClientException: Invalid input ")
-    )
-    expectedException.expectMessage(CoreMatchers.containsString("EXPLAIN RETUR 2 AS two"))
-
     // given
     val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     readOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
     readOpts.put("query", "MATCH (f) RETURN f")
     readOpts.put("script", "RETURN 1 AS one; RETUR 2 AS two; RETURN 3 AS three")
 
-    // when
-    Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
+    // when & then
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      () => {
+        Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
+      }
+    )
+    assertTrue(
+      exception.getMessage.contains(
+        "The following queries inside the `script` are not valid,"
+      )
+    )
+
+    assertTrue(
+      exception.getMessage.contains(
+        "Query not compiled for the following exception: ClientException: Invalid input "
+      )
+    )
+
+    assertTrue(
+      exception.getMessage.contains(
+        "EXPLAIN RETUR 2 AS two"
+      )
+    )
+
   }
 
   @Test
   def testWriteQueryShouldBeSyntacticallyInvalid(): Unit = {
-    // then
-    val query = "MERGE (f{) RETURN f"
-    expectedException.expect(classOf[IllegalArgumentException])
-    expectedException.expectMessage(
-      CoreMatchers.containsString("Query not compiled for the following exception: ClientException: Invalid input ")
-    )
-    expectedException.expectMessage(CoreMatchers.containsString(query))
-
     // given
+    val query = "MERGE (f{) RETURN f"
     val writeOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     writeOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
     writeOpts.put(Neo4jOptions.ACCESS_MODE, AccessMode.WRITE.toString)
     writeOpts.put("query", query)
 
-    // when
-    Validations.validate(ValidateWrite(neo4j, new Neo4jOptions(writeOpts), "1", null))
+    // when & then
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      () => {
+        Validations.validate(ValidateWrite(neo4j, new Neo4jOptions(writeOpts), "1", null))
+      }
+    )
+    assertTrue(
+      exception.getMessage.contains(
+        "Query not compiled for the following exception: ClientException: Invalid input "
+      )
+    )
+    assertTrue(
+      exception.getMessage.contains(query)
+    )
   }
 
   @Test
   def testWriteQueryShouldBeSemanticallyInvalid(): Unit = {
-    // then
-    val query = "MATCH (n:TestNode{id: 1}) RETURN n"
-    expectedException.expect(classOf[IllegalArgumentException])
-    expectedException.expectMessage(
-      s"Invalid query `$query` because the accepted types are [WRITE_ONLY, READ_WRITE], but the actual type is READ_ONLY"
-    )
-
     // given
+    val query = "MATCH (n:TestNode{id: 1}) RETURN n"
     val writeOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     writeOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
     writeOpts.put(Neo4jOptions.ACCESS_MODE, AccessMode.WRITE.toString)
     writeOpts.put("query", query)
 
-    // when
-    Validations.validate(ValidateWrite(neo4j, new Neo4jOptions(writeOpts), "1", null))
+    // when & then
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      () => {
+        Validations.validate(ValidateWrite(neo4j, new Neo4jOptions(writeOpts), "1", null))
+      }
+    )
+    assertTrue(
+      exception.getMessage.contains(
+        s"Invalid query `$query` because the accepted types are [WRITE_ONLY, READ_WRITE], but the actual type is READ_ONLY"
+      )
+    )
   }
 
 }
