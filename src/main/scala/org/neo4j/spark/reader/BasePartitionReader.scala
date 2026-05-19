@@ -26,7 +26,6 @@ import org.neo4j.driver.Record
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.Values
-import org.neo4j.spark.cypher.CypherPreamble
 import org.neo4j.spark.service._
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions

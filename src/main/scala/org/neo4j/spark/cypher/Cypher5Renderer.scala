@@ -23,7 +23,7 @@ import org.neo4j.cypherdsl.core.renderer.Configuration
 import org.neo4j.cypherdsl.core.renderer.Dialect
 import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.cypher.Cypher5Renderer.Neo4jV5
-import org.neo4j.spark.cypher.CypherPreamble.generatePreamble
+import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.util.Neo4jTuningOptions
 
 class Cypher5Renderer(neo4j: Neo4j, tuning: Neo4jTuningOptions) extends Renderer {
@@ -43,7 +43,7 @@ class Cypher5Renderer(neo4j: Neo4j, tuning: Neo4jTuningOptions) extends Renderer
 
   override def render(statement: Statement): String = {
     val rendered = delegate.render(statement)
-    s"${generatePreamble(neo4j, tuning)}$rendered"
+    s"${fullPreamble(neo4j, tuning)}$rendered"
   }
 
 }

@@ -23,19 +23,43 @@ import org.neo4j.spark.util.Neo4jTuningOptions
 
 object CypherPreamble {
 
-  def generatePreamble(neo4j: Neo4j, tuning: Neo4jTuningOptions): String = {
-    val cypherVersionClause = if (canIUse(Cypher.explicitCypher5Selection()).withNeo4j(neo4j)) {
+  def fullPreamble(neo4j: Neo4j, tuningOptions: Neo4jTuningOptions): String = {
+    val version = versionPreamble(neo4j)
+    val tuning = tuningPreamble(tuningOptions)
+
+    if (tuning.isEmpty) {
+      s"$version"
+    } else {
+      s"$tuning\n$version"
+    }
+  }
+
+  def versionPreamble(neo4j: Neo4j): String = {
+    if (canIUse(Cypher.explicitCypher5Selection()).withNeo4j(neo4j)) {
       "CYPHER 5 "
     } else {
       ""
     }
+  }
 
-    val cypherTuningClause = ""
+  def tuningPreamble(tuningOptions: Neo4jTuningOptions): String = {
+    val cypher = "CYPHER "
 
-    if (cypherTuningClause.isEmpty) {
-      s"$cypherVersionClause"
-    } else {
-      s"$cypherTuningClause\n$cypherVersionClause"
-    }
+    val clause = tuningOptions.toMap
+      .filter { case (_, value) => value.nonEmpty }
+      .map { case (key, value) =>
+        if (!Neo4jTuningOptions.validTuningParameters.getOrElse(key, Set.empty).contains(value)) {
+          throw new IllegalArgumentException(
+            s"Found and stopped at first invalid tuning parameter for spark connector: $key=$value"
+          )
+        }
+        s"$key=$value"
+      }
+      .mkString(cypher, " ", "")
+
+    if (clause.equals(cypher))
+      ""
+    else
+      clause
   }
 }
