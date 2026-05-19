@@ -57,7 +57,8 @@ class Neo4jQueryServiceTest {
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, neo4jOptions.tuning)).createQuery()
 
     assertEquals(s"${prefix}MATCH (n:`Person`) RETURN n", query)
   }
@@ -70,7 +71,8 @@ class Neo4jQueryServiceTest {
     options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, neo4jOptions.tuning)).createQuery()
 
     assertEquals(s"${prefix}MATCH (n:`Person`:`Player`:`Midfield`) RETURN n", query)
   }
@@ -87,6 +89,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         partitionPagination = PartitionPagination(0, 0, TopN(100))
       )
     ).createQuery()
@@ -104,7 +107,13 @@ class Neo4jQueryServiceTest {
 
     val query: String = new Neo4jQueryService(
       neo4jOptions,
-      new Neo4jQueryReadStrategy(neo4j, Array.empty[Filter], PartitionPagination.EMPTY, Seq("name"))
+      new Neo4jQueryReadStrategy(
+        neo4j,
+        neo4jOptions.tuning,
+        Array.empty[Filter],
+        PartitionPagination.EMPTY,
+        Seq("name")
+      )
     ).createQuery()
 
     assertEquals(s"${prefix}MATCH (n:`Person`) RETURN n.name AS name", query)
@@ -120,7 +129,13 @@ class Neo4jQueryServiceTest {
 
     val query: String = new Neo4jQueryService(
       neo4jOptions,
-      new Neo4jQueryReadStrategy(neo4j, Array.empty[Filter], PartitionPagination.EMPTY, List("name", "bornDate"))
+      new Neo4jQueryReadStrategy(
+        neo4j,
+        neo4jOptions.tuning,
+        Array.empty[Filter],
+        PartitionPagination.EMPTY,
+        List("name", "bornDate")
+      )
     ).createQuery()
 
     assertEquals(s"${prefix}MATCH (n:`Person`) RETURN n.name AS name, n.bornDate AS bornDate", query)
@@ -136,7 +151,13 @@ class Neo4jQueryServiceTest {
 
     val query: String = new Neo4jQueryService(
       neo4jOptions,
-      new Neo4jQueryReadStrategy(neo4j, Array.empty[Filter], PartitionPagination.EMPTY, List("<elementId>"))
+      new Neo4jQueryReadStrategy(
+        neo4j,
+        neo4jOptions.tuning,
+        Array.empty[Filter],
+        PartitionPagination.EMPTY,
+        List("<elementId>")
+      )
     ).createQuery()
 
     assertEquals(s"${prefix}MATCH (n:`Person`) RETURN elementId(n) AS `<elementId>`", query)
@@ -154,7 +175,8 @@ class Neo4jQueryServiceTest {
       EqualTo("name", "John Doe")
     )
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, filters)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, neo4jOptions.tuning, filters)).createQuery()
 
     val paramName = "$" + "name".toParameterName("John Doe")
 
@@ -174,7 +196,8 @@ class Neo4jQueryServiceTest {
       EqualTo("age", 36)
     )
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, filters)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, neo4jOptions.tuning, filters)).createQuery()
 
     val nameParameterName = "$" + "name".toParameterName("John Doe")
     val ageParameterName = "$" + "age".toParameterName(36)
@@ -201,7 +224,8 @@ class Neo4jQueryServiceTest {
       EqualTo("age", 36)
     )
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, filters)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, neo4jOptions.tuning, filters)).createQuery()
 
     val nameParameterName = "$" + "name".toParameterName(null)
     val ageParameterName = "$" + "age".toParameterName(36)
@@ -225,7 +249,8 @@ class Neo4jQueryServiceTest {
       StringEndsWith("name", "Person Surname")
     )
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, filters)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, neo4jOptions.tuning, filters)).createQuery()
 
     val nameOneParameterName = "$" + "name".toParameterName("Person Name")
     val nameTwoParameterName = "$" + "name".toParameterName("Person Surname")
@@ -254,6 +279,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         List("source.name")
@@ -283,6 +309,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         List("source.name", "<source.elementId>")
@@ -312,6 +339,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty[Filter],
         PartitionPagination(0, 0, TopN(limit = 100)),
         List("source.name", "<source.elementId>")
@@ -345,6 +373,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         List("source.name", "source.id", "rel.someprops", "target.date")
@@ -374,7 +403,8 @@ class Neo4jQueryServiceTest {
       EqualTo("source.name", "John Doe")
     )
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, filters)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, neo4jOptions.tuning, filters)).createQuery()
 
     val parameterName = "$" + "source.name".toParameterName("John Doe")
 
@@ -401,7 +431,8 @@ class Neo4jQueryServiceTest {
       Or(EqualTo("source.name", "John Doe"), EqualTo("target.name", "John Doe"))
     )
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, filters)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, neo4jOptions.tuning, filters)).createQuery()
 
     val paramOneName = "$" + "source.name".toParameterName("John Doe")
     val paramTwoName = "$" + "target.name".toParameterName("John Doe")
@@ -430,7 +461,8 @@ class Neo4jQueryServiceTest {
       EqualTo("target.id", "16")
     )
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, filters)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, neo4jOptions.tuning, filters)).createQuery()
 
     val sourceIdParameterName = "$" + "source.id".toParameterName(14)
     val targetIdParameterName = "$" + "target.id".toParameterName(16)
@@ -460,7 +492,8 @@ class Neo4jQueryServiceTest {
       Or(Not(EqualTo("age", 22)), Not(LessThan("age", 11)))
     )
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, filters)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, neo4jOptions.tuning, filters)).createQuery()
 
     val parameterNames: Map[String, String] = HashMap(
       "name_1" -> "$".concat("name".toParameterName("John Doe")),
@@ -501,7 +534,8 @@ class Neo4jQueryServiceTest {
       EqualTo("rel.score", 12)
     )
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, filters)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, neo4jOptions.tuning, filters)).createQuery()
 
     val parameterNames = Map(
       "source.name_1" -> "$".concat("source.name".toParameterName("John Doe")),
@@ -548,7 +582,8 @@ class Neo4jQueryServiceTest {
       EqualTo("rel.score", 12)
     )
 
-    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, filters)).createQuery()
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, neo4jOptions.tuning, filters)).createQuery()
 
     val parameterNames = Map(
       "source.name_1" -> "$".concat("source.name".toParameterName("John Doe")),
@@ -667,6 +702,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         Seq("name", "SUM(DISTINCT age)", "SUM(age)"),
@@ -687,6 +723,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         Seq("name", "COUNT(DISTINCT name)", "COUNT(name)"),
@@ -706,6 +743,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         Seq("name", "MAX(age)", "MIN(age)"),
@@ -738,6 +776,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty,
         PartitionPagination.EMPTY,
         List("source.fullName", "SUM(DISTINCT `target.price`)", "SUM(`target.price`)"),
@@ -763,6 +802,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty,
         PartitionPagination.EMPTY,
         List("source.fullName", "COUNT(DISTINCT `target.id`)", "COUNT(`target.id`)"),
@@ -786,6 +826,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty,
         PartitionPagination.EMPTY,
         List("source.fullName", "MAX(`target.price`)", "MIN(`target.price`)"),
@@ -819,6 +860,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         partitionPagination = PartitionPagination(
           0,
           0,
@@ -851,6 +893,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         requiredColumns = Array("name"),
         partitionPagination = PartitionPagination(
           0,
@@ -887,6 +930,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty[Filter],
         PartitionPagination(
           0,
@@ -929,6 +973,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty[Filter],
         PartitionPagination(
           0,
@@ -971,6 +1016,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty[Filter],
         PartitionPagination(
           0,

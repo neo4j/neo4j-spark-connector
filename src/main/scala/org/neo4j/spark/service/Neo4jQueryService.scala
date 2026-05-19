@@ -29,9 +29,10 @@ import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core._
 import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.cypher.Cypher5Renderer
-import org.neo4j.spark.cypher.CypherVersionSelector.selectCypherVersionClause
+import org.neo4j.spark.cypher.CypherPreamble.generatePreamble
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.Neo4jTuningOptions
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.NodeSaveMode
 import org.neo4j.spark.util.QueryType
@@ -114,7 +115,7 @@ class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: Sa
       ""
     }
 
-    s"""${selectCypherVersionClause(neo4j)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
+    s"""${generatePreamble(neo4j, options.tuning)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$sourceQueryPart$withQueryPart
        |$targetQueryPart
        |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:$relationship$relKeys]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
@@ -134,7 +135,7 @@ class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: Sa
       Neo4jWriteMappingStrategy.KEYS
     )
 
-    s"""${selectCypherVersionClause(neo4j)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
+    s"""${generatePreamble(neo4j, options.tuning)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$keyword (node${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})
        |SET node += ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jWriteMappingStrategy.PROPERTIES}
        |""".stripMargin
@@ -146,13 +147,14 @@ class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: Sa
 
 class Neo4jQueryReadStrategy(
   neo4j: Neo4j,
+  tuning: Neo4jTuningOptions,
   filters: Array[Filter] = Array.empty[Filter],
   partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
   requiredColumns: Seq[String] = Seq.empty,
   aggregateColumns: Array[AggregateFunc] = Array.empty,
   jobId: String = ""
 ) extends Neo4jQueryStrategy with Logging {
-  private val renderer: Renderer = new Cypher5Renderer(neo4j)
+  private val renderer: Renderer = new Cypher5Renderer(neo4j, tuning)
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 

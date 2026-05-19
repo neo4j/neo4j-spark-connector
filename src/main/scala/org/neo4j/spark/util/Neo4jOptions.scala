@@ -143,6 +143,17 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       )
   }
 
+  val tuning: Neo4jTuningOptions = Neo4jTuningOptions(
+    getParameter(TUNING_EXPRESSION_ENGINE),
+    getParameter(TUNING_INFER_SCHEMA_PARTS),
+    getParameter(TUNING_INTERPRETED_PIPES_FALLBACK),
+    getParameter(TUNING_OPERATOR_ENGINE),
+    getParameter(TUNING_PLANNER),
+    getParameter(TUNING_REPLAN),
+    getParameter(TUNING_RUNTIME),
+    getParameter(TUNING_UPDATE_STRATEGY)
+  )
+
   val connection: Neo4jDriverOptions = Neo4jDriverOptions(
     getRequiredParameter(URL),
     getParameter(AUTH_TYPE, DEFAULT_AUTH_TYPE),
@@ -551,6 +562,17 @@ case class Neo4jDriverOptions(
 
 }
 
+case class Neo4jTuningOptions(
+  expressionEngine: String,
+  inferSchemaParts: String,
+  interpretedPipesFallback: String,
+  operatorEngine: String,
+  planner: String,
+  replan: String,
+  runtime: String,
+  updateStrategy: String
+)
+
 object Neo4jOptions {
 
   // connection options
@@ -645,6 +667,16 @@ object Neo4jOptions {
   val STREAMING_QUERY_OFFSET = "streaming.query.offset"
 
   val SCRIPT = "script"
+
+  // custom cypher tuning parameters
+  val TUNING_EXPRESSION_ENGINE = "tuning.expression.engine"
+  val TUNING_INFER_SCHEMA_PARTS = "tuning.infer.schema.parts"
+  val TUNING_INTERPRETED_PIPES_FALLBACK = "tuning.interpreted.pipes.fallback"
+  val TUNING_OPERATOR_ENGINE = "tuning.operator.engine"
+  val TUNING_PLANNER = "tuning.planner"
+  val TUNING_REPLAN = "tuning.replan"
+  val TUNING_RUNTIME = "tuning.runtime"
+  val TUNING_UPDATE_STRATEGY = "tuning.update.strategy"
 
   // defaults
   val DEFAULT_EMPTY = ""
@@ -760,4 +792,38 @@ object ConstraintsOptimizationType extends CaseInsensitiveEnumeration {
 
 object SchemaConstraintsOptimizationType extends CaseInsensitiveEnumeration {
   val TYPE, EXISTS, NONE = Value
+}
+
+// tuning allowed options
+// skipping deprecated `connectComponentsPlanner`
+object TuningRuntime extends CaseInsensitiveEnumeration {
+  val SLOTTED, PIPELINED, PARALLEL = Value
+}
+
+object TuningExpressionEngine extends CaseInsensitiveEnumeration {
+  val DEFAULT, INTERPRETED, COMPILED = Value
+}
+
+object TuningInferSchemaParts extends CaseInsensitiveEnumeration {
+  val OFF, MOST_SELECTIVE_LABEL = Value
+}
+
+object TuningInterpretedPipesFallback extends CaseInsensitiveEnumeration {
+  val DEFAULT, DISABLED, WHITELISTED_PLANS_ONLY, ALL = Value
+}
+
+object TuningOperatorEngine extends CaseInsensitiveEnumeration {
+  val DEFAULT, INTERPRETED, COMPILED = Value
+}
+
+object TuningPlanner extends CaseInsensitiveEnumeration {
+  val COST, IDP, DP = Value
+}
+
+object TuningReplan extends CaseInsensitiveEnumeration {
+  val DEFAULT, FORCE, SKIP = Value
+}
+
+object TuningUpdateStrategy extends CaseInsensitiveEnumeration {
+  val DEFAULT, EAGER = Value
 }
