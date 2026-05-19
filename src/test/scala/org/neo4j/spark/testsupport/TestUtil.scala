@@ -48,7 +48,6 @@ object Versions {
 
   val GDS_2_4: Version = Version(2, 4, 0)
   val GDS_2_5: Version = Version(2, 5, 0)
-  val NEO4J_4_4: Version = Version(4, 4, 0)
   val NEO4J_5: Version = Version(5, 0, 0)
   val NEO4J_5_13: Version = Version(5, 13, 0)
 

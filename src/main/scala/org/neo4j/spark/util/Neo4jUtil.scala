@@ -42,7 +42,7 @@ import scala.annotation.tailrec
 object Neo4jUtil {
 
   val NODE_ALIAS = "n"
-  private val INTERNAL_ID_FIELD_NAME = "id"
+  private val INTERNAL_ID_FIELD_NAME = "elementId"
   val INTERNAL_ID_FIELD = s"<${INTERNAL_ID_FIELD_NAME}>"
   private val INTERNAL_LABELS_FIELD_NAME = "labels"
   val INTERNAL_LABELS_FIELD = s"<${INTERNAL_LABELS_FIELD_NAME}>"

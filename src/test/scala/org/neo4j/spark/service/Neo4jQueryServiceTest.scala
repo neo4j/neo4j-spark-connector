@@ -136,10 +136,10 @@ class Neo4jQueryServiceTest {
 
     val query: String = new Neo4jQueryService(
       neo4jOptions,
-      new Neo4jQueryReadStrategy(neo4j, Array.empty[Filter], PartitionPagination.EMPTY, List("<id>"))
+      new Neo4jQueryReadStrategy(neo4j, Array.empty[Filter], PartitionPagination.EMPTY, List("<elementId>"))
     ).createQuery()
 
-    assertEquals(s"${prefix}MATCH (n:`Person`) RETURN id(n) AS `<id>`", query)
+    assertEquals(s"${prefix}MATCH (n:`Person`) RETURN elementId(n) AS `<elementId>`", query)
   }
 
   @ParameterizedTest
@@ -285,14 +285,14 @@ class Neo4jQueryServiceTest {
         neo4j,
         Array.empty[Filter],
         PartitionPagination.EMPTY,
-        List("source.name", "<source.id>")
+        List("source.name", "<source.elementId>")
       )
     ).createQuery()
 
     assertEquals(
       s"${prefix}MATCH (source:`Person`) " +
         "MATCH (target:`Person`) " +
-        "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, id(source) AS `<source.id>`",
+        s"MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, elementId(source) AS `<source.elementId>`",
       query
     )
   }
@@ -314,7 +314,7 @@ class Neo4jQueryServiceTest {
         neo4j,
         Array.empty[Filter],
         PartitionPagination(0, 0, TopN(limit = 100)),
-        List("source.name", "<source.id>")
+        List("source.name", "<source.elementId>")
       )
     ).createQuery()
 
@@ -322,7 +322,7 @@ class Neo4jQueryServiceTest {
       s"""${prefix}MATCH (source:`Person`)
          |MATCH (target:`Person`)
          |MATCH (source)-[rel:`KNOWS`]->(target)
-         |RETURN source.name AS `source.name`, id(source) AS `<source.id>`
+         |RETURN source.name AS `source.name`, elementId(source) AS `<source.elementId>`
          |LIMIT 100"""
         .stripMargin
         .replace(System.lineSeparator(), " "),
@@ -997,8 +997,6 @@ class Neo4jQueryServiceTest {
 
   def versions_and_prefixes(): Array[Array[Any]] = {
     Array(
-      Array(neo4j(version(4, 4), COMMUNITY), ""),
-      Array(neo4j(version(4, 4), ENTERPRISE), ""),
       Array(neo4j(version(5, 0), COMMUNITY), ""),
       Array(neo4j(version(5, 0), ENTERPRISE), ""),
       Array(neo4j(version(5, 21), COMMUNITY), "CYPHER 5 "),
@@ -1017,4 +1015,5 @@ class Neo4jQueryServiceTest {
   def version(major: Int, minor: Int): Neo4jVersion = {
     new Neo4jVersion(major, minor, 0)
   }
+
 }

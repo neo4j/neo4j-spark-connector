@@ -103,7 +103,7 @@ class SchemaService(
       DataTypes.createArrayType(DataTypes.StringType),
       nullable = true
     )
-    structFields += StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.LongType, nullable = false)
+    structFields += StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.StringType, nullable = false)
     StructType(structFields.reverse.toSeq)
   }
 
@@ -191,7 +191,7 @@ class SchemaService(
 
   private def structForRelationship() = {
     val structFields: mutable.Buffer[StructField] = ArrayBuffer(
-      StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.LongType, false),
+      StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.StringType, false),
       StructField(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, DataTypes.StringType, false)
     )
 
