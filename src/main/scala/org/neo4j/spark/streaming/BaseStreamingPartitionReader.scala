@@ -81,10 +81,7 @@ class BaseStreamingPartitionReader(
       .flatMap(f => f.getValue)
       .get
       .asInstanceOf[Long]
-    map.put(
-      Neo4jQueryStrategy.VARIABLE_STREAM,
-      Map("offset" -> start, "from" -> start, "to" -> end).asJava
-    ) // TODO: remove "offset" -> start from Map
+    map.put(Neo4jQueryStrategy.VARIABLE_STREAM, Map("from" -> start, "to" -> end).asJava)
     map
   }
 
