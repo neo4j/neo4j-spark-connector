@@ -93,18 +93,6 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   val schemaMetadata: Neo4jSchemaMetadata = initSchemaMetadata
 
   private def initSchemaMetadata = {
-    val deprecatedSchemaOptimization = OptimizationType
-      .withCaseInsensitiveName(getParameter(SCHEMA_OPTIMIZATION_TYPE, DEFAULT_OPTIMIZATION_TYPE.toString).toUpperCase)
-    if (deprecatedSchemaOptimization != OptimizationType.NONE) {
-      logWarning(
-        s"""
-           |Option `$SCHEMA_OPTIMIZATION_TYPE` is deprecated and will be removed in future implementations,
-           |please move to one of the following depending on your use case:
-           |- `$SCHEMA_OPTIMIZATION_NODE_KEY`
-           |- `$SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY`
-           |""".stripMargin
-      )
-    }
 
     val nodeConstr: ConstraintsOptimizationType.Value = ConstraintsOptimizationType
       .withCaseInsensitiveName(getParameter(
@@ -127,7 +115,6 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
         SCHEMA_STRATEGY,
         DEFAULT_SCHEMA_STRATEGY.toString
       ).toUpperCase),
-      deprecatedSchemaOptimization,
       Neo4jSchemaOptimizations(nodeConstr, relConstr, schemaConstraints),
       getParameter(SCHEMA_MAP_GROUP_DUPLICATE_KEYS, DEFAULT_MAP_GROUP_DUPLICATE_KEYS.toString).toBoolean
     )
@@ -359,7 +346,6 @@ case class Neo4jSchemaOptimizations(
 case class Neo4jSchemaMetadata(
   flattenLimit: Int,
   strategy: SchemaStrategy.Value,
-  optimizationType: OptimizationType.Value,
   optimization: Neo4jSchemaOptimizations,
   mapGroupDuplicateKeys: Boolean
 )
@@ -598,8 +584,6 @@ object Neo4jOptions {
   // schema options
   val SCHEMA_STRATEGY = "schema.strategy"
   val SCHEMA_FLATTEN_LIMIT = "schema.flatten.limit"
-  // deprecated in favor of...
-  val SCHEMA_OPTIMIZATION_TYPE = "schema.optimization.type"
   // ...these options
   val SCHEMA_OPTIMIZATION = "schema.optimization"
   val SCHEMA_OPTIMIZATION_NODE_KEY = "schema.optimization.node.keys"
@@ -687,7 +671,6 @@ object Neo4jOptions {
   val DEFAULT_PUSHDOWN_LIMIT_ENABLED = true
   val DEFAULT_PUSHDOWN_TOPN_ENABLED = true
   val DEFAULT_PARTITIONS = 1
-  val DEFAULT_OPTIMIZATION_TYPE = OptimizationType.NONE
   val DEFAULT_SAVE_MODE = SaveMode.Overwrite
   val DEFAULT_STREAMING_FROM = StreamingFrom.NOW
 
@@ -746,10 +729,6 @@ object StreamingFrom extends CaseInsensitiveEnumeration {
   implicit def valToStreamingFromValue(value: Value): StreamingFromValue = new StreamingFromValue(value)
 }
 
-object StorageType extends CaseInsensitiveEnumeration {
-  val NEO4J, SPARK = Value
-}
-
 object QueryType extends CaseInsensitiveEnumeration {
   val QUERY, LABELS, RELATIONSHIP, GDS = Value
 }
@@ -773,10 +752,6 @@ object NodeSaveMode extends CaseInsensitiveEnumeration {
 
 object SchemaStrategy extends CaseInsensitiveEnumeration {
   val STRING, SAMPLE = Value
-}
-
-object OptimizationType extends CaseInsensitiveEnumeration {
-  val INDEX, NODE_CONSTRAINTS, NONE = Value
 }
 
 object ConstraintsOptimizationType extends CaseInsensitiveEnumeration {
