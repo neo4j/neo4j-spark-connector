@@ -16,8 +16,6 @@
  */
 package org.neo4j.spark.service
 
-import junitparams.JUnitParamsRunner
-import junitparams.Parameters
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.connector.expressions.Expression
 import org.apache.spark.sql.connector.expressions.NullOrdering
@@ -42,6 +40,7 @@ import org.neo4j.spark.config.TopN
 import org.neo4j.spark.util.DummyNamedReference
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
 import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.Neo4jTuningOptions
 import org.neo4j.spark.util.QueryType
 
 import scala.collection.immutable.HashMap
@@ -1041,6 +1040,106 @@ class Neo4jQueryServiceTest {
     )
   }
 
+  @ParameterizedTest
+  @MethodSource(Array("tuning_params"))
+  def testTuningPreambleForLabels(tuningOptions: Neo4jTuningOptions, prefix: String, mode: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val (strategy, wantQuery) = mode match {
+      case "READ" => (
+          new Neo4jQueryReadStrategy(
+            neo4j(version(5, 0), COMMUNITY),
+            tuningOptions
+          ),
+          "MATCH (n:`Person`) RETURN n"
+        )
+      case "WRITE" => (
+          new Neo4jQueryWriteStrategy(
+            neo4j(version(5, 0), COMMUNITY),
+            SaveMode.Overwrite,
+            tuningOptions
+          ),
+          "UNWIND $events AS event\nMERGE (node:Person )\nSET node += event.properties"
+        )
+      case _ => throw new IllegalArgumentException(s"Invalid mode: $mode")
+    }
+
+    val gotQuery = new Neo4jQueryService(neo4jOptions, strategy).createQuery().trim
+
+    assertEquals(s"$prefix\n$wantQuery".trim, gotQuery)
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("tuning_params"))
+  def testTuningPreambleForRelationship(tuningOptions: Neo4jTuningOptions, prefix: String, mode: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "false")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val (strategy, wantQuery) = mode match {
+      case "READ" => (
+          new Neo4jQueryReadStrategy(
+            neo4j(version(5, 0), COMMUNITY),
+            tuningOptions
+          ),
+          "MATCH (source:`Person`) MATCH (target:`Person`) MATCH (source)-[rel:`KNOWS`]->(target) RETURN rel, source AS source, target AS target"
+        )
+      case "WRITE" => (
+          new Neo4jQueryWriteStrategy(
+            neo4j(version(5, 0), COMMUNITY),
+            SaveMode.Overwrite,
+            tuningOptions
+          ),
+          "UNWIND $events AS event\nMATCH (source:Person )\nMATCH (target:Person )\nMERGE (source)-[rel:KNOWS]->(target)\nSET rel += event.rel.properties"
+        )
+    }
+
+    val gotQuery = new Neo4jQueryService(neo4jOptions, strategy).createQuery().trim
+
+    assertEquals(
+      s"$prefix\n$wantQuery".trim,
+      gotQuery
+    )
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("tuning_params"))
+  def testTuningPreambleForCustomQuery(tuningOptions: Neo4jTuningOptions, prefix: String, mode: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val (strategy, wantQuery) = mode match {
+      case "READ" => (
+          new Neo4jQueryReadStrategy(
+            neo4j(version(5, 0), COMMUNITY),
+            tuningOptions
+          ),
+          "WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o"
+        )
+      case "WRITE" => (
+          new Neo4jQueryWriteStrategy(
+            neo4j(version(5, 0), COMMUNITY),
+            SaveMode.Overwrite,
+            tuningOptions
+          ),
+          "WITH $scriptResult AS scriptResult\nUNWIND $events AS event\nMATCH (o:Object) RETURN o"
+        )
+    }
+
+    val gotQuery = new Neo4jQueryService(neo4jOptions, strategy).createQuery().trim
+
+    assertEquals(s"$prefix\n$wantQuery".trim, gotQuery)
+  }
+
   def versions_and_prefixes(): Array[Array[Any]] = {
     Array(
       Array(neo4j(version(5, 0), COMMUNITY), ""),
@@ -1060,6 +1159,25 @@ class Neo4jQueryServiceTest {
 
   def version(major: Int, minor: Int): Neo4jVersion = {
     new Neo4jVersion(major, minor, 0)
+  }
+
+  def tuning_params(): Array[Array[Any]] = {
+    Array(
+      Array(Neo4jTuningOptions.empty, "", "READ"),
+      Array(Neo4jTuningOptions.empty, "", "WRITE"),
+      Array(Neo4jTuningOptions.empty.copy(runtime = "parallel"), "CYPHER runtime=parallel", "READ"),
+      Array(Neo4jTuningOptions.empty.copy(runtime = "parallel"), "CYPHER runtime=parallel", "WRITE"),
+      Array(
+        Neo4jTuningOptions.empty.copy(replan = "force", operatorEngine = "compiled"),
+        "CYPHER replan=force operatorEngine=compiled",
+        "READ"
+      ),
+      Array(
+        Neo4jTuningOptions.empty.copy(replan = "force", operatorEngine = "compiled"),
+        "CYPHER replan=force operatorEngine=compiled",
+        "WRITE"
+      )
+    )
   }
 
 }

@@ -39,7 +39,11 @@ import org.neo4j.spark.util.QueryType
 
 import scala.collection.JavaConverters._
 
-class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: SaveMode) extends Neo4jQueryStrategy {
+class Neo4jQueryWriteStrategy(
+  private val neo4j: Neo4j,
+  private val saveMode: SaveMode,
+  private val tuningOptions: Neo4jTuningOptions = Neo4jTuningOptions.empty
+) extends Neo4jQueryStrategy {
 
   override def createStatementForQuery(options: Neo4jOptions): String =
     s"""WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
@@ -146,15 +150,15 @@ class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: Sa
 }
 
 class Neo4jQueryReadStrategy(
-  neo4j: Neo4j,
-  tuning: Neo4jTuningOptions,
-  filters: Array[Filter] = Array.empty[Filter],
-  partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
-  requiredColumns: Seq[String] = Seq.empty,
-  aggregateColumns: Array[AggregateFunc] = Array.empty,
-  jobId: String = ""
+  private val neo4j: Neo4j,
+  private val tuningOptions: Neo4jTuningOptions,
+  private val filters: Array[Filter] = Array.empty[Filter],
+  private val partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
+  private val requiredColumns: Seq[String] = Seq.empty,
+  private val aggregateColumns: Array[AggregateFunc] = Array.empty,
+  private val jobId: String = ""
 ) extends Neo4jQueryStrategy with Logging {
-  private val renderer: Renderer = new Cypher5Renderer(neo4j, tuning)
+  private val renderer: Renderer = new Cypher5Renderer(neo4j, tuningOptions)
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 

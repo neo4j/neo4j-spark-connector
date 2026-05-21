@@ -67,7 +67,7 @@ abstract class BaseDataWriter(
   private val retries = new CountDownLatch(options.transactionSettings.retries)
 
   private val query: String =
-    new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(neo4j, saveMode)).createQuery()
+    new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(neo4j, saveMode, options.tuning)).createQuery()
 
   private val metrics = DataWriterMetrics()
 
