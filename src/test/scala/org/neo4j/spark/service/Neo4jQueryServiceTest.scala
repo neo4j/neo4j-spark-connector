@@ -1005,7 +1005,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testTopNForCustomQueryIgnoresAggregation(neo4j: Neo4j, ignored: String): Unit = {
+  def testTopNForCustomQueryIgnoresAggregation(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (p:Person) RETURN p")
@@ -1034,10 +1034,7 @@ class Neo4jQueryServiceTest {
       )
     ).createQuery()
 
-    assertEquals(
-      "WITH $scriptResult AS scriptResult MATCH (p:Person) RETURN p SKIP 0 LIMIT 24",
-      query
-    )
+    assertEquals(s"${prefix}WITH $$scriptResult AS scriptResult MATCH (p:Person) RETURN p SKIP 0 LIMIT 24", query)
   }
 
   @ParameterizedTest
@@ -1046,13 +1043,13 @@ class Neo4jQueryServiceTest {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
 
     val (strategy, wantQuery) = mode match {
       case "READ" => (
           new Neo4jQueryReadStrategy(
             neo4j(version(5, 0), COMMUNITY),
-            tuningOptions
+            neo4jOptions.tuning
           ),
           "MATCH (n:`Person`) RETURN n"
         )
@@ -1060,7 +1057,7 @@ class Neo4jQueryServiceTest {
           new Neo4jQueryWriteStrategy(
             neo4j(version(5, 0), COMMUNITY),
             SaveMode.Overwrite,
-            tuningOptions
+            neo4jOptions.tuning
           ),
           "UNWIND $events AS event\nMERGE (node:Person )\nSET node += event.properties"
         )
@@ -1081,13 +1078,13 @@ class Neo4jQueryServiceTest {
     options.put("relationship.nodes.map", "false")
     options.put("relationship.source.labels", "Person")
     options.put("relationship.target.labels", "Person")
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
 
     val (strategy, wantQuery) = mode match {
       case "READ" => (
           new Neo4jQueryReadStrategy(
             neo4j(version(5, 0), COMMUNITY),
-            tuningOptions
+            neo4jOptions.tuning
           ),
           "MATCH (source:`Person`) MATCH (target:`Person`) MATCH (source)-[rel:`KNOWS`]->(target) RETURN rel, source AS source, target AS target"
         )
@@ -1095,7 +1092,7 @@ class Neo4jQueryServiceTest {
           new Neo4jQueryWriteStrategy(
             neo4j(version(5, 0), COMMUNITY),
             SaveMode.Overwrite,
-            tuningOptions
+            neo4jOptions.tuning
           ),
           "UNWIND $events AS event\nMATCH (source:Person )\nMATCH (target:Person )\nMERGE (source)-[rel:KNOWS]->(target)\nSET rel += event.rel.properties"
         )
@@ -1103,10 +1100,7 @@ class Neo4jQueryServiceTest {
 
     val gotQuery = new Neo4jQueryService(neo4jOptions, strategy).createQuery().trim
 
-    assertEquals(
-      s"$prefix\n$wantQuery".trim,
-      gotQuery
-    )
+    assertEquals(s"$prefix\n$wantQuery".trim, gotQuery)
   }
 
   @ParameterizedTest
@@ -1115,13 +1109,13 @@ class Neo4jQueryServiceTest {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
 
     val (strategy, wantQuery) = mode match {
       case "READ" => (
           new Neo4jQueryReadStrategy(
             neo4j(version(5, 0), COMMUNITY),
-            tuningOptions
+            neo4jOptions.tuning
           ),
           "WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o"
         )
@@ -1129,7 +1123,7 @@ class Neo4jQueryServiceTest {
           new Neo4jQueryWriteStrategy(
             neo4j(version(5, 0), COMMUNITY),
             SaveMode.Overwrite,
-            tuningOptions
+            neo4jOptions.tuning
           ),
           "WITH $scriptResult AS scriptResult\nUNWIND $events AS event\nMATCH (o:Object) RETURN o"
         )
@@ -1178,6 +1172,14 @@ class Neo4jQueryServiceTest {
         "WRITE"
       )
     )
+  }
+
+  private def withTuning(
+    options: java.util.Map[String, String],
+    tuning: Neo4jTuningOptions
+  ): java.util.Map[String, String] = {
+    tuning.toMap.foreach { case (key, value) => options.put(key, value) }
+    options
   }
 
 }
