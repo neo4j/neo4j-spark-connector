@@ -41,12 +41,15 @@ import scala.collection.JavaConverters._
 
 class Neo4jQueryWriteStrategy(
   private val neo4j: Neo4j,
-  private val saveMode: SaveMode,
-  private val tuningOptions: Neo4jTuningOptions = Neo4jTuningOptions.empty
+  private val saveMode: SaveMode
 ) extends Neo4jQueryStrategy {
 
-  override def createStatementForQuery(options: Neo4jOptions): String = {
-    s"""${fullPreamble(neo4j, tuningOptions)}WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
+  override def createStatementForQuery(options: Neo4jOptions): String =
+    createStatementForQuery(options, withPreamble = true)
+
+  def createStatementForQuery(options: Neo4jOptions, withPreamble: Boolean): String = {
+    val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
+    s"""${preamble}WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
        |UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |${options.query.value}
        |""".stripMargin
@@ -163,7 +166,10 @@ class Neo4jQueryReadStrategy(
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 
-  override def createStatementForQuery(options: Neo4jOptions): String = {
+  override def createStatementForQuery(options: Neo4jOptions): String =
+    createStatementForQuery(options, withPreamble = true)
+
+  def createStatementForQuery(options: Neo4jOptions, withPreamble: Boolean): String = {
     if (partitionPagination.topN.orders.nonEmpty) {
       logWarning(
         s"""Top N push-down optimizations with aggregations are not supported for custom queries.
@@ -178,7 +184,8 @@ class Neo4jQueryReadStrategy(
       s"${options.query.value}"
     }
 
-    s"${fullPreamble(neo4j, options.tuning)}WITH $$scriptResult AS scriptResult $limitedQuery"
+    val preamble = if (withPreamble) fullPreamble(neo4j, tuningOptions) else ""
+    s"${preamble}WITH $$scriptResult AS scriptResult $limitedQuery"
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
@@ -532,6 +539,38 @@ class Neo4jQueryReadStrategy(
       .returning(retCols: _*)
       .build()
     renderer.render(statement)
+  }
+}
+
+class Neo4jQueryNoPreambleReadStrategy(
+  private val neo4j: Neo4j,
+  private val filters: Array[Filter] = Array.empty[Filter],
+  private val partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
+  private val requiredColumns: Seq[String] = Seq.empty,
+  private val aggregateColumns: Array[AggregateFunc] = Array.empty,
+  private val jobId: String = ""
+) extends Neo4jQueryReadStrategy(
+      neo4j,
+      Neo4jTuningOptions.empty,
+      filters,
+      partitionPagination,
+      requiredColumns,
+      aggregateColumns,
+      jobId
+    ) {
+
+  override def createStatementForQuery(options: Neo4jOptions): String = {
+    super.createStatementForQuery(options, false)
+  }
+}
+
+class Neo4jQueryNoPreambleWriteStrategy(
+  private val neo4j: Neo4j,
+  private val saveMode: SaveMode
+) extends Neo4jQueryWriteStrategy(neo4j, saveMode) {
+
+  override def createStatementForQuery(options: Neo4jOptions): String = {
+    super.createStatementForQuery(options, false)
   }
 }
 

@@ -1038,7 +1038,7 @@ class Neo4jQueryServiceTest {
   }
 
   @ParameterizedTest
-  @MethodSource(Array("tuning_params"))
+  @MethodSource(Array("tuning_parameters"))
   def testTuningPreambleForLabels(tuningOptions: Neo4jTuningOptions, prefix: String, mode: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
@@ -1056,8 +1056,7 @@ class Neo4jQueryServiceTest {
       case "WRITE" => (
           new Neo4jQueryWriteStrategy(
             neo4j(version(5, 0), COMMUNITY),
-            SaveMode.Overwrite,
-            neo4jOptions.tuning
+            SaveMode.Overwrite
           ),
           "UNWIND $events AS event\nMERGE (node:Person )\nSET node += event.properties"
         )
@@ -1070,7 +1069,7 @@ class Neo4jQueryServiceTest {
   }
 
   @ParameterizedTest
-  @MethodSource(Array("tuning_params"))
+  @MethodSource(Array("tuning_parameters"))
   def testTuningPreambleForRelationship(tuningOptions: Neo4jTuningOptions, prefix: String, mode: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
@@ -1091,8 +1090,7 @@ class Neo4jQueryServiceTest {
       case "WRITE" => (
           new Neo4jQueryWriteStrategy(
             neo4j(version(5, 0), COMMUNITY),
-            SaveMode.Overwrite,
-            neo4jOptions.tuning
+            SaveMode.Overwrite
           ),
           "UNWIND $events AS event\nMATCH (source:Person )\nMATCH (target:Person )\nMERGE (source)-[rel:KNOWS]->(target)\nSET rel += event.rel.properties"
         )
@@ -1104,7 +1102,7 @@ class Neo4jQueryServiceTest {
   }
 
   @ParameterizedTest
-  @MethodSource(Array("tuning_params"))
+  @MethodSource(Array("tuning_parameters"))
   def testTuningPreambleForCustomQuery(tuningOptions: Neo4jTuningOptions, prefix: String, mode: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
@@ -1122,8 +1120,7 @@ class Neo4jQueryServiceTest {
       case "WRITE" => (
           new Neo4jQueryWriteStrategy(
             neo4j(version(5, 0), COMMUNITY),
-            SaveMode.Overwrite,
-            neo4jOptions.tuning
+            SaveMode.Overwrite
           ),
           "WITH $scriptResult AS scriptResult\nUNWIND $events AS event\nMATCH (o:Object) RETURN o"
         )
@@ -1132,6 +1129,33 @@ class Neo4jQueryServiceTest {
     val gotQuery = new Neo4jQueryService(neo4jOptions, strategy).createQuery().trim
 
     assertEquals(s"$prefix\n$wantQuery".trim, gotQuery)
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("tuning_parameters"))
+  def testCanSkipPreamble(tuningOptions: Neo4jTuningOptions, ignored: String, mode: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
+
+    val (strategy, wantQuery) = mode match {
+      case "READ" => (
+          new Neo4jQueryNoPreambleReadStrategy(neo4j(version(5, 0), COMMUNITY)),
+          "WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o"
+        )
+      case "WRITE" => (
+          new Neo4jQueryNoPreambleWriteStrategy(
+            neo4j(version(5, 0), COMMUNITY),
+            SaveMode.Overwrite
+          ),
+          "WITH $scriptResult AS scriptResult\nUNWIND $events AS event\nMATCH (o:Object) RETURN o"
+        )
+    }
+
+    val gotQuery = new Neo4jQueryService(neo4jOptions, strategy).createQuery().trim
+
+    assertEquals(wantQuery, gotQuery)
   }
 
   def versions_and_prefixes(): Array[Array[Any]] = {
@@ -1155,7 +1179,7 @@ class Neo4jQueryServiceTest {
     new Neo4jVersion(major, minor, 0)
   }
 
-  def tuning_params(): Array[Array[Any]] = {
+  def tuning_parameters(): Array[Array[Any]] = {
     Array(
       Array(Neo4jTuningOptions.empty, "", "READ"),
       Array(Neo4jTuningOptions.empty, "", "WRITE"),

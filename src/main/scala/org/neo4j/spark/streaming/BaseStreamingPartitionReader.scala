@@ -23,7 +23,11 @@ import org.apache.spark.sql.sources.LessThanOrEqual
 import org.apache.spark.sql.types.StructType
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core.Cypher
+import org.neo4j.spark.cypher.CypherPreamble
+import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.reader.BasePartitionReader
+import org.neo4j.spark.service.Neo4jQueryNoPreambleReadStrategy
+import org.neo4j.spark.service.Neo4jQueryService
 import org.neo4j.spark.service.Neo4jQueryStrategy
 import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.streaming.BaseStreamingPartitionReader.offsetUsagePatterns
@@ -93,7 +97,17 @@ class BaseStreamingPartitionReader(
   override protected def query(): String = {
     options.query.queryType match {
       case QUERY =>
-        val originalQuery = super.query()
+        val originalQuery = new Neo4jQueryService(
+          options,
+          new Neo4jQueryNoPreambleReadStrategy(
+            neo4j,
+            filters,
+            partitionSkipLimit,
+            requiredColumns.fieldNames,
+            aggregateColumns,
+            jobId
+          )
+        ).createQuery()
 
         if (offsetUsagePatterns.exists(_.test(originalQuery))) {
           throw new IllegalArgumentException(
@@ -107,7 +121,7 @@ class BaseStreamingPartitionReader(
         val stream = Cypher.parameter("stream")
 
         // rewrite query for adding $stream.from and $stream.to filters
-        Cypher.callRawCypher(originalQuery)
+        val cypher = Cypher.callRawCypher(originalQuery)
           .`with`(Cypher.asterisk())
           .where(
             property.gt(stream.property("from")).and(property.lte(stream.property("to")))
@@ -115,6 +129,8 @@ class BaseStreamingPartitionReader(
           .returning(Cypher.asterisk())
           .build()
           .getCypher
+
+        s"${fullPreamble(neo4j, options.tuning)}$cypher"
       // we don't need to rewrite the queries for LABELS and RELATIONSHIPS because spark filters already cover our
       // criteria which are added to the query text in Neo4jQueryService
       case LABELS       => super.query()
