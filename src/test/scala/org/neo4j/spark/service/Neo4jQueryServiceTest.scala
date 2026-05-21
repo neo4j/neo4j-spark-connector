@@ -1178,7 +1178,12 @@ class Neo4jQueryServiceTest {
     options: java.util.Map[String, String],
     tuning: Neo4jTuningOptions
   ): java.util.Map[String, String] = {
-    tuning.toMap.foreach { case (key, value) => options.put(key, value) }
+    tuning.toMap.foreach {
+      case (key, value) => {
+        val dotCaseKey = key.replaceAll("([A-Z])", ".$1").toLowerCase
+        options.put(s"tuning.$dotCaseKey", value)
+      }
+    }
     options
   }
 

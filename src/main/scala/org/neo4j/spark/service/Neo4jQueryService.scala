@@ -45,11 +45,12 @@ class Neo4jQueryWriteStrategy(
   private val tuningOptions: Neo4jTuningOptions = Neo4jTuningOptions.empty
 ) extends Neo4jQueryStrategy {
 
-  override def createStatementForQuery(options: Neo4jOptions): String =
-    s"""WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
+  override def createStatementForQuery(options: Neo4jOptions): String = {
+    s"""${fullPreamble(neo4j, tuningOptions)}WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
        |UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |${options.query.value}
        |""".stripMargin
+  }
 
   private def createPropsList(props: Map[String, String], prefix: String): String = {
     props
@@ -177,7 +178,7 @@ class Neo4jQueryReadStrategy(
       s"${options.query.value}"
     }
 
-    s"WITH $$scriptResult AS scriptResult $limitedQuery"
+    s"${fullPreamble(neo4j, options.tuning)}WITH $$scriptResult AS scriptResult $limitedQuery"
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
@@ -501,6 +502,10 @@ class Neo4jQueryReadStrategy(
   }
 
   override def createStatementForGDS(options: Neo4jOptions): String = {
+    if (options.tuning != Neo4jTuningOptions.empty) {
+      throw new UnsupportedOperationException("Query tuning parameters are not supported for GDS queries")
+    }
+
     val retCols = requiredColumns.map(column => getCorrectProperty(column, null))
     // we need it in order to parse the field YIELD by the GDS procedure...
     val (yieldFields, args) = Neo4jUtil.callSchemaService(
