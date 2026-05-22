@@ -143,8 +143,6 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       )
   }
 
-  val cypherVersion = getParameter(CYPHER_VERSION)
-
   val tuning: Neo4jTuningOptions = Neo4jTuningOptions(
     getParameter(TUNING_EXPRESSION_ENGINE),
     getParameter(TUNING_INFER_SCHEMA_PARTS),
@@ -702,7 +700,8 @@ object Neo4jOptions {
 
   val SCRIPT = "script"
 
-  // custom cypher tuning parameters
+  // custom cypher version and custom cypher tuning parameters
+  val CYPHER_VERSION = "cypher.version"
   val TUNING_EXPRESSION_ENGINE = "cypher.expression.engine"
   val TUNING_EXPRESSION_ENGINE_IN_CYPHER = "expressionEngine"
   val TUNING_INFER_SCHEMA_PARTS = "cypher.infer.schema.parts"
