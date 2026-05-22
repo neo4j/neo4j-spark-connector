@@ -117,6 +117,7 @@ class CypherToSparkTypeConverter extends TypeConverter[String, DataType] {
     case "TimeArray" | "LocalTimeArray"         => DataTypes.createArrayType(timeType)
     case "DateArray" | "LocalDateArray"         => DataTypes.createArrayType(DataTypes.DateType)
     case "DurationArray"                        => DataTypes.createArrayType(durationType)
+    case "byte[]"                               => DataTypes.BinaryType
     // Default is String
     case _ => DataTypes.StringType
   }
