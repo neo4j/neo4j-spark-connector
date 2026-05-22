@@ -61,10 +61,11 @@ import java.time.OffsetDateTime
 import java.time.OffsetTime
 import java.time.ZoneOffset
 import java.util.TimeZone
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+
 import scala.collection.{immutable, mutable}
 import scala.collection.mutable.Seq
 import scala.jdk.CollectionConverters.IterableHasAsJava
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 @Testcontainers
 @ParameterizedClass(name = "{argumentSetName}")
@@ -144,7 +145,7 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      assertThat(df.select("<labels>").collectAsList().map(_.getAs[immutable.Seq[String]](0)).asJava)
+      assertThat(df.select("<labels>").collectAsList().asScala.map(_.getAs[immutable.Seq[String]](0)).asJava)
         .hasSize(1)
         .containsExactly(immutable.Seq("Person", "Customer"))
     }
@@ -718,7 +719,7 @@ class ReadIT {
         .where("age >= 20")
 
       val rows = df.collectAsList()
-      assertThat(rows.map(_.getLong(0)).asJava)
+      assertThat(rows.asScala.map(_.getLong(0)).asJava)
         .containsOnlyOnce(20L, 21L)
     }
 
@@ -779,7 +780,7 @@ class ReadIT {
         .where("birth > '1990-01-01'")
 
       val rows = df.collectAsList()
-      assertThat(rows.map(_.getDate(0)).asJava)
+      assertThat(rows.asScala.map(_.getDate(0)).asJava)
         .containsOnlyOnce(
           Date.valueOf("1994-10-16"),
           Date.valueOf("1998-02-04")
@@ -804,7 +805,7 @@ class ReadIT {
 
       val rows = df.collectAsList()
       assertThat(rows).hasSize(1)
-      val row = rows.get(0).getAs[GenericRowWithSchema](0);
+      val row = rows.get(0).getAs[GenericRowWithSchema](0)
       assertThat(row.get(0)).isEqualTo("point-2d")
       assertThat(row.get(1)).isEqualTo(7203)
       assertThat(row.get(2)).isEqualTo(12.0)
@@ -829,7 +830,7 @@ class ReadIT {
         .where("age <= 41")
 
       val rows = df.collectAsList()
-      assertThat(rows.map(_.getLong(0)).asJava).containsOnlyOnce(39L, 41L)
+      assertThat(rows.asScala.map(_.getLong(0)).asJava).containsOnlyOnce(39L, 41L)
     }
 
     @Test
@@ -850,7 +851,7 @@ class ReadIT {
         .where("age < 40")
 
       val rows = df.collectAsList()
-      assertThat(rows.map(_.getLong(0)).asJava).containsExactly(39L)
+      assertThat(rows.asScala.map(_.getLong(0)).asJava).containsExactly(39L)
     }
 
     @Test
@@ -871,7 +872,7 @@ class ReadIT {
         .where("age IN (41,43)")
 
       val rows = df.collectAsList()
-      assertThat(rows.map(_.getLong(0)).asJava).containsOnlyOnce(41L, 43L)
+      assertThat(rows.asScala.map(_.getLong(0)).asJava).containsOnlyOnce(41L, 43L)
     }
 
     @Test
@@ -914,7 +915,7 @@ class ReadIT {
         .where("age IS NOT NULL")
 
       val rows = df.collectAsList()
-      assertThat(rows.map(_.getLong(0)).asJava).containsOnlyOnce(39L, 43L)
+      assertThat(rows.asScala.map(_.getLong(0)).asJava).containsOnlyOnce(39L, 43L)
     }
 
     @Test
@@ -936,7 +937,7 @@ class ReadIT {
         .where("age = 43 OR age = 39 OR age = 32")
 
       val rows = df.collectAsList()
-      assertThat(rows.map(_.getLong(0)).asJava).containsOnlyOnce(39L, 43L)
+      assertThat(rows.asScala.map(_.getLong(0)).asJava).containsOnlyOnce(39L, 43L)
     }
 
     @Test
@@ -958,7 +959,7 @@ class ReadIT {
         .where("age >= 39 AND age <= 43")
 
       val rows = df.collectAsList()
-      assertThat(rows.map(_.getLong(0)).asJava).containsOnlyOnce(39L, 43L)
+      assertThat(rows.asScala.map(_.getLong(0)).asJava).containsOnlyOnce(39L, 43L)
     }
 
     @Test
@@ -980,7 +981,7 @@ class ReadIT {
         .where("name LIKE 'John%'")
 
       val rows = df.collectAsList()
-      assertThat(rows.map(_.getString(0)).asJava).containsOnlyOnce("John Butler", "John Mayer", "John Scofield")
+      assertThat(rows.asScala.map(_.getString(0)).asJava).containsOnlyOnce("John Butler", "John Mayer", "John Scofield")
     }
 
     @Test
@@ -1002,7 +1003,7 @@ class ReadIT {
         .where("name LIKE '%r'")
 
       val rows = df.collectAsList()
-      assertThat(rows.map(_.getString(0)).asJava).containsOnlyOnce("John Butler", "John Mayer")
+      assertThat(rows.asScala.map(_.getString(0)).asJava).containsOnlyOnce("John Butler", "John Mayer")
     }
 
     @Test
@@ -1024,7 +1025,7 @@ class ReadIT {
         .where("name LIKE '%ay%'")
 
       val rows = df.collectAsList()
-      assertThat(rows.map(_.getString(0)).asJava).containsExactly("John Mayer")
+      assertThat(rows.asScala.map(_.getString(0)).asJava).containsExactly("John Mayer")
     }
 
     @Test
@@ -1310,7 +1311,7 @@ class ReadIT {
         .load()
 
       val rows = df.collectAsList()
-      assertThat(rows.map(row => (row.get(4), row.get(7))).asJava)
+      assertThat(rows.asScala.map(row => (row.get(4), row.get(7))).asJava)
         .containsOnlyOnce(("3", "1"), ("4", "2"))
     }
 
@@ -1350,7 +1351,7 @@ class ReadIT {
         .load
 
       val rows = df.collectAsList()
-      assertThat(rows.count(row =>
+      assertThat(rows.asScala.count(row =>
         row.getAs[Long]("<rel.id>") >= 0
           && row.getAs[String]("<rel.type>") != null
           && row.getAs[Double]("rel.when") >= 0
@@ -1382,7 +1383,7 @@ class ReadIT {
         .load
 
       val rows = df.collectAsList()
-      assertThat(rows.count(row =>
+      assertThat(rows.asScala.count(row =>
         row.getAs[Long]("<rel.id>") >= 0
           && row.getAs[String]("<rel.type>") != null
           && row.getAs[Double]("rel.when") >= 0
@@ -1390,9 +1391,9 @@ class ReadIT {
           && row.getAs[Map[String, String]]("<source>") != null
           && row.getAs[Map[String, String]]("<target>") != null
       )).isEqualTo(100)
-      assertThat(rows.map(row => row.getAs[Map[String, String]]("<source>"))
+      assertThat(rows.asScala.map(row => row.getAs[Map[String, String]]("<source>"))
         .count(row => row.keys == Set("id", "fullName", "<id>", "<labels>"))).isEqualTo(100)
-      assertThat(rows.map(row => row.getAs[Map[String, String]]("<target>"))
+      assertThat(rows.asScala.map(row => row.getAs[Map[String, String]]("<target>"))
         .count(row => row.keys == Set("id", "name", "<id>", "<labels>"))).isEqualTo(100)
     }
 
@@ -1463,7 +1464,7 @@ class ReadIT {
 
       val rows = df.collectAsList()
       assertThat(rows).hasSize(1)
-      val row = rows.head
+      val row = rows.get(0)
       assertThat(row.getAs[String]("source.fullName")).isEqualTo("Person")
       assertThat(row.getAs[Long]("distinctTotal")).isEqualTo(55L)
       assertThat(row.getAs[Long]("total")).isEqualTo(56L)
@@ -1494,7 +1495,7 @@ class ReadIT {
 
       val rows = df.collectAsList()
       assertThat(rows).hasSize(1)
-      val row = rows.head
+      val row = rows.get(0)
       assertThat(row.getAs[String]("source.fullName")).isEqualTo("Person")
       assertThat(row.getAs[Long]("max")).isEqualTo(10L)
       assertThat(row.getAs[Long]("min")).isEqualTo(1L)
@@ -1525,7 +1526,7 @@ class ReadIT {
 
       val rows = df.collectAsList()
       assertThat(rows).hasSize(1)
-      val row = rows.head
+      val row = rows.get(0)
       assertThat(row.getAs[String]("source.fullName")).isEqualTo("Person")
       assertThat(row.getAs[Long]("distinctTotal")).isEqualTo(10L)
       assertThat(row.getAs[Long]("total")).isEqualTo(11L)
@@ -1872,7 +1873,7 @@ class ReadIT {
 
       val df = spark.read
         .format(classOf[DataSource].getName)
-        .schema(StructType(immutable.Seq(StructField("age", DataTypes.StringType)).toSeq))
+        .schema(StructType(immutable.Seq(StructField("age", DataTypes.StringType))))
         .option("query", "MATCH (n:Person) RETURN n.age AS age")
         .load
 
