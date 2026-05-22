@@ -700,8 +700,7 @@ object Neo4jOptions {
 
   val SCRIPT = "script"
 
-  // custom cypher version and custom cypher tuning parameters
-  val CYPHER_VERSION = "cypher.version"
+  // custom cypher tuning parameters
   val TUNING_EXPRESSION_ENGINE = "cypher.expression.engine"
   val TUNING_EXPRESSION_ENGINE_IN_CYPHER = "expressionEngine"
   val TUNING_INFER_SCHEMA_PARTS = "cypher.infer.schema.parts"

@@ -564,16 +564,6 @@ class Neo4jQueryNoPreambleReadStrategy(
   }
 }
 
-class Neo4jQueryNoPreambleWriteStrategy(
-  private val neo4j: Neo4j,
-  private val saveMode: SaveMode
-) extends Neo4jQueryWriteStrategy(neo4j, saveMode) {
-
-  override def createStatementForQuery(options: Neo4jOptions): String = {
-    super.createStatementForQuery(options, false)
-  }
-}
-
 object Neo4jQueryStrategy {
   val VARIABLE_EVENT = "event"
   val VARIABLE_EVENTS = "events"

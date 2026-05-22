@@ -27,6 +27,7 @@ import org.apache.spark.sql.connector.expressions.aggregate.Min
 import org.apache.spark.sql.connector.expressions.aggregate.Sum
 import org.apache.spark.sql.sources._
 import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
@@ -1134,6 +1135,8 @@ class Neo4jQueryServiceTest {
   @ParameterizedTest
   @MethodSource(Array("tuning_parameters"))
   def testCanSkipPreamble(tuningOptions: Neo4jTuningOptions, ignored: String, mode: String): Unit = {
+    assumeFalse(mode.equals("WRITE")) // there is no write-strategy that skips preambles.
+
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
@@ -1144,13 +1147,7 @@ class Neo4jQueryServiceTest {
           new Neo4jQueryNoPreambleReadStrategy(neo4j(version(5, 0), COMMUNITY)),
           "WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o"
         )
-      case "WRITE" => (
-          new Neo4jQueryNoPreambleWriteStrategy(
-            neo4j(version(5, 0), COMMUNITY),
-            SaveMode.Overwrite
-          ),
-          "WITH $scriptResult AS scriptResult\nUNWIND $events AS event\nMATCH (o:Object) RETURN o"
-        )
+      case "WRITE" => fail("You should never go here because preamble-skipping write-strategy doesn't exist")
     }
 
     val gotQuery = new Neo4jQueryService(neo4jOptions, strategy).createQuery().trim
