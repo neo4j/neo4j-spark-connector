@@ -34,6 +34,7 @@ import org.junit.Test
 import org.neo4j.driver.types.IsoDuration
 import org.neo4j.spark.util.ConstraintsOptimizationType
 import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.RelationshipSaveStrategy
 import org.neo4j.spark.util.SchemaConstraintsOptimizationType
 
 import java.sql.Date
@@ -656,6 +657,79 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .toMap
 
     assertEquals(expectedMap, actualMap)
+  }
+
+  @Test
+  def shouldApplySchemaForRelationshipsAndNodesWhenKeysHaveSpaces(): Unit = {
+    val nodeData = Seq("first id", "second id").toDF("identification property")
+    val nodeDf = ss.createDataFrame(nodeData.rdd, nodeData.schema)
+
+    val relData = Seq(
+      ("first id", "second id", "a rel key", "this is an example property with spaces")
+    ).toDF(
+      "relationship id source",
+      "relationship id target",
+      "relationship key property",
+      "relationship random information property"
+    )
+    val relDf = ss.createDataFrame(relData.rdd, relData.schema)
+
+    try {
+      nodeDf
+        .write
+        .mode(SaveMode.Overwrite)
+        .format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("labels", ":Node With Spaces")
+        .option(Neo4jOptions.SCHEMA_OPTIMIZATION, schemaOptimization)
+        .option(Neo4jOptions.SCHEMA_OPTIMIZATION_NODE_KEY, ConstraintsOptimizationType.KEY.toString)
+        .option(Neo4jOptions.NODE_KEYS, "identification property")
+        .save()
+    } catch {
+      case e: Exception =>
+        fail("Creating node schema with spaces in identifiers should be fine, but threw:\n" + e)
+    }
+
+    try {
+      relDf
+        .write
+        .mode(SaveMode.Overwrite)
+        .format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("relationship", "RELATIONSHIP WITH SPACES")
+        .option(Neo4jOptions.SCHEMA_OPTIMIZATION, schemaOptimization)
+        .option(Neo4jOptions.SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY, ConstraintsOptimizationType.KEY.toString)
+        .option(Neo4jOptions.RELATIONSHIP_SAVE_STRATEGY, RelationshipSaveStrategy.KEYS.toString.toLowerCase)
+        .option(Neo4jOptions.RELATIONSHIP_SOURCE_LABELS, ":Node With Spaces")
+        .option(Neo4jOptions.RELATIONSHIP_SOURCE_SAVE_MODE, SaveMode.Overwrite.toString)
+        .option(Neo4jOptions.RELATIONSHIP_SOURCE_NODE_KEYS, "relationship id source:identification property")
+        .option(Neo4jOptions.RELATIONSHIP_TARGET_LABELS, ":Node With Spaces")
+        .option(Neo4jOptions.RELATIONSHIP_TARGET_SAVE_MODE, SaveMode.Overwrite.toString)
+        .option(Neo4jOptions.RELATIONSHIP_TARGET_NODE_KEYS, "relationship id target:identification property")
+        .option(Neo4jOptions.RELATIONSHIP_PROPERTIES, "relationship random information property")
+        .option(Neo4jOptions.RELATIONSHIP_KEYS, "relationship key property")
+        .save()
+    } catch {
+      case e: Exception =>
+        fail("Creating relationship schema with spaces in identifiers should be fine, but threw:\n" + e)
+    }
+
+    val createdConstraints = SparkConnectorScalaSuiteIT.session()
+      .run("SHOW CONSTRAINTS YIELD name ORDER BY name ASC")
+      .list()
+      .asScala
+      .map(_.get("name").asString())
+      .toSeq
+
+    val wantConstraints = Seq(
+      "spark_NODE-TYPE-CONSTRAINT-Node With Spaces-identification property",
+      "spark_NODE_KEY-CONSTRAINT_Node With Spaces_identification property",
+      "spark_RELATIONSHIP-TYPE-CONSTRAINT-RELATIONSHIP WITH SPACES-relationship key property",
+      "spark_RELATIONSHIP-TYPE-CONSTRAINT-RELATIONSHIP WITH SPACES-relationship random information property",
+      "spark_RELATIONSHIP_KEY-CONSTRAINT_RELATIONSHIP WITH SPACES_relationship key property"
+    )
+
+    assertEquals(wantConstraints, createdConstraints)
   }
 
   @Test

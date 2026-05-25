@@ -766,20 +766,21 @@ class SchemaService(
             (t._2, sparkToCypherTypeConverter.convert(field.dataType), field.nullable)
           })
           .foreach(t => {
-            val prop = t._1.quote()
+            val prop = t._1
+            val propQuoted = prop.quote()
             val cypherType = t._2
             val isNullable = t._3
             if (constraints.contains(SchemaConstraintsOptimizationType.TYPE)) {
               val typeConstraintName = s"spark_$entityType-TYPE-CONSTRAINT-$entityIdentifier-$prop".quote()
               tx.run(
-                s"CREATE CONSTRAINT $typeConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$prop IS :: $cypherType"
+                s"CREATE CONSTRAINT $typeConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$propQuoted IS :: $cypherType"
               ).consume()
             }
             if (constraints.contains(SchemaConstraintsOptimizationType.EXISTS)) {
               if (!isNullable) {
                 val notNullConstraintName = s"spark_$entityType-NOT_NULL-CONSTRAINT-$entityIdentifier-$prop".quote()
                 tx.run(
-                  s"CREATE CONSTRAINT $notNullConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$prop IS NOT NULL"
+                  s"CREATE CONSTRAINT $notNullConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$propQuoted IS NOT NULL"
                 ).consume()
               }
             }
