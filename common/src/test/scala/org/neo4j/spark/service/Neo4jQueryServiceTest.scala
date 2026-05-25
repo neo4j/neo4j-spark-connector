@@ -655,6 +655,39 @@ class Neo4jQueryServiceTest {
 
   @Test
   @Parameters(method = "versions_and_prefixes")
+  def testRelationshipWithKeySaveStrategy(neo4j: Neo4j, prefix: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "DID BUY")
+    options.put("relationship.save.strategy", "keys")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.source.save.mode", "Overwrite")
+    options.put("relationship.source.node.keys", "first name,last name")
+    options.put("relationship.target.labels", "Product")
+    options.put("relationship.target.save.mode", "Match")
+    options.put("relationship.target.node.keys", "article number")
+    options.put("relationship.properties", "number of items")
+    options.put("relationship.keys", "transactionId:transaction identifier")
+
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(neo4j, SaveMode.Overwrite)).createQuery()
+
+    assertEquals(
+      s"""|${prefix}UNWIND $$events AS event
+          |MERGE (source:Person {`first name`: event.source.keys.`first name`, `last name`: event.source.keys.`last name`}) SET source += event.source.properties
+          |WITH source, event
+          |MATCH (target:Product {`article number`: event.target.keys.`article number`})
+          |MERGE (source)-[rel:`DID BUY`{`transaction identifier`: event.rel.keys.transactionId}]->(target)
+          |SET rel += event.rel.properties
+          |""".stripMargin,
+      query
+    )
+  }
+
+  @Test
+  @Parameters(method = "versions_and_prefixes")
   def testShouldDoSumAggregationOnLabels(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
