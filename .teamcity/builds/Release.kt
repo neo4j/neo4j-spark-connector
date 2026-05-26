@@ -73,9 +73,9 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
               scriptContent =
                   """
                 #!/bin/bash
-                
+
                 set -eux
-                
+
                 if [ "%dry-run%" = "true" ]; then
                   echo "we are on a dry run, only performing upload to maven central"
                   export JRELEASER_MAVENCENTRAL_STAGE=UPLOAD
@@ -85,8 +85,8 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
                   export JRELEASER_MAVENCENTRAL_STAGE=FULL
                   export JRELEASER_ANNOUNCE_SLACK_ACTIVE=ALWAYS
                 fi
-                export MAVEN_ARGS="${'$'}MAVEN_DEFAULT_ARGS"
-                
+                export MAVEN_ARGS="$MAVEN_DEFAULT_ARGS"
+
                 # Execute JReleaser
                 jreleaser assemble
                 jreleaser full-release --debug

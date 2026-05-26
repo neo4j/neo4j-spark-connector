@@ -271,8 +271,8 @@ fun BuildSteps.commitAndPush(
     this.name = name
     scriptContent =
         """
-          #!/bin/bash -eu              
-         
+          #!/bin/bash -eu
+
           git add $includeFiles
           git commit -m "$commitMessage"
           git push
