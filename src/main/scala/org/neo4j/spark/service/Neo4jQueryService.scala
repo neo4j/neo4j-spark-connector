@@ -534,7 +534,7 @@ class Neo4jQueryReadStrategy(
       .`yield`(yieldFields: _*)
       .returning(retCols: _*)
       .build()
-    renderer.withTuningOptions(options.tuning).render(statement)
+    renderer.render(statement)
   }
 }
 
