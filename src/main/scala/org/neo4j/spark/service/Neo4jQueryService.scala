@@ -479,7 +479,7 @@ class Neo4jQueryReadStrategy(
     val matchQuery: StatementBuilder.OngoingReadingWithoutWhere =
       filterRelationship(sourceNode, targetNode, relationship)
 
-    renderer.withTuningOptions(options.tuning).render(buildStatement(
+    renderer.render(buildStatement(
       options,
       matchQuery.returning(Functions.count(sourceNode).as("count"))
     ))
