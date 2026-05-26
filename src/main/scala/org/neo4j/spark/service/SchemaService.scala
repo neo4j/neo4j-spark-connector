@@ -33,7 +33,7 @@ import org.neo4j.driver.summary
 import org.neo4j.spark.config.TopN
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.converter.SparkToCypherTypeConverter
-import org.neo4j.spark.cypher.CypherVersionSelector.selectCypherVersionClause
+import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.service.SchemaService.normalizedClassName
 import org.neo4j.spark.service.SchemaService.normalizedClassNameFromGraphEntity
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
@@ -60,7 +60,7 @@ class SchemaService(
   private val filters: Array[Filter] = Array.empty
 ) extends AutoCloseable with Logging {
 
-  private val queryReadStrategy = new Neo4jQueryReadStrategy(neo4j, filters)
+  private val queryReadStrategy = new Neo4jQueryNoPreambleReadStrategy(neo4j, filters)
 
   private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
 
@@ -73,7 +73,7 @@ class SchemaService(
   private def structForNode(labels: Seq[String] = options.nodeMetadata.labels) = {
     val structFields: mutable.Buffer[StructField] = (try {
       val query =
-        s"""${selectCypherVersionClause(neo4j)}CALL apoc.meta.nodeTypeProperties($$config)
+        s"""${fullPreamble(neo4j, options.tuning)}CALL apoc.meta.nodeTypeProperties($$config)
            |YIELD propertyName, propertyTypes
            |WITH DISTINCT propertyName, propertyTypes
            |WITH propertyName, collect(propertyTypes) AS propertyTypes
@@ -88,7 +88,10 @@ class SchemaService(
         logResolutionChange("Switching to query schema resolution", e)
         // TODO get back to Cypher DSL when rand function will be available
         val query =
-          s"""${selectCypherVersionClause(neo4j)}MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
+          s"""${fullPreamble(
+              neo4j,
+              options.tuning
+            )}MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
              |RETURN ${Neo4jUtil.NODE_ALIAS}
              |ORDER BY rand()
              |LIMIT ${options.schemaMetadata.flattenLimit}
@@ -215,8 +218,9 @@ class SchemaService(
 
     structFields ++= (try {
       val query =
-        s"""${selectCypherVersionClause(
-            neo4j
+        s"""${fullPreamble(
+            neo4j,
+            options.tuning
           )}CALL apoc.meta.relTypeProperties($$config) YIELD sourceNodeLabels, targetNodeLabels,
            | propertyName, propertyTypes
            |WITH *
@@ -239,8 +243,9 @@ class SchemaService(
         logResolutionChange("Switching to query schema resolution", e)
         // TODO get back to Cypher DSL when rand function will be available
         val query =
-          s"""${selectCypherVersionClause(
-              neo4j
+          s"""${fullPreamble(
+              neo4j,
+              options.tuning
             )}MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(
               _.quote()
             ).mkString(":")})
@@ -326,7 +331,7 @@ class SchemaService(
   private def structForGDS() = {
     val query =
       s"""
-         |${selectCypherVersionClause(neo4j)}CALL gds.list() YIELD name, signature, type
+         |${fullPreamble(neo4j, options.tuning)}CALL gds.list() YIELD name, signature, type
          |WHERE name = $$procName AND type = 'procedure'
          |WITH split(signature, ') :: (')[1] AS fields
          |WITH substring(fields, 0, size(fields) - 1) AS fields

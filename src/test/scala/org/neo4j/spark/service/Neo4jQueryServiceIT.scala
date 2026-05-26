@@ -21,10 +21,9 @@ import org.apache.spark.sql.connector.expressions.aggregate.Max
 import org.apache.spark.sql.connector.expressions.aggregate.Min
 import org.apache.spark.sql.connector.expressions.aggregate.Sum
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestMethodOrder
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithGdsBase
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithGdsBase.neo4j
 import org.neo4j.spark.util.DriverCache
@@ -55,6 +54,7 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        neo4jOptions.tuning,
         Array.empty,
         PartitionPagination.EMPTY,
         List(
@@ -85,6 +85,52 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
         .stripMargin
         .replaceAll("\n", " ")
     ))
+  }
+
+  @Test
+  def testQueryTuningNotSupported(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
+    options.put("gds", "gds.pageRank.stream")
+    options.put(Neo4jOptions.TUNING_EXPRESSION_ENGINE, "compiled")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val field = new DummyNamedReference("score")
+
+    val exception = assertThrows(
+      classOf[UnsupportedOperationException],
+      () => {
+        new Neo4jQueryService(
+          neo4jOptions,
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            neo4jOptions.tuning,
+            Array.empty,
+            PartitionPagination.EMPTY,
+            List(
+              "nodeId",
+              "MAX(score)",
+              "MIN(score)",
+              "COUNT(score)",
+              "COUNT(DISTINCT score)",
+              "SUM(score)",
+              "SUM(DISTINCT score)"
+            ),
+            Array(
+              new Max(field),
+              new Min(field),
+              new Sum(field, false),
+              new Count(field, false),
+              new Count(field, true),
+              new Sum(field, false),
+              new Sum(field, true)
+            )
+          )
+        ).createQuery()
+      }
+    )
+
+    assertTrue(exception.getMessage.contains("Query tuning parameters are not supported for GDS queries"))
   }
 
 }

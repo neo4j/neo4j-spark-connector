@@ -29,22 +29,31 @@ import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core._
 import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.cypher.Cypher5Renderer
-import org.neo4j.spark.cypher.CypherVersionSelector.selectCypherVersionClause
+import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.Neo4jTuningOptions
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.NodeSaveMode
 import org.neo4j.spark.util.QueryType
 
 import scala.collection.JavaConverters._
 
-class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: SaveMode) extends Neo4jQueryStrategy {
+class Neo4jQueryWriteStrategy(
+  private val neo4j: Neo4j,
+  private val saveMode: SaveMode
+) extends Neo4jQueryStrategy {
 
   override def createStatementForQuery(options: Neo4jOptions): String =
-    s"""WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
+    createStatementForQuery(options, withPreamble = true)
+
+  def createStatementForQuery(options: Neo4jOptions, withPreamble: Boolean): String = {
+    val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
+    s"""${preamble}WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
        |UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |${options.query.value}
        |""".stripMargin
+  }
 
   private def createPropsList(props: Map[String, String], prefix: String): String = {
     props
@@ -114,7 +123,7 @@ class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: Sa
       ""
     }
 
-    s"""${selectCypherVersionClause(neo4j)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
+    s"""${fullPreamble(neo4j, options.tuning)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$sourceQueryPart$withQueryPart
        |$targetQueryPart
        |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:$relationship$relKeys]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
@@ -134,7 +143,7 @@ class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: Sa
       Neo4jWriteMappingStrategy.KEYS
     )
 
-    s"""${selectCypherVersionClause(neo4j)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
+    s"""${fullPreamble(neo4j, options.tuning)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$keyword (node${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})
        |SET node += ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jWriteMappingStrategy.PROPERTIES}
        |""".stripMargin
@@ -145,18 +154,22 @@ class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: Sa
 }
 
 class Neo4jQueryReadStrategy(
-  neo4j: Neo4j,
-  filters: Array[Filter] = Array.empty[Filter],
-  partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
-  requiredColumns: Seq[String] = Seq.empty,
-  aggregateColumns: Array[AggregateFunc] = Array.empty,
-  jobId: String = ""
+  private val neo4j: Neo4j,
+  private val tuningOptions: Neo4jTuningOptions,
+  private val filters: Array[Filter] = Array.empty[Filter],
+  private val partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
+  private val requiredColumns: Seq[String] = Seq.empty,
+  private val aggregateColumns: Array[AggregateFunc] = Array.empty,
+  private val jobId: String = ""
 ) extends Neo4jQueryStrategy with Logging {
-  private val renderer: Renderer = new Cypher5Renderer(neo4j)
+  private val renderer: Renderer = new Cypher5Renderer(neo4j, tuningOptions)
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 
-  override def createStatementForQuery(options: Neo4jOptions): String = {
+  override def createStatementForQuery(options: Neo4jOptions): String =
+    createStatementForQuery(options, withPreamble = true)
+
+  def createStatementForQuery(options: Neo4jOptions, withPreamble: Boolean): String = {
     if (partitionPagination.topN.orders.nonEmpty) {
       logWarning(
         s"""Top N push-down optimizations with aggregations are not supported for custom queries.
@@ -171,7 +184,8 @@ class Neo4jQueryReadStrategy(
       s"${options.query.value}"
     }
 
-    s"WITH $$scriptResult AS scriptResult $limitedQuery"
+    val preamble = if (withPreamble) fullPreamble(neo4j, tuningOptions) else ""
+    s"${preamble}WITH $$scriptResult AS scriptResult $limitedQuery"
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
@@ -495,6 +509,10 @@ class Neo4jQueryReadStrategy(
   }
 
   override def createStatementForGDS(options: Neo4jOptions): String = {
+    if (options.tuning != Neo4jTuningOptions.empty) {
+      throw new UnsupportedOperationException("Query tuning parameters are not supported for GDS queries")
+    }
+
     val retCols = requiredColumns.map(column => getCorrectProperty(column, null))
     // we need it in order to parse the field YIELD by the GDS procedure...
     val (yieldFields, args) = Neo4jUtil.callSchemaService(
@@ -521,6 +539,28 @@ class Neo4jQueryReadStrategy(
       .returning(retCols: _*)
       .build()
     renderer.render(statement)
+  }
+}
+
+class Neo4jQueryNoPreambleReadStrategy(
+  private val neo4j: Neo4j,
+  private val filters: Array[Filter] = Array.empty[Filter],
+  private val partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
+  private val requiredColumns: Seq[String] = Seq.empty,
+  private val aggregateColumns: Array[AggregateFunc] = Array.empty,
+  private val jobId: String = ""
+) extends Neo4jQueryReadStrategy(
+      neo4j,
+      Neo4jTuningOptions.empty,
+      filters,
+      partitionPagination,
+      requiredColumns,
+      aggregateColumns,
+      jobId
+    ) {
+
+  override def createStatementForQuery(options: Neo4jOptions): String = {
+    super.createStatementForQuery(options, false)
   }
 }
 

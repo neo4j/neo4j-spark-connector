@@ -34,3 +34,4 @@ doc/node_modules
 doc/package-lock.json
 scripts/python/local
 node_modules
+.junie

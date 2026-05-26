@@ -151,6 +151,7 @@ abstract class BasePartitionReader(
       options,
       new Neo4jQueryReadStrategy(
         neo4j,
+        options.tuning,
         filters,
         partitionSkipLimit,
         requiredColumns.fieldNames,
