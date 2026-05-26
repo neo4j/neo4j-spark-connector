@@ -61,7 +61,9 @@ import java.time.OffsetDateTime
 import java.time.OffsetTime
 import java.time.ZoneOffset
 import java.util.TimeZone
-import scala.collection.{immutable, mutable}
+
+import scala.collection.immutable
+import scala.collection.mutable
 import scala.collection.mutable.Seq
 import scala.jdk.CollectionConverters.IterableHasAsJava
 import scala.jdk.CollectionConverters.ListHasAsScala
