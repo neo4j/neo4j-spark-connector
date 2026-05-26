@@ -34,7 +34,7 @@ object CypherPreamble {
     }
   }
 
-  def versionPreamble(neo4j: Neo4j): String = {
+  private def versionPreamble(neo4j: Neo4j): String = {
     if (canIUse(Cypher.explicitCypher5Selection()).withNeo4j(neo4j)) {
       "CYPHER 5 "
     } else {
@@ -42,7 +42,7 @@ object CypherPreamble {
     }
   }
 
-  def tuningPreamble(tuningOptions: Neo4jTuningOptions): String = {
+  private def tuningPreamble(tuningOptions: Neo4jTuningOptions): String = {
     val cypher = "CYPHER "
 
     val clause = tuningOptions.toMap

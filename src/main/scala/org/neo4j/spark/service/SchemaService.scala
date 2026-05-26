@@ -60,7 +60,7 @@ class SchemaService(
   private val filters: Array[Filter] = Array.empty
 ) extends AutoCloseable with Logging {
 
-  private val queryReadStrategy = new Neo4jQueryNoPreambleReadStrategy(neo4j, filters)
+  private val queryReadStrategy = new Neo4jQueryReadStrategy(neo4j, Neo4jTuningOptions.empty, filters)
 
   private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
 
@@ -270,7 +270,7 @@ class SchemaService(
   }
 
   private def structForQuery(): StructType = {
-    val query = queryReadStrategy.createStatementForQuery(options)
+    val query = queryReadStrategy.createStatementForQuery(options, withPreamble = false)
     if (!isValidQuery(query, summary.QueryType.READ_ONLY)) {
       return new StructType()
     }

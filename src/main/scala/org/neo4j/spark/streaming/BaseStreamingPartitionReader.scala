@@ -23,16 +23,16 @@ import org.apache.spark.sql.sources.LessThanOrEqual
 import org.apache.spark.sql.types.StructType
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core.Cypher
-import org.neo4j.spark.cypher.CypherPreamble
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.reader.BasePartitionReader
-import org.neo4j.spark.service.Neo4jQueryNoPreambleReadStrategy
+import org.neo4j.spark.service.Neo4jQueryReadStrategy
 import org.neo4j.spark.service.Neo4jQueryService
 import org.neo4j.spark.service.Neo4jQueryStrategy
 import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.streaming.BaseStreamingPartitionReader.offsetUsagePatterns
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.Neo4jTuningOptions
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.QueryType._
 import org.neo4j.spark.util.StreamingFrom
@@ -99,14 +99,16 @@ class BaseStreamingPartitionReader(
       case QUERY =>
         val originalQuery = new Neo4jQueryService(
           options,
-          new Neo4jQueryNoPreambleReadStrategy(
+          new Neo4jQueryReadStrategy(
             neo4j,
+            Neo4jTuningOptions.empty,
             filters,
             partitionSkipLimit,
             requiredColumns.fieldNames,
             aggregateColumns,
             jobId
-          )
+          ),
+          withPreamble = false
         ).createQuery()
 
         if (offsetUsagePatterns.exists(_.test(originalQuery))) {

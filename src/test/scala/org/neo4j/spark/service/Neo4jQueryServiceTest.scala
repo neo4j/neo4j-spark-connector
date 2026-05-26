@@ -1135,8 +1135,6 @@ class Neo4jQueryServiceTest {
   @ParameterizedTest
   @MethodSource(Array("tuning_parameters"))
   def testCanSkipPreamble(tuningOptions: Neo4jTuningOptions, ignored: String, mode: String): Unit = {
-    assumeFalse(mode.equals("WRITE")) // there is no write-strategy that skips preambles.
-
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
@@ -1144,13 +1142,16 @@ class Neo4jQueryServiceTest {
 
     val (strategy, wantQuery) = mode match {
       case "READ" => (
-          new Neo4jQueryNoPreambleReadStrategy(neo4j(version(5, 0), COMMUNITY)),
+          new Neo4jQueryReadStrategy(neo4j(version(5, 0), COMMUNITY), tuningOptions),
           "WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o"
         )
-      case "WRITE" => fail("You should never go here because preamble-skipping write-strategy doesn't exist")
+      case "WRITE" => (
+          new Neo4jQueryWriteStrategy(neo4j(version(5, 0), COMMUNITY), SaveMode.Overwrite),
+          "WITH $scriptResult AS scriptResult\nUNWIND $events AS event\nMATCH (o:Object) RETURN o"
+        )
     }
 
-    val gotQuery = new Neo4jQueryService(neo4jOptions, strategy).createQuery().trim
+    val gotQuery = new Neo4jQueryService(neo4jOptions, strategy, withPreamble = false).createQuery().trim
 
     assertEquals(wantQuery, gotQuery)
   }

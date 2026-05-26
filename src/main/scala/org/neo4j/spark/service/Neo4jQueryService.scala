@@ -44,12 +44,9 @@ class Neo4jQueryWriteStrategy(
   private val saveMode: SaveMode
 ) extends Neo4jQueryStrategy {
 
-  override def createStatementForQuery(options: Neo4jOptions): String =
-    createStatementForQuery(options, withPreamble = true)
-
-  def createStatementForQuery(options: Neo4jOptions, withPreamble: Boolean): String = {
+  override def createStatementForQuery(options: Neo4jOptions, withPreamble: Boolean): String = {
     val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
-    s"""${preamble}WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
+    s"""${preamble}WITH $$scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
        |UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |${options.query.value}
        |""".stripMargin
@@ -166,10 +163,7 @@ class Neo4jQueryReadStrategy(
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 
-  override def createStatementForQuery(options: Neo4jOptions): String =
-    createStatementForQuery(options, withPreamble = true)
-
-  def createStatementForQuery(options: Neo4jOptions, withPreamble: Boolean): String = {
+  override def createStatementForQuery(options: Neo4jOptions, withPreamble: Boolean): String = {
     if (partitionPagination.topN.orders.nonEmpty) {
       logWarning(
         s"""Top N push-down optimizations with aggregations are not supported for custom queries.
@@ -185,7 +179,7 @@ class Neo4jQueryReadStrategy(
     }
 
     val preamble = if (withPreamble) fullPreamble(neo4j, tuningOptions) else ""
-    s"${preamble}WITH $$scriptResult AS scriptResult $limitedQuery"
+    s"${preamble}WITH $$scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT} $limitedQuery"
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
@@ -542,28 +536,6 @@ class Neo4jQueryReadStrategy(
   }
 }
 
-class Neo4jQueryNoPreambleReadStrategy(
-  private val neo4j: Neo4j,
-  private val filters: Array[Filter] = Array.empty[Filter],
-  private val partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
-  private val requiredColumns: Seq[String] = Seq.empty,
-  private val aggregateColumns: Array[AggregateFunc] = Array.empty,
-  private val jobId: String = ""
-) extends Neo4jQueryReadStrategy(
-      neo4j,
-      Neo4jTuningOptions.empty,
-      filters,
-      partitionPagination,
-      requiredColumns,
-      aggregateColumns,
-      jobId
-    ) {
-
-  override def createStatementForQuery(options: Neo4jOptions): String = {
-    super.createStatementForQuery(options, false)
-  }
-}
-
 object Neo4jQueryStrategy {
   val VARIABLE_EVENT = "event"
   val VARIABLE_EVENTS = "events"
@@ -573,7 +545,7 @@ object Neo4jQueryStrategy {
 
 abstract class Neo4jQueryStrategy {
 
-  def createStatementForQuery(options: Neo4jOptions): String
+  def createStatementForQuery(options: Neo4jOptions, withPreamble: Boolean): String
 
   def createStatementForRelationships(options: Neo4jOptions): String
 
@@ -582,12 +554,16 @@ abstract class Neo4jQueryStrategy {
   def createStatementForGDS(options: Neo4jOptions): String
 }
 
-class Neo4jQueryService(private val options: Neo4jOptions, val strategy: Neo4jQueryStrategy) extends Serializable {
+class Neo4jQueryService(
+  private val options: Neo4jOptions,
+  val strategy: Neo4jQueryStrategy,
+  val withPreamble: Boolean = true
+) extends Serializable {
 
   def createQuery(): String = options.query.queryType match {
     case QueryType.LABELS       => strategy.createStatementForNodes(options)
     case QueryType.RELATIONSHIP => strategy.createStatementForRelationships(options)
-    case QueryType.QUERY        => strategy.createStatementForQuery(options)
+    case QueryType.QUERY        => strategy.createStatementForQuery(options, withPreamble)
     case QueryType.GDS          => strategy.createStatementForGDS(options)
     case _ => throw new UnsupportedOperationException(
         s"""Query Type not supported.
