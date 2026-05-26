@@ -49,7 +49,7 @@ class Cypher5Renderer(neo4j: Neo4j) extends Renderer {
   }
 
   def withTuningOptions(incoming: Neo4jTuningOptions): Cypher5Renderer = {
-    tuningOptions = incoming
+    tuningOptions = incoming.copy()
     this
   }
 }
