@@ -61,7 +61,6 @@ import java.time.OffsetDateTime
 import java.time.OffsetTime
 import java.time.ZoneOffset
 import java.util.TimeZone
-
 import scala.collection.{immutable, mutable}
 import scala.collection.mutable.Seq
 import scala.jdk.CollectionConverters.IterableHasAsJava
@@ -133,8 +132,8 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      assertThat(df.select("<elementId>").collectAsList().get(0).getLong(0))
-        .isGreaterThan(-1)
+      assertThat(df.select("<elementId>").collectAsList().get(0).getString(0))
+        .isNotEmpty()
     }
 
     @Test
@@ -145,9 +144,9 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      assertThat(df.select("<labels>").collectAsList().asScala.map(_.getAs[immutable.Seq[String]](0)).asJava)
+      assertThat(df.select("<labels>").collectAsList().asScala.map(_.getAs[mutable.Seq[String]](0)).asJava)
         .hasSize(1)
-        .containsExactly(immutable.Seq("Person", "Customer"))
+        .containsExactly(mutable.Seq("Person", "Customer"))
     }
 
     @Test
@@ -158,7 +157,7 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      val result = df.select("<labels>").collectAsList().get(0).getAs[immutable.Seq[String]](0)
+      val result = df.select("<labels>").collectAsList().get(0).getAs[mutable.Seq[String]](0)
       assertThat(result.toSet[String]).isEqualTo(Set("Person", "Foo Bar", "(╯°□°）╯︵ ┻━┻"))
     }
 
@@ -368,7 +367,7 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      val result = df.select("names").collectAsList().get(0).getAs[immutable.Seq[String]](0)
+      val result = df.select("names").collectAsList().get(0).getAs[mutable.Seq[String]](0)
       assertThat(result.head).isEqualTo("John")
       assertThat(result(1)).isEqualTo("Doe")
     }
@@ -381,7 +380,7 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      val result = df.select("ages").collectAsList().get(0).getAs[immutable.Seq[Long]](0)
+      val result = df.select("ages").collectAsList().get(0).getAs[mutable.Seq[Long]](0)
       assertThat(result.head).isEqualTo(22)
       assertThat(result(1)).isEqualTo(23)
     }
@@ -394,7 +393,7 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      val result = df.select("scores").collectAsList().get(0).getAs[immutable.Seq[Double]](0)
+      val result = df.select("scores").collectAsList().get(0).getAs[mutable.Seq[Double]](0)
       assertThat(result.head).isEqualTo(22.33)
       assertThat(result(1)).isEqualTo(44.55)
     }
@@ -422,7 +421,7 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      val row = df.select("someTimes").collectAsList().get(0).getAs[immutable.Seq[GenericRowWithSchema]](0)
+      val row = df.select("someTimes").collectAsList().get(0).getAs[mutable.Seq[GenericRowWithSchema]](0)
       val value1 = row.head
       assertThat(value1.get(0)).isEqualTo("local-time")
       assertThat(value1.get(1)).isEqualTo("12:00:00")
@@ -439,7 +438,7 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      val result = df.select("bools").collectAsList().get(0).getAs[immutable.Seq[Boolean]](0)
+      val result = df.select("bools").collectAsList().get(0).getAs[mutable.Seq[Boolean]](0)
       assertThat(result.head).isEqualTo(true)
       assertThat(result(1)).isEqualTo(false)
     }
@@ -454,7 +453,7 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      val row = df.select("locations").collectAsList().get(0).getAs[immutable.Seq[GenericRowWithSchema]](0)
+      val row = df.select("locations").collectAsList().get(0).getAs[mutable.Seq[GenericRowWithSchema]](0)
       val value1 = row.head
       assertThat(value1.get(0)).isEqualTo("point-2d")
       assertThat(value1.get(1)).isEqualTo(7203)
@@ -477,7 +476,7 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      val row = df.select("locations").collectAsList().get(0).getAs[immutable.Seq[GenericRowWithSchema]](0)
+      val row = df.select("locations").collectAsList().get(0).getAs[mutable.Seq[GenericRowWithSchema]](0)
       val value1 = row.head
       assertThat(value1.get(0)).isEqualTo("point-2d")
       assertThat(value1.get(1)).isEqualTo(4326)
@@ -500,7 +499,7 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      val row = df.select("locations").collectAsList().get(0).getAs[immutable.Seq[GenericRowWithSchema]](0)
+      val row = df.select("locations").collectAsList().get(0).getAs[mutable.Seq[GenericRowWithSchema]](0)
       val value1 = row.head
       assertThat(value1.get(0)).isEqualTo("point-3d")
       assertThat(value1.get(1)).isEqualTo(9157)
@@ -523,7 +522,7 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      val row = df.select("dates").collectAsList().get(0).getAs[immutable.Seq[Date]](0)
+      val row = df.select("dates").collectAsList().get(0).getAs[mutable.Seq[Date]](0)
       assertThat(row.head).isEqualTo(Date.valueOf("2009-10-10"))
       assertThat(row(1)).isEqualTo(Date.valueOf("2009-10-11"))
     }
@@ -543,7 +542,7 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      val result = df.select("aTime").collectAsList().get(0).getAs[immutable.Seq[Timestamp]](0)
+      val result = df.select("aTime").collectAsList().get(0).getAs[mutable.Seq[Timestamp]](0)
       assertThat(result.head).isEqualTo(Timestamp.from(OffsetDateTime.parse("2015-06-24T12:50:35.556+01:00").toInstant))
       assertThat(result(1)).isEqualTo(Timestamp.from(OffsetDateTime.parse("2015-06-23T12:50:35.556+01:00").toInstant))
     }
@@ -558,7 +557,7 @@ class ReadIT {
         .option("labels", "Person")
         .load()
 
-      val row = df.select("durations").collectAsList().get(0).getAs[immutable.Seq[GenericRowWithSchema]](0)
+      val row = df.select("durations").collectAsList().get(0).getAs[mutable.Seq[GenericRowWithSchema]](0)
       val value1 = row.head
       assertThat(value1.get(0)).isEqualTo("duration")
       assertThat(value1.get(1)).isEqualTo(0L)
@@ -628,7 +627,7 @@ class ReadIT {
         .load
         .filter("name = 'Product 1'")
 
-      assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("<id>", "<labels>", "name", "id"))
+      assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("<elementId>", "<labels>", "name", "id"))
       assertThat(df.select("name").collect().map(_.getString(0)).toSet)
         .isEqualTo(Set("Product 1"))
     }
@@ -1066,7 +1065,7 @@ class ReadIT {
         .load()
 
       assertThat(df.columns.toSeq.asJava)
-        .containsOnlyOnce("prop", "<id>", "<labels>")
+        .containsOnlyOnce("prop", "<elementId>", "<labels>")
     }
 
     @Test
@@ -1084,7 +1083,7 @@ class ReadIT {
         .load
 
       assertThat(df.columns.toSeq.asJava)
-        .containsOnlyOnce("name", "born", "actor", "soccerPlayer", "writer", "<id>", "<labels>")
+        .containsOnlyOnce("name", "born", "actor", "soccerPlayer", "writer", "<elementId>", "<labels>")
     }
 
     @Test
@@ -1155,7 +1154,7 @@ class ReadIT {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
-           |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+           |CREATE (pe:Person {id: id, name: 'Person ' + id})
            |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
     """.stripMargin
       )
@@ -1163,13 +1162,13 @@ class ReadIT {
 
       val df = spark.read
         .format(classOf[DataSource].getName)
-        .option("relationship", "BOUGHT")
         .option("relationship.source.labels", "Person")
+        .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
         .load
-        .select("`source.name`", "`<source.id>`")
+        .select("`source.name`", "`<source.elementId>`")
 
-      assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("source.name", "<source.id>"))
+      assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("source.name", "<source.elementId>"))
     }
 
     @Test
@@ -1185,8 +1184,8 @@ class ReadIT {
 
       val df = spark.read
         .format(classOf[DataSource].getName)
-        .option("relationship", "BOUGHT")
         .option("relationship.source.labels", "Person")
+        .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
         .load
         .select("`<rel.type>`")
@@ -1207,13 +1206,13 @@ class ReadIT {
 
       val df = spark.read
         .format(classOf[DataSource].getName)
-        .option("relationship", "BOUGHT")
         .option("relationship.source.labels", "Person")
+        .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
         .load
-        .select("`target.(╯°□°)╯︵ ┻━┻`", "`<source.id>`")
+        .select("`target.(╯°□°)╯︵ ┻━┻`", "`<source.elementId>`")
 
-      assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("target.(╯°□°)╯︵ ┻━┻", "<source.id>"))
+      assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("target.(╯°□°)╯︵ ┻━┻", "<source.elementId>"))
     }
 
     @Test
@@ -1232,8 +1231,8 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("relationship.nodes.map", "false")
-        .option("relationship", "KNOWS")
         .option("relationship.source.labels", "Person")
+        .option("relationship", "KNOWS")
         .option("relationship.target.labels", "Person")
         .load
         .filter("`source.id` = '14' AND `target.id` = '16'")
@@ -1257,8 +1256,8 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("relationship.nodes.map", "true")
-        .option("relationship", "KNOWS")
         .option("relationship.source.labels", "Person")
+        .option("relationship", "KNOWS")
         .option("relationship.target.labels", "Person")
         .load
         .filter("`<source>`.`id` = '14' AND `<target>`.`id` = '16'")
@@ -1323,14 +1322,14 @@ class ReadIT {
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("relationship.nodes.map", "true")
-        .option("relationship", "BOUGHT")
         .option("relationship.source.labels", ":Person")
+        .option("relationship", "BOUGHT")
         .option("relationship.target.labels", ":Product")
         .option("partitions", "5")
         .load()
 
       assertThat(df.rdd.getNumPartitions).isEqualTo(5)
-      val ids = df.collect().map(_.getAs[Long]("<rel.id>"))
+      val ids = df.collect().map(_.getAs[String]("<rel.elementId>"))
       assertThat(ids.toSet.asJava).hasSize(100)
       assertThat(ids.toSeq.asJava).hasSize(100)
     }
@@ -1352,15 +1351,15 @@ class ReadIT {
 
       val rows = df.collectAsList()
       assertThat(rows.asScala.count(row =>
-        row.getAs[Long]("<rel.id>") >= 0
+        row.getAs[String]("<rel.elementId>").nonEmpty
           && row.getAs[String]("<rel.type>") != null
           && row.getAs[Double]("rel.when") >= 0
           && row.getAs[Double]("rel.quantity") >= 0
-          && row.getAs[Long]("<source.id>") >= 0
+          && row.getAs[String]("<source.elementId>").nonEmpty
           && row.getAs[Long]("source.id") >= 0
           && row.getAs[immutable.Seq[String]]("<source.labels>").nonEmpty
           && row.getAs[String]("source.fullName") != null
-          && row.getAs[Long]("<target.id>") >= 0
+          && row.getAs[String]("<target.elementId>").nonEmpty
           && row.getAs[Double]("target.id") >= 0
           && row.getAs[immutable.Seq[String]]("<target.labels>").nonEmpty
           && row.getAs[String]("target.name") != null
@@ -1377,14 +1376,14 @@ class ReadIT {
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("relationship", "BOUGHT")
-        .option("relationship.nodes.map", "true")
         .option("relationship.source.labels", ":Person")
+        .option("relationship.nodes.map", "true")
         .option("relationship.target.labels", ":Product")
         .load
 
       val rows = df.collectAsList()
       assertThat(rows.asScala.count(row =>
-        row.getAs[Long]("<rel.id>") >= 0
+        row.getAs[String]("<rel.elementId>").nonEmpty
           && row.getAs[String]("<rel.type>") != null
           && row.getAs[Double]("rel.when") >= 0
           && row.getAs[Double]("rel.quantity") >= 0
@@ -1392,9 +1391,9 @@ class ReadIT {
           && row.getAs[Map[String, String]]("<target>") != null
       )).isEqualTo(100)
       assertThat(rows.asScala.map(row => row.getAs[Map[String, String]]("<source>"))
-        .count(row => row.keys == Set("id", "fullName", "<id>", "<labels>"))).isEqualTo(100)
+        .count(row => row.keys == Set("id", "fullName", "<elementId>", "<labels>"))).isEqualTo(100)
       assertThat(rows.asScala.map(row => row.getAs[Map[String, String]]("<target>"))
-        .count(row => row.keys == Set("id", "name", "<id>", "<labels>"))).isEqualTo(100)
+        .count(row => row.keys == Set("id", "name", "<elementId>", "<labels>"))).isEqualTo(100)
     }
 
     @Test
@@ -1407,8 +1406,8 @@ class ReadIT {
 
       val df = spark.read
         .format(classOf[DataSource].getName)
-        .option("relationship", "BOUGHT")
         .option("relationship.source.labels", "Person")
+        .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
         .load
         .limit(10)
@@ -1506,8 +1505,8 @@ class ReadIT {
       driver.executableQuery(s"""CREATE (pe:Person {id: 1, fullName: 'Person'})-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr:Product {id: 1, name: 'Product ' + 0, price: 1})
                                 |WITH pe
                                 |UNWIND range(1, 10) as id
-                                |MERGE (pr:Product {id: id * rand(), name: 'Product ' + id, price: id})
-                                |CREATE (pe)-[:BOUGHT {when: rand(), quantity: rand() * 1000}]->(pr)
+                                |MERGE (p:Product {id: id, name: 'Product ' + id, price: id * rand()})
+                                |CREATE (pe)-[:BOUGHT {when: rand(), quantity: rand() * 1000}]->(p)
     """.stripMargin)
         .execute()
 
@@ -1544,9 +1543,9 @@ class ReadIT {
         .option("query", "RETURN [1, 'foo'] AS list")
         .load()
 
-      val result = df.collect()(0).getAs[immutable.Seq[_]]("list")
+      val result = df.collect()(0).getAs[mutable.Seq[_]]("list")
 
-      assertThat(result).isEqualTo(immutable.Seq("1", "foo"))
+      assertThat(result).isEqualTo(mutable.Seq("1", "foo"))
     }
 
     @Test
@@ -1741,9 +1740,9 @@ class ReadIT {
         .load()
 
       val rows = df.collect()
-      assertThat(rows.flatMap(row => row.getAs[immutable.Seq[Row]]("nodes")).count(row =>
-        row.getAs[Long]("<id>") >= 0
-          && row.getAs[immutable.Seq[String]]("<labels>").nonEmpty
+      assertThat(rows.flatMap(row => row.getAs[mutable.Seq[Row]]("nodes")).count(row =>
+        row.getAs[String]("<elementId>").nonEmpty
+          && row.getAs[mutable.Seq[String]]("<labels>").nonEmpty
           && row.getAs[String]("fullName").nonEmpty
           && row.getAs[Long]("id") >= 0
       ))
@@ -1796,10 +1795,10 @@ class ReadIT {
 
       val rows = df.collect()
       assertThat(rows.map(_.getAs[Row]("rel")).count(row =>
-        row.getAs[Long]("<rel.id>") >= 0
+        row.getAs[String]("<rel.elementId>").nonEmpty
           && row.getAs[String]("<rel.type>").nonEmpty
-          && row.getAs[Long]("<source.id>") >= 0
-          && row.getAs[Long]("<target.id>") >= 0
+          && row.getAs[String]("<source.elementId>").nonEmpty
+          && row.getAs[String]("<target.elementId>").nonEmpty
           && row.getAs[java.lang.Double]("when") != null
           && row.getAs[java.lang.Double]("quantity") != null
       ))
