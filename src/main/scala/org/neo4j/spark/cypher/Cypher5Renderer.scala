@@ -26,7 +26,7 @@ import org.neo4j.spark.cypher.Cypher5Renderer.Neo4jV5
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.util.Neo4jTuningOptions
 
-class Cypher5Renderer(neo4j: Neo4j, tuningOptions: Neo4jTuningOptions) extends Renderer {
+class Cypher5Renderer(neo4j: Neo4j) extends Renderer {
 
   private val delegate =
     Renderer.getRenderer(
@@ -41,11 +41,17 @@ class Cypher5Renderer(neo4j: Neo4j, tuningOptions: Neo4jTuningOptions) extends R
         .build()
     )
 
+  private var tuningOptions: Neo4jTuningOptions = Neo4jTuningOptions.empty
+
   override def render(statement: Statement): String = {
     val rendered = delegate.render(statement)
     s"${fullPreamble(neo4j, tuningOptions)}$rendered"
   }
 
+  def withTuningOptions(incoming: Neo4jTuningOptions): Cypher5Renderer = {
+    tuningOptions = incoming
+    this
+  }
 }
 
 private object Cypher5Renderer {

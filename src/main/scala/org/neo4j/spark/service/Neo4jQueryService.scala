@@ -152,14 +152,13 @@ class Neo4jQueryWriteStrategy(
 
 class Neo4jQueryReadStrategy(
   private val neo4j: Neo4j,
-  private val tuningOptions: Neo4jTuningOptions,
   private val filters: Array[Filter] = Array.empty[Filter],
   private val partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
   private val requiredColumns: Seq[String] = Seq.empty,
   private val aggregateColumns: Array[AggregateFunc] = Array.empty,
   private val jobId: String = ""
 ) extends Neo4jQueryStrategy with Logging {
-  private val renderer: Renderer = new Cypher5Renderer(neo4j, tuningOptions)
+  private val renderer: Cypher5Renderer = new Cypher5Renderer(neo4j)
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 
@@ -178,7 +177,7 @@ class Neo4jQueryReadStrategy(
       s"${options.query.value}"
     }
 
-    val preamble = if (withPreamble) fullPreamble(neo4j, tuningOptions) else ""
+    val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
     s"${preamble}WITH $$scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT} $limitedQuery"
   }
 
@@ -198,7 +197,7 @@ class Neo4jQueryReadStrategy(
     } else {
       buildStatementAggregation(options, matchQuery, relationship, returnExpressions)
     }
-    renderer.render(stmt)
+    renderer.withTuningOptions(options.tuning).render(stmt)
   }
 
   private def convertSort(entity: PropertyContainer, order: SortOrder): SortItem = {
@@ -443,7 +442,7 @@ class Neo4jQueryReadStrategy(
       }
       buildStatement(options, ret, node)
     }
-    renderer.render(stmt)
+    renderer.withTuningOptions(options.tuning).render(stmt)
   }
 
   private def filterNode(node: Node) = {
@@ -480,7 +479,10 @@ class Neo4jQueryReadStrategy(
     val matchQuery: StatementBuilder.OngoingReadingWithoutWhere =
       filterRelationship(sourceNode, targetNode, relationship)
 
-    renderer.render(buildStatement(options, matchQuery.returning(Functions.count(sourceNode).as("count"))))
+    renderer.withTuningOptions(options.tuning).render(buildStatement(
+      options,
+      matchQuery.returning(Functions.count(sourceNode).as("count"))
+    ))
   }
 
   private def assembleConditionQuery(
@@ -532,7 +534,7 @@ class Neo4jQueryReadStrategy(
       .`yield`(yieldFields: _*)
       .returning(retCols: _*)
       .build()
-    renderer.render(statement)
+    renderer.withTuningOptions(options.tuning).render(statement)
   }
 }
 

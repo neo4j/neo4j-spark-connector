@@ -101,7 +101,6 @@ class BaseStreamingPartitionReader(
           options,
           new Neo4jQueryReadStrategy(
             neo4j,
-            Neo4jTuningOptions.empty,
             filters,
             partitionSkipLimit,
             requiredColumns.fieldNames,
