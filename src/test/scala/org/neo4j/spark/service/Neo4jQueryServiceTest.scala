@@ -1199,7 +1199,7 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testScriptResult(): Unit = {
+  def testScriptResultInclusionInCustomQuery(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
