@@ -46,9 +46,9 @@ class Neo4jQueryWriteStrategy(
 ) extends Neo4jQueryStrategy {
 
   override def createStatementForQuery(options: Neo4jOptions): String = {
+    val scriptResult = Neo4jQueryStrategy.scriptResultClause(options)
     val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
-    s"""${preamble}WITH $$scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
-       |UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
+    s"""$preamble${scriptResult}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |${options.query.value}
        |""".stripMargin
   }
@@ -179,8 +179,9 @@ class Neo4jQueryReadStrategy(
       s"${options.query.value}"
     }
 
+    val scriptResult = Neo4jQueryStrategy.scriptResultClause(options)
     val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
-    s"${preamble}WITH $$scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT} $limitedQuery"
+    s"$preamble$scriptResult$limitedQuery"
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
@@ -549,6 +550,12 @@ object Neo4jQueryStrategy {
   val VARIABLE_EVENTS = "events"
   val VARIABLE_SCRIPT_RESULT = "scriptResult"
   val VARIABLE_STREAM = "stream"
+
+  def scriptResultClause(options: Neo4jOptions): String =
+    if (options.script != null && options.script.nonEmpty)
+      s"WITH $$scriptResult AS $VARIABLE_SCRIPT_RESULT "
+    else
+      ""
 }
 
 abstract class Neo4jQueryStrategy {

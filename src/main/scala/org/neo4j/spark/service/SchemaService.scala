@@ -845,7 +845,7 @@ class SchemaService(
         (session.executeRead(tx => tx.run(s"EXPLAIN $query").consume(), sessionTransactionConfig).queryType(), query)
       })
       .groupBy(_._1)
-      .mapValues(_.map(_._2))
+      .view.mapValues(_.map(_._2))
     val schemaQueries = queryMap.getOrElse(org.neo4j.driver.summary.QueryType.SCHEMA_WRITE, Seq.empty[String])
     schemaQueries.foreach(q => session.executeWrite(tx => tx.run(q).consume(), sessionTransactionConfig))
     val others = queryMap

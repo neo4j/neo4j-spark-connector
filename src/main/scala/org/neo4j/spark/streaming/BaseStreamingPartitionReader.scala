@@ -32,7 +32,6 @@ import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.streaming.BaseStreamingPartitionReader.offsetUsagePatterns
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jOptions
-import org.neo4j.spark.util.Neo4jTuningOptions
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.QueryType._
 import org.neo4j.spark.util.StreamingFrom

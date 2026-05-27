@@ -1050,7 +1050,7 @@ class Neo4jQueryServiceTest {
       )
     ).createQuery()
 
-    assertEquals(s"${prefix}WITH $$scriptResult AS scriptResult MATCH (p:Person) RETURN p SKIP 0 LIMIT 24", query)
+    assertEquals(s"${prefix}MATCH (p:Person) RETURN p SKIP 0 LIMIT 24", query)
   }
 
   @ParameterizedTest
@@ -1128,14 +1128,14 @@ class Neo4jQueryServiceTest {
           new Neo4jQueryReadStrategy(
             neo4j(version(5, 0), COMMUNITY)
           ),
-          "WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o"
+          "MATCH (o:Object) RETURN o"
         )
       case "WRITE" => (
           new Neo4jQueryWriteStrategy(
             neo4j(version(5, 0), COMMUNITY),
             SaveMode.Overwrite
           ),
-          "WITH $scriptResult AS scriptResult\nUNWIND $events AS event\nMATCH (o:Object) RETURN o"
+          "UNWIND $events AS event\nMATCH (o:Object) RETURN o"
         )
     }
 
@@ -1155,11 +1155,11 @@ class Neo4jQueryServiceTest {
     val (strategy, wantQuery) = mode match {
       case "READ" => (
           new Neo4jQueryReadStrategy(neo4j(version(5, 0), COMMUNITY), withPreamble = false),
-          "WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o"
+          "MATCH (o:Object) RETURN o"
         )
       case "WRITE" => (
           new Neo4jQueryWriteStrategy(neo4j(version(5, 0), COMMUNITY), SaveMode.Overwrite, withPreamble = false),
-          "WITH $scriptResult AS scriptResult\nUNWIND $events AS event\nMATCH (o:Object) RETURN o"
+          "UNWIND $events AS event\nMATCH (o:Object) RETURN o"
         )
     }
 
@@ -1169,7 +1169,7 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testTuningWithVersion(): Unit = {
+  def testTuningAndVersionInclusionInCustomReadQuery(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
@@ -1177,24 +1177,74 @@ class Neo4jQueryServiceTest {
     val tuningOptions = Neo4jTuningOptions.empty.copy(replan = "force", operatorEngine = "compiled")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
 
-    val readActual = new Neo4jQueryService(
+    val actual = new Neo4jQueryService(
       neo4jOptions,
       new Neo4jQueryReadStrategy(neo4j(version(2025, 1), ENTERPRISE))
     ).createQuery().trim
 
     assertEquals(
-      "CYPHER replan=force operatorEngine=compiled\nCYPHER 5 WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o",
-      readActual
+      "CYPHER replan=force operatorEngine=compiled\nCYPHER 5 MATCH (o:Object) RETURN o",
+      actual
     )
+  }
 
-    val writeActual = new Neo4jQueryService(
+  @Test
+  def testTuningAndVersionInclusionInCustomWriteQuery(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
+
+    val tuningOptions = Neo4jTuningOptions.empty.copy(replan = "force", operatorEngine = "compiled")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
+
+    val actual = new Neo4jQueryService(
       neo4jOptions,
       new Neo4jQueryWriteStrategy(neo4j(version(2025, 1), ENTERPRISE), SaveMode.Overwrite)
     ).createQuery().trim
 
     assertEquals(
-      "CYPHER replan=force operatorEngine=compiled\nCYPHER 5 WITH $scriptResult AS scriptResult\nUNWIND $events AS event\nMATCH (o:Object) RETURN o",
-      writeActual
+      "CYPHER replan=force operatorEngine=compiled\nCYPHER 5 UNWIND $events AS event\nMATCH (o:Object) RETURN o",
+      actual
+    )
+  }
+
+  @Test
+  def testScriptResultInclusionInCustomReadQuery(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
+    options.put("script", "return 'foo'")
+
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val actual = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(neo4j(version(5, 0), COMMUNITY))
+    ).createQuery().trim
+
+    assertEquals(
+      "WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o",
+      actual
+    )
+  }
+
+  @Test
+  def testScriptResultInclusionInCustomWriteQuery(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
+    options.put("script", "return 'foo'")
+
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val actual = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryWriteStrategy(neo4j(version(5, 0), COMMUNITY), SaveMode.Overwrite)
+    ).createQuery().trim
+
+    assertEquals(
+      "WITH $scriptResult AS scriptResult UNWIND $events AS event\nMATCH (o:Object) RETURN o",
+      actual
     )
   }
 
