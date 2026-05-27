@@ -83,7 +83,7 @@ class Neo4jMicroBatchReader(
   }
 
   override def latestOffset(): Offset = {
-    val offset = Neo4jOffset(Neo4jUtil.callSchemaService[Long](
+    val offsetValue = Neo4jUtil.callSchemaService[Option[Long]](
       neo4j,
       neo4jOptions,
       jobId,
@@ -93,12 +93,11 @@ class Neo4jMicroBatchReader(
           try {
             schemaService.lastOffset()
           } catch {
-            case _: Throwable => -1L
+            case _: Throwable => null
           }
       }
-    ))
-
-    offset
+    )
+    offsetValue.map(value => Neo4jOffset(value)).orNull
   }
 
   override def initialOffset(): Offset = Neo4jOffset(neo4jOptions.streamingOptions.from.value())

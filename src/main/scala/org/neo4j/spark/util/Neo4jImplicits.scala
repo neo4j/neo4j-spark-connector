@@ -371,4 +371,14 @@ object Neo4jImplicits {
     def toNestedJavaMap: java.util.Map[String, Any] = nestingMap(map)
   }
 
+  implicit class ValueImplicits(value: Value) {
+
+    def asOptionalLong(): Option[Long] = {
+      if (value.isNull) {
+        Option.empty
+      } else {
+        Option(value.asLong())
+      }
+    }
+  }
 }

@@ -37,6 +37,7 @@ import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.service.SchemaService.normalizedClassName
 import org.neo4j.spark.service.SchemaService.normalizedClassNameFromGraphEntity
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
+import org.neo4j.spark.util.Neo4jImplicits.ValueImplicits
 import org.neo4j.spark.util._
 
 import java.util
@@ -879,7 +880,13 @@ class SchemaService(
     }
   }
 
-  private def lastOffsetForNode(): Long = {
+  def lastOffset(): Option[Long] = options.query.queryType match {
+    case QueryType.LABELS       => lastOffsetForNode()
+    case QueryType.RELATIONSHIP => lastOffsetForRelationship()
+    case QueryType.QUERY        => lastOffsetForQuery()
+  }
+
+  private def lastOffsetForNode(): Option[Long] = {
     val label = options.nodeMetadata.labels.head
     session.executeRead(
       tx =>
@@ -890,10 +897,10 @@ class SchemaService(
       sessionTransactionConfig
     )
       .get(options.streamingOptions.propertyName)
-      .asLong(-1)
+      .asOptionalLong()
   }
 
-  private def lastOffsetForRelationship(): Long = {
+  private def lastOffsetForRelationship(): Option[Long] = {
     val sourceLabel = options.relationshipMetadata.source.labels.head.quote()
     val targetLabel = options.relationshipMetadata.target.labels.head.quote()
     val relType = options.relationshipMetadata.relationshipType.quote()
@@ -907,18 +914,13 @@ class SchemaService(
       sessionTransactionConfig
     )
       .get(options.streamingOptions.propertyName)
-      .asLong(-1)
+      .asOptionalLong()
   }
 
-  private def lastOffsetForQuery(): Long =
+  private def lastOffsetForQuery(): Option[Long] = {
     session.executeRead(tx => tx.run(options.streamingOptions.queryOffset).single(), sessionTransactionConfig)
       .get(0)
-      .asLong(-1)
-
-  def lastOffset(): Long = options.query.queryType match {
-    case QueryType.LABELS       => lastOffsetForNode()
-    case QueryType.RELATIONSHIP => lastOffsetForRelationship()
-    case QueryType.QUERY        => lastOffsetForQuery()
+      .asOptionalLong()
   }
 
   private def logResolutionChange(message: String, e: ClientException): Unit = {
