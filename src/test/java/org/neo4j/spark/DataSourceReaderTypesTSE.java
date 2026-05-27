@@ -89,8 +89,9 @@ public class DataSourceReaderTypesTSE extends SparkConnectorScalaBaseTSE {
         String localDateTime = "2007-12-03T10:15:30";
         Dataset<Row> df = initTest("CREATE (p:Person {aTime: localdatetime('" + localDateTime + "')})");
 
-        Timestamp result = df.select("aTime").collectAsList().get(0).getTimestamp(0);
-        assertEquals(Timestamp.from(LocalDateTime.parse(localDateTime).toInstant(ZoneOffset.UTC)), result);
+        Row row = df.select("aTime").collectAsList().get(0);
+        LocalDateTime result = row.getAs(0);
+        assertEquals(LocalDateTime.parse(localDateTime), result);
     }
 
     @Test

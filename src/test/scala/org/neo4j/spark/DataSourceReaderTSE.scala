@@ -165,7 +165,6 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       initTest(s"CREATE (p:Person {aTime: localtime({hour:12, minute: 23, second: 0, millisecond: 294})})")
 
     val result = df.select("aTime").collectAsList().get(0).getAs[GenericRowWithSchema](0)
-
     assertEquals("local-time", result.get(0))
     assertEquals("12:23:00.294", result.get(1))
   }
@@ -178,7 +177,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     val result = df.select("aTime").collectAsList().get(0).getAs[GenericRowWithSchema](0)
 
     val localTime = LocalTime.of(12, 23, 0, 294000000)
-    val expectedTime = OffsetTime.of(localTime, timezone.toZoneId.getRules.getOffset(Instant.now()))
+    val expectedTime = OffsetTime.of(localTime, timezone.toZoneId.getRules.getOffset(Instant.now))
 
     assertEquals("offset-time", result.get(0))
     assertEquals(expectedTime.toString, result.get(1))
@@ -188,10 +187,8 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   def testReadNodeWithLocalDateTime(): Unit = {
     val localDateTime = "2007-12-03T10:15:30"
     val df: DataFrame = initTest(s"CREATE (p:Person {aTime: localdatetime('$localDateTime')})")
-
-    val result = df.select("aTime").collectAsList().get(0).getTimestamp(0)
-
-    assertEquals(Timestamp.from(LocalDateTime.parse(localDateTime).toInstant(ZoneOffset.UTC)), result)
+    val result = df.select("aTime").collectAsList().get(0).getAs[LocalDateTime](0)
+    assertEquals(LocalDateTime.parse(localDateTime), result)
   }
 
   @Test
@@ -297,12 +294,23 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def testReadNodeWithTimestampArray(): Unit = {
+    val df: DataFrame =
+      initTest(
+        s"CREATE (p:Person {someTimes: [datetime('2010-10-10T11:13:37+01:00'), datetime('2011-11-11T10:13:37Z')]})"
+      )
+
+    val res = df.select("someTimes").collectAsList().get(0).getAs[Seq[Timestamp]](0)
+    assertEquals("2010-10-10T10:13:37Z", res.head.toInstant.atZone(ZoneOffset.UTC).toString)
+    assertEquals("2011-11-11T10:13:37Z", res(1).toInstant.atZone(ZoneOffset.UTC).toString)
+  }
+
+  @Test
   def testReadNodeWithLocalTimeArray(): Unit = {
     val df: DataFrame =
       initTest(s"CREATE (p:Person {someTimes: [localtime({hour:12}), localtime({hour:1, minute: 3})]})")
 
     val res = df.select("someTimes").collectAsList().get(0).getAs[Seq[GenericRowWithSchema]](0)
-
     assertEquals("local-time", res.head.get(0))
     assertEquals("12:00:00", res.head.get(1))
     assertEquals("local-time", res(1).get(0))
@@ -424,6 +432,29 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(43200L, res(1).get(3))
     assertEquals(0, res(1).get(4))
     assertEquals("P0M17DT43200S", res(1).get(5))
+  }
+
+  @Test
+  def testReadNodeWithBinary(): Unit = {
+    val bytes = "hello, world!".map(_.toByte).toArray
+    val parameters = new java.util.HashMap[String, Object]()
+    parameters.put("bytes", bytes)
+
+    SparkConnectorScalaSuiteIT.session()
+      .executeWrite((tx: TransactionContext) => tx.run("CREATE (h:Hello {b: $bytes})", parameters).consume())
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Hello")
+      .load()
+
+    val res = df.select("b").collect()
+    assertEquals(1, res.length)
+    val gotBytes = res.head.getAs[Array[Byte]](0)
+
+    for (i <- bytes.indices) {
+      assertEquals(bytes(i), gotBytes(i))
+    }
   }
 
   @Test

@@ -19,6 +19,7 @@ package org.neo4j.spark.converter
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.DayTimeIntervalType
+import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.sql.types.YearMonthIntervalType
 import org.neo4j.driver.types.Entity
 import org.neo4j.spark.converter.CypherToSparkTypeConverter.cleanTerms
@@ -40,7 +41,7 @@ trait TypeConverter[SOURCE_TYPE, DESTINATION_TYPE] {
 object CypherToSparkTypeConverter {
   def apply(): CypherToSparkTypeConverter = new CypherToSparkTypeConverter()
 
-  private val cleanTerms: String = "Unmodifiable|Internal|Iso|2D|3D|Offset|Local|Zoned"
+  private val cleanTerms: String = "Unmodifiable|Internal|Iso|2D|3D|Offset"
 
   val durationType: DataType = DataTypes.createStructType(Array(
     DataTypes.createStructField("type", DataTypes.StringType, false),
@@ -72,14 +73,16 @@ class CypherToSparkTypeConverter extends TypeConverter[String, DataType] {
     case "Node" | "Relationship" => if (value != null) value.asInstanceOf[Entity].toStruct else DataTypes.NullType
     case "NodeArray" | "RelationshipArray" =>
       if (value != null) DataTypes.createArrayType(value.asInstanceOf[Entity].toStruct) else DataTypes.NullType
-    case "Boolean"                                      => DataTypes.BooleanType
-    case "Long"                                         => DataTypes.LongType
-    case "Double"                                       => DataTypes.DoubleType
-    case "Point"                                        => pointType
-    case "DateTime" | "ZonedDateTime" | "LocalDateTime" => DataTypes.TimestampType
-    case "Time"                                         => timeType
-    case "Date"                                         => DataTypes.DateType
-    case "Duration"                                     => durationType
+    case "Boolean"                    => DataTypes.BooleanType
+    case "Long"                       => DataTypes.LongType
+    case "Double"                     => DataTypes.DoubleType
+    case "Point"                      => pointType
+    case "DateTime" | "ZonedDateTime" => DataTypes.TimestampType
+    case "LocalDateTime"              => DataTypes.TimestampNTZType
+    case "Time" | "LocalTime"         => timeType
+    case "Date" | "LocalDate"         => DataTypes.DateType
+    case "Duration"                   => durationType
+    case "ByteArray"                  => DataTypes.BinaryType
     case "Map" => {
       val valueType = if (value == null) {
         DataTypes.NullType
@@ -105,15 +108,15 @@ class CypherToSparkTypeConverter extends TypeConverter[String, DataType] {
       DataTypes.createArrayType(valueType)
     }
     // These are from APOC
-    case "StringArray"   => DataTypes.createArrayType(DataTypes.StringType)
-    case "LongArray"     => DataTypes.createArrayType(DataTypes.LongType)
-    case "DoubleArray"   => DataTypes.createArrayType(DataTypes.DoubleType)
-    case "BooleanArray"  => DataTypes.createArrayType(DataTypes.BooleanType)
-    case "PointArray"    => DataTypes.createArrayType(pointType)
-    case "DateTimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
-    case "TimeArray"     => DataTypes.createArrayType(timeType)
-    case "DateArray"     => DataTypes.createArrayType(DataTypes.DateType)
-    case "DurationArray" => DataTypes.createArrayType(durationType)
+    case "StringArray"                          => DataTypes.createArrayType(DataTypes.StringType)
+    case "LongArray"                            => DataTypes.createArrayType(DataTypes.LongType)
+    case "DoubleArray"                          => DataTypes.createArrayType(DataTypes.DoubleType)
+    case "BooleanArray"                         => DataTypes.createArrayType(DataTypes.BooleanType)
+    case "PointArray"                           => DataTypes.createArrayType(pointType)
+    case "DateTimeArray" | "ZonedDateTimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
+    case "TimeArray" | "LocalTimeArray"         => DataTypes.createArrayType(timeType)
+    case "DateArray" | "LocalDateArray"         => DataTypes.createArrayType(DataTypes.DateType)
+    case "DurationArray"                        => DataTypes.createArrayType(durationType)
     // Default is String
     case _ => DataTypes.StringType
   }
@@ -125,12 +128,16 @@ object SparkToCypherTypeConverter {
   private val mapping: Map[DataType, String] = Map(
     DataTypes.BooleanType -> "BOOLEAN",
     DataTypes.StringType -> "STRING",
+    DecimalType.SYSTEM_DEFAULT -> "STRING",
+    DataTypes.ByteType -> "INTEGER",
+    DataTypes.ShortType -> "INTEGER",
     DataTypes.IntegerType -> "INTEGER",
     DataTypes.LongType -> "INTEGER",
     DataTypes.FloatType -> "FLOAT",
     DataTypes.DoubleType -> "FLOAT",
     DataTypes.DateType -> "DATE",
-    DataTypes.TimestampType -> "LOCAL DATETIME",
+    DataTypes.TimestampType -> "ZONED DATETIME",
+    DataTypes.TimestampNTZType -> "LOCAL DATETIME",
     DayTimeIntervalType() -> "DURATION",
     YearMonthIntervalType() -> "DURATION",
     durationType -> "DURATION",
@@ -138,13 +145,16 @@ object SparkToCypherTypeConverter {
     // Cypher graph entities do not allow null values in arrays
     DataTypes.createArrayType(DataTypes.BooleanType, false) -> "LIST<BOOLEAN NOT NULL>",
     DataTypes.createArrayType(DataTypes.StringType, false) -> "LIST<STRING NOT NULL>",
+    DataTypes.createArrayType(DecimalType.SYSTEM_DEFAULT, false) -> "LIST<STRING NOT NULL>",
+    DataTypes.createArrayType(DataTypes.ByteType, false) -> "ByteArray",
+    DataTypes.createArrayType(DataTypes.ShortType, false) -> "LIST<INTEGER NOT NULL>",
     DataTypes.createArrayType(DataTypes.IntegerType, false) -> "LIST<INTEGER NOT NULL>",
     DataTypes.createArrayType(DataTypes.LongType, false) -> "LIST<INTEGER NOT NULL>",
     DataTypes.createArrayType(DataTypes.FloatType, false) -> "LIST<FLOAT NOT NULL>",
     DataTypes.createArrayType(DataTypes.DoubleType, false) -> "LIST<FLOAT NOT NULL>",
     DataTypes.createArrayType(DataTypes.DateType, false) -> "LIST<DATE NOT NULL>",
-    DataTypes.createArrayType(DataTypes.TimestampType, false) -> "LIST<LOCAL DATETIME NOT NULL>",
-    DataTypes.createArrayType(DataTypes.TimestampType, true) -> "LIST<LOCAL DATETIME NOT NULL>",
+    DataTypes.createArrayType(DataTypes.TimestampType, false) -> "LIST<ZONED DATETIME NOT NULL>",
+    DataTypes.createArrayType(DataTypes.TimestampNTZType, false) -> "LIST<LOCAL DATETIME NOT NULL>",
     DataTypes.createArrayType(DayTimeIntervalType(), false) -> "LIST<DURATION NOT NULL>",
     DataTypes.createArrayType(DayTimeIntervalType(), true) -> "LIST<DURATION NOT NULL>",
     DataTypes.createArrayType(YearMonthIntervalType(), false) -> "LIST<DURATION NOT NULL>",

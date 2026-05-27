@@ -22,8 +22,11 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.ArrayType
+import org.apache.spark.sql.types.ByteType
 import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.DayTimeIntervalType
+import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.sql.types.YearMonthIntervalType
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Disabled
@@ -49,6 +52,9 @@ import org.neo4j.spark.util.Neo4jOptions
 
 import java.time.LocalTime
 import java.time.OffsetTime
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.util.TimeZone
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.ListMap
@@ -92,7 +98,11 @@ case class DurationCase(
 }
 
 class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
-  val sparkSession = SparkSession.builder().master("local[*]").getOrCreate()
+
+  val sparkSession = SparkSession.builder()
+    .master("local[*]")
+    .appName("DataSourceWriterTSE")
+    .getOrCreate()
 
   import sparkSession.implicits._
 
@@ -112,19 +122,20 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .filter(r => r.get("foo").hasType(neo4jType))
       .map(r => r.asMap().asScala)
       .toSet
+
     val expected = ds.collect()
       .map(row =>
         Map("foo" -> {
           val foo = row.getAs[T]("foo")
           foo match {
-            case sqlDate: java.sql.Date => sqlDate
-                .toLocalDate
-            case sqlTimestamp: java.sql.Timestamp => sqlTimestamp.toLocalDateTime
+            case sqlDate: java.sql.Date           => sqlDate.toLocalDate
+            case sqlTimestamp: java.sql.Timestamp => sqlTimestamp.toInstant.atZone(ZoneOffset.UTC)
             case _                                => foo
           }
         })
       )
       .toSet
+
     assertEquals(expected, records)
   }
 
@@ -147,6 +158,28 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val expected = ds.collect()
       .map(row => row.getList[T](0))
       .toSet
+
+    assertEquals(expected, records)
+  }
+
+  private def testDurationType(ds: DataFrame, expected: Set[Duration]): Unit = {
+    ds.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":Duration")
+      .save()
+
+    val records = SparkConnectorScalaSuiteIT.session().run(
+      """MATCH (d:Duration)
+        |RETURN d.duration AS duration
+        |""".stripMargin
+    ).list().asScala
+      .filter(r => r.get("duration").hasType(InternalTypeSystem.TYPE_SYSTEM.DURATION()))
+      .map(r => r.get("duration").asIsoDuration())
+      .map(data => Duration(data.months, data.days, data.seconds, data.nanoseconds))
+      .toSet
+
     assertEquals(expected, records)
   }
 
@@ -203,8 +236,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with string values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i.toString)
       .toDF("foo")
 
@@ -213,8 +245,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with string array values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i.toString)
       .map(i => Array(i, i))
       .toDF("foo")
@@ -224,8 +255,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with int values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i)
       .toDF("foo")
 
@@ -233,9 +263,26 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def `should write nodes with byte values into Neo4j`(): Unit = {
+    val ds = (1 to 10)
+      .map(_.toByte)
+      .toDF("foo")
+
+    testType[Byte](ds, InternalTypeSystem.TYPE_SYSTEM.INTEGER())
+  }
+
+  @Test
+  def `should write nodes with short values into Neo4j`(): Unit = {
+    val ds = (1 to 10)
+      .map(_.toShort)
+      .toDF("foo")
+
+    testType[Short](ds, InternalTypeSystem.TYPE_SYSTEM.INTEGER())
+  }
+
+  @Test
   def `should write nodes with date values into Neo4j`(): Unit = {
-    val total = 5
-    val ds = (1 to total)
+    val ds = (1 to 5)
       .map(i => java.sql.Date.valueOf("2020-01-0" + i))
       .toDF("foo")
 
@@ -244,18 +291,25 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with timestamp values into Neo4j`(): Unit = {
-    val total = 5
-    val ds = (1 to total)
+    val ds = (1 to 5)
       .map(i => java.sql.Timestamp.valueOf(s"2020-01-0$i 11:11:11.11"))
       .toDF("foo")
 
-    testType[java.sql.Timestamp](ds, InternalTypeSystem.TYPE_SYSTEM.LOCAL_DATE_TIME())
+    testType[java.sql.Timestamp](ds, InternalTypeSystem.TYPE_SYSTEM.DATE_TIME())
+  }
+
+  @Test
+  def `should write nodes with timestampNTZ values into Neo4j`(): Unit = {
+    val ds = (1 to 5)
+      .map(i => java.time.LocalDateTime.of(2020, 1, i, 11, 11, 11, 111000000))
+      .toDF("foo")
+
+    testType[java.time.LocalDateTime](ds, InternalTypeSystem.TYPE_SYSTEM.LOCAL_DATE_TIME())
   }
 
   @Test
   def `should write nodes with int array values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i.toLong)
       .map(i => Array(i, i))
       .toDF("foo")
@@ -265,8 +319,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with point-2d values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => EmptyRow(Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble())))
       .toDS()
 
@@ -296,8 +349,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with point-2d array values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i =>
         EmptyRow(Seq(
           Point2d(srid = 4326, x = Random.nextDouble(), y = Random.nextDouble()),
@@ -334,8 +386,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with point-3d values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i =>
         EmptyRow(Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble()))
       )
@@ -367,8 +418,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with point-3d array values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i =>
         EmptyRow(Seq(
           Point3d(srid = 4979, x = Random.nextDouble(), y = Random.nextDouble(), z = Random.nextDouble()),
@@ -405,8 +455,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should write nodes with map values into Neo4j`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => Map("field" + i -> i))
       .toDF("foo")
 
@@ -432,40 +481,51 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def `should write nodes with duration values into Neo4j from java period`(): Unit = {
+    val range = 1 to 10
+    val ds = range
+      .map(i => java.time.Period.ofMonths(i))
+      .toDF("duration")
+
+    val expected = range
+      .map(i => Duration(i, 0, 0, 0))
+      .toSet
+
+    testDurationType(ds, expected)
+  }
+
+  @Test
+  def `should write nodes with duration values into Neo4j from java duration`(): Unit = {
+    val range = 1 to 10
+    val ds = range
+      .map(i => java.time.Duration.ofDays(i.toLong))
+      .toDF("duration")
+
+    val expected = range
+      .map(i => Duration(0, i, 0, 0))
+      .toSet
+
+    testDurationType(ds, expected)
+  }
+
+  @Test
   def `should write nodes with duration values into Neo4j from struct`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val range = 1 to 10
+    val ds = range
       .map(i => i.toLong)
       .map(i => EmptyRow(Duration(i, i, i, i)))
-      .toDS()
+      .toDF("duration")
 
-    ds.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Append)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", "BeanWithDuration")
-      .save()
-
-    val records = SparkConnectorScalaSuiteIT.session().run(
-      """MATCH (p:BeanWithDuration)
-        |RETURN p.data AS duration
-        |""".stripMargin
-    ).list().asScala
-      .map(r => r.get("duration").asIsoDuration())
-      .map(data => (data.months, data.days, data.seconds, data.nanoseconds))
+    val expected = range
+      .map(i => Duration(i, i, i, i))
       .toSet
 
-    val expected = ds.collect()
-      .map(row => (row.data.months, row.data.days, row.data.seconds, row.data.nanoseconds))
-      .toSet
-
-    assertEquals(expected, records)
+    testDurationType(ds, expected)
   }
 
   @Test
   def `should write nodes with duration array values into Neo4j from struct`(): Unit = {
-    val total = 10
-    val ds = (1 to total)
+    val ds = (1 to 10)
       .map(i => i.toLong)
       .map(i =>
         EmptyRow(Seq(
@@ -504,7 +564,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @ParameterizedTest
   @MethodSource(Array("org.neo4j.spark.DataSourceWriterTSE#sqlDurationCases"))
-  def `interval literals map to native neo4j durations`(testCase: DurationCase): Unit = {
+  def `interval SQL literals map to native neo4j durations`(testCase: DurationCase): Unit = {
     val id = java.util.UUID.randomUUID().toString
     val df = sparkSession.sql(s"SELECT '$id' AS id, ${testCase.sql} AS duration")
 
@@ -537,7 +597,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @ParameterizedTest
   @MethodSource(Array("org.neo4j.spark.DataSourceWriterTSE#sqlDurationArrayCases"))
-  def `should write interval arrays as native neo4j durations`(testCase: Seq[DurationCase]): Unit = {
+  def `interval SQL arrays map to native neo4j durations arrays`(testCase: Seq[DurationCase]): Unit = {
     val id = java.util.UUID.randomUUID().toString
     val expectedDt = testCase.head.expectedDt
     val sqlArray = testCase.map(_.sql).mkString("array(", ", ", ")")
@@ -576,6 +636,119 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       },
       s"expected successful conversion to IsoDuration array, but it failed: $result"
     )
+  }
+
+  @Test
+  def `should write TINYINT as neo4j integer`(): Unit = {
+    val id = java.util.UUID.randomUUID().toString
+    val df = sparkSession.sql(s"SELECT '$id' AS id, CAST(5 AS TINYINT) AS byte")
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Byte")
+      .save()
+
+    val wantType = DataTypes.ByteType
+    val gotType = df.schema("byte").dataType
+    assertTrue(wantType == gotType, s"expected Spark to pick ${wantType.simpleString} but it was $gotType")
+
+    val gotByte = SparkConnectorScalaSuiteIT.session().run(
+      s"""MATCH (b:Byte {id: '$id'})
+         |RETURN b.byte AS byte
+         |""".stripMargin
+    ).single().get("byte").asInt()
+
+    assertEquals(5, gotByte)
+  }
+
+  @Test
+  def `should write BINARY (byte array) as neo4j ByteArray`(): Unit = {
+    val id = java.util.UUID.randomUUID().toString
+    val sqlArray = (1 to 10).map(i => s"CAST($i AS TINYINT)").mkString("array(", ", ", ")")
+    val df = sparkSession.sql(s"SELECT '$id' AS id, $sqlArray AS binary")
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Binary")
+      .save()
+
+    val wantType: DataType = DataTypes.ByteType
+    val gotType = df.schema("binary").dataType
+
+    assertTrue(
+      gotType match {
+        case ArrayType(_: ByteType, _) => true
+        case _                         => false
+      },
+      s"expected Spark to infer ArrayType(${wantType.simpleString}) but it was $gotType"
+    )
+
+    val gotByteArray = SparkConnectorScalaSuiteIT.session().run(
+      s"""MATCH (b:Binary {id: '$id'})
+         |RETURN b.binary AS binary
+         |""".stripMargin
+    ).single().get("binary").asByteArray()
+
+    assertEquals(10, gotByteArray.length)
+
+    for (b <- gotByteArray.indices) {
+      val expectedValue = (b + 1).toByte
+      assertEquals(expectedValue, gotByteArray(b))
+    }
+  }
+
+  @Test
+  def `should write SMALLINT as neo4j integer`(): Unit = {
+    val id = java.util.UUID.randomUUID().toString
+    val df = sparkSession.sql(s"SELECT '$id' AS id, CAST(5 AS SMALLINT) AS short")
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Short")
+      .save()
+
+    val wantType = DataTypes.ShortType
+    val gotType = df.schema("short").dataType
+    assertTrue(wantType == gotType, s"expected Spark to pick ${wantType.simpleString} but it was $gotType")
+
+    val gotByte = SparkConnectorScalaSuiteIT.session().run(
+      s"""MATCH (b:Short {id: '$id'})
+         |RETURN b.short AS short
+         |""".stripMargin
+    ).single().get("short").asInt()
+
+    assertEquals(5, gotByte)
+  }
+
+  @Test
+  def `should write DECIMAL as neo4j string`(): Unit = {
+    val id = java.util.UUID.randomUUID().toString
+    val df = sparkSession.sql(s"SELECT '$id' AS id, CAST(5.42 AS DECIMAL(10, 2)) AS decimal")
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Decimal")
+      .save()
+
+    val wantType = DecimalType(10, 2)
+    val gotType = df.schema("decimal").dataType
+    assertTrue(wantType.typeName == gotType.simpleString, s"expected Spark to pick $wantType but it was $gotType")
+
+    val gotDecimal = SparkConnectorScalaSuiteIT.session().run(
+      s"""MATCH (b:Decimal {id: '$id'})
+         |RETURN b.decimal AS decimal
+         |""".stripMargin
+    ).single().get("decimal").asString
+
+    assertEquals("5.42", gotDecimal)
   }
 
   @Test

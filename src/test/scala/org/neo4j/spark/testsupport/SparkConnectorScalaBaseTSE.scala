@@ -43,7 +43,6 @@ object SparkConnectorScalaBaseTSE {
 }
 
 class SparkConnectorScalaBaseTSE {
-
   val conf: SparkConf = SparkConnectorScalaSuiteIT.conf
   val ss: SparkSession = SparkConnectorScalaSuiteIT.ss
 
