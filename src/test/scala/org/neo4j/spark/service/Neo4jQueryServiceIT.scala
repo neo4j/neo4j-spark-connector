@@ -54,7 +54,6 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        neo4jOptions.tuning,
         Array.empty,
         PartitionPagination.EMPTY,
         List(
@@ -104,7 +103,6 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
           neo4jOptions,
           new Neo4jQueryReadStrategy(
             neo4j,
-            neo4jOptions.tuning,
             Array.empty,
             PartitionPagination.EMPTY,
             List(
