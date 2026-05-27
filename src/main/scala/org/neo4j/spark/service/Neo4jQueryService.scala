@@ -114,7 +114,7 @@ class Neo4jQueryWriteStrategy(
     val relKeys = if (options.relationshipMetadata.relationshipKeys.nonEmpty) {
       options.relationshipMetadata.relationshipKeys
         .map(t =>
-          s"${t._2}: ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.KEYS}.${t._1}"
+          s"${t._2.quote()}: ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.KEYS}.${t._1.quote()}"
         )
         .mkString("{", ", ", "}")
     } else {
