@@ -22,13 +22,11 @@ import org.neo4j.cypherdsl.core.Statement
 import org.neo4j.cypherdsl.core.renderer.Configuration
 import org.neo4j.cypherdsl.core.renderer.Dialect
 import org.neo4j.cypherdsl.core.renderer.Renderer
-import org.neo4j.spark.cypher.Cypher5Renderer.Neo4jV5
-import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
-import org.neo4j.spark.util.Neo4jTuningOptions
+import org.neo4j.spark.cypher.CypherRenderer.Neo4jV5
 
-class Cypher5Renderer(neo4j: Neo4j) extends Renderer {
+class CypherRenderer(neo4j: Neo4j) extends Renderer {
 
-  private val delegate =
+  private val cached =
     Renderer.getRenderer(
       Configuration.newConfig()
         .withDialect(
@@ -41,19 +39,11 @@ class Cypher5Renderer(neo4j: Neo4j) extends Renderer {
         .build()
     )
 
-  private var tuningOptions: Neo4jTuningOptions = Neo4jTuningOptions.empty
-
   override def render(statement: Statement): String = {
-    val rendered = delegate.render(statement)
-    s"${fullPreamble(neo4j, tuningOptions)}$rendered"
-  }
-
-  def withTuningOptions(incoming: Neo4jTuningOptions): Cypher5Renderer = {
-    tuningOptions = incoming.copy()
-    this
+    cached.render(statement)
   }
 }
 
-private object Cypher5Renderer {
+private object CypherRenderer {
   private val Neo4jV5 = new Neo4jVersion(5, 0, 0)
 }

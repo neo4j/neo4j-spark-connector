@@ -27,8 +27,9 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.Or
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core._
-import org.neo4j.spark.cypher.Cypher5Renderer
+import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
+import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jTuningOptions
@@ -41,7 +42,7 @@ import scala.collection.JavaConverters._
 class Neo4jQueryWriteStrategy(
   private val neo4j: Neo4j,
   private val saveMode: SaveMode,
-  private val withPreamble: Boolean = true,
+  private val withPreamble: Boolean = true
 ) extends Neo4jQueryStrategy {
 
   override def createStatementForQuery(options: Neo4jOptions): String = {
@@ -157,9 +158,9 @@ class Neo4jQueryReadStrategy(
   private val requiredColumns: Seq[String] = Seq.empty,
   private val aggregateColumns: Array[AggregateFunc] = Array.empty,
   private val jobId: String = "",
-  private val withPreamble: Boolean = true,
+  private val withPreamble: Boolean = true
 ) extends Neo4jQueryStrategy with Logging {
-  private val renderer: Cypher5Renderer = new Cypher5Renderer(neo4j)
+  private val renderer: Renderer = new CypherRenderer(neo4j)
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 
@@ -198,7 +199,9 @@ class Neo4jQueryReadStrategy(
     } else {
       buildStatementAggregation(options, matchQuery, relationship, returnExpressions)
     }
-    renderer.withTuningOptions(options.tuning).render(stmt)
+
+    val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
+    s"$preamble${renderer.render(stmt)}"
   }
 
   private def convertSort(entity: PropertyContainer, order: SortOrder): SortItem = {
@@ -443,7 +446,9 @@ class Neo4jQueryReadStrategy(
       }
       buildStatement(options, ret, node)
     }
-    renderer.withTuningOptions(options.tuning).render(stmt)
+
+    val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
+    s"$preamble${renderer.render(stmt)}"
   }
 
   private def filterNode(node: Node) = {
@@ -559,7 +564,7 @@ abstract class Neo4jQueryStrategy {
 
 class Neo4jQueryService(
   private val options: Neo4jOptions,
-  val strategy: Neo4jQueryStrategy,
+  val strategy: Neo4jQueryStrategy
 ) extends Serializable {
 
   def createQuery(): String = options.query.queryType match {

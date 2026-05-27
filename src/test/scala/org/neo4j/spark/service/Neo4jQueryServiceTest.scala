@@ -1122,7 +1122,7 @@ class Neo4jQueryServiceTest {
     val (strategy, wantQuery) = mode match {
       case "READ" => (
           new Neo4jQueryReadStrategy(neo4j(version(5, 0), COMMUNITY), withPreamble = false),
-          "WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o",
+          "WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o"
         )
       case "WRITE" => (
           new Neo4jQueryWriteStrategy(neo4j(version(5, 0), COMMUNITY), SaveMode.Overwrite, withPreamble = false),

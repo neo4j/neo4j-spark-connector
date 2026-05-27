@@ -107,7 +107,7 @@ class BaseStreamingPartitionReader(
             aggregateColumns,
             jobId,
             withPreamble = false
-          ),
+          )
         ).createQuery()
 
         if (offsetUsagePatterns.exists(_.test(originalQuery))) {
