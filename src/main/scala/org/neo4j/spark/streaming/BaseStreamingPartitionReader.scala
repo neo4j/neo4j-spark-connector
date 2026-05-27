@@ -105,9 +105,9 @@ class BaseStreamingPartitionReader(
             partitionSkipLimit,
             requiredColumns.fieldNames,
             aggregateColumns,
-            jobId
+            jobId,
+            withPreamble = false
           ),
-          withPreamble = false
         ).createQuery()
 
         if (offsetUsagePatterns.exists(_.test(originalQuery))) {

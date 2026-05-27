@@ -1121,16 +1121,16 @@ class Neo4jQueryServiceTest {
 
     val (strategy, wantQuery) = mode match {
       case "READ" => (
-          new Neo4jQueryReadStrategy(neo4j(version(5, 0), COMMUNITY)),
-          "WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o"
+          new Neo4jQueryReadStrategy(neo4j(version(5, 0), COMMUNITY), withPreamble = false),
+          "WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o",
         )
       case "WRITE" => (
-          new Neo4jQueryWriteStrategy(neo4j(version(5, 0), COMMUNITY), SaveMode.Overwrite),
+          new Neo4jQueryWriteStrategy(neo4j(version(5, 0), COMMUNITY), SaveMode.Overwrite, withPreamble = false),
           "WITH $scriptResult AS scriptResult\nUNWIND $events AS event\nMATCH (o:Object) RETURN o"
         )
     }
 
-    val gotQuery = new Neo4jQueryService(neo4jOptions, strategy, withPreamble = false).createQuery().trim
+    val gotQuery = new Neo4jQueryService(neo4jOptions, strategy).createQuery().trim
 
     assertEquals(wantQuery, gotQuery)
   }

@@ -27,7 +27,6 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.Or
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core._
-import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.cypher.Cypher5Renderer
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.util.Neo4jImplicits._
@@ -41,10 +40,11 @@ import scala.collection.JavaConverters._
 
 class Neo4jQueryWriteStrategy(
   private val neo4j: Neo4j,
-  private val saveMode: SaveMode
+  private val saveMode: SaveMode,
+  private val withPreamble: Boolean = true,
 ) extends Neo4jQueryStrategy {
 
-  override def createStatementForQuery(options: Neo4jOptions, withPreamble: Boolean): String = {
+  override def createStatementForQuery(options: Neo4jOptions): String = {
     val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
     s"""${preamble}WITH $$scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
        |UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
@@ -156,13 +156,14 @@ class Neo4jQueryReadStrategy(
   private val partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
   private val requiredColumns: Seq[String] = Seq.empty,
   private val aggregateColumns: Array[AggregateFunc] = Array.empty,
-  private val jobId: String = ""
+  private val jobId: String = "",
+  private val withPreamble: Boolean = true,
 ) extends Neo4jQueryStrategy with Logging {
   private val renderer: Cypher5Renderer = new Cypher5Renderer(neo4j)
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 
-  override def createStatementForQuery(options: Neo4jOptions, withPreamble: Boolean): String = {
+  override def createStatementForQuery(options: Neo4jOptions): String = {
     if (partitionPagination.topN.orders.nonEmpty) {
       logWarning(
         s"""Top N push-down optimizations with aggregations are not supported for custom queries.
@@ -547,7 +548,7 @@ object Neo4jQueryStrategy {
 
 abstract class Neo4jQueryStrategy {
 
-  def createStatementForQuery(options: Neo4jOptions, withPreamble: Boolean): String
+  def createStatementForQuery(options: Neo4jOptions): String
 
   def createStatementForRelationships(options: Neo4jOptions): String
 
@@ -559,13 +560,12 @@ abstract class Neo4jQueryStrategy {
 class Neo4jQueryService(
   private val options: Neo4jOptions,
   val strategy: Neo4jQueryStrategy,
-  val withPreamble: Boolean = true
 ) extends Serializable {
 
   def createQuery(): String = options.query.queryType match {
     case QueryType.LABELS       => strategy.createStatementForNodes(options)
     case QueryType.RELATIONSHIP => strategy.createStatementForRelationships(options)
-    case QueryType.QUERY        => strategy.createStatementForQuery(options, withPreamble)
+    case QueryType.QUERY        => strategy.createStatementForQuery(options)
     case QueryType.GDS          => strategy.createStatementForGDS(options)
     case _ => throw new UnsupportedOperationException(
         s"""Query Type not supported.
