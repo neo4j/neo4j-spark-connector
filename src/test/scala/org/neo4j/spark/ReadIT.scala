@@ -25,13 +25,16 @@ import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
-import org.junit.jupiter.api.parallel.Execution
-import org.junit.jupiter.api.parallel.ExecutionMode
+import org.junit.jupiter.api.condition.DisabledIf
 import org.junit.jupiter.params.Parameter
 import org.junit.jupiter.params.ParameterizedClass
 import org.junit.jupiter.params.ParameterizedTest
@@ -39,11 +42,14 @@ import org.junit.jupiter.params.provider.ArgumentsSource
 import org.junit.jupiter.params.provider.ValueSource
 import org.neo4j.driver.Driver
 import org.neo4j.driver.QueryConfig
+import org.neo4j.driver.TransactionContext
 import org.neo4j.driver.exceptions.ClientException
-import org.neo4j.spark.testsupport.DatabaseIsolationContainer
-import org.neo4j.spark.testsupport.DatabaseIsolationExtension
 import org.neo4j.spark.testsupport.Neo4jContainerProvider
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
+import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.neo4j.Neo4jContainer
 
 import java.sql.Date
@@ -58,22 +64,42 @@ import java.util.TimeZone
 
 import scala.collection.immutable
 import scala.collection.mutable
+import scala.collection.mutable.Seq
 import scala.jdk.CollectionConverters.IterableHasAsJava
 import scala.jdk.CollectionConverters.ListHasAsScala
 
+@Testcontainers
 @ParameterizedClass(name = "{argumentSetName}")
 @ArgumentsSource(classOf[Neo4jContainerProvider])
 @DisplayName("reading")
-@Execution(ExecutionMode.CONCURRENT)
-@ExtendWith(Array(classOf[DatabaseIsolationExtension]))
 class ReadIT {
 
-  @DatabaseIsolationContainer
+  @Container
   @Parameter
   var neo4jContainer: Neo4jContainer = _
 
+  var driver: Driver = _
+
+  var spark: SparkSession = _
+
+  @BeforeEach
+  def prepare(): Unit = {
+    driver = neo4jContainer.driver()
+    spark = neo4jContainer.spark()
+  }
+
+  @AfterEach
+  def cleanUp(): Unit = {
+    if (spark != null) {
+      spark.close()
+    }
+    if (driver != null) {
+      driver.close()
+    }
+  }
+
   @Test
-  def throws_exception_if_no_valid_read_option_is_set(spark: SparkSession): Unit = {
+  def throws_exception_if_no_valid_read_option_is_set(): Unit = {
     assertThatExceptionOfType(classOf[IllegalArgumentException])
       .isThrownBy(() => {
         spark.read.format(classOf[DataSource].getName)
@@ -84,7 +110,7 @@ class ReadIT {
   }
 
   @Test
-  def throws_exception_if_two_valid_read_options_are_set(spark: SparkSession): Unit = {
+  def throws_exception_if_two_valid_read_options_are_set(): Unit = {
     assertThatExceptionOfType(classOf[IllegalArgumentException])
       .isThrownBy(() => {
         spark.read.format(classOf[DataSource].getName)
@@ -101,8 +127,8 @@ class ReadIT {
   class ByNodeLabels {
 
     @Test
-    def returns_element_id(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(s"CREATE (:Person {name: 'John'})").withConfig(queryConfig).execute()
+    def returns_element_id(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {name: 'John'})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -113,8 +139,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_labels(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(s"CREATE (:Person:Customer {name: 'John'})").withConfig(queryConfig).execute()
+    def returns_labels(): Unit = {
+      driver.executableQuery(s"CREATE (:Person:Customer {name: 'John'})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -126,10 +152,8 @@ class ReadIT {
     }
 
     @Test
-    def supports_unconventional_labels(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(
-        s"CREATE (:`Foo Bar`:Person:`(╯°□°）╯︵ ┻━┻`  {name: 'John'})"
-      ).withConfig(queryConfig).execute()
+    def supports_unconventional_labels(): Unit = {
+      driver.executableQuery(s"CREATE (:`Foo Bar`:Person:`(╯°□°）╯︵ ┻━┻`  {name: 'John'})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -140,10 +164,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_joins_from_two_different_databases(
-      driver: Driver,
-      spark: SparkSession
-    ): Unit = {
+    def supports_joins_from_two_different_databases(): Unit = {
       driver.createOrReplaceDatabase("db1")
       driver.executableQuery(
         """
@@ -174,8 +195,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_string_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(s"CREATE (:Person {name: 'John'})").withConfig(queryConfig).execute()
+    def returns_selected_string_column(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {name: 'John'})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -185,8 +206,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_long_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(s"CREATE (:Person {age: 42})").withConfig(queryConfig).execute()
+    def returns_selected_long_column(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {age: 42})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -196,8 +217,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_double_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(s"CREATE (:Person {score: 3.14})").withConfig(queryConfig).execute()
+    def returns_selected_double_column(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {score: 3.14})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -207,12 +228,10 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_localtime_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def returns_selected_localtime_column(): Unit = {
       driver.executableQuery(
         s"CREATE (:Person {aTime: localtime({hour:12, minute: 23, second: 0, millisecond: 294})})"
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -224,13 +243,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_time_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def returns_selected_time_column(): Unit = {
       val timezone = TimeZone.getDefault
       driver.executableQuery(
         s"CREATE (:Person {aTime: time({hour:12, minute: 23, second: 0, millisecond: 294})})"
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -244,10 +261,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_localdatetime_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(
-        "CREATE (:Person {aTime: localdatetime('2007-12-03T10:15:30')})"
-      ).withConfig(queryConfig).execute()
+    def returns_selected_localdatetime_column(): Unit = {
+      driver.executableQuery("CREATE (:Person {aTime: localdatetime('2007-12-03T10:15:30')})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -258,10 +273,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_zoneddatetime_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(
-        "CREATE (:Person {aTime: datetime('2015-06-24T12:50:35.556+01:00')})"
-      ).withConfig(queryConfig).execute()
+    def returns_selected_zoneddatetime_column(): Unit = {
+      driver.executableQuery("CREATE (:Person {aTime: datetime('2015-06-24T12:50:35.556+01:00')})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -272,8 +285,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_date_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(s"CREATE (:Person {born: date('2009-10-10')})").withConfig(queryConfig).execute()
+    def returns_selected_date_column(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {born: date('2009-10-10')})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -285,10 +298,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_duration_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(
-        s"CREATE (:Person {range: duration({days: 14, hours:16, minutes: 12})})"
-      ).withConfig(queryConfig).execute()
+    def returns_selected_duration_column(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {range: duration({days: 14, hours:16, minutes: 12})})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -305,10 +316,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_point_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(
-        s"CREATE (:Person {location: point({x: 12.12, y: 13.13})})"
-      ).withConfig(queryConfig).execute()
+    def returns_selected_point_column(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {location: point({x: 12.12, y: 13.13})})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -322,14 +331,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_geospatial_point_column(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
-      driver.executableQuery(
-        s"CREATE (:Person {location: point({longitude: 12.12, latitude: 13.13})})"
-      ).withConfig(queryConfig).execute()
+    def returns_selected_geospatial_point_column(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {location: point({longitude: 12.12, latitude: 13.13})})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -343,10 +346,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_3d_point_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(
-        s"CREATE (:Person {location: point({x: 12.12, y: 13.13, z: 1})})"
-      ).withConfig(queryConfig).execute()
+    def returns_selected_3d_point_column(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {location: point({x: 12.12, y: 13.13, z: 1})})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -361,8 +362,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_string_array_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(s"CREATE (:Person {names: ['John', 'Doe']})").withConfig(queryConfig).execute()
+    def returns_selected_string_array_column(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {names: ['John', 'Doe']})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -374,8 +375,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_long_array_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(s"CREATE (:Person {ages: [22, 23]})").withConfig(queryConfig).execute()
+    def returns_selected_long_array_column(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {ages: [22, 23]})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -387,8 +388,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_double_array_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(s"CREATE (:Person {scores: [22.33, 44.55]})").withConfig(queryConfig).execute()
+    def returns_selected_double_array_column(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {scores: [22.33, 44.55]})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -413,12 +414,10 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_localtime_array_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def returns_selected_localtime_array_column(): Unit = {
       driver.executableQuery(
         s"CREATE (:Person {someTimes: [localtime({hour:12}), localtime({hour:1, minute: 3})]})"
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -434,8 +433,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_boolean_array_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(s"CREATE (:Person {bools: [true, false]})").withConfig(queryConfig).execute()
+    def returns_selected_boolean_array_column(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {bools: [true, false]})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -447,12 +446,10 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_point_array_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def returns_selected_point_array_column(): Unit = {
       driver.executableQuery(
         s"CREATE (:Person {locations: [point({x: 11, y: 33.111}), point({x: 22, y: 44.222})]})"
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -472,16 +469,10 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_geospatial_array_column(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_selected_geospatial_array_column(): Unit = {
       driver.executableQuery(
         s"CREATE (:Person {locations: [point({longitude: 11, latitude: 33.111}), point({longitude: 22, latitude: 44.222})]})"
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -501,12 +492,10 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_3d_array_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def returns_selected_3d_array_column(): Unit = {
       driver.executableQuery(
         s"CREATE (:Person {locations: [point({x: 11, y: 33.111, z: 12}), point({x: 22, y: 44.222, z: 99.1})]})"
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -528,10 +517,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_date_array_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
-      driver.executableQuery(
-        s"CREATE (:Person {dates: [date('2009-10-10'), date('2009-10-11')]})"
-      ).withConfig(queryConfig).execute()
+    def returns_selected_date_array_column(): Unit = {
+      driver.executableQuery(s"CREATE (:Person {dates: [date('2009-10-10'), date('2009-10-11')]})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -543,11 +530,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_zoneddatetime_array_column(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_selected_zoneddatetime_array_column(): Unit = {
       driver.executableQuery(
         """
        CREATE (:Person {aTime: [
@@ -555,9 +538,7 @@ class ReadIT {
         datetime('2015-06-23T12:50:35.556+01:00')
        ]})
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -569,12 +550,10 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_duration_array_column(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def returns_selected_duration_array_column(): Unit = {
       driver.executableQuery(
         s"CREATE (:Person {durations: [duration({months: 0.75}), duration({weeks: 2.5})]})"
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -618,17 +597,12 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_field_with_unconventional_name(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_selected_field_with_unconventional_name(): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (:Product {id: id, `(╯°□°)╯︵ ┻━┻`: 'Product ' + id})
     """.stripMargin
       )
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -641,17 +615,12 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_string_value_equality(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_string_value_equality(): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (:Product {id: id, name: 'Product ' + id})
     """.stripMargin
       )
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -666,17 +635,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_date_value_equality(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_date_value_equality(): Unit = {
       driver.executableQuery(s"""
        CREATE (:Person {birth: date('1998-02-04')}),
         (:Person {birth: date('1988-01-05')})
-       """)
-        .withConfig(queryConfig)
-        .execute()
+       """).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -691,13 +654,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_string_negated_equality(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_string_negated_equality(): Unit = {
       driver.executableQuery("CREATE (:Person {name: 'John Doe'}), (:Person {name: 'Jane Doe'})")
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -713,13 +671,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_date_negated_equality(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_date_negated_equality(): Unit = {
       driver.executableQuery("CREATE (:Person {birth: date('1998-02-04')}), (:Person {birth: date('1988-01-05')})")
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -735,13 +688,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_string_difference(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_string_difference(): Unit = {
       driver.executableQuery("CREATE (:Person {name: 'John Doe'}), (:Person {name: 'Jane Doe'})")
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -757,18 +705,12 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_long_greater_comparison(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_long_greater_comparison(): Unit = {
       driver.executableQuery(s"""
        CREATE (:Person {age: 19}),
         (:Person {age: 20}),
         (:Person {age: 21})
-       """)
-        .withConfig(queryConfig)
-        .execute()
+       """).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -783,17 +725,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_timestamp_greater_comparison(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_timestamp_greater_comparison(): Unit = {
       driver.executableQuery("""
        CREATE (:Person {birth: localdatetime('2007-12-03T10:15:30')}),
         (:Person {birth: localdatetime('2007-12-03T10:15:30')})
-       """)
-        .withConfig(queryConfig)
-        .execute()
+       """).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -806,20 +742,14 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_long_strict_greater_comparison(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_long_strict_greater_comparison(): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 19}),
         (:Person {age: 20}),
         (:Person {age: 21})
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -834,20 +764,14 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_date_strict_greater_comparison(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_date_strict_greater_comparison(): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {birth: date('1998-02-04')}),
         (:Person {birth: date('1988-01-05')}),
         (:Person {birth: date('1994-10-16')})
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -865,19 +789,13 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_geospatial_point_strict_greater_comparison(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_geospatial_point_strict_greater_comparison(): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {location: point({x: 12, y: 12})}),
         (:Person {location: point({x: -6, y: -6})})
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -896,20 +814,14 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_long_lesser_comparison(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_long_lesser_comparison(): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
         (:Person {age: 41}),
         (:Person {age: 43})
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -923,20 +835,14 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_long_strict_lesser_comparison(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_long_strict_lesser_comparison(): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
         (:Person {age: 41}),
         (:Person {age: 43})
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -950,20 +856,14 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_in_long_collection(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_in_long_collection(): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
         (:Person {age: 41}),
         (:Person {age: 43})
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -977,7 +877,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_as_nullable(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def returns_results_filtered_as_nullable(): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
@@ -985,9 +885,7 @@ class ReadIT {
         (:Person {age: 43}),
         (:Person)
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -1000,11 +898,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_as_not_nullable(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_as_not_nullable(): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
@@ -1012,9 +906,7 @@ class ReadIT {
         (:Person {age: 43}),
         (:Person)
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -1028,11 +920,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_ORed_equalities(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_ORed_equalities(): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
@@ -1040,9 +928,7 @@ class ReadIT {
         (:Person {age: 43}),
         (:Person)
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -1056,11 +942,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_ANDed_comparisons(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_ANDed_comparisons(): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
@@ -1068,9 +950,7 @@ class ReadIT {
         (:Person {age: 43}),
         (:Person)
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -1084,11 +964,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_string_prefix(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_string_prefix(): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {name: 'John Mayer'}),
@@ -1096,9 +972,7 @@ class ReadIT {
         (:Person {name: 'John Butler'}),
         (:Person)
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -1112,11 +986,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_string_suffix(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_string_suffix(): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {name: 'John Mayer'}),
@@ -1124,9 +994,7 @@ class ReadIT {
         (:Person {name: 'John Butler'}),
         (:Person)
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -1140,11 +1008,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_substring_suffix(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_substring_suffix(): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {name: 'John Mayer'}),
@@ -1152,9 +1016,7 @@ class ReadIT {
         (:Person {name: 'John Butler'}),
         (:Person)
        """
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read
         .format(classOf[DataSource].getName)
@@ -1168,9 +1030,7 @@ class ReadIT {
     }
 
     @Test
-    def throws_exception_when_wrong_database_is_provided(
-      spark: SparkSession
-    ): Unit = {
+    def throws_exception_when_wrong_database_is_provided(): Unit = {
       assertThatExceptionOfType(classOf[ClientException])
         .isThrownBy(() => {
           spark.read.format(classOf[DataSource].getName)
@@ -1182,14 +1042,8 @@ class ReadIT {
     }
 
     @Test
-    def supports_heterogeneous_schemas_for_same_label_nodes(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
-      driver.executableQuery(
-        "CREATE (:Person {id: 1, field: [12,34]}), (:Person {id: 2, field: 123})"
-      ).withConfig(queryConfig).execute()
+    def supports_heterogeneous_schemas_for_same_label_nodes(): Unit = {
+      driver.executableQuery("CREATE (:Person {id: 1, field: [12,34]}), (:Person {id: 2, field: 123})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -1202,17 +1056,11 @@ class ReadIT {
     }
 
     @Test
-    def supports_heterogeneous_schemas_for_nodes_with_multiple_labels(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def supports_heterogeneous_schemas_for_nodes_with_multiple_labels(): Unit = {
       driver.executableQuery(s"""CREATE (:Person { prop: 25 }),
                                 |(:Person:Player { prop: "hello" }),
                                 |(:Person:Player:Weirdo { prop: true })
-    """.stripMargin)
-        .withConfig(queryConfig)
-        .execute()
+    """.stripMargin).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -1223,17 +1071,12 @@ class ReadIT {
     }
 
     @Test
-    def returns_same_properties_for_nodes_with_multiple_labels(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_same_properties_for_nodes_with_multiple_labels(): Unit = {
       driver.executableQuery(
         s"""CREATE (actor:Person:Actor {name: 'Keanu Reeves', born: 1964, actor: true})
            |CREATE (soccerPlayer:Person:SoccerPlayer {name: 'Zlatan Ibrahimović', born: 1981, soccerPlayer: true})
            |CREATE (writer:Person:Writer {name: 'Philip K. Dick', born: 1928, writer: true})""".stripMargin
       )
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -1246,16 +1089,14 @@ class ReadIT {
     }
 
     @Test
-    def supports_repartitioning(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_repartitioning(): Unit = {
       driver.executableQuery("""UNWIND range(1,100) as id
                                |CREATE (p:Person {id:id,ids:[id,id]}) WITH collect(p) as people
                                |UNWIND people as p1
                                |UNWIND range(1,10) as friend
                                |WITH p1, people[(p1.id + friend) % size(people)] as p2
                                |CREATE (p1)-[:KNOWS]->(p2)
-    """.stripMargin)
-        .withConfig(queryConfig)
-        .execute()
+    """.stripMargin).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
@@ -1267,21 +1108,17 @@ class ReadIT {
     }
 
     @Test
-    def supports_custom_partitions(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_custom_partitions(): Unit = {
       driver.executableQuery("""UNWIND range(1,100) as id
                                |CREATE (:Person:Customer {id: id, name: 'Person ' + id})
-      """.stripMargin)
-        .withConfig(queryConfig)
-        .execute()
+      """.stripMargin).execute()
       driver.executableQuery("""UNWIND range(1,100) as id
                                |CREATE (p:Person {id:id,ids:[id,id]}) WITH collect(p) as people
                                |UNWIND people as p1
                                |UNWIND range(1,10) as friend
                                |WITH p1, people[(p1.id + friend) % size(people)] as p2
                                |CREATE (p1)-[:KNOWS]->(p2)
-      """.stripMargin)
-        .withConfig(queryConfig)
-        .execute()
+      """.stripMargin).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", ":Person:Customer")
@@ -1295,10 +1132,9 @@ class ReadIT {
     }
 
     @Test
-    def supports_limit(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_limit(): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (:Product {id: id, name: 'Product ' + id})""".stripMargin)
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -1316,7 +1152,7 @@ class ReadIT {
   class ByRelationshipType {
 
     @Test
-    def returns_only_selected_field(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def returns_only_selected_field(): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
@@ -1324,7 +1160,6 @@ class ReadIT {
            |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
     """.stripMargin
       )
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -1339,11 +1174,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_selecting_relationship_builtin_field(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def supports_selecting_relationship_builtin_field(): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
@@ -1351,7 +1182,6 @@ class ReadIT {
            |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
     """.stripMargin
       )
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -1366,11 +1196,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_only_selected_field_with_unconventional_name(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_only_selected_field_with_unconventional_name(): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (pr:Product {id: id * rand(), `(╯°□°)╯︵ ┻━┻`: 'Product ' + id})
@@ -1378,7 +1204,6 @@ class ReadIT {
            |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
     """.stripMargin
       )
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -1393,11 +1218,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_source_and_target_attributes(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_source_and_target_attributes(): Unit = {
       driver.executableQuery(
         """UNWIND range(1,100) as id
           |CREATE (p:Person {id:id,ids:[id,id]}) WITH collect(p) as people
@@ -1407,7 +1228,6 @@ class ReadIT {
           |CREATE (p1)-[:KNOWS]->(p2)
     """.stripMargin
       )
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -1423,11 +1243,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_source_and_target_map_attributes(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_source_and_target_map_attributes(): Unit = {
       driver.executableQuery(
         """UNWIND range(1,100) as id
           |CREATE (p:Person {id:id,ids:[id,id]}) WITH collect(p) as people
@@ -1437,7 +1253,6 @@ class ReadIT {
           |CREATE (p1)-[:KNOWS]->(p2)
     """.stripMargin
       )
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -1453,11 +1268,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_target_attributes(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def returns_results_filtered_with_target_attributes(): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (pr:Product {id: id, name: 'Product ' + id})
@@ -1465,7 +1276,6 @@ class ReadIT {
            |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
     """.stripMargin
       )
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -1485,20 +1295,14 @@ class ReadIT {
     }
 
     @Test
-    def supports_heterogeneous_schemas_for_property_value_types(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def supports_heterogeneous_schemas_for_property_value_types(): Unit = {
       driver.executableQuery(s"""CREATE (pr1:Product {id: '1'})
                                 |CREATE (pr2:Product {id: 2})
                                 |CREATE (pe1:Person {id: '3'})
                                 |CREATE (pe2:Person {id: 4})
                                 |CREATE (pe1)-[:BOUGHT]->(pr1)
                                 |CREATE (pe2)-[:BOUGHT]->(pr2)
-    """.stripMargin)
-        .withConfig(queryConfig)
-        .execute()
+    """.stripMargin).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("relationship.nodes.map", "false")
@@ -1513,12 +1317,10 @@ class ReadIT {
     }
 
     @Test
-    def supports_custom_partitions(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_custom_partitions(): Unit = {
       driver.executableQuery("""UNWIND range(1,100) as id
                                |CREATE (:Person {id: id, name: 'Person ' + id})-[:BOUGHT{quantity: ceil(rand() * 100)}]->(:Product{id: id, name: 'Product ' + id})
-    """.stripMargin)
-        .withConfig(queryConfig)
-        .execute()
+    """.stripMargin).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("relationship.nodes.map", "true")
@@ -1535,14 +1337,12 @@ class ReadIT {
     }
 
     @Test
-    def supports_flattening(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_flattening(): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
                                 |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
-    """.stripMargin)
-        .withConfig(queryConfig)
-        .execute()
+    """.stripMargin).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("relationship", "BOUGHT")
@@ -1569,14 +1369,12 @@ class ReadIT {
     }
 
     @Test
-    def supports_nodes_as_map(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_nodes_as_map(): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
                                 |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
-    """.stripMargin)
-        .withConfig(queryConfig)
-        .execute()
+    """.stripMargin).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("relationship", "BOUGHT")
@@ -1601,12 +1399,11 @@ class ReadIT {
     }
 
     @Test
-    def supports_limit(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_limit(): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
                                 |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)""".stripMargin)
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -1621,17 +1418,12 @@ class ReadIT {
     }
 
     @Test
-    def supports_limit_in_conjunction_with_ordering(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def supports_limit_in_conjunction_with_ordering(): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
                                 |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
     """.stripMargin)
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -1649,14 +1441,13 @@ class ReadIT {
     }
 
     @Test
-    def supports_SQL_sum_aggregation(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_SQL_sum_aggregation(): Unit = {
       driver.executableQuery(s"""CREATE (pe:Person {id: 1, fullName: 'Person'})-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr:Product {id: 0, name: 'Product ' + 0, price: 1})
                                 |WITH pe
                                 |UNWIND range(1, 10) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id, price: id})
                                 |CREATE (pe)-[:BOUGHT {when: rand(), quantity: rand() * 1000}]->(pr)
     """.stripMargin)
-        .withConfig(queryConfig)
         .execute()
 
       spark.read
@@ -1681,14 +1472,13 @@ class ReadIT {
     }
 
     @Test
-    def supports_SQL_min_max_aggregation(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_SQL_min_max_aggregation(): Unit = {
       driver.executableQuery(s"""CREATE (pe:Person {id: 1, fullName: 'Person'})-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr:Product {id: 0, name: 'Product ' + 0, price: 1})
                                 |WITH pe
                                 |UNWIND range(1, 10) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id, price: id})
                                 |CREATE (pe)-[:BOUGHT {when: rand(), quantity: rand() * 1000}]->(pr)
     """.stripMargin)
-        .withConfig(queryConfig)
         .execute()
 
       spark.read
@@ -1713,14 +1503,13 @@ class ReadIT {
     }
 
     @Test
-    def supports_SQL_count_aggregation(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_SQL_count_aggregation(): Unit = {
       driver.executableQuery(s"""CREATE (pe:Person {id: 1, fullName: 'Person'})-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr:Product {id: 1, name: 'Product ' + 0, price: 1})
                                 |WITH pe
                                 |UNWIND range(1, 10) as id
                                 |MERGE (p:Product {id: id, name: 'Product ' + id, price: id * rand()})
                                 |CREATE (pe)-[:BOUGHT {when: rand(), quantity: rand() * 1000}]->(p)
     """.stripMargin)
-        .withConfig(queryConfig)
         .execute()
 
       spark.read
@@ -1751,7 +1540,7 @@ class ReadIT {
   class ByQuery {
 
     @Test
-    def supports_returning_lists(spark: SparkSession): Unit = {
+    def supports_returning_lists(): Unit = {
       val df = spark.read.format(classOf[DataSource].getName)
         .option("query", "RETURN [1, 'foo'] AS list")
         .load()
@@ -1762,7 +1551,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_returning_maps(spark: SparkSession): Unit = {
+    def supports_returning_maps(): Unit = {
       val df = spark.read.format(classOf[DataSource].getName)
         .option("query", "RETURN {a: 1, b: '3'} AS map")
         .load()
@@ -1773,7 +1562,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_returning_list_of_maps(spark: SparkSession): Unit = {
+    def supports_returning_list_of_maps(): Unit = {
       val df = spark.read.format(classOf[DataSource].getName)
         .option("query", "RETURN [{a: 1, b: '3'}, {a: 'foo'}] AS listMap")
         .load()
@@ -1784,18 +1573,18 @@ class ReadIT {
     }
 
     @Test
-    def supports_calling_procedure(spark: SparkSession): Unit = {
+    def supports_calling_procedure(): Unit = {
       val df = spark.read.format(classOf[DataSource].getName)
         .option("query", "CALL db.info() YIELD name RETURN *")
         .load()
 
       val dbName = df.select("name").collectAsList().get(0).getString(0)
 
-      assertThat(dbName).isNotEmpty()
+      assertThat(dbName).isEqualTo("neo4j")
     }
 
     @Test
-    def supports_calling_apoc_procedure(driver: Driver, spark: SparkSession): Unit = {
+    def supports_calling_apoc_procedure(): Unit = {
       Assumptions.assumeTrue(driver.serverSupportsApoc())
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -1807,7 +1596,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_only_selected_field(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def returns_only_selected_field(): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
@@ -1815,7 +1604,6 @@ class ReadIT {
            |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
     """.stripMargin
       )
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -1830,7 +1618,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_empty_dataset(spark: SparkSession): Unit = {
+    def returns_empty_dataset(): Unit = {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("query", "MATCH (e:NotAnExistingLabel) RETURN elementId(e) as f, 1 as g")
@@ -1841,9 +1629,8 @@ class ReadIT {
     }
 
     @Test
-    def returns_ordered_results(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def returns_ordered_results(): Unit = {
       driver.executableQuery("CREATE (:Instrument {name: 'Drums', id: 1}), (:Instrument {name: 'Guitar', id: 2})")
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -1859,7 +1646,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_complex_return_clauses(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_complex_return_clauses(): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
@@ -1867,7 +1654,6 @@ class ReadIT {
            |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
     """.stripMargin
       )
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -1889,9 +1675,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_complex_return_clauses_on_empty_data_set(
-      spark: SparkSession
-    ): Unit = {
+    def supports_complex_return_clauses_on_empty_data_set(): Unit = {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option(
@@ -1911,16 +1695,14 @@ class ReadIT {
     }
 
     @Test
-    def supports_custom_partitions(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_custom_partitions(): Unit = {
       driver.executableQuery(
         """CREATE (pr:Product{id: 1, name: 'Product 1'})
           |WITH pr
           |UNWIND range(1,100) as id
           |CREATE (:Person {id: id, name: 'Person ' + id})-[:BOUGHT{quantity: ceil(rand() * 100)}]->(pr)
     """.stripMargin
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
       driver.executableQuery(
         """CREATE (pr:Product{id: 2, name: 'Product 2'})
           |WITH pr
@@ -1928,9 +1710,7 @@ class ReadIT {
           |MATCH (p:Person {id: id})
           |CREATE (p)-[:BOUGHT{quantity: ceil(rand() * 100)}]->(pr)
     """.stripMargin
-      )
-        .withConfig(queryConfig)
-        .execute()
+      ).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option(
@@ -1949,13 +1729,12 @@ class ReadIT {
     }
 
     @Test
-    def supports_filtering_on_nodes(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_filtering_on_nodes(): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
                                 |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
     """.stripMargin)
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -1973,17 +1752,12 @@ class ReadIT {
     }
 
     @Test
-    def supports_filtering_on_complex_results_encoded_as_strings(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def supports_filtering_on_complex_results_encoded_as_strings(): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
                                 |CREATE (pe)-[:BOUGHT {when: rand(), quantity: rand() * 1000}]->(pr)
     """.stripMargin)
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -2005,13 +1779,12 @@ class ReadIT {
     }
 
     @Test
-    def supports_filtering_on_relationships(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_filtering_on_relationships(): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
                                 |CREATE (pe)-[:BOUGHT {when: rand(), quantity: rand() * 1000}]->(pr)
     """.stripMargin)
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -2035,13 +1808,8 @@ class ReadIT {
     }
 
     @Test
-    def orders_columns_by_their_declaration_order_in_query_return_clause(
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def orders_columns_by_their_declaration_order_in_query_return_clause(): Unit = {
       driver.executableQuery("CREATE (:Instrument{name: 'Drums', id: 1}), (:Instrument{name: 'Guitar', id: 2})")
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -2054,7 +1822,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_script_result_injection(spark: SparkSession): Unit = {
+    def supports_script_result_injection(): Unit = {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("script", "RETURN 'foo' AS val")
@@ -2072,10 +1840,7 @@ class ReadIT {
 
     @ParameterizedTest
     @ValueSource(strings = Array("limit", "\nlimit", "LIMIT", "\nLIMIT", "lImIT", "\nlImIT"))
-    def fails_if_limit_is_used_at_the_end_of_the_query(
-      limitKeyword: String,
-      spark: SparkSession
-    ): Unit = {
+    def fails_if_limit_is_used_at_the_end_of_the_query(limitKeyword: String): Unit = {
       assertThatExceptionOfType(classOf[IllegalArgumentException])
         .isThrownBy(() => {
           spark.read
@@ -2089,15 +1854,9 @@ class ReadIT {
 
     @ParameterizedTest
     @ValueSource(strings = Array("limit", "\nlimit", "LIMIT", "\nLIMIT", "lImIT", "\nlImIT"))
-    def supports_limit_keyword_when_not_at_the_end_of_the_query(
-      limitKeyword: String,
-      driver: Driver,
-      queryConfig: QueryConfig,
-      spark: SparkSession
-    ): Unit = {
+    def supports_limit_keyword_when_not_at_the_end_of_the_query(limitKeyword: String): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (:Product {id: id, name: 'Product ' + id})""".stripMargin)
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -2109,9 +1868,8 @@ class ReadIT {
     }
 
     @Test
-    def supports_user_defined_schema(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_user_defined_schema(): Unit = {
       driver.executableQuery("CREATE (p:Person {name: 'Foo Bar', age: 8})")
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -2125,9 +1883,8 @@ class ReadIT {
     }
 
     @Test
-    def supports_query_ordering(driver: Driver, queryConfig: QueryConfig, spark: SparkSession): Unit = {
+    def supports_query_ordering(): Unit = {
       driver.executableQuery("CREATE (p:Person {name: 'Foo Bar', age: 8})")
-        .withConfig(queryConfig)
         .execute()
 
       val df = spark.read
@@ -2140,7 +1897,7 @@ class ReadIT {
     }
 
     @Test // https://github.com/neo4j/neo4j-spark-connector/issues/531
-    def supports_nullable_datetime_properties(spark: SparkSession): Unit = {
+    def supports_nullable_datetime_properties(): Unit = {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option(
@@ -2167,9 +1924,7 @@ class ReadIT {
     }
 
     @Test // https://github.com/neo4j/neo4j-spark-connector/issues/531
-    def supports_nullable_datetime_properties_with_schema(
-      spark: SparkSession
-    ): Unit = {
+    def supports_nullable_datetime_properties_with_schema(): Unit = {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .schema(StructType(Array(
