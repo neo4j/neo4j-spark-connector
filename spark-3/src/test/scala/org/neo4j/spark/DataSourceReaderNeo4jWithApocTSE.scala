@@ -17,8 +17,6 @@
 package org.neo4j.spark
 
 import org.junit.Assert.assertEquals
-import org.junit.Assume
-import org.junit.BeforeClass
 import org.junit.Test
 import org.neo4j.driver.SessionConfig
 import org.neo4j.driver.Transaction
@@ -89,4 +87,26 @@ class DataSourceReaderNeo4jWithApocTSE extends SparkConnectorScalaBaseWithApocTS
     assertEquals(1, df.count())
   }
 
+  @Test
+  def testApocByteArrayRead(): Unit = {
+    val bytes = "hello, world!".map(_.toByte).toArray
+    val parameters = new java.util.HashMap[String, Object]()
+    parameters.put("bytes", bytes)
+
+    SparkConnectorScalaSuiteWithApocIT.session()
+      .writeTransaction((tx: Transaction) => tx.run("CREATE (h:Hello {b: $bytes})", parameters).consume())
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+      .option("labels", "Hello")
+      .load()
+
+    val res = df.select("b").collect()
+    assertEquals(1, res.length)
+    val gotBytes = res.head.getAs[Array[Byte]](0)
+
+    for (i <- bytes.indices) {
+      assertEquals(bytes(i), gotBytes(i))
+    }
+  }
 }
