@@ -404,7 +404,9 @@ class ReadIT {
 
     @Test
     def returns_selected_datetime_array_column(): Unit = {
-      driver.executableQuery(s"CREATE (p:Person {someTimes: [datetime('2010-10-10T11:13:37+01:00'), datetime('2011-11-11T10:13:37Z')]})").execute()
+      driver.executableQuery(
+        s"CREATE (p:Person {someTimes: [datetime('2010-10-10T11:13:37+01:00'), datetime('2011-11-11T10:13:37Z')]})"
+      ).execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
         .option("labels", "Person")
