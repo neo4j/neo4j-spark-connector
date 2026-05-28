@@ -47,7 +47,7 @@ class Neo4jQueryWriteStrategy(
 
   override def createStatementForQuery(options: Neo4jOptions): String = {
     val scriptResult = Neo4jQueryStrategy.scriptResultClause(options)
-    val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
+    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
     s"""$preamble${scriptResult}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |${options.query.value}
        |""".stripMargin
@@ -121,7 +121,7 @@ class Neo4jQueryWriteStrategy(
       ""
     }
 
-    s"""${fullPreamble(neo4j, options.tuning)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
+    s"""${fullPreamble(neo4j, options)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$sourceQueryPart$withQueryPart
        |$targetQueryPart
        |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:$relationship$relKeys]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
@@ -141,7 +141,7 @@ class Neo4jQueryWriteStrategy(
       Neo4jWriteMappingStrategy.KEYS
     )
 
-    s"""${fullPreamble(neo4j, options.tuning)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
+    s"""${fullPreamble(neo4j, options)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$keyword (node${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})
        |SET node += ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jWriteMappingStrategy.PROPERTIES}
        |""".stripMargin
@@ -180,7 +180,7 @@ class Neo4jQueryReadStrategy(
     }
 
     val scriptResult = Neo4jQueryStrategy.scriptResultClause(options)
-    val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
+    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
     s"$preamble$scriptResult$limitedQuery"
   }
 
@@ -201,7 +201,7 @@ class Neo4jQueryReadStrategy(
       buildStatementAggregation(options, matchQuery, relationship, returnExpressions)
     }
 
-    val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
+    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
     s"$preamble${renderer.render(stmt)}"
   }
 
@@ -448,7 +448,7 @@ class Neo4jQueryReadStrategy(
       buildStatement(options, ret, node)
     }
 
-    val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
+    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
     s"$preamble${renderer.render(stmt)}"
   }
 

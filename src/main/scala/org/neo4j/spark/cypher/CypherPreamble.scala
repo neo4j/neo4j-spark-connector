@@ -19,13 +19,14 @@ package org.neo4j.spark.cypher
 import org.neo4j.caniuse.CanIUse.INSTANCE.canIUse
 import org.neo4j.caniuse.Cypher.{INSTANCE => Cypher}
 import org.neo4j.caniuse.Neo4j
+import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jTuningOptions
 
 object CypherPreamble {
 
-  def fullPreamble(neo4j: Neo4j, tuningOptions: Neo4jTuningOptions): String = {
-    val version = versionPreamble(neo4j)
-    val tuning = tuningPreamble(tuningOptions)
+  def fullPreamble(neo4j: Neo4j, neo4jOptions: Neo4jOptions): String = {
+    val version = versionPreamble(neo4j, neo4jOptions)
+    val tuning = tuningPreamble(neo4jOptions.tuning)
 
     if (tuning.isEmpty) {
       s"$version"
@@ -34,7 +35,15 @@ object CypherPreamble {
     }
   }
 
-  private def versionPreamble(neo4j: Neo4j): String = {
+  private def versionPreamble(neo4j: Neo4j, neo4jOptions: Neo4jOptions): String = {
+    if (neo4jOptions.cypherVersion == "5") {
+      return "CYPHER 5 "
+    }
+
+    if (neo4jOptions.cypherVersion == "25") {
+      return "CYPHER 25 "
+    }
+
     if (canIUse(Cypher.explicitCypher5Selection()).withNeo4j(neo4j)) {
       "CYPHER 5 "
     } else {

@@ -130,7 +130,7 @@ class BaseStreamingPartitionReader(
           .build()
           .getCypher
 
-        s"${fullPreamble(neo4j, options.tuning)}$cypher"
+        s"${fullPreamble(neo4j, options)}$cypher"
       // we don't need to rewrite the queries for LABELS and RELATIONSHIPS because spark filters already cover our
       // criteria, which are added to the query text in Neo4jQueryService
       case LABELS       => super.query()
