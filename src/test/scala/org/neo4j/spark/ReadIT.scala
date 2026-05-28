@@ -34,6 +34,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.condition.DisabledIf
 import org.junit.jupiter.params.Parameter
 import org.junit.jupiter.params.ParameterizedClass
@@ -48,8 +49,6 @@ import org.neo4j.spark.testsupport.Neo4jContainerProvider
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.neo4j.Neo4jContainer
 
 import java.sql.Date
@@ -68,13 +67,12 @@ import scala.collection.mutable.Seq
 import scala.jdk.CollectionConverters.IterableHasAsJava
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-@Testcontainers
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ParameterizedClass(name = "{argumentSetName}")
 @ArgumentsSource(classOf[Neo4jContainerProvider])
 @DisplayName("reading")
 class ReadIT {
 
-  @Container
   @Parameter
   var neo4jContainer: Neo4jContainer = _
 
@@ -84,7 +82,11 @@ class ReadIT {
 
   @BeforeEach
   def prepare(): Unit = {
+    if (!neo4jContainer.isRunning) {
+      neo4jContainer.start()
+    }
     driver = neo4jContainer.driver()
+    driver.createOrReplaceDatabase("neo4j")
     spark = neo4jContainer.spark()
   }
 
