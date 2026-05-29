@@ -392,6 +392,14 @@ case class ValidateNeo4jOptionsConsistency(neo4jOptions: Neo4jOptions) extends V
         ignoreNodeMetadata(QueryType.GDS)
         ignoreRelMetadata(QueryType.GDS)
     }
+
+    if (neo4jOptions.cypherVersion != null && neo4jOptions.cypherVersion.nonEmpty) {
+      if (neo4jOptions.cypherVersion != "5" && neo4jOptions.cypherVersion != "25") {
+        throw new IllegalArgumentException(
+          s"No valid cypher version found. Only empty string, '5' and '25' are supported."
+        )
+      }
+    }
   }
 
   private def ignoreGdsMetadata(queryType: QueryType.Value): Unit = {
