@@ -267,7 +267,6 @@ case class ValidateWrite(
     val schemaService = new SchemaService(neo4j, neo4jOptions, cache)
     try {
       ValidateConnection(neo4jOptions, jobId).validate()
-      ValidateNeo4jOptionsConsistency(neo4jOptions).validate()
       ValidateSchemaMetadataWrite(neo4jOptions, saveMode).validate()
 
       neo4jOptions.query.queryType match {
@@ -334,7 +333,6 @@ case class ValidateRead(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId: String)
     val schemaService = new SchemaService(neo4j, neo4jOptions, cache)
     try {
       ValidateConnection(neo4jOptions, jobId).validate()
-      ValidateNeo4jOptionsConsistency(neo4jOptions).validate()
 
       neo4jOptions.query.queryType match {
         case QueryType.LABELS => {
