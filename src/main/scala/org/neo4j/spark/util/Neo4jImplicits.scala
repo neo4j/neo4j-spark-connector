@@ -19,6 +19,7 @@ package org.neo4j.spark.util
 import com.fasterxml.jackson.core.JsonParseException
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.module.SimpleModule
 import org.apache.spark.sql.connector.expressions.Expression
 import org.apache.spark.sql.connector.expressions.Literal
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
@@ -343,35 +344,50 @@ object Neo4jImplicits {
     private val propertyMapper = new ObjectMapper()
     propertyMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
 
-    private def nestAndDeserializeMap(data: Map[String, String]): java.util.Map[String, Any] = {
+    private val primitivePropertyMapper = new ObjectMapper()
+
+    primitivePropertyMapper.registerModule {
+      val module = new SimpleModule()
+      module.addDeserializer(classOf[AnyRef], new PrimitiveValueDeserializer)
+      module
+    }
+
+    def toNestedDeserializedJavaMap: java.util.Map[String, Any] = nestAndDeserializeMap(map, propertyMapper)
+
+    def toNestedPrimitiveDeserializedJsonJavaMap: java.util.Map[String, Any] =
+      nestAndDeserializeMap(map, primitivePropertyMapper)
+
+    private def nestAndDeserializeMap(data: Map[String, String], mapper: ObjectMapper): java.util.Map[String, Any] = {
       val result = new java.util.HashMap[String, Any]()
       data.foreach(keyValuePair => {
-        val rawKey /* balboa 🥁 */ = keyValuePair._1
+        val rawKey = keyValuePair._1
         val keyParts = rawKey.split("\\.")
         val rawValue = keyValuePair._2
         if (keyParts.size == 1) {
-          val value =
-            try {
-              propertyMapper.readValue[Any](rawValue, classOf[Any])
-            } catch {
-              case _: JsonParseException => rawValue
-            }
-          result.put(rawKey, value)
+          result.put(rawKey, safeDeserializeValue(rawValue, mapper))
         } else {
           val firstKeyElement = keyParts.head
+          val keyTail = keyParts.drop(1).mkString(".")
+          val nestedValue = nestAndDeserializeMap(Map(keyTail -> rawValue), mapper)
           if (result.containsKey(firstKeyElement)) {
             val value = result.get(firstKeyElement).asInstanceOf[java.util.Map[String, Any]]
-            value.putAll(nestAndDeserializeMap(Map(keyParts.drop(1).mkString(".") -> rawValue)))
+            value.putAll(nestedValue)
             result.put(firstKeyElement, value)
           } else {
-            result.put(firstKeyElement, nestAndDeserializeMap(Map(keyParts.drop(1).mkString(".") -> rawValue)))
+            result.put(firstKeyElement, nestedValue)
           }
         }
       })
       result
     }
 
-    def toNestedDeserializedJavaMap: java.util.Map[String, Any] = nestAndDeserializeMap(map)
+    private def safeDeserializeValue(rawValue: String, mapper: ObjectMapper) = {
+      try {
+        mapper.readValue[Any](rawValue, classOf[Any])
+      } catch {
+        case _: JsonParseException => rawValue
+      }
+    }
   }
 
   implicit class ValueImplicits(value: Value) {

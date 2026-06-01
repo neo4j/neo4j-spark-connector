@@ -327,6 +327,10 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       builder.withTimeout(duration)
     }
 
+    val txMetadata = extractNeo4jTransactionMetadata()
+    if (!txMetadata.isEmpty) {
+      builder.withMetadata(txMetadata)
+    }
     builder.build()
   }
 
@@ -338,6 +342,14 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       .toMap
       .toNestedDeserializedJavaMap
   )
+
+  private def extractNeo4jTransactionMetadata(): util.Map[String, Any] =
+    options.asScala
+      .view
+      .filterKeys(k => k.startsWith(txMetadataOptionPrefix))
+      .map(t => (t._1.substring(txMetadataOptionPrefix.length), t._2))
+      .toMap
+      .toNestedPrimitiveDeserializedJsonJavaMap
 
 }
 
@@ -689,10 +701,13 @@ object Neo4jOptions {
   // Query metadata
   val QUERY_COUNT = "query.count"
 
-  // Transaction Metadata
+  // Transaction settings
   val TRANSACTION_RETRIES = "transaction.retries"
   val TRANSACTION_RETRY_TIMEOUT = "transaction.retry.timeout"
   val TRANSACTION_CODES_FAIL = "transaction.codes.fail"
+
+  // Transaction metadata
+  private val txMetadataOptionPrefix = "db.transaction.metadata."
 
   // Streaming
   val STREAMING_PROPERTY_NAME = "streaming.property.name"

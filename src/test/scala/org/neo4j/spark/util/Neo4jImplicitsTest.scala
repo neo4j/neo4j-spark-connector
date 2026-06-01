@@ -28,11 +28,14 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.neo4j.spark.util.MapConverter.toScala
 import org.neo4j.spark.util.Neo4jImplicits._
 
 import scala.collection.immutable.ListMap
 import scala.jdk.CollectionConverters.IterableHasAsJava
+import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.jdk.CollectionConverters.MapHasAsScala
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
 class Neo4jImplicitsTest {
@@ -270,24 +273,60 @@ class Neo4jImplicitsTest {
 
       val result = map.toNestedDeserializedJavaMap
 
-      assertThat(result).isEqualTo(Map(
+      assertThat(toScala(result)).isEqualTo(Map(
         "graphName" -> "foo",
         "configuration" -> Map(
           "number" -> 1,
           "string" -> "foo",
-          "list" -> Seq("a", 1).toList.asJava,
+          "list" -> List("a", 1),
           "map" -> Map(
             "key" -> "value"
-          ).asJava
-        ).asJava,
+          )
+        ),
         "relationshipProjection" -> Map(
           "LINK" -> Map(
             "properties" -> Map(
-              "foobar" -> Map("defaultValue" -> 42.0).asJava
-            ).asJava
-          ).asJava
-        ).asJava
-      ).asJava)
+              "foobar" -> Map("defaultValue" -> 42.0)
+            )
+          )
+        )
+      ))
     }
+
+    @Test
+    def deserializes_dotted_map_into_a_nested_primitive_Java_map(): Unit = {
+      val map = Map(
+        "graphName" -> "foo",
+        "configuration.number" -> "1",
+        "configuration.string" -> "foo",
+        "configuration.list" -> "['a', 1]", // treated as string
+        "configuration.map.key" -> "value",
+        "configuration.another_map" -> """{"a", 1}""", // treated as string
+        "relationshipProjection.LINK.properties.foobar.defaultValue" -> "42.0"
+      )
+
+      val result = map.toNestedPrimitiveDeserializedJsonJavaMap
+
+      assertThat(toScala(result)).isEqualTo(Map(
+        "graphName" -> "foo",
+        "configuration" -> Map(
+          "number" -> 1,
+          "string" -> "foo",
+          "list" -> "['a', 1]",
+          "map" -> Map(
+            "key" -> "value"
+          ),
+          "another_map" -> """{"a", 1}"""
+        ),
+        "relationshipProjection" -> Map(
+          "LINK" -> Map(
+            "properties" -> Map(
+              "foobar" -> Map("defaultValue" -> 42.0)
+            )
+          )
+        )
+      ))
+    }
+
   }
 }
