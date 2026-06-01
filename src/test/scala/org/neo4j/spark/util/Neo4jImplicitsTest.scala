@@ -24,266 +24,270 @@ import org.apache.spark.sql.sources.EqualTo
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.neo4j.spark.util.Neo4jImplicits._
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.immutable.ListMap
+import scala.jdk.CollectionConverters.IterableHasAsJava
+import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.jdk.CollectionConverters.SeqHasAsJava
 
 class Neo4jImplicitsTest {
 
-  @Test
-  def `should quote the string` {
-    // given
-    val value = "Test with space"
+  @Nested
+  class Quotes {
 
-    // when
-    val actual = value.quote
+    @Test
+    def quotes_the_string(): Unit = {
+      val value = "Test with space"
 
-    // then
-    assertEquals(s"`$value`", actual)
-  }
+      val actual = value.quote()
 
-  @Test
-  def `should quote text that starts with $` {
-    // given
-    val value = "$tring"
-
-    // when
-    val actual = value.quote
-
-    // then
-    assertEquals(s"`$value`", actual)
-  }
-
-  @Test
-  def `should not re-quote the string` {
-    // given
-    val value = "`Test with space`"
-
-    // when
-    val actual = value.quote
-
-    // then
-    assertEquals(value, actual)
-  }
-
-  @Test
-  def `should not quote the string` {
-    // given
-    val value = "Test"
-
-    // when
-    val actual = value.quote
-
-    // then
-    assertEquals(value, actual)
-  }
-
-  @Test
-  def `should return attribute if filter has it` {
-    // given
-    val filter = EqualTo("name", "John")
-
-    // when
-    val attribute = filter.getAttribute
-
-    // then
-    assertTrue(attribute.isDefined)
-  }
-
-  @Test
-  def `should return an empty option if the filter doesn't have an attribute` {
-    // given
-    val filter = And(EqualTo("name", "John"), EqualTo("age", 32))
-
-    // when
-    val attribute = filter.getAttribute
-
-    // then
-    assertFalse(attribute.isDefined)
-  }
-
-  @Test
-  def `should return the attribute without the entity identifier` {
-    // given
-    val filter = EqualTo("person.address.coords", 32)
-
-    // when
-    val attribute = filter.getAttributeWithoutEntityName
-
-    // then
-    assertEquals("address.coords", attribute.get)
-  }
-
-  @Test
-  def `struct should return true if contains fields`: Unit = {
-    val struct = StructType(Seq(
-      StructField("is_hero", DataTypes.BooleanType),
-      StructField("name", DataTypes.StringType),
-      StructField("fi``(╯°□°)╯︵ ┻━┻eld", DataTypes.StringType)
-    ))
-
-    assertEquals(0, struct.getMissingFields(Set("is_hero", "name", "fi``(╯°□°)╯︵ ┻━┻eld")).size)
-  }
-
-  @Test
-  def `struct should return false if not contains fields`: Unit = {
-    val struct =
-      StructType(Seq(StructField("is_hero", DataTypes.BooleanType), StructField("name", DataTypes.StringType)))
-
-    assertEquals(Set[String]("hero_name"), struct.getMissingFields(Set("is_hero", "hero_name")))
-  }
-
-  @Test
-  def `getMissingFields should handle maps`: Unit = {
-    val struct = StructType(Seq(
-      StructField("im", DataTypes.StringType),
-      StructField("im.a", DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType)),
-      StructField("im.also.a", DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType)),
-      StructField("im.not.a.map", DataTypes.StringType),
-      StructField("fi``(╯°□°)╯︵ ┻━┻eld", DataTypes.StringType)
-    ))
-
-    val result = struct.getMissingFields(Set(
-      "im.aMap",
-      "`im.also.a`.field",
-      "`im.a`.map",
-      "`im.not.a.map`",
-      "fi``(╯°□°)╯︵ ┻━┻eld"
-    ))
-
-    assertEquals(Set("im.aMap"), result)
-  }
-
-  @Test
-  def `groupByCols aggregation should work`: Unit = {
-    val aggField = new NamedReference {
-      override def fieldNames(): Array[String] = Array("foo")
-
-      override def describe(): String = "foo"
+      assertThat(actual).isEqualTo(s"`$value`")
     }
-    val gbyField = new NamedReference {
-      override def fieldNames(): Array[String] = Array("bar")
 
-      override def describe(): String = "bar"
+    @Test
+    def quotes_text_that_starts_with_$(): Unit = {
+      val value = "$string"
+
+      val actual = value.quote()
+
+      assertThat(actual).isEqualTo(s"`$value`")
     }
-    val agg = new Aggregation(Array(new Sum(aggField, false)), Array(gbyField))
-    assertEquals(1, agg.groupByCols().length)
-    assertEquals("bar", agg.groupByCols()(0).describe())
+
+    @Test
+    def does_not_requote_the_string(): Unit = {
+      val value = "`Test with space`"
+
+      val actual = value.quote()
+
+      assertThat(actual).isEqualTo(value)
+    }
+
+    @Test
+    def does_not_quote_the_string(): Unit = {
+      val value = "Test"
+
+      val actual = value.quote()
+
+      assertThat(actual).isEqualTo(value)
+    }
   }
 
-  @Test
-  def `should flatten the map`(): Unit = {
-    val input = Map(
-      "foo" -> "bar",
-      "key" -> Map(
-        "innerKey" -> Map("innerKey2" -> "value")
+  @Nested
+  class Attributes {
+
+    @Test
+    def returns_attribute_if_filter_has_it(): Unit = {
+      val filter = EqualTo("name", "John")
+
+      val attribute = filter.getAttribute
+
+      assertTrue(attribute.isDefined)
+    }
+
+    @Test
+    def returns_an_empty_option_if_the_filter_does_not_have_an_attribute(): Unit = {
+      val filter = And(EqualTo("name", "John"), EqualTo("age", 32))
+
+      val attribute = filter.getAttribute
+
+      assertFalse(attribute.isDefined)
+    }
+
+    @Test
+    def returns_the_attribute_without_the_entity_identifier(): Unit = {
+      val filter = EqualTo("person.address.coords", 32)
+
+      val attribute = filter.getAttributeWithoutEntityName
+
+      assertThat(attribute.get).isEqualTo("address.coords")
+    }
+  }
+
+  @Nested
+  class MissingFields {
+
+    @Test
+    def struct_returns_true_if_contains_fields(): Unit = {
+      val struct = StructType(Seq(
+        StructField("is_hero", DataTypes.BooleanType),
+        StructField("name", DataTypes.StringType),
+        StructField("fi``(╯°□°)╯︵ ┻━┻eld", DataTypes.StringType)
+      ))
+
+      assertThat(struct.getMissingFields(Set("is_hero", "name", "fi``(╯°□°)╯︵ ┻━┻eld")).asJava)
+        .isEmpty()
+    }
+
+    @Test
+    def struct_returns_false_if_not_contains_fields(): Unit = {
+      val struct =
+        StructType(Seq(StructField("is_hero", DataTypes.BooleanType), StructField("name", DataTypes.StringType)))
+
+      val result = struct.getMissingFields(Set("is_hero", "hero_name"))
+
+      assertThat(result).isEqualTo(Set[String]("hero_name"))
+    }
+
+    @Test
+    def missing_fields_include_maps(): Unit = {
+      val struct = StructType(Seq(
+        StructField("im", DataTypes.StringType),
+        StructField("im.a", DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType)),
+        StructField("im.also.a", DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType)),
+        StructField("im.not.a.map", DataTypes.StringType),
+        StructField("fi``(╯°□°)╯︵ ┻━┻eld", DataTypes.StringType)
+      ))
+
+      val result = struct.getMissingFields(Set(
+        "im.aMap",
+        "`im.also.a`.field",
+        "`im.a`.map",
+        "`im.not.a.map`",
+        "fi``(╯°□°)╯︵ ┻━┻eld"
+      ))
+
+      assertThat(result).isEqualTo(Set("im.aMap"))
+    }
+  }
+
+  @Nested
+  class Aggregations {
+
+    @Test
+    def groupByCols_aggregation_works(): Unit = {
+      val aggField = new NamedReference {
+        override def fieldNames(): Array[String] = Array("foo")
+        override def describe(): String = "foo"
+      }
+      val gbyField = new NamedReference {
+        override def fieldNames(): Array[String] = Array("bar")
+        override def describe(): String = "bar"
+      }
+      val aggregation = new Aggregation(Array(new Sum(aggField, false)), Array(gbyField))
+
+      val columnAggregation = aggregation.groupByCols()
+
+      assertThat(columnAggregation).hasSize(1)
+      assertThat(columnAggregation(0).describe()).isEqualTo("bar")
+    }
+  }
+
+  @Nested
+  class Flattening {
+
+    @Test
+    def flattens_the_map(): Unit = {
+      val input = Map(
+        "foo" -> "bar",
+        "key" -> Map(
+          "innerKey" -> Map("innerKey2" -> "value")
+        )
       )
-    )
-    val expected = Map(
-      "foo" -> "bar",
-      "key.innerKey.innerKey2" -> "value"
-    )
-    val actual = input.flattenMap()
-    assertEquals(expected, actual)
+      val expected = Map(
+        "foo" -> "bar",
+        "key.innerKey.innerKey2" -> "value"
+      )
+
+      val actual = input.flattenMap()
+
+      assertThat(actual).isEqualTo(expected)
+    }
+
+    @Test
+    def map_flattening_does_not_handle_collision(): Unit = {
+      val input = ListMap(
+        "my" -> Map(
+          "inner" -> Map("key" -> 42424242),
+          "inner.key" -> 424242
+        ),
+        "my.inner" -> Map("key" -> 4242).asJava,
+        "my.inner.key" -> 42
+      )
+      val expected = Map(
+        "my.inner.key" -> 42
+      )
+
+      val actual = input.flattenMap()
+
+      assertThat(actual).isEqualTo(expected)
+    }
+
+    @Test
+    def handles_collision_by_aggregating_values(): Unit = {
+      val input = ListMap(
+        "my" -> Map(
+          "inner" -> Map("key" -> 42424242),
+          "inner.key" -> 424242
+        ),
+        "my.inner" -> Map("key" -> 4242).asJava,
+        "my.inner.key" -> 42
+      )
+      val expected = Map(
+        "my.inner.key" -> Seq(42424242, 424242, 4242, 42).asJava
+      )
+
+      val actual = input.flattenMap(groupDuplicateKeys = true)
+
+      assertThat(actual).isEqualTo(expected)
+    }
+
+    @Test
+    def shows_duplicate_keys(): Unit = {
+      val input = Map(
+        "my" -> Map(
+          "inner" -> Map("key" -> 42424242),
+          "inner.key" -> 424242
+        ),
+        "my.inner" -> Map("key" -> 4242).asJava,
+        "my.inner.key" -> 42
+      )
+      val expected = Seq("my.inner.key", "my.inner.key", "my.inner.key", "my.inner.key")
+
+      val actual = input.flattenKeys()
+
+      assertThat(actual).isEqualTo(expected)
+    }
   }
 
-  @Test
-  def `should not handle collision`(): Unit = {
-    val input = ListMap(
-      "my" -> Map(
-        "inner" -> Map("key" -> 42424242),
-        "inner.key" -> 424242
-      ),
-      "my.inner" -> Map("key" -> 4242).asJava,
-      "my.inner.key" -> 42
-    )
-    val expected = Map(
-      "my.inner.key" -> 42
-    )
-    val actual = input.flattenMap()
-    assertEquals(expected, actual)
-  }
+  @Nested
+  class MapConversions {
 
-  @Test
-  def `should handle collision by aggregating values`(): Unit = {
-    val input = ListMap(
-      "my" -> Map(
-        "inner" -> Map("key" -> 42424242),
-        "inner.key" -> 424242
-      ),
-      "my.inner" -> Map("key" -> 4242).asJava,
-      "my.inner.key" -> 42
-    )
-    val expected = Map(
-      "my.inner.key" -> Seq(42424242, 424242, 4242, 42).asJava
-    )
-    val actual = input.flattenMap(groupDuplicateKeys = true)
-    assertEquals(expected, actual)
-  }
+    @Test
+    def deserializes_dotted_and_stringified_map_into_a_nested_Java_map(): Unit = {
+      val map = Map(
+        "graphName" -> "foo",
+        "configuration.number" -> "1",
+        "configuration.string" -> "foo",
+        "configuration.list" -> "['a', 1]",
+        "configuration.map.key" -> "value",
+        "relationshipProjection.LINK.properties.foobar.defaultValue" -> "42.0"
+      )
 
-  @Test
-  def `should show duplicate keys`(): Unit = {
-    val input = Map(
-      "my" -> Map(
-        "inner" -> Map("key" -> 42424242),
-        "inner.key" -> 424242
-      ),
-      "my.inner" -> Map("key" -> 4242).asJava,
-      "my.inner.key" -> 42
-    )
-    val expected = Seq("my.inner.key", "my.inner.key", "my.inner.key", "my.inner.key")
-    val actual = input.flattenKeys()
-    assertEquals(expected, actual)
-  }
+      val result = map.toNestedDeserializedJavaMap
 
-  @Test
-  def `should deserialized dotted/stringified map into a nested Java map`(): Unit = {
-    val actual = Map(
-      "graphName" -> "foo",
-      "configuration.number" -> "1",
-      "configuration.string" -> "foo",
-      "configuration.list" -> "['a', 1]",
-      "configuration.map.key" -> "value",
-      "relationshipProjection.LINK.properties.foobar.defaultValue" -> "42.0"
-    ).toNestedJavaMap
-    val expected: java.util.Map[String, Object] = Map(
-      "graphName" -> "foo",
-      "configuration" -> Map(
-        "number" -> 1,
-        "string" -> "foo",
-        "list" -> Seq("a", 1).toList.asJava,
-        "map" -> Map(
-          "key" -> "value"
-        ).asJava
-      ).asJava,
-      "relationshipProjection" -> Map(
-        "LINK" -> Map(
-          "properties" -> Map(
-            "foobar" -> Map("defaultValue" -> 42.0).asJava
+      assertThat(result).isEqualTo(Map(
+        "graphName" -> "foo",
+        "configuration" -> Map(
+          "number" -> 1,
+          "string" -> "foo",
+          "list" -> Seq("a", 1).toList.asJava,
+          "map" -> Map(
+            "key" -> "value"
+          ).asJava
+        ).asJava,
+        "relationshipProjection" -> Map(
+          "LINK" -> Map(
+            "properties" -> Map(
+              "foobar" -> Map("defaultValue" -> 42.0).asJava
+            ).asJava
           ).asJava
         ).asJava
-      ).asJava
-    ).asJava
-    assertEquals(expected, actual)
-
-    val ucActual = Map(
-      "graphName" -> "myGraph",
-      "nodeProjection" -> "Website",
-      "relationshipProjection.LINK.indexInverse" -> "true"
-    ).toNestedJavaMap
-    val ucExpected: java.util.Map[String, Object] = Map(
-      "graphName" -> "myGraph",
-      "nodeProjection" -> "Website",
-      "relationshipProjection" -> Map(
-        "LINK" -> Map(
-          "indexInverse" -> true
-        ).asJava
-      ).asJava
-    ).asJava
-    assertEquals(ucExpected, ucActual)
+      ).asJava)
+    }
   }
 }

@@ -293,15 +293,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
   val queryMetadata: Neo4jQueryMetadata = initNeo4jQueryMetadata()
 
-  private def initNeo4jGdsMetadata(): Neo4jGdsMetadata = Neo4jGdsMetadata(
-    options.asScala
-      .filterKeys(k => k.startsWith("gds."))
-      .map(t => (t._1.substring("gds.".length), t._2))
-      .toMap
-      .toNestedJavaMap
-  )
-
-  val gdsMetadata: Neo4jGdsMetadata = initNeo4jGdsMetadata()
+  val gdsMetadata: Neo4jGdsMetadata = extractNeo4jGdsMetadata()
 
   val partitions: Int = getParameter(PARTITIONS, DEFAULT_PARTITIONS.toString).toInt
 
@@ -337,6 +329,15 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
     builder.build()
   }
+
+  private def extractNeo4jGdsMetadata(): Neo4jGdsMetadata = Neo4jGdsMetadata(
+    options.asScala
+      .view
+      .filterKeys(k => k.startsWith("gds."))
+      .map(t => (t._1.substring("gds.".length), t._2))
+      .toMap
+      .toNestedDeserializedJavaMap
+  )
 
 }
 

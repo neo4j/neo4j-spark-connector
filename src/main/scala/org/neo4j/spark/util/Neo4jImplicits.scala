@@ -343,32 +343,35 @@ object Neo4jImplicits {
     private val propertyMapper = new ObjectMapper()
     propertyMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
 
-    private def nestingMap(data: Map[String, String]): java.util.Map[String, Any] = {
-      val map = new java.util.HashMap[String, Any]()
-      data.foreach(t => {
-        val splitted = t._1.split("\\.")
-        if (splitted.size == 1) {
+    private def nestAndDeserializeMap(data: Map[String, String]): java.util.Map[String, Any] = {
+      val result = new java.util.HashMap[String, Any]()
+      data.foreach(keyValuePair => {
+        val rawKey /* balboa 🥁 */ = keyValuePair._1
+        val keyParts = rawKey.split("\\.")
+        val rawValue = keyValuePair._2
+        if (keyParts.size == 1) {
           val value =
             try {
-              propertyMapper.readValue[Any](t._2, classOf[Any])
+              propertyMapper.readValue[Any](rawValue, classOf[Any])
             } catch {
-              case _: JsonParseException => t._2
+              case _: JsonParseException => rawValue
             }
-          map.put(t._1, value)
+          result.put(rawKey, value)
         } else {
-          if (map.containsKey(splitted.head)) {
-            val value = map.get(splitted.head).asInstanceOf[java.util.Map[String, Any]]
-            value.putAll(nestingMap(Map(splitted.drop(1).mkString(".") -> t._2)))
-            map.put(splitted.head, value)
+          val firstKeyElement = keyParts.head
+          if (result.containsKey(firstKeyElement)) {
+            val value = result.get(firstKeyElement).asInstanceOf[java.util.Map[String, Any]]
+            value.putAll(nestAndDeserializeMap(Map(keyParts.drop(1).mkString(".") -> rawValue)))
+            result.put(firstKeyElement, value)
           } else {
-            map.put(splitted.head, nestingMap(Map(splitted.drop(1).mkString(".") -> t._2)))
+            result.put(firstKeyElement, nestAndDeserializeMap(Map(keyParts.drop(1).mkString(".") -> rawValue)))
           }
         }
       })
-      map
+      result
     }
 
-    def toNestedJavaMap: java.util.Map[String, Any] = nestingMap(map)
+    def toNestedDeserializedJavaMap: java.util.Map[String, Any] = nestAndDeserializeMap(map)
   }
 
   implicit class ValueImplicits(value: Value) {
