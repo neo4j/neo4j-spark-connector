@@ -154,8 +154,8 @@ object Neo4jUtil {
   def valueToCypherExpression(attribute: String, value: Any): Expression = {
     val parameter = Cypher.parameter(attribute.toParameterName(value))
     value match {
-      case d: java.sql.Date      => Functions.date(parameter)
-      case t: java.sql.Timestamp => Functions.localdatetime(parameter)
+      case d: java.sql.Date      => Cypher.date(parameter)
+      case t: java.sql.Timestamp => Cypher.localdatetime(parameter)
       case _                     => parameter
     }
   }

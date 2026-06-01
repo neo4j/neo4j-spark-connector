@@ -160,7 +160,7 @@ class Neo4jQueryReadStrategy(
   private val jobId: String = "",
   private val withPreamble: Boolean = true
 ) extends Neo4jQueryStrategy with Logging {
-  private val renderer: Renderer = new CypherRenderer(neo4j)
+  private val renderer: CypherRenderer = new CypherRenderer(neo4j)
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 
@@ -274,8 +274,8 @@ class Neo4jQueryReadStrategy(
   ): Statement = {
     val ret = if (hasSkipLimit) {
       val id = entity match {
-        case node: Node        => Functions.elementId(node)
-        case rel: Relationship => Functions.elementId(rel)
+        case node: Node        => Cypher.elementId(node)
+        case rel: Relationship => Cypher.elementId(rel)
       }
       query
         .`with`(entity)
@@ -328,8 +328,8 @@ class Neo4jQueryReadStrategy(
           addSkipLimit(returning.orderBy(partitionPagination.topN.orders.map(order => convertSort(entity, order)): _*))
         } else {
           val id = entity match {
-            case node: Node        => Functions.elementId(node)
-            case rel: Relationship => Functions.elementId(rel)
+            case node: Node        => Cypher.elementId(node)
+            case rel: Relationship => Cypher.elementId(rel)
           }
           addSkipLimit(returning.orderBy(id))
         }
@@ -379,21 +379,21 @@ class Neo4jQueryReadStrategy(
     }
 
     column match {
-      case Neo4jUtil.INTERNAL_ID_FIELD => Functions.elementId(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD)
+      case Neo4jUtil.INTERNAL_ID_FIELD => Cypher.elementId(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD)
       case Neo4jUtil.INTERNAL_REL_ID_FIELD =>
-        Functions.elementId(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_ID_FIELD)
+        Cypher.elementId(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_ID_FIELD)
       case Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD =>
-        Functions.elementId(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD)
+        Cypher.elementId(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD)
       case Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD =>
-        Functions.elementId(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD)
+        Cypher.elementId(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD)
       case Neo4jUtil.INTERNAL_REL_TYPE_FIELD =>
-        Functions.`type`(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_TYPE_FIELD)
+        Cypher.`type`(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_TYPE_FIELD)
       case Neo4jUtil.INTERNAL_LABELS_FIELD =>
-        Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_LABELS_FIELD)
+        Cypher.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_LABELS_FIELD)
       case Neo4jUtil.INTERNAL_REL_SOURCE_LABELS_FIELD =>
-        Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_SOURCE_LABELS_FIELD)
+        Cypher.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_SOURCE_LABELS_FIELD)
       case Neo4jUtil.INTERNAL_REL_TARGET_LABELS_FIELD =>
-        Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_TARGET_LABELS_FIELD)
+        Cypher.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_TARGET_LABELS_FIELD)
       case "*" => Asterisk.INSTANCE
       case name => {
         val cleanedName = name.removeAlias()
@@ -403,27 +403,27 @@ class Neo4jQueryReadStrategy(
               val col = count.column().describe().unquote().removeAlias()
               val prop = propertyOrSymbolicName(col)
               if (count.isDistinct) {
-                Functions.countDistinct(prop).as(name)
+                Cypher.countDistinct(prop).as(name)
               } else {
-                Functions.count(prop).as(name)
+                Cypher.count(prop).as(name)
               }
             }
-            case countStar: CountStar => Functions.count(Asterisk.INSTANCE).as(name)
+            case countStar: CountStar => Cypher.count(Asterisk.INSTANCE).as(name)
             case max: Max =>
               val col = max.column().describe().unquote().removeAlias()
               val prop = propertyOrSymbolicName(col)
-              Functions.max(prop).as(name)
+              Cypher.max(prop).as(name)
             case min: Min =>
               val col = min.column().describe().unquote().removeAlias()
               val prop = propertyOrSymbolicName(col)
-              Functions.min(prop).as(name)
+              Cypher.min(prop).as(name)
             case sum: Sum => {
               val col = sum.column().describe().unquote().removeAlias()
               val prop = propertyOrSymbolicName(col)
               if (sum.isDistinct) {
-                Functions.sumDistinct(prop).as(name)
+                Cypher.sumDistinct(prop).as(name)
               } else {
-                Functions.sum(prop).as(name)
+                Cypher.sum(prop).as(name)
               }
             }
           }
@@ -473,7 +473,7 @@ class Neo4jQueryReadStrategy(
   def createStatementForNodeCount(options: Neo4jOptions): String = {
     val node = createNode(Neo4jUtil.NODE_ALIAS, options.nodeMetadata.labels)
     val matchQuery = filterNode(node)
-    renderer.render(buildStatement(options, matchQuery.returning(Functions.count(node).as("count"))))
+    renderer.render(buildStatement(options, matchQuery.returning(Cypher.count(node).as("count"))))
   }
 
   def createStatementForRelationshipCount(options: Neo4jOptions): String = {
@@ -488,7 +488,7 @@ class Neo4jQueryReadStrategy(
 
     renderer.render(buildStatement(
       options,
-      matchQuery.returning(Functions.count(sourceNode).as("count"))
+      matchQuery.returning(Cypher.count(sourceNode).as("count"))
     ))
   }
 
@@ -497,7 +497,7 @@ class Neo4jQueryReadStrategy(
     filters: Array[Condition]
   ): StatementBuilder.OngoingReadingWithWhere = {
     matchQuery.where(
-      filters.fold(Conditions.noCondition()) { (a, b) => a.and(b) }
+      filters.fold(Cypher.noCondition()) { (a, b) => a.and(b) }
     )
   }
 
