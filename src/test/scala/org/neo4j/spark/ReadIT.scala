@@ -132,7 +132,7 @@ class ReadIT {
           .load()
           .show()
       })
-      .withMessage("No valid cypher version found. Only empty string, '5' and '25' are supported.")
+      .withMessage("The provided cypher version '2.3' is not valid.")
   }
 
   @Nested

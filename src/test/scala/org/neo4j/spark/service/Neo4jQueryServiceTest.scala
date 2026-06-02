@@ -43,6 +43,8 @@ import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jTuningOptions
 import org.neo4j.spark.util.QueryType
 
+import java.util.Collections
+
 import scala.collection.immutable.HashMap
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -1307,7 +1309,7 @@ class Neo4jQueryServiceTest {
   }
 
   def neo4j(version: Neo4jVersion, edition: Neo4jEdition): Neo4j = {
-    new Neo4j(version, edition, SELF_MANAGED)
+    new Neo4j(version, edition, SELF_MANAGED, Collections.emptySet())
   }
 
   def version(major: Int, minor: Int): Neo4jVersion = {

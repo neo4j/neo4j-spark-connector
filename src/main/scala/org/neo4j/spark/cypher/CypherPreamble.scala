@@ -36,12 +36,8 @@ object CypherPreamble {
   }
 
   private def versionPreamble(neo4j: Neo4j, neo4jOptions: Neo4jOptions): String = {
-    if (neo4jOptions.cypherVersion == "5") {
-      return "CYPHER 5 "
-    }
-
-    if (neo4jOptions.cypherVersion == "25") {
-      return "CYPHER 25 "
+    if (neo4jOptions.cypherVersion != null && neo4jOptions.cypherVersion.nonEmpty) {
+      return s"CYPHER ${neo4jOptions.cypherVersion} "
     }
 
     if (canIUse(Cypher.explicitCypher5Selection()).withNeo4j(neo4j)) {
