@@ -68,7 +68,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testNodeMultipleLabels(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def testNodeMultipleLabelsWhenRead(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
@@ -79,6 +79,24 @@ class Neo4jQueryServiceTest {
       new Neo4jQueryService(neo4jOptions, plainReadStrategy(neo4j, neo4jOptions)).createQuery()
 
     assertEquals(s"${prefix}MATCH (n:`Person`:`Player`:`Midfield`) RETURN n", query)
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("versions_and_prefixes"))
+  def testNodeMultipleLabelsWhenWrite(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
+    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions, SaveMode.Append)).createQuery().trim
+
+    assertEquals(
+      s"${prefix}UNWIND $$events AS event CREATE (node:`Person`:`Player`:`Midfield`) SET node += event.properties",
+      query
+    )
   }
 
   @ParameterizedTest
@@ -94,7 +112,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         partitionPagination = PartitionPagination(0, 0, TopN(100))
       )
     ).createQuery()
@@ -115,7 +133,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         Seq("name")
@@ -138,7 +156,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         List("name", "bornDate")
@@ -161,7 +179,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         List("<elementId>")
@@ -187,7 +205,7 @@ class Neo4jQueryServiceTest {
     val query: String =
       new Neo4jQueryService(
         neo4jOptions,
-        new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), filters)
+        new Neo4jQueryReadStrategy(neo4j, CypherRenderer(neo4j, neo4jOptions), filters)
       ).createQuery()
 
     val paramName = "$" + "name".toParameterName("John Doe")
@@ -212,7 +230,7 @@ class Neo4jQueryServiceTest {
     val query: String =
       new Neo4jQueryService(
         neo4jOptions,
-        new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), filters)
+        new Neo4jQueryReadStrategy(neo4j, CypherRenderer(neo4j, neo4jOptions), filters)
       ).createQuery()
 
     val nameParameterName = "$" + "name".toParameterName("John Doe")
@@ -244,7 +262,7 @@ class Neo4jQueryServiceTest {
     val query: String =
       new Neo4jQueryService(
         neo4jOptions,
-        new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), filters)
+        new Neo4jQueryReadStrategy(neo4j, CypherRenderer(neo4j, neo4jOptions), filters)
       ).createQuery()
 
     val nameParameterName = "$" + "name".toParameterName(null)
@@ -273,7 +291,7 @@ class Neo4jQueryServiceTest {
     val query: String =
       new Neo4jQueryService(
         neo4jOptions,
-        new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), filters)
+        new Neo4jQueryReadStrategy(neo4j, CypherRenderer(neo4j, neo4jOptions), filters)
       ).createQuery()
 
     val nameOneParameterName = "$" + "name".toParameterName("Person Name")
@@ -304,7 +322,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         List("source.name")
@@ -335,7 +353,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         List("source.name", "<source.elementId>")
@@ -370,7 +388,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty[Filter],
         PartitionPagination(0, 0, TopN(limit = 100)),
         List("source.name", "<source.elementId>")
@@ -405,7 +423,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         List("source.name", "source.id", "rel.someprops", "target.date")
@@ -439,7 +457,7 @@ class Neo4jQueryServiceTest {
     val query: String =
       new Neo4jQueryService(
         neo4jOptions,
-        new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), filters)
+        new Neo4jQueryReadStrategy(neo4j, CypherRenderer(neo4j, neo4jOptions), filters)
       ).createQuery()
 
     val parameterName = "$" + "source.name".toParameterName("John Doe")
@@ -471,7 +489,7 @@ class Neo4jQueryServiceTest {
     val query: String =
       new Neo4jQueryService(
         neo4jOptions,
-        new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), filters)
+        new Neo4jQueryReadStrategy(neo4j, CypherRenderer(neo4j, neo4jOptions), filters)
       ).createQuery()
 
     val paramOneName = "$" + "source.name".toParameterName("John Doe")
@@ -505,7 +523,7 @@ class Neo4jQueryServiceTest {
     val query: String =
       new Neo4jQueryService(
         neo4jOptions,
-        new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), filters)
+        new Neo4jQueryReadStrategy(neo4j, CypherRenderer(neo4j, neo4jOptions), filters)
       ).createQuery()
 
     val sourceIdParameterName = "$" + "source.id".toParameterName(14)
@@ -540,7 +558,7 @@ class Neo4jQueryServiceTest {
     val query: String =
       new Neo4jQueryService(
         neo4jOptions,
-        new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), filters)
+        new Neo4jQueryReadStrategy(neo4j, CypherRenderer(neo4j, neo4jOptions), filters)
       ).createQuery()
 
     val parameterNames: Map[String, String] = HashMap(
@@ -586,7 +604,7 @@ class Neo4jQueryServiceTest {
     val query: String =
       new Neo4jQueryService(
         neo4jOptions,
-        new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), filters)
+        new Neo4jQueryReadStrategy(neo4j, CypherRenderer(neo4j, neo4jOptions), filters)
       ).createQuery()
 
     val parameterNames = Map(
@@ -642,7 +660,7 @@ class Neo4jQueryServiceTest {
     val query: String =
       new Neo4jQueryService(
         neo4jOptions,
-        new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), filters)
+        new Neo4jQueryReadStrategy(neo4j, CypherRenderer(neo4j, neo4jOptions), filters)
       ).createQuery()
 
     val parameterNames = Map(
@@ -682,13 +700,13 @@ class Neo4jQueryServiceTest {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val query: String =
-      new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(neo4j, SaveMode.Overwrite)).createQuery()
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
 
     assertEquals(
       s"""${prefix}UNWIND $$events AS event
-         |MERGE (node:Location {name: event.keys.name, type: event.keys.type, featureId: event.keys.featureId})
+         |MERGE (node:`Location` {name: event.keys.name, type: event.keys.type, featureId: event.keys.featureId})
          |SET node += event.properties
-         |""".stripMargin,
+         |""".stripMargin.trim.replaceAll("\n", " "),
       query
     )
   }
@@ -708,7 +726,7 @@ class Neo4jQueryServiceTest {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val query: String =
-      new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(neo4j, SaveMode.Overwrite)).createQuery()
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
 
     assertEquals(
       s"""${prefix}UNWIND $$events AS event
@@ -738,7 +756,7 @@ class Neo4jQueryServiceTest {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val query: String =
-      new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(neo4j, SaveMode.Overwrite)).createQuery()
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
 
     assertEquals(
       s"""${prefix}UNWIND $$events AS event
@@ -772,7 +790,7 @@ class Neo4jQueryServiceTest {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val query: String =
-      new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(neo4j, SaveMode.Overwrite)).createQuery()
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
 
     assertEquals(
       s"""|${prefix}UNWIND $$events AS event
@@ -800,7 +818,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         Seq("name", "SUM(DISTINCT age)", "SUM(age)"),
@@ -821,7 +839,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         Seq("name", "COUNT(DISTINCT name)", "COUNT(name)"),
@@ -841,7 +859,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty[Filter],
         PartitionPagination.EMPTY,
         Seq("name", "MAX(age)", "MIN(age)"),
@@ -875,7 +893,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty,
         PartitionPagination.EMPTY,
         List("source.fullName", "SUM(DISTINCT `target.price`)", "SUM(`target.price`)"),
@@ -901,7 +919,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty,
         PartitionPagination.EMPTY,
         List("source.fullName", "COUNT(DISTINCT `target.id`)", "COUNT(`target.id`)"),
@@ -925,7 +943,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty,
         PartitionPagination.EMPTY,
         List("source.fullName", "MAX(`target.price`)", "MIN(`target.price`)"),
@@ -960,7 +978,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         partitionPagination = PartitionPagination(
           0,
           0,
@@ -994,7 +1012,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         requiredColumns = Array("name").toIndexedSeq,
         partitionPagination = PartitionPagination(
           0,
@@ -1032,7 +1050,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty[Filter],
         PartitionPagination(
           0,
@@ -1076,7 +1094,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty[Filter],
         PartitionPagination(
           0,
@@ -1120,7 +1138,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        new CypherRenderer(neo4j, neo4jOptions),
+        CypherRenderer(neo4j, neo4jOptions),
         Array.empty[Filter],
         PartitionPagination(
           0,
@@ -1163,13 +1181,14 @@ class Neo4jQueryServiceTest {
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
+    val neo4jInfo = neo4j(version(5, 0), COMMUNITY)
 
     val writeService = new Neo4jQueryService(
       neo4jOptions,
-      new Neo4jQueryWriteStrategy(neo4j(version(5, 0), COMMUNITY), SaveMode.Overwrite)
+      new Neo4jQueryWriteStrategy(neo4jInfo, CypherRenderer(neo4jInfo, neo4jOptions), SaveMode.Overwrite)
     )
 
-    val wantQuery = "UNWIND $events AS event\nMERGE (node:Person )\nSET node += event.properties"
+    val wantQuery = "UNWIND $events AS event MERGE (node:`Person`) SET node += event.properties"
     assertEquals(s"$prefix\n$wantQuery".trim, writeService.createQuery().trim)
   }
 
@@ -1202,10 +1221,11 @@ class Neo4jQueryServiceTest {
     options.put("relationship.source.labels", "Person")
     options.put("relationship.target.labels", "Person")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
+    val neo4jInfo = neo4j(version(5, 0), COMMUNITY)
 
     val writeService = new Neo4jQueryService(
       neo4jOptions,
-      new Neo4jQueryWriteStrategy(neo4j(version(5, 0), COMMUNITY), SaveMode.Overwrite)
+      new Neo4jQueryWriteStrategy(neo4jInfo, CypherRenderer(neo4jInfo, neo4jOptions), SaveMode.Overwrite)
     )
 
     val wantQuery =
@@ -1221,14 +1241,14 @@ class Neo4jQueryServiceTest {
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
-    val neo4jVersion = neo4j(version(5, 0), COMMUNITY)
+    val neo4jInfo = neo4j(version(5, 0), COMMUNITY)
 
     val noPreambleReadService =
       new Neo4jQueryService(
         neo4jOptions,
         new Neo4jQueryReadStrategy(
-          neo4jVersion,
-          new CypherRenderer(neo4jVersion, neo4jOptions),
+          neo4jInfo,
+          CypherRenderer(neo4jInfo, neo4jOptions),
           withPreamble = false
         )
       )
@@ -1244,14 +1264,15 @@ class Neo4jQueryServiceTest {
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
+    val neo4jInfo = neo4j(version(5, 0), COMMUNITY)
 
     val noPreambleWriteService =
       new Neo4jQueryService(
         neo4jOptions,
-        new Neo4jQueryWriteStrategy(neo4j(version(5, 0), COMMUNITY), SaveMode.Overwrite, false)
+        new Neo4jQueryWriteStrategy(neo4jInfo, CypherRenderer(neo4jInfo, neo4jOptions), SaveMode.Overwrite, false)
       )
 
-    val wantQuery = "UNWIND $events AS event\nMATCH (o:Object) RETURN o"
+    val wantQuery = "UNWIND $events AS event MATCH (o:Object) RETURN o"
     assertEquals(wantQuery, noPreambleWriteService.createQuery().trim)
   }
 
@@ -1269,10 +1290,10 @@ class Neo4jQueryServiceTest {
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
     options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
-    val versionedReadService = new Neo4jQueryService(neo4jOptions, plainReadStrategy(neo4j, neo4jOptions))
+    val readService = new Neo4jQueryService(neo4jOptions, plainReadStrategy(neo4j, neo4jOptions))
 
     val wantQuery = s"$tuningPrefix\n${cypherVersionPreamble}MATCH (o:Object) RETURN o"
-    assertEquals(wantQuery.trim, versionedReadService.createQuery().trim)
+    assertEquals(wantQuery.trim, readService.createQuery().trim)
   }
 
   @ParameterizedTest
@@ -1290,11 +1311,11 @@ class Neo4jQueryServiceTest {
     options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
 
-    val versionedWriteService =
-      new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(neo4j, SaveMode.Overwrite))
+    val writeService =
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions))
 
-    val wantQuery = s"$tuningPrefix\n${cypherVersionPreamble}UNWIND $$events AS event\nMATCH (o:Object) RETURN o"
-    assertEquals(wantQuery.trim, versionedWriteService.createQuery().trim)
+    val wantQuery = s"$tuningPrefix\n${cypherVersionPreamble}UNWIND $$events AS event MATCH (o:Object) RETURN o"
+    assertEquals(wantQuery.trim, writeService.createQuery().trim)
   }
 
   @ParameterizedTest
@@ -1337,16 +1358,19 @@ class Neo4jQueryServiceTest {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
 
     val versionedWriteService =
-      new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(neo4j, SaveMode.Overwrite))
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions))
 
     val wantQuery =
-      s"$tuningPrefix\n${cypherVersionPreamble}WITH $$scriptResult AS scriptResult UNWIND $$events AS event\nMATCH (o:Object) RETURN o"
+      s"$tuningPrefix\n${cypherVersionPreamble}WITH $$scriptResult AS scriptResult UNWIND $$events AS event MATCH (o:Object) RETURN o"
 
     assertEquals(wantQuery.trim, versionedWriteService.createQuery().trim)
   }
 
   def plainReadStrategy(neo4j: Neo4j, neo4jOptions: Neo4jOptions): Neo4jQueryReadStrategy =
-    new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions))
+    new Neo4jQueryReadStrategy(neo4j, CypherRenderer(neo4j, neo4jOptions))
+
+  def plainWriteStrategy(neo4j: Neo4j, neo4jOptions: Neo4jOptions, saveMode: SaveMode = SaveMode.Overwrite): Neo4jQueryWriteStrategy =
+    new Neo4jQueryWriteStrategy(neo4j, CypherRenderer(neo4j, neo4jOptions), saveMode)
 
   def versions_and_prefixes(): Array[Array[Any]] = {
     Array(
@@ -1376,13 +1400,7 @@ class Neo4jQueryServiceTest {
   def tuning_parameters(): Array[Array[Any]] = {
     Array(
       Array(Neo4jTuningOptions.empty, ""),
-      Array(Neo4jTuningOptions.empty, ""),
       Array(Neo4jTuningOptions.empty.copy(runtime = "parallel"), "CYPHER runtime=parallel"),
-      Array(Neo4jTuningOptions.empty.copy(runtime = "parallel"), "CYPHER runtime=parallel"),
-      Array(
-        Neo4jTuningOptions.empty.copy(replan = "force", operatorEngine = "compiled"),
-        "CYPHER replan=force operatorEngine=compiled"
-      ),
       Array(
         Neo4jTuningOptions.empty.copy(replan = "force", operatorEngine = "compiled"),
         "CYPHER replan=force operatorEngine=compiled"

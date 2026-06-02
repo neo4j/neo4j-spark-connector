@@ -29,7 +29,9 @@ import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core._
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.cypher.CypherRenderer
+import org.neo4j.spark.service.Neo4jQueryStrategy.unwindEventsClause
 import org.neo4j.spark.util.Neo4jImplicits._
+import org.neo4j.spark.util.Neo4jNodeMetadata
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jTuningOptions
 import org.neo4j.spark.util.Neo4jUtil
@@ -40,16 +42,34 @@ import scala.jdk.CollectionConverters.SeqHasAsJava
 
 class Neo4jQueryWriteStrategy(
   private val neo4j: Neo4j,
+  private val renderer: CypherRenderer,
   private val saveMode: SaveMode,
   private val withPreamble: Boolean = true
 ) extends Neo4jQueryStrategy {
 
   override def createStatementForQuery(options: Neo4jOptions): String = {
-    val scriptResult = Neo4jQueryStrategy.scriptResultClause(options)
     val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
-    s"""$preamble${scriptResult}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
-       |${options.query.value}
-       |""".stripMargin
+    val scriptResult = Neo4jQueryStrategy.scriptResultClause(options)
+    val prefixedUnwind = preamble + scriptResult + unwindEventsClause
+    prefixedUnwind + options.query.value
+  }
+
+  private def cypherNode(nodeData: Neo4jNodeMetadata, alias: String): Node = {
+    val n = Cypher.node(nodeData.labels.head, nodeData.labels.tail: _*).named(alias)
+
+    val keyProperties =
+      nodeData.nodeKeys.toSeq.flatMap { case (_, keyName) =>
+        Seq(
+          keyName,
+          Cypher.property(Cypher.name(Neo4jQueryStrategy.VARIABLE_EVENT), Neo4jWriteMappingStrategy.KEYS, keyName)
+        )
+      }
+
+    if (keyProperties.nonEmpty) {
+      n.withProperties(keyProperties: _*)
+    } else {
+      n
+    }
   }
 
   private def createPropsList(props: Map[String, String], prefix: String): String = {
@@ -129,21 +149,16 @@ class Neo4jQueryWriteStrategy(
   }
 
   override def createStatementForNodes(options: Neo4jOptions): String = {
-    val keyword = keywordFromSaveMode(saveMode)
+    val node = cypherNode(options.nodeMetadata, "node")
 
-    val labels = options.nodeMetadata.labels
-      .map(_.quote())
-      .mkString(":")
+    val clause = saveMode match {
+      case SaveMode.Overwrite                       => Cypher.merge(node)
+      case SaveMode.Append | SaveMode.ErrorIfExists => Cypher.create(node)
+      case _ => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")
+    }
 
-    val keys = createPropsList(
-      options.nodeMetadata.nodeKeys,
-      Neo4jWriteMappingStrategy.KEYS
-    )
-
-    s"""${fullPreamble(neo4j, options)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
-       |$keyword (node${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})
-       |SET node += ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jWriteMappingStrategy.PROPERTIES}
-       |""".stripMargin
+    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
+    preamble + unwindEventsClause + renderer.render(clause.mutate(node, Neo4jQueryStrategy.eventProperties).build())
   }
 
   override def createStatementForGDS(options: Neo4jOptions): String =
@@ -555,6 +570,10 @@ object Neo4jQueryStrategy {
       s"WITH $$scriptResult AS $VARIABLE_SCRIPT_RESULT "
     else
       ""
+
+  val unwindEventsClause: String = s"UNWIND $$$VARIABLE_EVENTS AS $VARIABLE_EVENT "
+
+  val eventProperties = Cypher.property(Cypher.name(VARIABLE_EVENT), Neo4jWriteMappingStrategy.PROPERTIES)
 }
 
 abstract class Neo4jQueryStrategy {

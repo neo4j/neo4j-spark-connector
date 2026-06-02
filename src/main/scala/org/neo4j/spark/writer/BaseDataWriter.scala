@@ -27,6 +27,7 @@ import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.Values
 import org.neo4j.driver.exceptions.ServiceUnavailableException
+import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.service._
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
@@ -38,7 +39,6 @@ import java.time.Duration
 import java.util
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.locks.LockSupport
-
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters.MapHasAsJava
 
@@ -67,7 +67,7 @@ abstract class BaseDataWriter(
   private val retries = new CountDownLatch(options.transactionSettings.retries)
 
   private val query: String =
-    new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(neo4j, saveMode)).createQuery()
+    new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(neo4j, new CypherRenderer(neo4j, options), saveMode)).createQuery()
 
   private val metrics = DataWriterMetrics()
 
