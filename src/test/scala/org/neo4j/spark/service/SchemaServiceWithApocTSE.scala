@@ -236,7 +236,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       StructField(Neo4jUtil.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true),
       StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.StringType, nullable = false)
     )
-    StructType(structFields.union(additionalFields).reverse)
+    StructType(structFields.concat(additionalFields).reverse)
   }
 
   private def initTest(query: String): Unit = {

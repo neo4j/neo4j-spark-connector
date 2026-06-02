@@ -40,7 +40,7 @@ import java.util
 import java.util.function.Predicate
 import java.util.regex.Pattern
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.jdk.CollectionConverters.MapHasAsJava
 
 class BaseStreamingPartitionReader(
   private val neo4j: Neo4j,
@@ -102,7 +102,7 @@ class BaseStreamingPartitionReader(
             neo4j,
             filters,
             partitionSkipLimit,
-            requiredColumns.fieldNames,
+            requiredColumns.fieldNames.toIndexedSeq,
             aggregateColumns,
             jobId,
             withPreamble = false

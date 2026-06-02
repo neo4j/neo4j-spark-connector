@@ -40,7 +40,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.locks.LockSupport
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.MapHasAsJava
 
 abstract class BaseDataWriter(
   neo4j: Neo4j,

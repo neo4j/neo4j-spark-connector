@@ -428,8 +428,11 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>${maven-compiler-plugin.version}</version>
                     <configuration>
-                        <source>${java.version}</source>
-                        <target>${java.version}</target>
+                        <release>${java.version}</release>
+                        <compilerArgs>
+                            <arg>-Werror</arg>
+                            <arg>-proc:none</arg>
+                        </compilerArgs>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -514,6 +517,8 @@
                         <scalaCompatVersion>${scala.binary.version}</scalaCompatVersion>
                         <args>
                             <arg>-target:jvm-17</arg>
+                            <arg>-Werror</arg>
+                            <arg>-deprecation</arg>
                         </args>
                         <javacArgs>
                             <javacArg>-proc:none</javacArg>

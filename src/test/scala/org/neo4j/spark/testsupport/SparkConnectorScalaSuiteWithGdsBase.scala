@@ -57,11 +57,11 @@ object SparkConnectorScalaSuiteWithGdsBase {
         .setAppName("neoTest")
         .setMaster("local[*]")
         .set("spark.driver.host", "127.0.0.1")
-      ss = SparkSession.builder.config(conf).getOrCreate()
+      ss = SparkSession.builder().config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       neo4j = Neo4jDetector.INSTANCE.detect(driver)
     }
-    assumeTrue(server.isRunning, "Neo4j container is not started")
+    assumeTrue(server.isRunning(), "Neo4j container is not started")
   }
 
   @AfterAll

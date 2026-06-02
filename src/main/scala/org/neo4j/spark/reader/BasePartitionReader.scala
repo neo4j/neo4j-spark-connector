@@ -38,7 +38,7 @@ import java.util
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.LockSupport
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 abstract class BasePartitionReader(
   private val neo4j: Neo4j,
@@ -153,7 +153,7 @@ abstract class BasePartitionReader(
         neo4j,
         filters,
         partitionSkipLimit,
-        requiredColumns.fieldNames,
+        requiredColumns.fieldNames.toIndexedSeq,
         aggregateColumns,
         jobId
       )

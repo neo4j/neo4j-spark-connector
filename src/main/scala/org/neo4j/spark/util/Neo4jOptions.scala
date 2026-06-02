@@ -37,7 +37,11 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.TimeUnit
 
-import scala.collection.JavaConverters._
+import scala.annotation.nowarn
+import scala.jdk.CollectionConverters.IteratorHasAsScala
+import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.jdk.CollectionConverters.MapHasAsScala
+import scala.jdk.CollectionConverters.SetHasAsJava
 import scala.language.implicitConversions
 
 class Neo4jOptions(private val options: java.util.Map[String, String]) extends Serializable with Logging {
@@ -67,6 +71,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
     val authType = getParameter(AUTH_TYPE, DEFAULT_AUTH_TYPE)
     val authNamespace = s"$AUTH.$authType"
     val providedParameters = options.asScala
+      .view
       .filterKeys(_.startsWith(authNamespace))
       .map(t => (t._1.substring(authNamespace.length + 1), t._2))
       .toMap
@@ -214,6 +219,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       .split(":")
       .map(_.trim)
       .filter(_.nonEmpty)
+      .toIndexedSeq
     Neo4jNodeMetadata(labels, nodeKeys, nodeProps, skipNullKeys)
   }
 
@@ -300,6 +306,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   val streamingOrderBy: String = getParameter(ORDER_BY, getParameter(STREAMING_PROPERTY_NAME))
 
   val apocConfig: Neo4jApocConfig = Neo4jApocConfig(options.asScala
+    .view
     .filterKeys(_.startsWith("apoc."))
     .mapValues(Neo4jUtil.mapper.readValue(_, classOf[java.util.Map[String, AnyRef]]).asScala)
     .toMap)
@@ -450,6 +457,7 @@ case class Neo4jDriverOptions(
     GraphDatabase.driver(url, createAuthTokenManager, toDriverConfig)
   }
 
+  @nowarn("cat=deprecation")
   private def toDriverConfig: Config = {
     val builder = Config.builder()
       .withUserAgent(s"neo4j-${Neo4jUtil.connectorEnv}-connector/${Neo4jUtil.connectorVersion}")
@@ -782,6 +790,7 @@ object Neo4jOptions {
       .map {
         _.conf
           .getAll
+          .view
           .filterKeys(k => k.startsWith("neo4j."))
           .map { elem => (elem._1.substring("neo4j.".length), elem._2) }
           .toMap

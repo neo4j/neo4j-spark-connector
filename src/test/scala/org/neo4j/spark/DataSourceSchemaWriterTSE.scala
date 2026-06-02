@@ -42,14 +42,14 @@ import java.time.LocalDateTime
 import java.time.ZonedDateTime
 import java.util.TimeZone
 
-import scala.collection.JavaConverters.iterableAsScalaIterableConverter
-import scala.collection.JavaConverters.mapAsScalaMapConverter
+import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.jdk.CollectionConverters.MapHasAsScala
 import scala.math.Ordering.Implicits.infixOrderingOps
 
 object DataSourceSchemaWriterTSE {
 
   @BeforeAll
-  def checkNeo4jVersion() {
+  def checkNeo4jVersion(): Unit = {
     assumeTrue(TestUtil.neo4jVersion(SparkConnectorScalaSuiteIT.session()) >= Versions.NEO4J_5_13)
   }
 }
@@ -171,7 +171,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .map(_.asMap(v => v.asObject()).asScala.view.mapValues(mapData).toMap)
       .toSeq
 
     assertEquals(expectedSchema, actualSchema)
@@ -186,6 +186,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       )
       .head
       .asScala
+      .view
       .mapValues(mapData)
       .toMap
 
@@ -244,7 +245,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .map(_.asMap(v => v.asObject()).asScala.view.mapValues(mapData).toMap)
       .toSeq
 
     assertEquals(expectedSchema, actualSchema)
@@ -259,6 +260,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       )
       .head
       .asScala
+      .view
       .mapValues(mapData)
       .toMap
 
@@ -317,7 +319,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .map(_.asMap(v => v.asObject()).asScala.view.mapValues(mapData).toMap)
       .toSeq
 
     assertEquals(expectedSchema, actualSchema)
@@ -339,6 +341,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       )
       .head
       .asScala
+      .view
       .mapValues(mapData)
       .toMap
 
@@ -395,7 +398,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       Seq(Timestamp.valueOf("2023-11-22 11:11:11.11"), Timestamp.valueOf("2023-11-23 12:12:12.12"))
     )
 
-    val data = Seq(row).toDF(ALL_TYPES_AS_COL_NAMES: _*)
+    val data = Seq(row).toDF(ALL_TYPES_AS_COL_NAMES.toIndexedSeq: _*)
     val expectedNode = ALL_TYPES_AS_COL_NAMES.zip(row.productIterator.toSeq).toMap
 
     val schema = StructType(data.schema.map { sf =>
@@ -463,7 +466,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .map(_.asMap(v => v.asObject()).asScala.view.mapValues(mapData).toMap)
       .toSeq
 
     assertEquals(expected, actual)
@@ -482,6 +485,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
         ).asRelationship().asMap().asScala
       )
       .head
+      .view
       .mapValues(mapData)
       .toMap
 
@@ -519,7 +523,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       Seq(Timestamp.valueOf("2023-11-22 11:11:11.11"), Timestamp.valueOf("2023-11-23 12:12:12.12"))
     )
 
-    val data = Seq(row).toDF(colNames: _*)
+    val data = Seq(row).toDF(colNames.toIndexedSeq: _*)
 
     val schema = StructType(data.schema.map { sf =>
       sf.name match {
@@ -630,7 +634,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .map(_.asMap(v => v.asObject()).asScala.view.mapValues(mapData).toMap)
       .toSeq
 
     assertEquals(expected, actual)
@@ -649,6 +653,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
         ).asRelationship().asMap().asScala
       )
       .head
+      .view
       .mapValues(mapData)
       .toMap
 
@@ -685,7 +690,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(NODE_UNIQUENESS_SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .map(_.asMap(v => v.asObject()).asScala.view.mapValues(mapData).toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_NODE_UNIQUE-CONSTRAINT_Person_surname",
@@ -731,7 +736,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .map(_.asMap(v => v.asObject()).asScala.view.mapValues(mapData).toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_NODE_KEY-CONSTRAINT_Person_surname",
@@ -775,7 +780,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(NODE_UNIQUENESS_SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .map(_.asMap(v => v.asObject()).asScala.view.mapValues(mapData).toMap)
       .toSeq
 
     val expectedConstraint = Seq(
@@ -831,6 +836,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
         ).asRelationship().asMap().asScala
       )
       .head
+      .view
       .mapValues(mapData)
       .toMap
 
@@ -839,7 +845,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(RELATIONSHIP_UNIQUENESS_SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .map(_.asMap(v => v.asObject()).asScala.view.mapValues(mapData).toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_RELATIONSHIP_UNIQUE-CONSTRAINT_MY_REL_string-int",
@@ -876,6 +882,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
         ).asRelationship().asMap().asScala
       )
       .head
+      .view
       .mapValues(mapData)
       .toMap
 
@@ -884,7 +891,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     val actualConstraint = SparkConnectorScalaSuiteIT.session().run(SHOW_CONSTRAINTS_QUERY)
       .list()
       .asScala
-      .map(_.asMap(v => v.asObject()).asScala.mapValues(mapData).toMap)
+      .map(_.asMap(v => v.asObject()).asScala.view.mapValues(mapData).toMap)
       .head
     val expectedConstraint = Map(
       "name" -> "spark_RELATIONSHIP_KEY-CONSTRAINT_MY_REL_string-int",
