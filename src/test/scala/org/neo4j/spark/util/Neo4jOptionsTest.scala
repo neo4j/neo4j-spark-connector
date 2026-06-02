@@ -261,6 +261,8 @@ class Neo4jOptionsTest {
     rawOptions.put("db.transaction.metadata.bar", "true")
     rawOptions.put("db.transaction.metadata.qix", "42")
     rawOptions.put("db.transaction.metadata.my.thing", "23.0")
+    rawOptions.put("db.transaction.metadata.json_array_treated_as_string", "[true,43]")
+    rawOptions.put("db.transaction.metadata.json_map_treated_as_string", """{"map": false}""")
     val neo4jOptions = new Neo4jOptions(rawOptions)
 
     val transactionConfig = neo4jOptions.toNeo4jTransactionConfig
@@ -277,7 +279,9 @@ class Neo4jOptionsTest {
       "foo" -> "bar",
       "bar" -> true,
       "qix" -> 42L,
-      "my" -> Map("thing" -> 23.0)
+      "my" -> Map("thing" -> 23.0),
+      "json_array_treated_as_string" -> "[true,43]",
+      "json_map_treated_as_string" -> """{"map":false}"""
     ))
   }
 }

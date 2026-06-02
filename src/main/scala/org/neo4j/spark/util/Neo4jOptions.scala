@@ -337,8 +337,8 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   private def extractNeo4jGdsMetadata(): Neo4jGdsMetadata = Neo4jGdsMetadata(
     options.asScala
       .view
-      .filterKeys(k => k.startsWith("gds."))
-      .map(t => (t._1.substring("gds.".length), t._2))
+      .filterKeys(k => k.startsWith(GDS_OPTION_PREFIX))
+      .map(t => (t._1.substring(GDS_OPTION_PREFIX.length), t._2))
       .toMap
       .toNestedDeserializedJavaMap
   )
@@ -346,8 +346,8 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   private def extractNeo4jTransactionMetadata(): util.Map[String, Any] =
     options.asScala
       .view
-      .filterKeys(k => k.startsWith(txMetadataOptionPrefix))
-      .map(t => (t._1.substring(txMetadataOptionPrefix.length), t._2))
+      .filterKeys(k => k.startsWith(TX_METADATA_OPTION_PREFIX))
+      .map(t => (t._1.substring(TX_METADATA_OPTION_PREFIX.length), t._2))
       .toMap
       .toNestedPrimitiveDeserializedJsonJavaMap
 
@@ -707,7 +707,10 @@ object Neo4jOptions {
   val TRANSACTION_CODES_FAIL = "transaction.codes.fail"
 
   // Transaction metadata
-  private val txMetadataOptionPrefix = "db.transaction.metadata."
+  private val TX_METADATA_OPTION_PREFIX = "db.transaction.metadata."
+
+  // GDS
+  private val GDS_OPTION_PREFIX = "gds."
 
   // Streaming
   val STREAMING_PROPERTY_NAME = "streaming.property.name"
