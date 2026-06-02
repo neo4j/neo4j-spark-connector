@@ -16,7 +16,6 @@
  */
 package org.neo4j.spark.testsupport
 
-import org.junit.jupiter.api.Named
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.ArgumentsProvider
