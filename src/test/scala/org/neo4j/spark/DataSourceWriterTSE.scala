@@ -52,9 +52,7 @@ import org.neo4j.spark.util.Neo4jOptions
 
 import java.time.LocalTime
 import java.time.OffsetTime
-import java.time.ZoneId
 import java.time.ZoneOffset
-import java.util.TimeZone
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.ListMap

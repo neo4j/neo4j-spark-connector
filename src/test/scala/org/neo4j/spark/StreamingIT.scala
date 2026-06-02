@@ -53,10 +53,8 @@ import scala.jdk.CollectionConverters.SeqHasAsJava
 @DisplayName("streaming")
 class StreamingIT {
 
-  // Streaming has no APOC-specific behavior, so a single vanilla container is used here
-  // instead of the parameterized vanilla+APOC matrix shared by ReadIT/WriteIT.
   private val neo4jContainer: Neo4jContainer = new Neo4jContainer(TestUtil.neo4jImage())
-    .withAdminPassword("password")
+    .withAdminPassword("TooStrongPassword")
     .withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
 
@@ -70,6 +68,12 @@ class StreamingIT {
   private var query: StreamingQuery = _
 
   private val createdTables = mutable.ListBuffer.empty[String]
+
+  private val dataSourceFormat = classOf[DataSource].getName
+
+  private val OptPropertyName = "streaming.property.name"
+  private val OptFrom = "streaming.from"
+  private val OptQueryOffset = "streaming.query.offset"
 
   @BeforeAll
   def startContainer(): Unit = neo4jContainer.start()
@@ -86,24 +90,18 @@ class StreamingIT {
 
   @AfterEach
   def cleanUp(): Unit = {
-    if (query != null) {
-      query.stop()
-    }
-    if (spark != null) {
-      createdTables.foreach(table => spark.sql(s"DROP TABLE IF EXISTS $table"))
+    Option(query).foreach(_.stop())
+    Option(spark).foreach { session =>
+      createdTables.foreach(table => session.sql(s"DROP TABLE IF EXISTS $table"))
       createdTables.clear()
-      spark.close()
+      session.close()
     }
-    if (driver != null) {
-      driver.close()
-    }
+    Option(driver).foreach(_.close())
   }
 
   private def checkpoint(): String =
     Files.createTempDirectory(folder, "checkpoint").toAbsolutePath.toString
 
-  // Each run gets its own managed table so the spark-warehouse directory is never shared
-  // across reruns (toTable persists beyond SparkSession.close()).
   private def uniqueTable(prefix: String): String = {
     val table = s"${prefix}_${java.util.UUID.randomUUID().toString.replace("-", "")}"
     createdTables += table
@@ -121,10 +119,10 @@ class StreamingIT {
     def reads_nodes_from_now(): Unit = {
       createMovieNodes(0, 1)
 
-      query = spark.readStream.format(classOf[DataSource].getName)
+      query = spark.readStream.format(dataSourceFormat)
         .option("labels", "Movie")
-        .option("streaming.property.name", "timestamp")
-        .option("streaming.from", "NOW")
+        .option(OptPropertyName, "timestamp")
+        .option(OptFrom, "NOW")
         .load()
         .writeStream
         .format("memory")
@@ -150,10 +148,10 @@ class StreamingIT {
     def reads_all_nodes(): Unit = {
       createMovieNodes(0, 1)
 
-      query = spark.readStream.format(classOf[DataSource].getName)
+      query = spark.readStream.format(dataSourceFormat)
         .option("labels", "Movie")
-        .option("streaming.property.name", "timestamp")
-        .option("streaming.from", "ALL")
+        .option(OptPropertyName, "timestamp")
+        .option(OptFrom, "ALL")
         .load()
         .writeStream
         .format("memory")
@@ -179,10 +177,10 @@ class StreamingIT {
     def resumes_reading_nodes_from_checkpoint(): Unit = {
       createMovieNodes(0, 1)
 
-      val stream = spark.readStream.format(classOf[DataSource].getName)
+      val stream = spark.readStream.format(dataSourceFormat)
         .option("labels", "Movie")
-        .option("streaming.property.name", "timestamp")
-        .option("streaming.from", "NOW")
+        .option(OptPropertyName, "timestamp")
+        .option(OptFrom, "NOW")
         .load()
 
       val location = checkpoint()
@@ -207,10 +205,10 @@ class StreamingIT {
     def reads_relationships_from_now(): Unit = {
       createLikesRelationships(0, 1)
 
-      query = spark.readStream.format(classOf[DataSource].getName)
+      query = spark.readStream.format(dataSourceFormat)
         .option("relationship", "LIKES")
-        .option("streaming.property.name", "timestamp")
-        .option("streaming.from", "NOW")
+        .option(OptPropertyName, "timestamp")
+        .option(OptFrom, "NOW")
         .option("relationship.source.labels", "Person")
         .option("relationship.target.labels", "Post")
         .load()
@@ -235,10 +233,10 @@ class StreamingIT {
     def reads_all_relationships(): Unit = {
       createLikesRelationships(0, 1)
 
-      query = spark.readStream.format(classOf[DataSource].getName)
+      query = spark.readStream.format(dataSourceFormat)
         .option("relationship", "LIKES")
-        .option("streaming.property.name", "timestamp")
-        .option("streaming.from", "ALL")
+        .option(OptPropertyName, "timestamp")
+        .option(OptFrom, "ALL")
         .option("relationship.source.labels", "Person")
         .option("relationship.target.labels", "Post")
         .load()
@@ -263,10 +261,10 @@ class StreamingIT {
     def resumes_reading_relationships_from_checkpoint(): Unit = {
       createLikesRelationships(0, 1)
 
-      val stream = spark.readStream.format(classOf[DataSource].getName)
+      val stream = spark.readStream.format(dataSourceFormat)
         .option("relationship", "LIKES")
-        .option("streaming.property.name", "timestamp")
-        .option("streaming.from", "ALL")
+        .option(OptPropertyName, "timestamp")
+        .option(OptFrom, "ALL")
         .option("relationship.source.labels", "Person")
         .option("relationship.target.labels", "Post")
         .load()
@@ -291,11 +289,11 @@ class StreamingIT {
     def reads_query_results_from_now(): Unit = {
       createPersonNodes(0, 1)
 
-      query = spark.readStream.format(classOf[DataSource].getName)
-        .option("streaming.from", "NOW")
-        .option("streaming.property.name", "timestamp")
+      query = spark.readStream.format(dataSourceFormat)
+        .option(OptFrom, "NOW")
+        .option(OptPropertyName, "timestamp")
         .option("query", personStreamingQuery)
-        .option("streaming.query.offset", "MATCH (p:Person) RETURN max(p.timestamp)")
+        .option(OptQueryOffset, "MATCH (p:Person) RETURN max(p.timestamp)")
         .load()
         .writeStream
         .format("memory")
@@ -318,11 +316,11 @@ class StreamingIT {
     def reads_all_query_results(): Unit = {
       createPersonNodes(0, 1)
 
-      query = spark.readStream.format(classOf[DataSource].getName)
-        .option("streaming.property.name", "timestamp")
-        .option("streaming.from", "ALL")
+      query = spark.readStream.format(dataSourceFormat)
+        .option(OptPropertyName, "timestamp")
+        .option(OptFrom, "ALL")
         .option("query", personStreamingQuery)
-        .option("streaming.query.offset", "MATCH (p:Person) RETURN max(p.timestamp)")
+        .option(OptQueryOffset, "MATCH (p:Person) RETURN max(p.timestamp)")
         .load()
         .writeStream
         .format("memory")
@@ -345,11 +343,11 @@ class StreamingIT {
     def resumes_reading_query_results_from_checkpoint(): Unit = {
       createPersonNodes(0, 1)
 
-      val stream = spark.readStream.format(classOf[DataSource].getName)
-        .option("streaming.property.name", "timestamp")
-        .option("streaming.from", "ALL")
+      val stream = spark.readStream.format(dataSourceFormat)
+        .option(OptPropertyName, "timestamp")
+        .option(OptFrom, "ALL")
         .option("query", personStreamingQuery)
-        .option("streaming.query.offset", "MATCH (p:Person) RETURN max(p.timestamp)")
+        .option(OptQueryOffset, "MATCH (p:Person) RETURN max(p.timestamp)")
         .load()
 
       val location = checkpoint()
@@ -373,11 +371,11 @@ class StreamingIT {
       createPersonNodes(0, 50)
       driver.executableQuery("MATCH (p:Person) SET p:Human").execute()
 
-      val stream = spark.readStream.format(classOf[DataSource].getName)
-        .option("streaming.property.name", "timestamp")
-        .option("streaming.from", "ALL")
+      val stream = spark.readStream.format(dataSourceFormat)
+        .option(OptPropertyName, "timestamp")
+        .option(OptFrom, "ALL")
         .option("query", personStreamingQuery)
-        .option("streaming.query.offset", "MATCH (p:Human) RETURN max(p.timestamp)")
+        .option(OptQueryOffset, "MATCH (p:Human) RETURN max(p.timestamp)")
         .load()
 
       val location = checkpoint()
@@ -395,7 +393,7 @@ class StreamingIT {
 
       driver.executableQuery("MATCH (p:Human) REMOVE p:Human").execute()
 
-      // 2nd trigger: the offset query returns nothing, so the previous offset is kept intact
+      // 2nd trigger: previous offset is kept intact
       streamTable = stream.writeStream
         .trigger(Trigger.AvailableNow())
         .option("checkpointLocation", location)
@@ -497,7 +495,7 @@ class StreamingIT {
     def writes_nodes_in_append_mode(): Unit = {
       val stream = memoryStream()
       query = stream.toDF().writeStream
-        .format(classOf[DataSource].getName)
+        .format(dataSourceFormat)
         .option("save.mode", "Append")
         .option("labels", "Timestamp")
         .option("node.keys", "value")
@@ -518,7 +516,7 @@ class StreamingIT {
 
       val stream = memoryStream()
       query = stream.toDF().writeStream
-        .format(classOf[DataSource].getName)
+        .format(dataSourceFormat)
         .option("save.mode", "Overwrite")
         .option("labels", "Timestamp")
         .option("node.keys", "value")
@@ -535,7 +533,7 @@ class StreamingIT {
     def writes_relationships_in_append_mode(): Unit = {
       val stream = memoryStream()
       query = stream.toDF().writeStream
-        .format(classOf[DataSource].getName)
+        .format(dataSourceFormat)
         .option("save.mode", "Append")
         .option("relationship", "PAIRS")
         .option("relationship.save.strategy", "keys")
@@ -562,7 +560,7 @@ class StreamingIT {
 
       val stream = memoryStream()
       query = stream.toDF().writeStream
-        .format(classOf[DataSource].getName)
+        .format(dataSourceFormat)
         .option("save.mode", "Append")
         .option("relationship", "PAIRS")
         .option("relationship.save.strategy", "keys")
@@ -586,7 +584,7 @@ class StreamingIT {
     def writes_with_query(): Unit = {
       val stream = memoryStream()
       query = stream.toDF().writeStream
-        .format(classOf[DataSource].getName)
+        .format(dataSourceFormat)
         .option("query", "MERGE (m:MyNewNode {the_value: event.value})")
         .option("checkpointLocation", checkpoint())
         .start()
@@ -629,13 +627,13 @@ class StreamingIT {
     }
 
     private def readValues(label: String, column: String): immutable.Seq[Int] = {
-      val df = spark.read.format(classOf[DataSource].getName).option("labels", label).load()
+      val df = spark.read.format(dataSourceFormat).option("labels", label).load()
       if (df.columns.contains(column)) df.collect().map(_.getAs[Long](column).toInt).toList
       else immutable.Seq.empty
     }
 
     private def readPairs(): immutable.Seq[(Int, Int)] = {
-      val df: DataFrame = spark.read.format(classOf[DataSource].getName)
+      val df: DataFrame = spark.read.format(dataSourceFormat)
         .option("relationship", "PAIRS")
         .option("relationship.source.labels", ":From")
         .option("relationship.target.labels", ":To")

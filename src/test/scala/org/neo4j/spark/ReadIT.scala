@@ -25,17 +25,13 @@ import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
-import org.junit.Assert.assertEquals
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.condition.DisabledIf
 import org.junit.jupiter.params.Parameter
 import org.junit.jupiter.params.ParameterizedClass
 import org.junit.jupiter.params.ParameterizedTest
@@ -43,12 +39,10 @@ import org.junit.jupiter.params.provider.ArgumentsSource
 import org.junit.jupiter.params.provider.ValueSource
 import org.neo4j.driver.Driver
 import org.neo4j.driver.QueryConfig
-import org.neo4j.driver.TransactionContext
 import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.spark.testsupport.Neo4jContainerProvider
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
-import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 import org.testcontainers.neo4j.Neo4jContainer
 
 import java.sql.Date
@@ -63,7 +57,6 @@ import java.util.TimeZone
 
 import scala.collection.immutable
 import scala.collection.mutable
-import scala.collection.mutable.Seq
 import scala.jdk.CollectionConverters.IterableHasAsJava
 import scala.jdk.CollectionConverters.ListHasAsScala
 
