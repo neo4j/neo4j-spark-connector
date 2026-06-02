@@ -293,15 +293,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
   val queryMetadata: Neo4jQueryMetadata = initNeo4jQueryMetadata()
 
-  private def initNeo4jGdsMetadata(): Neo4jGdsMetadata = Neo4jGdsMetadata(
-    options.asScala
-      .filterKeys(k => k.startsWith("gds."))
-      .map(t => (t._1.substring("gds.".length), t._2))
-      .toMap
-      .toNestedJavaMap
-  )
-
-  val gdsMetadata: Neo4jGdsMetadata = initNeo4jGdsMetadata()
+  val gdsMetadata: Neo4jGdsMetadata = extractNeo4jGdsMetadata()
 
   val partitions: Int = getParameter(PARTITIONS, DEFAULT_PARTITIONS.toString).toInt
 
@@ -335,8 +327,29 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       builder.withTimeout(duration)
     }
 
+    val txMetadata = extractNeo4jTransactionMetadata()
+    if (!txMetadata.isEmpty) {
+      builder.withMetadata(txMetadata)
+    }
     builder.build()
   }
+
+  private def extractNeo4jGdsMetadata(): Neo4jGdsMetadata = Neo4jGdsMetadata(
+    options.asScala
+      .view
+      .filterKeys(k => k.startsWith(GDS_OPTION_PREFIX))
+      .map(t => (t._1.substring(GDS_OPTION_PREFIX.length), t._2))
+      .toMap
+      .toNestedDeserializedJavaMap
+  )
+
+  private def extractNeo4jTransactionMetadata(): util.Map[String, Any] =
+    options.asScala
+      .view
+      .filterKeys(k => k.startsWith(TX_METADATA_OPTION_PREFIX))
+      .map(t => (t._1.substring(TX_METADATA_OPTION_PREFIX.length), t._2))
+      .toMap
+      .toNestedPrimitiveDeserializedJsonJavaMap
 
 }
 
@@ -688,10 +701,16 @@ object Neo4jOptions {
   // Query metadata
   val QUERY_COUNT = "query.count"
 
-  // Transaction Metadata
+  // Transaction settings
   val TRANSACTION_RETRIES = "transaction.retries"
   val TRANSACTION_RETRY_TIMEOUT = "transaction.retry.timeout"
   val TRANSACTION_CODES_FAIL = "transaction.codes.fail"
+
+  // Transaction metadata
+  private val TX_METADATA_OPTION_PREFIX = "db.transaction.metadata."
+
+  // GDS
+  private val GDS_OPTION_PREFIX = "gds."
 
   // Streaming
   val STREAMING_PROPERTY_NAME = "streaming.property.name"
