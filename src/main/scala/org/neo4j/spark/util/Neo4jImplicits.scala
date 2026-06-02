@@ -19,6 +19,7 @@ package org.neo4j.spark.util
 import com.fasterxml.jackson.core.JsonParseException
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.module.SimpleModule
 import org.apache.spark.sql.connector.expressions.Expression
 import org.apache.spark.sql.connector.expressions.Literal
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
@@ -343,32 +344,50 @@ object Neo4jImplicits {
     private val propertyMapper = new ObjectMapper()
     propertyMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
 
-    private def nestingMap(data: Map[String, String]): java.util.Map[String, Any] = {
-      val map = new java.util.HashMap[String, Any]()
-      data.foreach(t => {
-        val splitted = t._1.split("\\.")
-        if (splitted.size == 1) {
-          val value =
-            try {
-              propertyMapper.readValue[Any](t._2, classOf[Any])
-            } catch {
-              case _: JsonParseException => t._2
-            }
-          map.put(t._1, value)
+    private val primitivePropertyMapper = new ObjectMapper()
+
+    primitivePropertyMapper.registerModule {
+      val module = new SimpleModule()
+      module.addDeserializer(classOf[AnyRef], new PrimitiveValueDeserializer)
+      module
+    }
+
+    def toNestedDeserializedJavaMap: java.util.Map[String, Any] = nestAndDeserializeMap(map, propertyMapper)
+
+    def toNestedPrimitiveDeserializedJsonJavaMap: java.util.Map[String, Any] =
+      nestAndDeserializeMap(map, primitivePropertyMapper)
+
+    private def nestAndDeserializeMap(data: Map[String, String], mapper: ObjectMapper): java.util.Map[String, Any] = {
+      val result = new java.util.HashMap[String, Any]()
+      data.foreach(keyValuePair => {
+        val rawKey = keyValuePair._1
+        val keyParts = rawKey.split("\\.")
+        val rawValue = keyValuePair._2
+        if (keyParts.size == 1) {
+          result.put(rawKey, safeDeserializeValue(rawValue, mapper))
         } else {
-          if (map.containsKey(splitted.head)) {
-            val value = map.get(splitted.head).asInstanceOf[java.util.Map[String, Any]]
-            value.putAll(nestingMap(Map(splitted.drop(1).mkString(".") -> t._2)))
-            map.put(splitted.head, value)
+          val firstKeyElement = keyParts.head
+          val keyTail = keyParts.drop(1).mkString(".")
+          val nestedValue = nestAndDeserializeMap(Map(keyTail -> rawValue), mapper)
+          if (result.containsKey(firstKeyElement)) {
+            val value = result.get(firstKeyElement).asInstanceOf[java.util.Map[String, Any]]
+            value.putAll(nestedValue)
+            result.put(firstKeyElement, value)
           } else {
-            map.put(splitted.head, nestingMap(Map(splitted.drop(1).mkString(".") -> t._2)))
+            result.put(firstKeyElement, nestedValue)
           }
         }
       })
-      map
+      result
     }
 
-    def toNestedJavaMap: java.util.Map[String, Any] = nestingMap(map)
+    private def safeDeserializeValue(rawValue: String, mapper: ObjectMapper) = {
+      try {
+        mapper.readValue[Any](rawValue, classOf[Any])
+      } catch {
+        case _: JsonParseException => rawValue
+      }
+    }
   }
 
   implicit class ValueImplicits(value: Value) {
