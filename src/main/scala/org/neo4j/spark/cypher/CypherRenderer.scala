@@ -37,7 +37,7 @@ case class CypherRenderer(neo4j: Neo4j) {
 
   private def getDialect(neo4j: Neo4j): Dialect = {
     if (neo4j.getVersion.compareTo(Neo4jV5) < 0) {
-      throw new IllegalArgumentException("Neo4j version 5.0 or higher is required to use this connector version")
+      throw new IllegalArgumentException("Neo4j version 5.26 or higher is required to use this connector version")
     }
 
     if (neo4j.getVersion.compareTo(Neo4jV5_23) < 0) {
