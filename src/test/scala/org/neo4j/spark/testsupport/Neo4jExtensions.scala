@@ -43,7 +43,8 @@ object Neo4jExtensions {
           .set("spark.driver.host", "127.0.0.1")
           .set("neo4j.url", container.getBoltUrl)
           .set("neo4j.authentication.basic.username", "neo4j")
-          .set("neo4j.authentication.basic.password", container.getAdminPassword))
+          .set("neo4j.authentication.basic.password", container.getAdminPassword)
+          .set("neo4j.__internal_strict__", "true"))
         .getOrCreate()
     }
   }
