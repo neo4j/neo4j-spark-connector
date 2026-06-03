@@ -34,7 +34,8 @@ import org.junit.jupiter.params.Parameter
 import org.junit.jupiter.params.ParameterizedClass
 import org.junit.jupiter.params.provider.ArgumentsSource
 import org.neo4j.driver.Driver
-import org.neo4j.spark.testsupport.{Assert, Neo4jContainerProvider}
+import org.neo4j.spark.testsupport.Assert
+import org.neo4j.spark.testsupport.Neo4jContainerProvider
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
 import org.testcontainers.neo4j.Neo4jContainer
@@ -43,6 +44,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.SeqHasAsJava
@@ -204,7 +206,16 @@ class StreamingIT {
       val expected = (1 to total).map(likeRow).toList
       Assert.assertEventually(
         expected,
-        () => select("SELECT * FROM relationshipsFromNow ORDER BY `rel.timestamp`", "<rel.type>", "<source.labels>", "source.age", "<target.labels>", "target.hash", "rel.id"),
+        () =>
+          select(
+            "SELECT * FROM relationshipsFromNow ORDER BY `rel.timestamp`",
+            "<rel.type>",
+            "<source.labels>",
+            "source.age",
+            "<target.labels>",
+            "target.hash",
+            "rel.id"
+          ),
         30L,
         TimeUnit.SECONDS
       )
@@ -231,7 +242,16 @@ class StreamingIT {
       val expected = (0 to total).map(likeRow).toList
       Assert.assertEventually(
         expected,
-        () => select("SELECT * FROM allRelationships ORDER BY `rel.timestamp`", "<rel.type>", "<source.labels>", "source.age", "<target.labels>", "target.hash", "rel.id"),
+        () =>
+          select(
+            "SELECT * FROM allRelationships ORDER BY `rel.timestamp`",
+            "<rel.type>",
+            "<source.labels>",
+            "source.age",
+            "<target.labels>",
+            "target.hash",
+            "rel.id"
+          ),
         30L,
         TimeUnit.SECONDS
       )
@@ -260,7 +280,15 @@ class StreamingIT {
       drainToTable(stream, location, table)
 
       val expected = (0 to total).map(likeRow).toList
-      assertThat(select(s"SELECT * FROM $table ORDER BY `rel.timestamp`", "<rel.type>", "<source.labels>", "source.age", "<target.labels>", "target.hash", "rel.id").asJava)
+      assertThat(select(
+        s"SELECT * FROM $table ORDER BY `rel.timestamp`",
+        "<rel.type>",
+        "<source.labels>",
+        "source.age",
+        "<target.labels>",
+        "target.hash",
+        "rel.id"
+      ).asJava)
         .containsExactlyElementsOf(expected.asJava)
     }
 
