@@ -23,40 +23,38 @@ import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.streaming.Trigger
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.Parameter
+import org.junit.jupiter.params.ParameterizedClass
+import org.junit.jupiter.params.provider.ArgumentsSource
 import org.neo4j.driver.Driver
-import org.neo4j.spark.testsupport.Assert
+import org.neo4j.spark.testsupport.{Assert, Neo4jContainerProvider}
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
-import org.neo4j.spark.testsupport.TestUtil
 import org.testcontainers.neo4j.Neo4jContainer
 
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.TimeZone
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@ParameterizedClass(name = "{argumentSetName}")
+@ArgumentsSource(classOf[Neo4jContainerProvider])
 @DisplayName("streaming")
 class StreamingIT {
 
-  private val neo4jContainer: Neo4jContainer = new Neo4jContainer(TestUtil.neo4jImage())
-    .withAdminPassword("TooStrongPassword")
-    .withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
-    .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
+  @Parameter
+  var neo4jContainer: Neo4jContainer = _
 
   @TempDir
   var folder: Path = _
@@ -75,14 +73,11 @@ class StreamingIT {
   private val OptFrom = "streaming.from"
   private val OptQueryOffset = "streaming.query.offset"
 
-  @BeforeAll
-  def startContainer(): Unit = neo4jContainer.start()
-
-  @AfterAll
-  def stopContainer(): Unit = neo4jContainer.stop()
-
   @BeforeEach
   def prepare(): Unit = {
+    if (!neo4jContainer.isRunning) {
+      neo4jContainer.start()
+    }
     driver = neo4jContainer.driver()
     driver.createOrReplaceDatabase("neo4j")
     spark = neo4jContainer.spark()
@@ -99,15 +94,6 @@ class StreamingIT {
     Option(driver).foreach(_.close())
   }
 
-  private def checkpoint(): String =
-    Files.createTempDirectory(folder, "checkpoint").toAbsolutePath.toString
-
-  private def uniqueTable(prefix: String): String = {
-    val table = s"${prefix}_${java.util.UUID.randomUUID().toString.replace("-", "")}"
-    createdTables += table
-    table
-  }
-
   @Nested
   @DisplayName("from source")
   class FromSource {
@@ -115,7 +101,6 @@ class StreamingIT {
     private val total = 60
 
     @Test
-    @DisplayName("reads nodes created after the stream started")
     def reads_nodes_from_now(): Unit = {
       createMovieNodes(0, 1)
 
@@ -131,20 +116,19 @@ class StreamingIT {
 
       Executors.newSingleThreadExecutor().execute(() => createMovieNodes(1, total, 1000, 200))
 
-      val expected: immutable.Seq[Map[String, Any]] = (1 to total)
+      val expected = (1 to total)
         .map(index => Map("<labels>" -> List("Movie"), "title" -> s"My movie $index"))
         .toList
 
       Assert.assertEventually(
         expected,
-        () => selectMovies("SELECT * FROM nodesFromNow ORDER BY timestamp"),
+        () => select("SELECT * FROM nodesFromNow ORDER BY timestamp", "<labels>", "title"),
         30L,
         TimeUnit.SECONDS
       )
     }
 
     @Test
-    @DisplayName("reads all existing and new nodes")
     def reads_all_nodes(): Unit = {
       createMovieNodes(0, 1)
 
@@ -160,20 +144,19 @@ class StreamingIT {
 
       Executors.newSingleThreadExecutor().execute(() => createMovieNodes(1, total, 1000, 200))
 
-      val expected: immutable.Seq[Map[String, Any]] = (0 to total)
+      val expected = (0 to total)
         .map(index => Map("<labels>" -> List("Movie"), "title" -> s"My movie $index"))
         .toList
 
       Assert.assertEventually(
         expected,
-        () => selectMovies("SELECT * FROM allNodes ORDER BY timestamp"),
+        () => select("SELECT * FROM allNodes ORDER BY timestamp", "<labels>", "title"),
         30L,
         TimeUnit.SECONDS
       )
     }
 
     @Test
-    @DisplayName("resumes reading nodes from a checkpoint")
     def resumes_reading_nodes_from_checkpoint(): Unit = {
       createMovieNodes(0, 1)
 
@@ -196,12 +179,11 @@ class StreamingIT {
       val expected = (1 to total)
         .map(index => Map("<labels>" -> List("Movie"), "title" -> s"My movie $index"))
         .toList
-      assertThat(selectMovies(s"SELECT * FROM $table ORDER BY timestamp").asJava)
+      assertThat(select(s"SELECT * FROM $table ORDER BY timestamp", "<labels>", "title").asJava)
         .containsExactlyElementsOf(expected.asJava)
     }
 
     @Test
-    @DisplayName("reads relationships created after the stream started")
     def reads_relationships_from_now(): Unit = {
       createLikesRelationships(0, 1)
 
@@ -222,14 +204,13 @@ class StreamingIT {
       val expected = (1 to total).map(likeRow).toList
       Assert.assertEventually(
         expected,
-        () => selectLikes("SELECT * FROM relationshipsFromNow ORDER BY `rel.timestamp`"),
+        () => select("SELECT * FROM relationshipsFromNow ORDER BY `rel.timestamp`", "<rel.type>", "<source.labels>", "source.age", "<target.labels>", "target.hash", "rel.id"),
         30L,
         TimeUnit.SECONDS
       )
     }
 
     @Test
-    @DisplayName("reads all existing and new relationships")
     def reads_all_relationships(): Unit = {
       createLikesRelationships(0, 1)
 
@@ -250,14 +231,13 @@ class StreamingIT {
       val expected = (0 to total).map(likeRow).toList
       Assert.assertEventually(
         expected,
-        () => selectLikes("SELECT * FROM allRelationships ORDER BY `rel.timestamp`"),
+        () => select("SELECT * FROM allRelationships ORDER BY `rel.timestamp`", "<rel.type>", "<source.labels>", "source.age", "<target.labels>", "target.hash", "rel.id"),
         30L,
         TimeUnit.SECONDS
       )
     }
 
     @Test
-    @DisplayName("resumes reading relationships from a checkpoint")
     def resumes_reading_relationships_from_checkpoint(): Unit = {
       createLikesRelationships(0, 1)
 
@@ -280,12 +260,11 @@ class StreamingIT {
       drainToTable(stream, location, table)
 
       val expected = (0 to total).map(likeRow).toList
-      assertThat(selectLikes(s"SELECT * FROM $table ORDER BY `rel.timestamp`").asJava)
+      assertThat(select(s"SELECT * FROM $table ORDER BY `rel.timestamp`", "<rel.type>", "<source.labels>", "source.age", "<target.labels>", "target.hash", "rel.id").asJava)
         .containsExactlyElementsOf(expected.asJava)
     }
 
     @Test
-    @DisplayName("reads query results created after the stream started")
     def reads_query_results_from_now(): Unit = {
       createPersonNodes(0, 1)
 
@@ -305,14 +284,13 @@ class StreamingIT {
       val expected = (1 to total).map(index => Map("age" -> s"$index")).toList
       Assert.assertEventually(
         expected,
-        () => selectPersons("SELECT * FROM queryFromNow ORDER BY timestamp"),
+        () => select("SELECT * FROM queryFromNow ORDER BY timestamp", "age"),
         30L,
         TimeUnit.SECONDS
       )
     }
 
     @Test
-    @DisplayName("reads all existing and new query results")
     def reads_all_query_results(): Unit = {
       createPersonNodes(0, 1)
 
@@ -332,14 +310,13 @@ class StreamingIT {
       val expected = (0 to total).map(index => Map("age" -> s"$index")).toList
       Assert.assertEventually(
         expected,
-        () => selectPersons("SELECT * FROM allQuery ORDER BY timestamp"),
+        () => select("SELECT * FROM allQuery ORDER BY timestamp", "age"),
         30L,
         TimeUnit.SECONDS
       )
     }
 
     @Test
-    @DisplayName("resumes reading query results from a checkpoint")
     def resumes_reading_query_results_from_checkpoint(): Unit = {
       createPersonNodes(0, 1)
 
@@ -361,12 +338,11 @@ class StreamingIT {
       drainToTable(stream, location, table)
 
       val expected = (0 to total).map(index => Map("age" -> s"$index")).toList
-      assertThat(selectPersons(s"SELECT * FROM $table ORDER BY timestamp").asJava)
+      assertThat(select(s"SELECT * FROM $table ORDER BY timestamp", "age").asJava)
         .containsExactlyElementsOf(expected.asJava)
     }
 
     @Test
-    @DisplayName("keeps the offset intact when the streaming query returns nothing")
     def keeps_offset_when_query_returns_nothing(): Unit = {
       createPersonNodes(0, 50)
       driver.executableQuery("MATCH (p:Person) SET p:Human").execute()
@@ -459,28 +435,8 @@ class StreamingIT {
       "rel.id" -> index
     )
 
-    private def selectMovies(sql: String): immutable.Seq[Map[String, Any]] =
-      spark.sql(sql).collect().map { row =>
-        Map(
-          "<labels>" -> row.getAs[Seq[String]]("<labels>"),
-          "title" -> row.getAs[String]("title")
-        )
-      }.toList
-
-    private def selectLikes(sql: String): immutable.Seq[Map[String, Any]] =
-      spark.sql(sql).collect().map { row =>
-        Map(
-          "<rel.type>" -> row.getAs[String]("<rel.type>"),
-          "<source.labels>" -> row.getAs[Seq[String]]("<source.labels>"),
-          "source.age" -> row.getAs[Long]("source.age"),
-          "<target.labels>" -> row.getAs[Seq[String]]("<target.labels>"),
-          "target.hash" -> row.getAs[String]("target.hash"),
-          "rel.id" -> row.getAs[Long]("rel.id")
-        )
-      }.toList
-
-    private def selectPersons(sql: String): immutable.Seq[Map[String, Any]] =
-      spark.sql(sql).collect().map(row => Map("age" -> row.getAs[String]("age"))).toList
+    private def select(sql: String, columns: String*): immutable.Seq[Map[String, Any]] =
+      spark.sql(sql).collect().map(row => columns.map(column => column -> row.getAs[Any](column)).toMap).toList
   }
 
   @Nested
@@ -491,7 +447,6 @@ class StreamingIT {
     private val partitions = 5
 
     @Test
-    @DisplayName("writes nodes in append mode")
     def writes_nodes_in_append_mode(): Unit = {
       val stream = memoryStream()
       query = stream.toDF().writeStream
@@ -508,7 +463,6 @@ class StreamingIT {
     }
 
     @Test
-    @DisplayName("writes nodes in overwrite mode")
     def writes_nodes_in_overwrite_mode(): Unit = {
       driver.executableQuery(
         "CREATE CONSTRAINT timestamp_value FOR (t:Timestamp) REQUIRE t.value IS UNIQUE"
@@ -529,7 +483,6 @@ class StreamingIT {
     }
 
     @Test
-    @DisplayName("writes relationships in append mode")
     def writes_relationships_in_append_mode(): Unit = {
       val stream = memoryStream()
       query = stream.toDF().writeStream
@@ -553,7 +506,6 @@ class StreamingIT {
     }
 
     @Test
-    @DisplayName("appends relationships while overwriting their nodes")
     def appends_relationships_while_overwriting_nodes(): Unit = {
       driver.executableQuery("CREATE CONSTRAINT From_value FOR (p:From) REQUIRE p.value IS UNIQUE").execute()
       driver.executableQuery("CREATE CONSTRAINT To_value FOR (p:To) REQUIRE p.value IS UNIQUE").execute()
@@ -580,7 +532,6 @@ class StreamingIT {
     }
 
     @Test
-    @DisplayName("writes through a custom query")
     def writes_with_query(): Unit = {
       val stream = memoryStream()
       query = stream.toDF().writeStream
@@ -646,5 +597,14 @@ class StreamingIT {
         immutable.Seq.empty
       }
     }
+  }
+
+  private def checkpoint(): String =
+    Files.createTempDirectory(folder, "checkpoint").toAbsolutePath.toString
+
+  private def uniqueTable(prefix: String): String = {
+    val table = s"${prefix}_${java.util.UUID.randomUUID().toString.replace("-", "")}"
+    createdTables += table
+    table
   }
 }
