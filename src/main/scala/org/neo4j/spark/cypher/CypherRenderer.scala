@@ -22,28 +22,31 @@ import org.neo4j.cypherdsl.core.Statement
 import org.neo4j.cypherdsl.core.renderer.Configuration
 import org.neo4j.cypherdsl.core.renderer.Dialect
 import org.neo4j.cypherdsl.core.renderer.Renderer
-import org.neo4j.spark.cypher.CypherRenderer.Neo4jV5
+import org.neo4j.spark.cypher.CypherRenderer.Neo4jV5_23
+import org.neo4j.spark.cypher.CypherRenderer.Neo4j_2025
 
-class CypherRenderer(neo4j: Neo4j) extends Renderer {
+case class CypherRenderer(private val neo4j: Neo4j) {
 
-  private val cached =
-    Renderer.getRenderer(
-      Configuration.newConfig()
-        .withDialect(
-          if (neo4j.getVersion.compareTo(Neo4jV5) < 0) {
-            Dialect.DEFAULT
-          } else {
-            Dialect.NEO4J_5
-          }
-        )
-        .build()
-    )
+  private def dialect(): Dialect = {
+    if (neo4j.getVersion.compareTo(Neo4jV5_23) < 0) {
+      return Dialect.NEO4J_5
+    }
 
-  override def render(statement: Statement): String = {
+    if (neo4j.getVersion.compareTo(Neo4j_2025) >= 0) {
+      return Dialect.NEO4J_2025
+    }
+
+    Dialect.NEO4J_5_23
+  }
+
+  private val cached = Renderer.getRenderer(Configuration.newConfig().withDialect(dialect()).build())
+
+  def render(statement: Statement): String = {
     cached.render(statement)
   }
 }
 
-private object CypherRenderer {
-  private val Neo4jV5 = new Neo4jVersion(5, 0, 0)
+object CypherRenderer {
+  private val Neo4jV5_23 = new Neo4jVersion(5, 23, 0)
+  private val Neo4j_2025 = new Neo4jVersion(2025, 0, 0)
 }

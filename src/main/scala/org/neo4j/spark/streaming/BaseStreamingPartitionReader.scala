@@ -119,20 +119,20 @@ class BaseStreamingPartitionReader(
 
         val property = Cypher.name(streamingPropertyName)
         val stream = Cypher.parameter("stream")
+        val from = Cypher.property(stream, "from")
+        val to = Cypher.property(stream, "to")
 
         // rewrite query for adding $stream.from and $stream.to filters
         val cypher = Cypher.callRawCypher(originalQuery)
           .`with`(Cypher.asterisk())
-          .where(
-            property.gt(stream.property("from")).and(property.lte(stream.property("to")))
-          )
+          .where(property.gt(from).and(property.lte(to)))
           .returning(Cypher.asterisk())
           .build()
           .getCypher
 
         s"${fullPreamble(neo4j, options.tuning)}$cypher"
       // we don't need to rewrite the queries for LABELS and RELATIONSHIPS because spark filters already cover our
-      // criteria which are added to the query text in Neo4jQueryService
+      // criteria, which are added to the query text in Neo4jQueryService
       case LABELS       => super.query()
       case RELATIONSHIP => super.query()
       case GDS =>
