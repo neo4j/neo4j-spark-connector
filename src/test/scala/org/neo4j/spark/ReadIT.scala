@@ -46,6 +46,7 @@ import org.neo4j.spark.testsupport.Neo4jContainerProvider
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
+import org.neo4j.spark.util.Neo4jOptions
 import org.testcontainers.neo4j.Neo4jContainer
 
 import java.sql.Date
@@ -119,6 +120,19 @@ class ReadIT {
           .show() // show is needed to trigger the exception because of changes in Spark 3
       })
       .withMessage("You need to specify just one of these options: 'gds', 'labels', 'query', 'relationship'")
+  }
+
+  @Test
+  def throws_exception_when_cypher_version_invalid(): Unit = {
+    assertThatExceptionOfType(classOf[IllegalArgumentException])
+      .isThrownBy(() => {
+        spark.read.format(classOf[DataSource].getName)
+          .option("labels", "Person")
+          .option(Neo4jOptions.CYPHER_VERSION, "2.3")
+          .load()
+          .show()
+      })
+      .withMessage("The provided cypher version '2.3' is not valid.")
   }
 
   @Nested

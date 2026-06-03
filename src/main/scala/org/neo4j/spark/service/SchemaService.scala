@@ -34,6 +34,7 @@ import org.neo4j.spark.config.TopN
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.converter.SparkToCypherTypeConverter
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
+import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.service.SchemaService.normalizedClassName
 import org.neo4j.spark.service.SchemaService.normalizedClassNameFromGraphEntity
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
@@ -64,7 +65,8 @@ class SchemaService(
   private val filters: Array[Filter] = Array.empty
 ) extends AutoCloseable with Logging {
 
-  private val queryReadStrategy = new Neo4jQueryReadStrategy(neo4j, filters, withPreamble = false)
+  private val queryReadStrategy =
+    new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, options), filters, withPreamble = false)
 
   private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
 
@@ -77,7 +79,7 @@ class SchemaService(
   private def structForNode(labels: Seq[String] = options.nodeMetadata.labels) = {
     val structFields: mutable.Buffer[StructField] = (try {
       val query =
-        s"""${fullPreamble(neo4j, options.tuning)}CALL apoc.meta.nodeTypeProperties($$config)
+        s"""${fullPreamble(neo4j, options)}CALL apoc.meta.nodeTypeProperties($$config)
            |YIELD propertyName, propertyTypes
            |WITH DISTINCT propertyName, propertyTypes
            |WITH propertyName, collect(propertyTypes) AS propertyTypes
@@ -94,7 +96,7 @@ class SchemaService(
         val query =
           s"""${fullPreamble(
               neo4j,
-              options.tuning
+              options
             )}MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
              |RETURN ${Neo4jUtil.NODE_ALIAS}
              |ORDER BY rand()
@@ -225,7 +227,7 @@ class SchemaService(
       val query =
         s"""${fullPreamble(
             neo4j,
-            options.tuning
+            options
           )}CALL apoc.meta.relTypeProperties($$config) YIELD sourceNodeLabels, targetNodeLabels,
            | propertyName, propertyTypes
            |WITH *
@@ -250,7 +252,7 @@ class SchemaService(
         val query =
           s"""${fullPreamble(
               neo4j,
-              options.tuning
+              options
             )}MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(
               _.quote()
             ).mkString(":")})
@@ -336,7 +338,7 @@ class SchemaService(
   private def structForGDS() = {
     val query =
       s"""
-         |${fullPreamble(neo4j, options.tuning)}CALL gds.list() YIELD name, signature, type
+         |${fullPreamble(neo4j, options)}CALL gds.list() YIELD name, signature, type
          |WHERE name = $$procName AND type = 'procedure'
          |WITH split(signature, ') :: (')[1] AS fields
          |WITH substring(fields, 0, size(fields) - 1) AS fields

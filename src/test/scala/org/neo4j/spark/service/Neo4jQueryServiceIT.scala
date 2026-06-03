@@ -24,6 +24,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithGdsBase
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithGdsBase.neo4j
 import org.neo4j.spark.util.DriverCache
@@ -54,6 +55,7 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
+        new CypherRenderer(neo4j, neo4jOptions),
         Array.empty,
         PartitionPagination.EMPTY,
         List(
@@ -103,6 +105,7 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
           neo4jOptions,
           new Neo4jQueryReadStrategy(
             neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
             Array.empty,
             PartitionPagination.EMPTY,
             List(

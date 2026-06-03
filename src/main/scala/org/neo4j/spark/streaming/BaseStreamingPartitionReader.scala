@@ -24,6 +24,7 @@ import org.apache.spark.sql.types.StructType
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core.Cypher
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
+import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.reader.BasePartitionReader
 import org.neo4j.spark.service.Neo4jQueryReadStrategy
 import org.neo4j.spark.service.Neo4jQueryService
@@ -100,6 +101,7 @@ class BaseStreamingPartitionReader(
           options,
           new Neo4jQueryReadStrategy(
             neo4j,
+            new CypherRenderer(neo4j, options),
             filters,
             partitionSkipLimit,
             requiredColumns.fieldNames.toIndexedSeq,
@@ -130,7 +132,7 @@ class BaseStreamingPartitionReader(
           .build()
           .getCypher
 
-        s"${fullPreamble(neo4j, options.tuning)}$cypher"
+        s"${fullPreamble(neo4j, options)}$cypher"
       // we don't need to rewrite the queries for LABELS and RELATIONSHIPS because spark filters already cover our
       // criteria, which are added to the query text in Neo4jQueryService
       case LABELS       => super.query()

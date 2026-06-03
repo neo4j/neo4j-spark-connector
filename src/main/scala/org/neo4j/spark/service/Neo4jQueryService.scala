@@ -27,7 +27,6 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.Or
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core._
-import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.util.Neo4jImplicits._
@@ -47,7 +46,7 @@ class Neo4jQueryWriteStrategy(
 
   override def createStatementForQuery(options: Neo4jOptions): String = {
     val scriptResult = Neo4jQueryStrategy.scriptResultClause(options)
-    val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
+    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
     s"""$preamble${scriptResult}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |${options.query.value}
        |""".stripMargin
@@ -121,7 +120,7 @@ class Neo4jQueryWriteStrategy(
       ""
     }
 
-    s"""${fullPreamble(neo4j, options.tuning)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
+    s"""${fullPreamble(neo4j, options)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$sourceQueryPart$withQueryPart
        |$targetQueryPart
        |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:$relationship$relKeys]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
@@ -141,7 +140,7 @@ class Neo4jQueryWriteStrategy(
       Neo4jWriteMappingStrategy.KEYS
     )
 
-    s"""${fullPreamble(neo4j, options.tuning)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
+    s"""${fullPreamble(neo4j, options)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$keyword (node${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})
        |SET node += ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jWriteMappingStrategy.PROPERTIES}
        |""".stripMargin
@@ -153,6 +152,7 @@ class Neo4jQueryWriteStrategy(
 
 class Neo4jQueryReadStrategy(
   private val neo4j: Neo4j,
+  private val renderer: CypherRenderer,
   private val filters: Array[Filter] = Array.empty[Filter],
   private val partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
   private val requiredColumns: Seq[String] = Seq.empty,
@@ -160,7 +160,6 @@ class Neo4jQueryReadStrategy(
   private val jobId: String = "",
   private val withPreamble: Boolean = true
 ) extends Neo4jQueryStrategy with Logging {
-  private val renderer: CypherRenderer = new CypherRenderer(neo4j)
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 
@@ -180,7 +179,7 @@ class Neo4jQueryReadStrategy(
     }
 
     val scriptResult = Neo4jQueryStrategy.scriptResultClause(options)
-    val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
+    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
     s"$preamble$scriptResult$limitedQuery"
   }
 
@@ -201,7 +200,7 @@ class Neo4jQueryReadStrategy(
       buildStatementAggregation(options, matchQuery, relationship, returnExpressions)
     }
 
-    val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
+    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
     s"$preamble${renderer.render(stmt)}"
   }
 
@@ -448,7 +447,7 @@ class Neo4jQueryReadStrategy(
       buildStatement(options, ret, node)
     }
 
-    val preamble = if (withPreamble) fullPreamble(neo4j, options.tuning) else ""
+    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
     s"$preamble${renderer.render(stmt)}"
   }
 

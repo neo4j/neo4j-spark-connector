@@ -39,6 +39,7 @@ import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.QueryType
 
 import java.util
+import java.util.Collections
 
 class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
@@ -249,7 +250,12 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val driverCache = new DriverCache(neo4jOptions.connection)
-    val neo4j = new Neo4j(new Neo4jVersion(5, 0, 0), Neo4jEdition.ENTERPRISE, Neo4jDeploymentType.SELF_MANAGED)
+    val neo4j = new Neo4j(
+      new Neo4jVersion(5, 0, 0),
+      Neo4jEdition.ENTERPRISE,
+      Neo4jDeploymentType.SELF_MANAGED,
+      Collections.emptySet()
+    )
     val schemaService: SchemaService = new SchemaService(neo4j, neo4jOptions, driverCache)
 
     val schema: StructType = schemaService.struct()
