@@ -34,6 +34,7 @@ import org.neo4j.spark.config.TopN
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.converter.SparkToCypherTypeConverter
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
+import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.service.SchemaService.normalizedClassName
 import org.neo4j.spark.service.SchemaService.normalizedClassNameFromGraphEntity
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
@@ -64,7 +65,8 @@ class SchemaService(
   private val filters: Array[Filter] = Array.empty
 ) extends AutoCloseable with Logging {
 
-  private val queryReadStrategy = new Neo4jQueryReadStrategy(neo4j, filters, withPreamble = false)
+  private val queryReadStrategy =
+    new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, options), filters, withPreamble = false)
 
   private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
 

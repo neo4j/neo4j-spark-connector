@@ -27,7 +27,6 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.Or
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core._
-import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.util.Neo4jImplicits._
@@ -153,6 +152,7 @@ class Neo4jQueryWriteStrategy(
 
 class Neo4jQueryReadStrategy(
   private val neo4j: Neo4j,
+  private val renderer: CypherRenderer,
   private val filters: Array[Filter] = Array.empty[Filter],
   private val partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
   private val requiredColumns: Seq[String] = Seq.empty,
@@ -160,7 +160,6 @@ class Neo4jQueryReadStrategy(
   private val jobId: String = "",
   private val withPreamble: Boolean = true
 ) extends Neo4jQueryStrategy with Logging {
-  private val renderer: CypherRenderer = new CypherRenderer(neo4j)
 
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 
