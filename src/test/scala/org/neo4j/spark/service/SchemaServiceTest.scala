@@ -28,7 +28,9 @@ import org.neo4j.spark.config.TopN
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
 
-import scala.collection.JavaConverters
+import java.util.Collections
+
+import scala.jdk.CollectionConverters.MapHasAsJava
 
 class SchemaServiceTest {
 
@@ -53,11 +55,16 @@ class SchemaServiceTest {
 
   private def options(kv: (String, String)*): Neo4jOptions = {
     new Neo4jOptions(
-      JavaConverters.mapAsJavaMap(kv.toMap)
+      kv.toMap.asJava
     )
   }
 
   private def neo4j(): Neo4j = {
-    new Neo4j(new Neo4jVersion(2025, 1, 0), Neo4jEdition.COMMUNITY, Neo4jDeploymentType.SELF_MANAGED)
+    new Neo4j(
+      new Neo4jVersion(2025, 1, 0),
+      Neo4jEdition.COMMUNITY,
+      Neo4jDeploymentType.SELF_MANAGED,
+      Collections.emptySet()
+    )
   }
 }

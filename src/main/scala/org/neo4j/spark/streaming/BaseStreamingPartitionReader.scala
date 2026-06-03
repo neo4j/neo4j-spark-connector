@@ -24,6 +24,7 @@ import org.apache.spark.sql.types.StructType
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core.Cypher
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
+import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.reader.BasePartitionReader
 import org.neo4j.spark.service.Neo4jQueryReadStrategy
 import org.neo4j.spark.service.Neo4jQueryService
@@ -40,7 +41,7 @@ import java.util
 import java.util.function.Predicate
 import java.util.regex.Pattern
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.jdk.CollectionConverters.MapHasAsJava
 
 class BaseStreamingPartitionReader(
   private val neo4j: Neo4j,
@@ -100,9 +101,10 @@ class BaseStreamingPartitionReader(
           options,
           new Neo4jQueryReadStrategy(
             neo4j,
+            new CypherRenderer(neo4j, options),
             filters,
             partitionSkipLimit,
-            requiredColumns.fieldNames,
+            requiredColumns.fieldNames.toIndexedSeq,
             aggregateColumns,
             jobId,
             withPreamble = false
@@ -119,20 +121,20 @@ class BaseStreamingPartitionReader(
 
         val property = Cypher.name(streamingPropertyName)
         val stream = Cypher.parameter("stream")
+        val from = Cypher.property(stream, "from")
+        val to = Cypher.property(stream, "to")
 
         // rewrite query for adding $stream.from and $stream.to filters
         val cypher = Cypher.callRawCypher(originalQuery)
           .`with`(Cypher.asterisk())
-          .where(
-            property.gt(stream.property("from")).and(property.lte(stream.property("to")))
-          )
+          .where(property.gt(from).and(property.lte(to)))
           .returning(Cypher.asterisk())
           .build()
           .getCypher
 
-        s"${fullPreamble(neo4j, options.tuning)}$cypher"
+        s"${fullPreamble(neo4j, options)}$cypher"
       // we don't need to rewrite the queries for LABELS and RELATIONSHIPS because spark filters already cover our
-      // criteria which are added to the query text in Neo4jQueryService
+      // criteria, which are added to the query text in Neo4jQueryService
       case LABELS       => super.query()
       case RELATIONSHIP => super.query()
       case GDS =>

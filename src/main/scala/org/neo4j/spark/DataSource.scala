@@ -79,7 +79,7 @@ class DataSource extends TableProvider
         Neo4jOptions.fromSession(SparkSession.getActiveSession, caseInsensitiveStringMap.asCaseSensitiveMap())
     }
 
-    ValidateNeo4jOptionsConsistency(neo4jOptions).validate()
+    ValidateNeo4jOptionsConsistency(getNeo4jInfo(neo4jOptions.connection), neo4jOptions).validate()
     neo4jOptions
   }
 

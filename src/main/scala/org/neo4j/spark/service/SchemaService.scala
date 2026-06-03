@@ -34,6 +34,7 @@ import org.neo4j.spark.config.TopN
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.converter.SparkToCypherTypeConverter
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
+import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.service.SchemaService.normalizedClassName
 import org.neo4j.spark.service.SchemaService.normalizedClassNameFromGraphEntity
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
@@ -44,9 +45,12 @@ import java.util
 import java.util.Collections
 import java.util.function
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.jdk.CollectionConverters.MapHasAsScala
+import scala.jdk.CollectionConverters.SeqHasAsJava
 
 object PartitionPagination {
   val EMPTY: PartitionPagination = PartitionPagination(0, -1, TopN(-1))
@@ -61,7 +65,8 @@ class SchemaService(
   private val filters: Array[Filter] = Array.empty
 ) extends AutoCloseable with Logging {
 
-  private val queryReadStrategy = new Neo4jQueryReadStrategy(neo4j, filters, withPreamble = false)
+  private val queryReadStrategy =
+    new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, options), filters, withPreamble = false)
 
   private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
 
@@ -74,7 +79,7 @@ class SchemaService(
   private def structForNode(labels: Seq[String] = options.nodeMetadata.labels) = {
     val structFields: mutable.Buffer[StructField] = (try {
       val query =
-        s"""${fullPreamble(neo4j, options.tuning)}CALL apoc.meta.nodeTypeProperties($$config)
+        s"""${fullPreamble(neo4j, options)}CALL apoc.meta.nodeTypeProperties($$config)
            |YIELD propertyName, propertyTypes
            |WITH DISTINCT propertyName, propertyTypes
            |WITH propertyName, collect(propertyTypes) AS propertyTypes
@@ -91,7 +96,7 @@ class SchemaService(
         val query =
           s"""${fullPreamble(
               neo4j,
-              options.tuning
+              options
             )}MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
              |RETURN ${Neo4jUtil.NODE_ALIAS}
              |ORDER BY rand()
@@ -153,6 +158,7 @@ class SchemaService(
       .asScala
       .flatMap(extractFunction)
       .groupBy(_._1)
+      .view
       .mapValues(_.map(_._2))
       .map(t =>
         options.schemaMetadata.strategy match {
@@ -221,7 +227,7 @@ class SchemaService(
       val query =
         s"""${fullPreamble(
             neo4j,
-            options.tuning
+            options
           )}CALL apoc.meta.relTypeProperties($$config) YIELD sourceNodeLabels, targetNodeLabels,
            | propertyName, propertyTypes
            |WITH *
@@ -246,7 +252,7 @@ class SchemaService(
         val query =
           s"""${fullPreamble(
               neo4j,
-              options.tuning
+              options
             )}MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(
               _.quote()
             ).mkString(":")})
@@ -332,7 +338,7 @@ class SchemaService(
   private def structForGDS() = {
     val query =
       s"""
-         |${fullPreamble(neo4j, options.tuning)}CALL gds.list() YIELD name, signature, type
+         |${fullPreamble(neo4j, options)}CALL gds.list() YIELD name, signature, type
          |WHERE name = $$procName AND type = 'procedure'
          |WITH split(signature, ') :: (')[1] AS fields
          |WITH substring(fields, 0, size(fields) - 1) AS fields
@@ -494,7 +500,7 @@ class SchemaService(
           .get("labels")
           .getOrElse(Collections.emptyMap())
           .asInstanceOf[util.Map[String, Long]].asScala
-        map.filterKeys(k => options.nodeMetadata.labels.contains(k))
+        map.view.filterKeys(k => options.nodeMetadata.labels.contains(k))
           .values.min
       } else {
         countForNodeWithQuery(filters)
@@ -947,11 +953,11 @@ object SchemaService {
   val DURATION_TYPE = "duration"
 
   def normalizedClassName(value: AnyRef): String = value match {
-    case binary: Array[Byte]           => "ByteArray"
-    case list: java.util.List[_]       => "Array"
-    case map: java.util.Map[String, _] => "Map"
-    case null                          => "String"
-    case _                             => value.getClass.getSimpleName
+    case _: Array[Byte]         => "ByteArray"
+    case _: java.util.List[_]   => "Array"
+    case _: java.util.Map[_, _] => "Map"
+    case null                   => "String"
+    case _                      => value.getClass.getSimpleName
   }
 
   // from nodes and relationships we cannot have maps as properties and elements in lists are the same type

@@ -43,6 +43,8 @@ import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.spark.testsupport.Neo4jContainerProvider
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
+import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
+import org.neo4j.spark.util.Neo4jOptions
 import org.testcontainers.neo4j.Neo4jContainer
 
 import java.sql.Date
@@ -115,6 +117,19 @@ class ReadIT {
           .show() // show is needed to trigger the exception because of changes in Spark 3
       })
       .withMessage("You need to specify just one of these options: 'gds', 'labels', 'query', 'relationship'")
+  }
+
+  @Test
+  def throws_exception_when_cypher_version_invalid(): Unit = {
+    assertThatExceptionOfType(classOf[IllegalArgumentException])
+      .isThrownBy(() => {
+        spark.read.format(classOf[DataSource].getName)
+          .option("labels", "Person")
+          .option(Neo4jOptions.CYPHER_VERSION, "2.3")
+          .load()
+          .show()
+      })
+      .withMessage("The provided cypher version '2.3' is not valid.")
   }
 
   @Nested
@@ -605,7 +620,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Product")
-        .load
+        .load()
         .select("(╯°□°)╯︵ ┻━┻")
 
       assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("(╯°□°)╯︵ ┻━┻"))
@@ -623,7 +638,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Product")
-        .load
+        .load()
         .filter("name = 'Product 1'")
 
       assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("<elementId>", "<labels>", "name", "id"))
@@ -641,7 +656,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("birth")
         .where("birth = '1988-01-05'")
 
@@ -658,7 +673,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("name")
         .where("NOT name = 'John Doe'")
 
@@ -675,7 +690,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("birth")
         .where("NOT birth = '1988-01-05'")
 
@@ -692,7 +707,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("name")
         .where("name != 'John Doe'")
 
@@ -712,7 +727,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("age")
         .where("age >= 20")
 
@@ -731,7 +746,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("birth")
         .where("birth >= '2007-12-03T10:15:30'")
 
@@ -751,7 +766,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("age")
         .where("age > 20")
 
@@ -773,7 +788,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("birth")
         .where("birth > '1990-01-01'")
 
@@ -797,7 +812,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("location")
         .where("location.x > 0")
 
@@ -823,7 +838,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("age")
         .where("age <= 41")
 
@@ -844,7 +859,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("age")
         .where("age < 40")
 
@@ -865,7 +880,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("age")
         .where("age IN (41,43)")
 
@@ -887,7 +902,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("age")
         .where("age IS NULL")
 
@@ -908,7 +923,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("age")
         .where("age IS NOT NULL")
 
@@ -930,7 +945,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("age")
         .where("age = 43 OR age = 39 OR age = 32")
 
@@ -952,7 +967,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("age")
         .where("age >= 39 AND age <= 43")
 
@@ -974,7 +989,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("name")
         .where("name LIKE 'John%'")
 
@@ -996,7 +1011,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("name")
         .where("name LIKE '%r'")
 
@@ -1018,7 +1033,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
         .select("name")
         .where("name LIKE '%ay%'")
 
@@ -1079,7 +1094,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Person")
-        .load
+        .load()
 
       assertThat(df.columns.toSeq.asJava)
         .containsOnlyOnce("name", "born", "actor", "soccerPlayer", "writer", "<elementId>", "<labels>")
@@ -1137,7 +1152,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("labels", "Product")
-        .load
+        .load()
         .limit(10)
 
       assertThat(df.count()).isEqualTo(10)
@@ -1164,7 +1179,7 @@ class ReadIT {
         .option("relationship.source.labels", "Person")
         .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
-        .load
+        .load()
         .select("`source.name`", "`<source.elementId>`")
 
       assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("source.name", "<source.elementId>"))
@@ -1186,7 +1201,7 @@ class ReadIT {
         .option("relationship.source.labels", "Person")
         .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
-        .load
+        .load()
         .select("`<rel.type>`")
 
       assertThat(df.columns.toSet).isEqualTo(Set("<rel.type>"))
@@ -1208,7 +1223,7 @@ class ReadIT {
         .option("relationship.source.labels", "Person")
         .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
-        .load
+        .load()
         .select("`target.(╯°□°)╯︵ ┻━┻`", "`<source.elementId>`")
 
       assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("target.(╯°□°)╯︵ ┻━┻", "<source.elementId>"))
@@ -1233,10 +1248,10 @@ class ReadIT {
         .option("relationship.source.labels", "Person")
         .option("relationship", "KNOWS")
         .option("relationship.target.labels", "Person")
-        .load
+        .load()
         .filter("`source.id` = '14' AND `target.id` = '16'")
 
-      assertThat(df.count).isEqualTo(1L)
+      assertThat(df.count()).isEqualTo(1L)
     }
 
     @Test
@@ -1258,10 +1273,10 @@ class ReadIT {
         .option("relationship.source.labels", "Person")
         .option("relationship", "KNOWS")
         .option("relationship.target.labels", "Person")
-        .load
+        .load()
         .filter("`<source>`.`id` = '14' AND `<target>`.`id` = '16'")
 
-      assertThat(df.count).isEqualTo(1L)
+      assertThat(df.count()).isEqualTo(1L)
     }
 
     @Test
@@ -1280,7 +1295,7 @@ class ReadIT {
         .option("relationship", "BOUGHT")
         .option("relationship.source.labels", "Person")
         .option("relationship.target.labels", "Product")
-        .load
+        .load()
         .filter("`target.name` = 'Product 16' AND `target.id` = 16")
         .select("`target.name`", "`target.id`")
 
@@ -1346,7 +1361,7 @@ class ReadIT {
         .option("relationship.nodes.map", "false")
         .option("relationship.source.labels", ":Person")
         .option("relationship.target.labels", ":Product")
-        .load
+        .load()
 
       val rows = df.collectAsList()
       assertThat(rows.asScala.count(row =>
@@ -1378,7 +1393,7 @@ class ReadIT {
         .option("relationship.source.labels", ":Person")
         .option("relationship.nodes.map", "true")
         .option("relationship.target.labels", ":Product")
-        .load
+        .load()
 
       val rows = df.collectAsList()
       assertThat(rows.asScala.count(row =>
@@ -1408,7 +1423,7 @@ class ReadIT {
         .option("relationship.source.labels", "Person")
         .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
-        .load
+        .load()
         .limit(10)
 
       assertThat(df.count()).isEqualTo(10)
@@ -1428,7 +1443,7 @@ class ReadIT {
         .option("relationship.source.labels", "Person")
         .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
-        .load
+        .load()
         .select("`target.name`", "`target.id`")
         .orderBy(col("`target.name`").desc)
         .limit(10)
@@ -1452,7 +1467,7 @@ class ReadIT {
         .option("relationship.source.labels", "Person")
         .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
-        .load
+        .load()
         .createTempView("BOUGHT")
       val df = spark.sql("""SELECT `source.fullName`,
                            |   SUM(DISTINCT(`target.price`)) AS distinctTotal,
@@ -1483,7 +1498,7 @@ class ReadIT {
         .option("relationship.source.labels", "Person")
         .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
-        .load
+        .load()
         .createTempView("BOUGHT")
       val df = spark.sql("""SELECT `source.fullName`,
                            |    MAX(`target.price`) AS max,
@@ -1514,7 +1529,7 @@ class ReadIT {
         .option("relationship.source.labels", "Person")
         .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
-        .load
+        .load()
         .createTempView("BOUGHT")
       val df = spark.sql("""SELECT `source.fullName`,
                            |    COUNT(DISTINCT(`target.id`)) AS distinctTotal,
@@ -1608,7 +1623,7 @@ class ReadIT {
         .option("query", "MATCH (p:Product) RETURN p.name as name")
         .option("partitions", 2)
         .option("query.count", 20)
-        .load
+        .load()
         .select("name")
 
       assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("name"))
@@ -1619,7 +1634,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("query", "MATCH (e:NotAnExistingLabel) RETURN elementId(e) as f, 1 as g")
-        .load
+        .load()
 
       assertThat(df.count()).isEqualTo(0)
       assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("f", "g"))
@@ -1633,7 +1648,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("query", "MATCH (i:Instrument) RETURN i.id as id, i.name as name")
-        .load
+        .load()
         .orderBy("id")
 
       assertThat(df.collect()).containsExactly(
@@ -1665,7 +1680,7 @@ class ReadIT {
           """.stripMargin
         )
         .option("schema.strategy", "string")
-        .load
+        .load()
 
       assertThat(df.count()).isEqualTo(100)
       assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("personId", "productId", "map", "someString", "map2"))
@@ -1685,7 +1700,7 @@ class ReadIT {
                                  """.stripMargin
         )
         .option("schema.strategy", "string")
-        .load
+        .load()
 
       assertThat(df.count()).isEqualTo(0)
       assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("personId", "productId", "map", "someString", "map2"))
@@ -1826,7 +1841,7 @@ class ReadIT {
         .option("query", "UNWIND range(1,2) as id RETURN id AS val, scriptResult[0].val AS script")
         .option("partitions", 2)
         .option("query.count", 2)
-        .load
+        .load()
 
       val rows = df.collect()
       assertThat(rows
@@ -1843,7 +1858,7 @@ class ReadIT {
           spark.read
             .format(classOf[DataSource].getName)
             .option("query", s"MATCH (n:Label) RETURN elementId(n) as id $limitKeyword 100")
-            .load
+            .load()
             .show() // show is needed to trigger the exception because of changes in Spark 3
         })
         .withMessage("SKIP/LIMIT are not allowed at the end of the query")
@@ -1859,7 +1874,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("query", s"MATCH (p:Product) WITH p $limitKeyword 10\nRETURN p")
-        .load
+        .load()
 
       assertThat(df.count()).isEqualTo(10)
     }
@@ -1873,7 +1888,7 @@ class ReadIT {
         .format(classOf[DataSource].getName)
         .schema(StructType(immutable.Seq(StructField("age", DataTypes.StringType))))
         .option("query", "MATCH (n:Person) RETURN n.age AS age")
-        .load
+        .load()
 
       val rows = df.collect()
       assertThat(rows.map(_.get(0)).toSeq.asJava).containsOnlyOnce("8")
@@ -1887,7 +1902,7 @@ class ReadIT {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("query", "MATCH (n:Person) RETURN n.age AS age ORDER by age")
-        .load
+        .load()
 
       val rows = df.collect()
       assertThat(rows.map(_.get(0)).toSeq.asJava).containsOnlyOnce(8L)
@@ -1906,7 +1921,7 @@ class ReadIT {
             |RETURN datetime(event.first) AS first, datetime(event.second) AS second
             |""".stripMargin
         )
-        .load
+        .load()
 
       assertThat(df.schema).isEqualTo(StructType(Array(
         StructField("first", DataTypes.TimestampType),
@@ -1937,7 +1952,7 @@ class ReadIT {
             |RETURN datetime(event.first) AS first, datetime(event.second) AS second
             |""".stripMargin
         )
-        .load
+        .load()
 
       assertThat(df.schema).isEqualTo(StructType(Array(
         StructField("first", DataTypes.TimestampType),

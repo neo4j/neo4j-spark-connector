@@ -19,7 +19,7 @@ package org.neo4j.spark.service
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Test
@@ -39,6 +39,7 @@ import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.QueryType
 
 import java.util
+import java.util.Collections
 
 class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
@@ -236,7 +237,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       StructField(Neo4jUtil.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true),
       StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.StringType, nullable = false)
     )
-    StructType(structFields.union(additionalFields).reverse)
+    StructType(structFields.concat(additionalFields).reverse)
   }
 
   private def initTest(query: String): Unit = {
@@ -249,7 +250,12 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val driverCache = new DriverCache(neo4jOptions.connection)
-    val neo4j = new Neo4j(new Neo4jVersion(5, 0, 0), Neo4jEdition.ENTERPRISE, Neo4jDeploymentType.SELF_MANAGED)
+    val neo4j = new Neo4j(
+      new Neo4jVersion(5, 0, 0),
+      Neo4jEdition.ENTERPRISE,
+      Neo4jDeploymentType.SELF_MANAGED,
+      Collections.emptySet()
+    )
     val schemaService: SchemaService = new SchemaService(neo4j, neo4jOptions, driverCache)
 
     val schema: StructType = schemaService.struct()

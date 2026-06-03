@@ -26,6 +26,7 @@ import org.neo4j.driver.Record
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.Values
+import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.service._
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
@@ -38,7 +39,7 @@ import java.util
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.LockSupport
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 abstract class BasePartitionReader(
   private val neo4j: Neo4j,
@@ -151,9 +152,10 @@ abstract class BasePartitionReader(
       options,
       new Neo4jQueryReadStrategy(
         neo4j,
+        new CypherRenderer(neo4j, options),
         filters,
         partitionSkipLimit,
-        requiredColumns.fieldNames,
+        requiredColumns.fieldNames.toIndexedSeq,
         aggregateColumns,
         jobId
       )

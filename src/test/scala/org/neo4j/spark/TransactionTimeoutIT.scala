@@ -60,7 +60,7 @@ class TransactionTimeoutIT extends SparkConnectorScalaSuiteWithApocIT {
       .set("neo4j.authentication.basic.username", "neo4j")
       .set("neo4j.authentication.basic.password", server.getAdminPassword)
       .set("neo4j.db.transaction.timeout", "1000")
-    val session = SparkSession.builder.config(newConf).getOrCreate()
+    val session = SparkSession.builder().config(newConf).getOrCreate()
 
     val cypher = "UNWIND range(1, 20) AS i " +
       "CALL apoc.util.sleep(1000) " +
@@ -85,7 +85,7 @@ class TransactionTimeoutIT extends SparkConnectorScalaSuiteWithApocIT {
     val newConf = conf.clone().set("neo4j.url", server.getBoltUrl)
       .set("neo4j.authentication.basic.username", "neo4j")
       .set("neo4j.authentication.basic.password", server.getAdminPassword)
-    val session = SparkSession.builder.config(newConf).getOrCreate()
+    val session = SparkSession.builder().config(newConf).getOrCreate()
 
     val cypher = "UNWIND range(1, 20) AS i " +
       "CALL apoc.util.sleep(1000) " +

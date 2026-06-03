@@ -34,7 +34,7 @@ import org.neo4j.spark.util.ValidateRead
 import org.neo4j.spark.util.Validations
 import org.neo4j.spark.writer.Neo4jWriterBuilder
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.SetHasAsJava
 
 class Neo4jTable(neo4j: Neo4j, schema: StructType, neo4jOptions: Neo4jOptions, jobId: String)
     extends Table

@@ -38,7 +38,9 @@ import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.converter.SparkToNeo4jDataConverter
 import org.neo4j.spark.service.SchemaService
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.jdk.CollectionConverters.MapHasAsScala
+import scala.jdk.CollectionConverters.SeqHasAsJava
 
 import javax.lang.model.SourceVersion
 
@@ -307,16 +309,16 @@ object Neo4jImplicits {
     def groupByCols(): Array[Expression] = ReflectionUtils.groupByCols(aggregation)
   }
 
-  implicit class MapImplicit[K, V](map: Map[String, V]) {
+  implicit class MapImplicit[K, V](map: Map[K, V]) {
 
-    private def innerFlattenMap(map: Map[String, _], prefix: String): Seq[(String, AnyRef)] = map
+    private def innerFlattenMap(map: Map[_, _], prefix: String): Seq[(String, AnyRef)] = map
       .toSeq
       .flatMap(t => {
-        val key: String = if (prefix != "") s"$prefix.${t._1}" else t._1
+        val key: String = if (prefix != "") s"$prefix.${t._1}" else t._1.toString
         t._2 match {
-          case nestedMap: Map[String, _]           => innerFlattenMap(nestedMap, key)
-          case nestedMap: java.util.Map[String, _] => innerFlattenMap(nestedMap.asScala.toMap, key)
-          case _                                   => Seq((key, t._2.asInstanceOf[AnyRef]))
+          case nestedMap: Map[_, _]           => innerFlattenMap(nestedMap, key)
+          case nestedMap: java.util.Map[_, _] => innerFlattenMap(nestedMap.asScala.toMap, key)
+          case _                              => Seq((key, t._2.asInstanceOf[AnyRef]))
         }
       })
       .toList
@@ -324,16 +326,17 @@ object Neo4jImplicits {
     def flattenMap(prefix: String = "", groupDuplicateKeys: Boolean = false): Map[String, AnyRef] =
       innerFlattenMap(map, prefix)
         .groupBy(_._1)
+        .view
         .mapValues(seq => if (groupDuplicateKeys && seq.size > 1) seq.map(_._2).asJava else seq.last._2)
         .toMap
 
     def flattenKeys(prefix: String = ""): Seq[String] = map
-      .flatMap(t => {
-        val key: String = if (prefix != "") s"$prefix.${t._1}" else t._1
+      .flatMap((t: (K, V)) => {
+        val key: String = if (prefix != "") s"$prefix.${t._1}" else t._1.toString
         t._2 match {
-          case nestedMap: Map[String, _]           => nestedMap.flattenKeys(key)
-          case nestedMap: java.util.Map[String, _] => nestedMap.asScala.toMap.flattenKeys(key)
-          case _                                   => Seq(key)
+          case nestedMap: Map[_, _]           => nestedMap.flattenKeys(key)
+          case nestedMap: java.util.Map[_, _] => nestedMap.asScala.toMap.flattenKeys(key)
+          case _                              => Seq(key)
         }
       })
       .toList

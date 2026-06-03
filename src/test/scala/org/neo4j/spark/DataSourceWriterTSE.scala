@@ -54,8 +54,12 @@ import java.time.LocalTime
 import java.time.OffsetTime
 import java.time.ZoneOffset
 
-import scala.collection.JavaConverters._
 import scala.collection.immutable.ListMap
+import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.jdk.CollectionConverters.MapHasAsScala
+import scala.jdk.CollectionConverters.SeqHasAsJava
+import scala.jdk.CollectionConverters.SetHasAsJava
 import scala.language.postfixOps
 import scala.math.Ordering.Implicits.infixOrderingOps
 import scala.util.Random
@@ -1081,7 +1085,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Instrument")
       .load()
 
-    val size = musicDfCheck.count
+    val size = musicDfCheck.count()
     assertEquals(4, size)
 
     val res = musicDfCheck.orderBy("`source.name`").collectAsList()
@@ -1699,7 +1703,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .single()
       .get("count")
       .asLong()
-    val expected = ds.count
+    val expected = ds.count()
     assertEquals(expected, records)
 
     val uniqueFieldName = if (TestUtil.neo4jVersion(SparkConnectorScalaSuiteIT.session()) >= Versions.NEO4J_5)
@@ -1728,7 +1732,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should work create source node and match target node`() {
+  def `should work create source node and match target node`(): Unit = {
     val data = Seq(
       (12, "John Bonham", "Drums"),
       (19, "John Mayer", "Guitar"),
@@ -1754,7 +1758,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.save.mode", "match")
       .option("relationship.target.labels", ":Instrument")
       .option("relationship.target.node.keys", "instrument:name")
-      .save
+      .save()
 
     val count = SparkConnectorScalaSuiteIT.session().run(
       """MATCH p = (:Musician)-[:PLAYS]->(:Instrument)
@@ -1768,7 +1772,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should work match source node and merge target node`() {
+  def `should work match source node and merge target node`(): Unit = {
     SparkConnectorScalaSuiteIT.session().run(
       "CREATE CONSTRAINT musician_name FOR (m:Musician) REQUIRE (m.name) IS UNIQUE"
     )
@@ -1797,7 +1801,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.save.mode", "overwrite")
       .option("relationship.target.labels", ":Instrument")
       .option("relationship.target.node.keys", "instrument:name")
-      .save
+      .save()
 
     val count = SparkConnectorScalaSuiteIT.session().run(
       """MATCH p = (:Musician)-[:PLAYS]->(:Instrument)
@@ -1813,7 +1817,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should work match source node and merge target node with odd chars`() {
+  def `should work match source node and merge target node with odd chars`(): Unit = {
     val data = Seq(
       (12, "John Bonham", "Drums"),
       (19, "John Mayer", "Guitar"),
@@ -1834,7 +1838,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.save.mode", "overwrite")
       .option("relationship.target.labels", ":Instrument")
       .option("relationship.target.node.keys", "instrument:name")
-      .save
+      .save()
 
     val count = SparkConnectorScalaSuiteIT.session().run(
       """MATCH p = (:Musician)-[:PLAYS]->(:Instrument)

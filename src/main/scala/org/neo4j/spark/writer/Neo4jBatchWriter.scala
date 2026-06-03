@@ -38,7 +38,7 @@ class Neo4jBatchWriter(
   override def createBatchWriterFactory(physicalWriteInfo: PhysicalWriteInfo): DataWriterFactory = {
     val schemaService = new SchemaService(neo4j, neo4jOptions, driverCache)
     schemaService.createOptimizations(structType)
-    val scriptResult = schemaService.execute(neo4jOptions.script)
+    val scriptResult = schemaService.execute(neo4jOptions.script.toIndexedSeq)
     schemaService.close()
 
     if (neo4jOptions.indexAwait > 0) {

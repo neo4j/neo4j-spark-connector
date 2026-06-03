@@ -28,8 +28,9 @@ import org.testcontainers.containers.wait.strategy.WaitAllStrategy
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
-import scala.collection.JavaConverters._
+import scala.annotation.nowarn
 import scala.io.Source
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStrategy {
   private var databases = Seq.empty[String]
@@ -39,7 +40,7 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
     this
   }
 
-  override def waitUntilReady() {
+  override def waitUntilReady(): Unit = {
     val boltUrl = s"bolt://${waitStrategyTarget.getHost}:${waitStrategyTarget.getMappedPort(7687)}"
     val driver = GraphDatabase.driver(boltUrl, auth)
     val systemSession = driver.session(SessionConfig.forDatabase("system"))
@@ -88,7 +89,7 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
   }
 }
 
-// docker pull neo4j/neo4j-experimental:4.0.0-rc01-enterprise
+@nowarn("cat=deprecation")
 class Neo4jContainerExtension
     extends Neo4jContainer[Neo4jContainerExtension](
       TestUtil.neo4jImage()

@@ -20,6 +20,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
+import org.neo4j.caniuse.CanIUse.INSTANCE.canIUse
+import org.neo4j.caniuse.Cypher.{INSTANCE => Cypher}
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.AccessMode
 import org.neo4j.driver.summary
@@ -365,7 +367,7 @@ case class ValidateReadNotStreaming(neo4jOptions: Neo4jOptions, jobId: String) e
  *
  * Plus it throws an exception if no QueryType is provided.
  */
-case class ValidateNeo4jOptionsConsistency(neo4jOptions: Neo4jOptions) extends Validation {
+case class ValidateNeo4jOptionsConsistency(neo4j: Neo4j, neo4jOptions: Neo4jOptions) extends Validation {
 
   override def validate(): Unit = {
     if (neo4jOptions.query.value.isEmpty) {
@@ -391,6 +393,12 @@ case class ValidateNeo4jOptionsConsistency(neo4jOptions: Neo4jOptions) extends V
         ignoreQueryMetadata(QueryType.GDS)
         ignoreNodeMetadata(QueryType.GDS)
         ignoreRelMetadata(QueryType.GDS)
+    }
+
+    if (neo4jOptions.cypherVersion != null && neo4jOptions.cypherVersion.nonEmpty) {
+      if (!canIUse(Cypher.version(neo4jOptions.cypherVersion)).withNeo4j(neo4j)) {
+        throw new IllegalArgumentException(s"The provided cypher version '${neo4jOptions.cypherVersion}' is not valid.")
+      }
     }
   }
 
