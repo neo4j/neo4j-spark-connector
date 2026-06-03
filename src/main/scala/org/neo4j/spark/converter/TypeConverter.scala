@@ -30,7 +30,8 @@ import org.neo4j.spark.converter.SparkToCypherTypeConverter.mapping
 import org.neo4j.spark.service.SchemaService.normalizedClassName
 import org.neo4j.spark.util.Neo4jImplicits.EntityImplicits
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.jdk.CollectionConverters.MapHasAsScala
 
 trait TypeConverter[SOURCE_TYPE, DESTINATION_TYPE] {
 

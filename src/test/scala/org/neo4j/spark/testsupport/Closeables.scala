@@ -18,7 +18,7 @@ package org.neo4j.spark.testsupport
 
 object Closeables {
 
-  def use[A <: AutoCloseable, B](resource: A)(code: A ⇒ B): B =
+  def use[A <: AutoCloseable, B](resource: A)(code: A => B): B =
     try
       code(resource)
     finally

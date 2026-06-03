@@ -912,7 +912,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions,
       new Neo4jQueryReadStrategy(
         neo4j,
-        requiredColumns = Array("name"),
+        requiredColumns = Array("name").toIndexedSeq,
         partitionPagination = PartitionPagination(
           0,
           0,
@@ -1005,7 +1005,7 @@ class Neo4jQueryServiceTest {
             })
           )
         ),
-        Array("source.name")
+        Array("source.name").toIndexedSeq
       )
     ).createQuery()
 

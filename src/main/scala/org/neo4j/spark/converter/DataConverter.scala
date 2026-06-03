@@ -39,7 +39,10 @@ import java.time._
 import java.time.format.DateTimeFormatter
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.jdk.CollectionConverters.MapHasAsScala
+import scala.jdk.CollectionConverters.SeqHasAsJava
 
 trait DataConverter[T] {
   def convert(value: Any, dataType: DataType = null): T
@@ -137,7 +140,7 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
           case _                    => dataType
         }
         if (sparkType == DataTypes.ByteType) {
-          Values.value(unsafeArray.toByteArray)
+          Values.value(unsafeArray.toByteArray())
         } else {
           val javaList = unsafeArray.toSeq[AnyRef](sparkType)
             .map(elem => convert(elem, sparkType))
@@ -151,6 +154,7 @@ class SparkToNeo4jDataConverter extends DataConverter[Value] {
             (unsafeMapData.keyArray().getUTF8String(i).toString, unsafeMapData.valueArray().get(i, mapType.valueType))
           )
           .toMap[String, AnyRef]
+          .view
           .mapValues(innerValue => convert(innerValue, mapType.valueType))
           .toMap[String, AnyRef]
         Values.value(map.asJava)

@@ -37,7 +37,7 @@ import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.NodeSaveMode
 import org.neo4j.spark.util.QueryType
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.SeqHasAsJava
 
 class Neo4jQueryWriteStrategy(
   private val neo4j: Neo4j,

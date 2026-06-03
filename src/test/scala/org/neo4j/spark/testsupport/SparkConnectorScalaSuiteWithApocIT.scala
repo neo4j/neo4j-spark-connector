@@ -55,7 +55,7 @@ object SparkConnectorScalaSuiteWithApocIT {
         .setAppName("neoTest")
         .setMaster("local[*]")
         .set("spark.driver.host", "127.0.0.1")
-      ss = SparkSession.builder.config(conf).getOrCreate()
+      ss = SparkSession.builder().config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       neo4j = Neo4jDetector.INSTANCE.detect(driver)
     }
@@ -64,7 +64,7 @@ object SparkConnectorScalaSuiteWithApocIT {
   }
 
   @AfterAll
-  def tearDownContainer() = {
+  def tearDownContainer(): Unit = {
     TestUtil.closeSafely(driver)
     driver = null
     TestUtil.closeSafely(server)

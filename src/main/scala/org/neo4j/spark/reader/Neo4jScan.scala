@@ -56,7 +56,7 @@ class Neo4jScan(
       jobId,
       filters,
       { schemaService =>
-        (schemaService.skipLimitFromPartition(topN), schemaService.execute(neo4jOptions.script))
+        (schemaService.skipLimitFromPartition(topN), schemaService.execute(neo4jOptions.script.toIndexedSeq))
       }
     )
     // we generate a partition for each element

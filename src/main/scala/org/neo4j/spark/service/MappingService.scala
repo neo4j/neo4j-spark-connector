@@ -35,8 +35,9 @@ import java.util
 import java.util.function
 import java.util.function.BiConsumer
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.jdk.CollectionConverters.MapHasAsScala
 
 class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     extends Neo4jMappingStrategy[InternalRow, Option[java.util.Map[String, AnyRef]]]
@@ -180,6 +181,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
             case map: MapValue =>
               map.asMap().asScala.toMap
                 .flattenMap(field.name, options.schemaMetadata.mapGroupDuplicateKeys)
+                .view
                 .mapValues(value => Values.value(value).asInstanceOf[AnyRef])
                 .toSeq
             case _ => Seq((field.name, neo4jValue))
@@ -264,10 +266,10 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumn
       query(record, schema)
     } else {
       val rel = record.get(Neo4jUtil.RELATIONSHIP_ALIAS).asRelationship()
-      val relMap = new util.HashMap[String, Any](rel.asMap())
+      val relMap = new util.HashMap[String, Any](rel.asMap()
         .asScala
         .map(t => (s"rel.${t._1}", t._2))
-        .asJava
+        .asJava)
       relMap.put(Neo4jUtil.INTERNAL_REL_ID_FIELD, rel.elementId())
       relMap.put(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, rel.`type`())
 

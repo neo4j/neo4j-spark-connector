@@ -28,7 +28,7 @@ import org.neo4j.spark.config.TopN
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
 
-import scala.collection.JavaConverters
+import scala.jdk.CollectionConverters.MapHasAsJava
 
 class SchemaServiceTest {
 
@@ -53,7 +53,7 @@ class SchemaServiceTest {
 
   private def options(kv: (String, String)*): Neo4jOptions = {
     new Neo4jOptions(
-      JavaConverters.mapAsJavaMap(kv.toMap)
+      kv.toMap.asJava
     )
   }
 
