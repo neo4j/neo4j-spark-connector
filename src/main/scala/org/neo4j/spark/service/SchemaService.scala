@@ -608,10 +608,14 @@ class SchemaService(
       .asBoolean()
   }
 
-  def validateQuery(query: String, expectedQueryTypes: org.neo4j.driver.summary.QueryType*): String =
+  def validateQuery(
+    query: String,
+    params: util.Map[String, AnyRef],
+    expectedQueryTypes: org.neo4j.driver.summary.QueryType*
+  ): String =
     try {
       val queryType =
-        session.executeRead(tx => tx.run(s"EXPLAIN $query").consume(), sessionTransactionConfig).queryType()
+        session.executeRead(tx => tx.run(s"EXPLAIN $query", params).consume(), sessionTransactionConfig).queryType()
       if (expectedQueryTypes.isEmpty || expectedQueryTypes.contains(queryType)) {
         ""
       } else {

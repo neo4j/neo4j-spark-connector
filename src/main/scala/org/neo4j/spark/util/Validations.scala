@@ -30,7 +30,10 @@ import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util
 import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
 
+import java.util.Collections
 import java.util.Locale
+
+import scala.jdk.CollectionConverters.MapHasAsJava
 
 object Validations {
   def validate(validations: Validation*): Unit = validations.toSet[Validation].foreach(_.validate())
@@ -229,6 +232,7 @@ case class ValidateWrite(
             s"""WITH {} AS ${Neo4jQueryStrategy.VARIABLE_EVENT}, [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
                |${neo4jOptions.query.value}
                |""".stripMargin,
+            new java.util.HashMap[String, AnyRef](),
             org.neo4j.driver.summary.QueryType.WRITE_ONLY,
             org.neo4j.driver.summary.QueryType.READ_WRITE
           )
@@ -305,10 +309,15 @@ case class ValidateRead(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId: String)
             neo4jOptions.query.value.matches("(?si).*(LIMIT \\d+|SKIP ?\\d+)\\s*\\z"),
             "SKIP/LIMIT are not allowed at the end of the query"
           )
+          val params = Map[String, AnyRef](
+            Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT -> "",
+            Neo4jQueryStrategy.VARIABLE_STREAM -> Collections.emptyMap()
+          ).asJava
           val queryError = schemaService.validateQuery(
             s"""WITH [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
                |${neo4jOptions.query.value}
                |""".stripMargin,
+            params,
             org.neo4j.driver.summary.QueryType.READ_ONLY
           )
           ValidationUtil.isTrue(queryError.isEmpty, queryError)
@@ -332,8 +341,9 @@ case class ValidateRead(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId: String)
           Validations.validate(ValidateGdsMetadata(neo4jOptions.gdsMetadata))
         }
       }
+      val params = new java.util.HashMap[String, AnyRef]()
       val scriptErrors = neo4jOptions.script
-        .map(schemaService.validateQuery(_))
+        .map(scriptQuery => schemaService.validateQuery(scriptQuery, params))
         .filter(_.nonEmpty)
         .mkString("\n")
       ValidationUtil.isTrue(
