@@ -256,7 +256,7 @@ case class ValidateWrite(
       }
       neo4jOptions.script.foreach(query =>
         ValidationUtil.isTrue(
-          schemaService.isValidQuery(query),
+          schemaService.isValidQuery(query, new java.util.HashMap[String, AnyRef]()),
           s"The following query inside the `${Neo4jOptions.SCRIPT}` is not valid, please check the syntax: $query"
         )
       )
@@ -475,7 +475,11 @@ case class ValidateReadStreaming(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId
       neo4jOptions.query.queryType match {
         case QueryType.QUERY => {
           ValidationUtil.isTrue(
-            schemaService.isValidQuery(neo4jOptions.streamingOptions.queryOffset, summary.QueryType.READ_ONLY),
+            schemaService.isValidQuery(
+              neo4jOptions.streamingOptions.queryOffset,
+              new java.util.HashMap[String, AnyRef](),
+              summary.QueryType.READ_ONLY
+            ),
             """
               |Please set `streaming.query.offset` with a valid Cypher READ_ONLY query
               |that returns a long value i.e.

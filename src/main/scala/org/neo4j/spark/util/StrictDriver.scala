@@ -426,6 +426,15 @@ final private class StrictResult(
 
 private object StrictResult {
 
+  private val ignoredCodes = Set(
+    // unknown node label - ignored since most tests start from an empty database
+    "01N50",
+    // unknown rel type - ignored since most tests start from an empty database
+    "01N51",
+    // unknown property key - ignored since most tests start from an empty database
+    "01N52"
+  )
+
   def checkWarnings(query: String, summary: ResultSummary): Unit = {
     val queryWarnings = warnings(summary)
     if (queryWarnings.nonEmpty) {
@@ -438,6 +447,7 @@ private object StrictResult {
       .asScala
       .filter {
         case notification: GqlNotification =>
+          !ignoredCodes.contains(notification.gqlStatus()) &&
           notification.severity()
             .filter(sev => sev == NotificationSeverity.WARNING)
             .isPresent

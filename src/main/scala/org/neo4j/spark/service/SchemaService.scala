@@ -23,6 +23,9 @@ import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.neo4j.caniuse.Neo4j
+import org.neo4j.cypherdsl.core.Cypher
+import org.neo4j.cypherdsl.core.Cypher.asterisk
+import org.neo4j.cypherdsl.core.Cypher.callRawCypher
 import org.neo4j.driver.Record
 import org.neo4j.driver.Session
 import org.neo4j.driver.TransactionContext
@@ -65,8 +68,10 @@ class SchemaService(
   private val filters: Array[Filter] = Array.empty
 ) extends AutoCloseable with Logging {
 
+  private val renderer = new CypherRenderer(neo4j, options)
+
   private val queryReadStrategy =
-    new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, options), filters, withPreamble = false)
+    new Neo4jQueryReadStrategy(neo4j, renderer, filters, withPreamble = false)
 
   private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
 
@@ -278,15 +283,13 @@ class SchemaService(
 
   private def structForQuery(): StructType = {
     val query = queryReadStrategy.createStatementForQuery(options)
-    if (!isValidQuery(query, summary.QueryType.READ_ONLY)) {
-      return new StructType()
-    }
-
     val params = Map[String, AnyRef](
       Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT -> Collections.emptyList(),
       Neo4jQueryStrategy.VARIABLE_STREAM -> Collections.emptyMap()
-    )
-      .asJava
+    ).asJava
+    if (!isValidQuery(query, params, summary.QueryType.READ_ONLY)) {
+      return new StructType()
+    }
 
     val randLimitedQueryForSchema =
       s"""
@@ -294,21 +297,18 @@ class SchemaService(
          |ORDER BY rand()
          |LIMIT ${options.schemaMetadata.flattenLimit}
          |""".stripMargin
-    val randCallLimitedQueryForSchema =
-      s"""
-         |CALL {
-         |  $query
-         |} RETURN *
-         |ORDER BY rand()
-         |LIMIT ${options.schemaMetadata.flattenLimit}
-         |""".stripMargin
+    val randCallLimitedQueryForSchema = renderer.render(Cypher.callRawCypher(query)
+      .returning(Cypher.asterisk())
+      .orderBy(Cypher.rand())
+      .limit(options.schemaMetadata.flattenLimit)
+      .build())
 
     val limitedQuery =
-      if (isValidQuery(randLimitedQueryForSchema)) randLimitedQueryForSchema else randCallLimitedQueryForSchema
+      if (isValidQuery(randLimitedQueryForSchema, params)) randLimitedQueryForSchema else randCallLimitedQueryForSchema
 
     val structFields = retrieveSchema(limitedQuery, params, { record => record.asMap.asScala.toMap })
 
-    val columns = getReturnedColumns(query)
+    val columns = getReturnedColumns(query, params)
     if (columns.isEmpty && structFields.isEmpty) {
       throw new ClientException(
         "Unable to compute the resulting schema; this may mean your result set is empty or your version of Neo4j does not permit schema inference for empty sets"
@@ -414,8 +414,8 @@ class SchemaService(
       .toSeq
   }
 
-  private def getReturnedColumns(query: String): Array[String] =
-    session.executeRead(tx => tx.run("EXPLAIN " + query).keys(), sessionTransactionConfig)
+  private def getReturnedColumns(query: String, params: util.Map[String, AnyRef]): Array[String] =
+    session.executeRead(tx => tx.run("EXPLAIN " + query, params).keys(), sessionTransactionConfig)
       .asScala.toArray
 
   def struct(): StructType = {
@@ -582,9 +582,9 @@ class SchemaService(
       val query = if (queryCount.nonEmpty) {
         options.queryMetadata.queryCount
       } else {
-        s"""CALL { ${options.query.value} }
-           |RETURN count(*) AS count
-           |""".stripMargin
+        renderer.render(callRawCypher(options.query.value)
+          .returning(Cypher.count(asterisk()).as("count"))
+          .build())
       }
       session.executeRead(tx => tx.run(query).single(), sessionTransactionConfig).get("count").asLong()
     }
@@ -650,10 +650,14 @@ class SchemaService(
       case e: Throwable => s"Query count not compiled for the following exception: ${ExceptionUtils.getMessage(e)}"
     }
 
-  def isValidQuery(query: String, expectedQueryTypes: org.neo4j.driver.summary.QueryType*): Boolean =
+  def isValidQuery(
+    query: String,
+    params: util.Map[String, AnyRef],
+    expectedQueryTypes: org.neo4j.driver.summary.QueryType*
+  ): Boolean =
     try {
       val queryType =
-        session.executeRead(tx => tx.run(s"EXPLAIN $query").consume(), sessionTransactionConfig).queryType()
+        session.executeRead(tx => tx.run(s"EXPLAIN $query", params).consume(), sessionTransactionConfig).queryType()
       expectedQueryTypes.isEmpty || expectedQueryTypes.contains(queryType)
     } catch {
       case e: Throwable => {
