@@ -144,7 +144,7 @@ object TransactionTimeoutIT {
   }
 
   @AfterAll
-  def tearDown() = {
+  def tearDown(): Unit = {
     TestUtil.closeSafely(NEO4J_LOW_TX_TIMEOUT)
   }
 }

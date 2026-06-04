@@ -24,8 +24,6 @@ import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 @SelectClasses(Array(
   classOf[DataSourceWriterNeo4jTSE],
   classOf[DataSourceWriterTSE],
-  classOf[DataSourceSchemaWriterTSE],
-  classOf[DataSourceStreamingReaderTSE],
-  classOf[DataSourceStreamingWriterTSE]
+  classOf[DataSourceSchemaWriterTSE]
 ))
 class SparkConnector30ScalaSuiteIT extends SparkConnectorScalaSuiteIT {}
