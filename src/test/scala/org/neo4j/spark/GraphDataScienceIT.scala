@@ -16,13 +16,13 @@
  */
 package org.neo4j.spark
 
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.types._
-import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.{AfterEach, DisplayName, Test}
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Assumptions.assumeTrue
-import org.junit.jupiter.api.Test
 import org.neo4j.spark.testsupport.Closeables.use
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithGdsBase
 import org.neo4j.spark.testsupport.TestUtil
@@ -30,7 +30,11 @@ import org.neo4j.spark.testsupport.Versions
 
 import scala.math.Ordering.Implicits.infixOrderingOps
 
+@DisplayName("graph data science")
 class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
+
+  private val dataSourceFormat = classOf[DataSource].getName
+  private val boltUrl = SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl
 
   @AfterEach
   def cleanData(): Unit = {
@@ -54,26 +58,23 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
   }
 
   @Test
-  def shouldReturnThePageRank(): Unit = {
+  def returns_the_page_rank(): Unit = {
     initForPageRank()
 
-    val df = ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
-      .option("gds", "gds.pageRank.stream")
-      .option("gds.graphName", "myGraph")
-      .option("gds.configuration.concurrency", "2")
-      .load()
+    val df = read(
+      "gds" -> "gds.pageRank.stream",
+      "gds.graphName" -> "myGraph",
+      "gds.configuration.concurrency" -> "2"
+    )
     assertEquals(df.count(), 8)
-    df.show(false)
 
     assertEquals(StructType(Array(StructField("nodeId", LongType), StructField("score", DoubleType))), df.schema)
 
-    val dfEstimate = ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
-      .option("gds", "gds.pageRank.stream.estimate")
-      .option("gds.graphNameOrConfiguration", "myGraph")
-      .option("gds.algoConfiguration.concurrency", "2")
-      .load()
+    val dfEstimate = read(
+      "gds" -> "gds.pageRank.stream.estimate",
+      "gds.graphNameOrConfiguration" -> "myGraph",
+      "gds.algoConfiguration.concurrency" -> "2"
+    )
     assertEquals(dfEstimate.count(), 1)
     dfEstimate.show(false)
 
@@ -96,13 +97,13 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
   }
 
   @Test
-  def shouldFailWithUnsupportedOptions(): Unit = {
+  def fails_with_unsupported_options(): Unit = {
     initForPageRank()
 
     def run(options: Map[String, String], error: String): Unit = {
       try {
-        ss.read.format(classOf[DataSource].getName)
-          .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
+        ss.read.format(dataSourceFormat)
+          .option("url", boltUrl)
           .options(options)
           .load()
           .show(false)
@@ -145,20 +146,18 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
   }
 
   @Test
-  def shouldWorkWithMapReturn(): Unit = {
+  def works_with_map_return(): Unit = {
     initForHits()
 
     val procName = if (TestUtil.gdsVersion(SparkConnectorScalaSuiteWithGdsBase.session()) >= Versions.GDS_2_5)
       "gds.hits.stream"
     else "gds.alpha.hits.stream"
-    val df = ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
-      .option("gds", procName)
-      .option("gds.graphName", "myGraph")
-      .option("gds.configuration.hitsIterations", "20")
-      .load()
+    val df = read(
+      "gds" -> procName,
+      "gds.graphName" -> "myGraph",
+      "gds.configuration.hitsIterations" -> "20"
+    )
     assertEquals(df.count(), 9)
-    df.show(false)
 
     assertEquals(
       StructType(Array(StructField("nodeId", LongType), StructField("values", MapType(StringType, StringType)))),
@@ -167,13 +166,10 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
   }
 
   @Test
-  def shouldWorkWithPathReturn(): Unit = {
+  def works_with_path_return(): Unit = {
     initForYens()
 
-    val sourceTargetNodes = ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
-      .option("labels", "Location")
-      .load()
+    val sourceTargetNodes = read("labels" -> "Location")
       .where("name IN ('A', 'F')")
       .orderBy("name")
       .collect()
@@ -186,17 +182,15 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
         sourceTargetNodes(1).getAs[String]("<elementId>").split(":").last.toLong
       )
 
-    val df = ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
-      .option("gds", "gds.shortestPath.yens.stream")
-      .option("gds.graphName", "myGraph")
-      .option("gds.configuration.sourceNode", sourceId)
-      .option("gds.configuration.targetNode", targetId)
-      .option("gds.configuration.k", 3)
-      .option("gds.configuration.relationshipWeightProperty", "cost")
-      .load()
+    val df = read(
+      "gds" -> "gds.shortestPath.yens.stream",
+      "gds.graphName" -> "myGraph",
+      "gds.configuration.sourceNode" -> sourceId,
+      "gds.configuration.targetNode" -> targetId,
+      "gds.configuration.k" -> 3,
+      "gds.configuration.relationshipWeightProperty" -> "cost"
+    )
     assertEquals(df.count(), 3)
-    df.show(false)
 
     assertEquals(
       StructType(
@@ -217,15 +211,14 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
       if (TestUtil.gdsVersion(SparkConnectorScalaSuiteWithGdsBase.session()) >= Versions.GDS_2_4)
         ("graphName", "configuration")
       else ("graphNameOrConfiguration", "algoConfiguration")
-    val dfEstimate = ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
-      .option("gds", "gds.shortestPath.yens.stream.estimate")
-      .option(s"gds.$graphNameParam", "myGraph")
-      .option(s"gds.$algoConfigurationParam.sourceNode", sourceId)
-      .option(s"gds.$algoConfigurationParam.targetNode", targetId)
-      .option(s"gds.$algoConfigurationParam.k", 3)
-      .option(s"gds.$algoConfigurationParam.relationshipWeightProperty", "cost")
-      .load()
+    val dfEstimate = read(
+      "gds" -> "gds.shortestPath.yens.stream.estimate",
+      s"gds.$graphNameParam" -> "myGraph",
+      s"gds.$algoConfigurationParam.sourceNode" -> sourceId,
+      s"gds.$algoConfigurationParam.targetNode" -> targetId,
+      s"gds.$algoConfigurationParam.k" -> 3,
+      s"gds.$algoConfigurationParam.relationshipWeightProperty" -> "cost"
+    )
     assertEquals(dfEstimate.count(), 1)
     dfEstimate.show(false)
 
@@ -247,42 +240,9 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
     )
   }
 
-  private def initForYens(): Unit = {
-    SparkConnectorScalaSuiteWithGdsBase.session()
-      .executeWrite(tx =>
-        tx.run(
-          """
-            |CREATE (a:Location {name: 'A'}),
-            |       (b:Location {name: 'B'}),
-            |       (c:Location {name: 'C'}),
-            |       (d:Location {name: 'D'}),
-            |       (e:Location {name: 'E'}),
-            |       (f:Location {name: 'F'}),
-            |       (a)-[:ROAD {cost: 50}]->(b),
-            |       (a)-[:ROAD {cost: 50}]->(c),
-            |       (a)-[:ROAD {cost: 100}]->(d),
-            |       (b)-[:ROAD {cost: 40}]->(d),
-            |       (c)-[:ROAD {cost: 40}]->(d),
-            |       (c)-[:ROAD {cost: 80}]->(e),
-            |       (d)-[:ROAD {cost: 30}]->(e),
-            |       (d)-[:ROAD {cost: 80}]->(f),
-            |       (e)-[:ROAD {cost: 40}]->(f);
-            |""".stripMargin
-        ).consume()
-      )
-    ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
-      .option("gds", "gds.graph.project")
-      .option("gds.graphName", "myGraph")
-      .option("gds.nodeProjection", "Location")
-      .option("gds.relationshipProjection", "ROAD")
-      .option("gds.configuration.relationshipProperties", "cost")
-      .load()
-      .show(false)
-  }
 
   @Test
-  def shouldWorkWithKNearest(): Unit = {
+  def works_with_k_nearest(): Unit = {
     SparkConnectorScalaSuiteWithGdsBase.session()
       .executeWrite(tx =>
         tx.run(
@@ -296,29 +256,25 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
         ).consume()
       )
 
-    ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
-      .option("gds", "gds.graph.project")
-      .option("gds.graphName", "myGraph")
-      .option("gds.nodeProjection.Person.properties", "['age','lotteryNumbers','embedding']")
-      .option("gds.relationshipProjection", "*")
-      .load()
-      .show(false)
+    read(
+      "gds" -> "gds.graph.project",
+      "gds.graphName" -> "myGraph",
+      "gds.nodeProjection.Person.properties" -> "['age','lotteryNumbers','embedding']",
+      "gds.relationshipProjection" -> "*"
+    ).show(false)
 
-    val df = ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
-      .option("gds", "gds.knn.stream")
-      .option("gds.graphName", "myGraph")
-      .option("gds.configuration.topK", 1)
-      .option("gds.configuration.nodeProperties", "['age']")
-      .option("gds.configuration.randomSeed", 1337)
-      .option("gds.configuration.concurrency", 1)
-      .option("gds.configuration.sampleRate", 1.0)
-      .option("gds.configuration.deltaThreshold", 0.0)
-      .load()
+    val df = read(
+      "gds" -> "gds.knn.stream",
+      "gds.graphName" -> "myGraph",
+      "gds.configuration.topK" -> 1,
+      "gds.configuration.nodeProperties" -> "['age']",
+      "gds.configuration.randomSeed" -> 1337,
+      "gds.configuration.concurrency" -> 1,
+      "gds.configuration.sampleRate" -> 1.0,
+      "gds.configuration.deltaThreshold" -> 0.0
+    )
 
     assertEquals(df.count(), 5)
-    df.show(false)
 
     assertEquals(
       StructType(
@@ -331,17 +287,16 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
       df.schema
     )
 
-    val dfEstimate = ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
-      .option("gds", "gds.knn.stream.estimate")
-      .option("gds.graphNameOrConfiguration", "myGraph")
-      .option("gds.algoConfiguration.topK", 1)
-      .option("gds.algoConfiguration.nodeProperties", "['age']")
-      .option("gds.algoConfiguration.randomSeed", 1337)
-      .option("gds.algoConfiguration.concurrency", 1)
-      .option("gds.algoConfiguration.sampleRate", 1.0)
-      .option("gds.algoConfiguration.deltaThreshold", 0.0)
-      .load()
+    val dfEstimate = read(
+      "gds" -> "gds.knn.stream.estimate",
+      "gds.graphNameOrConfiguration" -> "myGraph",
+      "gds.algoConfiguration.topK" -> 1,
+      "gds.algoConfiguration.nodeProperties" -> "['age']",
+      "gds.algoConfiguration.randomSeed" -> 1337,
+      "gds.algoConfiguration.concurrency" -> 1,
+      "gds.algoConfiguration.sampleRate" -> 1.0,
+      "gds.algoConfiguration.deltaThreshold" -> 0.0
+    )
     assertEquals(dfEstimate.count(), 1)
     dfEstimate.show(false)
 
@@ -395,15 +350,13 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
             |""".stripMargin
         ).consume()
       )
-    ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
-      .option("gds", "gds.graph.project")
-      .option("gds.graphName", "myGraph")
-      .option("gds.nodeProjection", "Page")
-      .option("gds.relationshipProjection", "LINKS")
-      .option("gds.configuration.relationshipProperties", "weight")
-      .load()
-      .show(false)
+    read(
+      "gds" -> "gds.graph.project",
+      "gds.graphName" -> "myGraph",
+      "gds.nodeProjection" -> "Page",
+      "gds.relationshipProjection" -> "LINKS",
+      "gds.configuration.relationshipProperties" -> "weight"
+    ).show(false)
   }
 
   private def initForHits(): Unit = {
@@ -412,7 +365,7 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
       .executeWrite(tx =>
         tx.run(
           """
-              CREATE
+            |CREATE
             |  (a:Website {name: 'A'}),
             |  (b:Website {name: 'B'}),
             |  (c:Website {name: 'C'}),
@@ -444,13 +397,50 @@ class GraphDataScienceIT extends SparkConnectorScalaSuiteWithGdsBase {
             |""".stripMargin
         ).consume()
       )
-    ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
-      .option("gds", "gds.graph.project")
-      .option("gds.graphName", "myGraph")
-      .option("gds.nodeProjection", "Website")
-      .option("gds.relationshipProjection.LINK.indexInverse", "true")
-      .load()
-      .show(false)
+    read(
+      "gds" -> "gds.graph.project",
+      "gds.graphName" -> "myGraph",
+      "gds.nodeProjection" -> "Website",
+      "gds.relationshipProjection.LINK.indexInverse" -> "true"
+    ).show(false)
   }
+
+  private def initForYens(): Unit = {
+    SparkConnectorScalaSuiteWithGdsBase.session()
+      .executeWrite(tx =>
+        tx.run(
+          """
+            |CREATE (a:Location {name: 'A'}),
+            |       (b:Location {name: 'B'}),
+            |       (c:Location {name: 'C'}),
+            |       (d:Location {name: 'D'}),
+            |       (e:Location {name: 'E'}),
+            |       (f:Location {name: 'F'}),
+            |       (a)-[:ROAD {cost: 50}]->(b),
+            |       (a)-[:ROAD {cost: 50}]->(c),
+            |       (a)-[:ROAD {cost: 100}]->(d),
+            |       (b)-[:ROAD {cost: 40}]->(d),
+            |       (c)-[:ROAD {cost: 40}]->(d),
+            |       (c)-[:ROAD {cost: 80}]->(e),
+            |       (d)-[:ROAD {cost: 30}]->(e),
+            |       (d)-[:ROAD {cost: 80}]->(f),
+            |       (e)-[:ROAD {cost: 40}]->(f);
+            |""".stripMargin
+        ).consume()
+      )
+    read(
+      "gds" -> "gds.graph.project",
+      "gds.graphName" -> "myGraph",
+      "gds.nodeProjection" -> "Location",
+      "gds.relationshipProjection" -> "ROAD",
+      "gds.configuration.relationshipProperties" -> "cost"
+    ).show(false)
+  }
+
+  private def read(options: (String, Any)*): DataFrame =
+    options
+      .foldLeft(ss.read.format(dataSourceFormat).option("url", boltUrl)) {
+        case (reader, (key, value)) => reader.option(key, value.toString)
+      }
+      .load()
 }
