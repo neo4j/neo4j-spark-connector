@@ -68,5 +68,16 @@ object Neo4jExtensions {
         .get("hasApoc")
         .asBoolean()
     }
+
+    def serverSupportsGds(): Boolean = {
+      driver.executableQuery(
+        "SHOW PROCEDURES YIELD name RETURN any(x IN collect(name) WHERE x STARTS WITH 'gds.') AS hasGDS"
+      )
+        .execute()
+        .records()
+        .get(0)
+        .get("hasGDS")
+        .asBoolean()
+    }
   }
 }

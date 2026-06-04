@@ -22,6 +22,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.fail
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -32,7 +33,7 @@ import org.junit.jupiter.params.ParameterizedClass
 import org.junit.jupiter.params.provider.ArgumentsSource
 import org.neo4j.driver.Driver
 import org.neo4j.spark.testsupport.Closeables.use
-import org.neo4j.spark.testsupport.GdsContainerProvider
+import org.neo4j.spark.testsupport.Neo4jContainerProvider
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
 import org.neo4j.spark.testsupport.TestUtil
@@ -43,7 +44,7 @@ import scala.math.Ordering.Implicits.infixOrderingOps
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ParameterizedClass(name = "{argumentSetName}")
-@ArgumentsSource(classOf[GdsContainerProvider])
+@ArgumentsSource(classOf[Neo4jContainerProvider])
 @DisplayName("graph data science")
 class GraphDataScienceIT {
 
@@ -62,13 +63,14 @@ class GraphDataScienceIT {
       neo4jContainer.start()
     }
     driver = neo4jContainer.driver()
+    Assumptions.assumeTrue(driver.serverSupportsGds())
     driver.createOrReplaceDatabase("neo4j")
     ss = neo4jContainer.spark()
   }
 
   @AfterEach
   def cleanUp(): Unit = {
-    Option(driver).foreach { d =>
+    Option(driver).filter(_.serverSupportsGds()).foreach { d =>
       d.executableQuery(
         """
           |CALL gds.graph.list() YIELD graphName
