@@ -79,7 +79,7 @@ class StrictDriverTest {
   }
 
   @Test
-  @SetSystemProperty(key = "neo4j.spark.strict.query", value = "true")
+  @SetSystemProperty(key = "strict.cypher", value = "true")
   def driver_cache_wraps_driver_when_strict_mode_is_enabled(): Unit = {
     val strictCache = new DriverCache(neo4jDriverOptions(port = 17600 + (System.nanoTime() % 1000).toInt))
     val strictDriver = strictCache.getOrCreate()
