@@ -20,6 +20,8 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.util.ClearSystemProperty
+import org.junit.jupiter.api.util.SetSystemProperty
 import org.neo4j.spark.testsupport.Closeables.use
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT.server
@@ -27,6 +29,7 @@ import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT.server
 class Neo4jOptionsIT extends SparkConnectorScalaSuiteIT {
 
   @Test
+  @ClearSystemProperty(key = "strict.cypher")
   def creates_regular_driver(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, server.getBoltUrl)
@@ -45,11 +48,11 @@ class Neo4jOptionsIT extends SparkConnectorScalaSuiteIT {
   }
 
   @Test
+  @SetSystemProperty(key = "strict.cypher", value = "true")
   def creates_strict_driver(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, server.getBoltUrl)
     options.put(Neo4jOptions.AUTH_TYPE, "none")
-    options.put(Neo4jOptions.INTERNAL_STRICT_QUERY, "true")
 
     val neo4jOptions = new Neo4jOptions(options)
 

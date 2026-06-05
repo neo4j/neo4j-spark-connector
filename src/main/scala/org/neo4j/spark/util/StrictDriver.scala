@@ -29,7 +29,7 @@ import java.util.stream.Stream
 import scala.jdk.CollectionConverters.SetHasAsScala
 
 /**
- * StrictDriver is a delegating driver used by the connector when the `Neo4jOptions.STRICT` option is enabled.
+ * StrictDriver is a delegating driver used by the connector when strict query mode is enabled.
  *
  * The Neo4j Driver exposes Cypher notifications on `ResultSummary`, but result streams are lazy: a query can
  * return a `Result` before the server has produced the final summary that contains warnings. This delegate wraps the

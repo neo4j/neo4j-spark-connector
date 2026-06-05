@@ -22,6 +22,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api._
+import org.junit.jupiter.api.util.SetSystemProperty
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver._
@@ -81,6 +82,7 @@ object SparkConnectorScalaSuiteWithGdsBase {
   }
 }
 
+@SetSystemProperty(key = "strict.cypher", value = "true")
 class SparkConnectorScalaSuiteWithGdsBase {
 
   val conf: SparkConf = SparkConnectorScalaSuiteWithGdsBase.conf

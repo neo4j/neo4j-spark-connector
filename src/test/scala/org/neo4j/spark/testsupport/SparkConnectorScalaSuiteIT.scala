@@ -21,6 +21,7 @@ import org.apache.spark.sql.SparkSession
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.util.SetSystemProperty
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver._
@@ -60,7 +61,6 @@ object SparkConnectorScalaSuiteIT {
         .setMaster("local[*]")
         .set("spark.driver.host", "127.0.0.1")
         .set("spark.sql.warehouse.dir", tmpDir.getAbsolutePath)
-        .set("neo4j.__internal_strict__", "true")
       ss = SparkSession.builder().config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       neo4j = Neo4jDetector.INSTANCE.detect(driver)
@@ -85,4 +85,5 @@ object SparkConnectorScalaSuiteIT {
   }
 }
 
+@SetSystemProperty(key = "strict.cypher", value = "true")
 class SparkConnectorScalaSuiteIT {}
