@@ -43,7 +43,7 @@
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <connectors-commons.version>1.0.0-rc2</connectors-commons.version>
         <cypherdsl.version>2022.11.0</cypherdsl.version>
-        <driver.version>4.4.23</driver.version>
+        <driver.version>4.4.24</driver.version>
         <java.version>1.8</java.version>
         <!-- 3.4.3.Final is the latest jboss-logging version compatible with java 8 -->
         <jboss-logging.version>3.4.3.Final</jboss-logging.version>
