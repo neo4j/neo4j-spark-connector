@@ -60,6 +60,7 @@ object SparkConnectorScalaSuiteIT {
         .setMaster("local[*]")
         .set("spark.driver.host", "127.0.0.1")
         .set("spark.sql.warehouse.dir", tmpDir.getAbsolutePath)
+        .set("neo4j.__internal_strict__", "true")
       ss = SparkSession.builder().config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       neo4j = Neo4jDetector.INSTANCE.detect(driver)

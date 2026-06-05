@@ -174,7 +174,8 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS,
       DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS.toString
     ).toInt,
-    getParameter(CONNECTION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt
+    getParameter(CONNECTION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt,
+    minimumNotificationSeverity(getParameter(INTERNAL_STRICT_QUERY, DEFAULT_INTERNAL_STRICT_QUERY.toString).toBoolean)
   )
 
   val session: Neo4jSessionOptions = Neo4jSessionOptions(
@@ -360,6 +361,13 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       .toMap
       .toNestedPrimitiveDeserializedJsonJavaMap
 
+  private def minimumNotificationSeverity(strictMode: Boolean): NotificationSeverity = {
+    if (strictMode) {
+      NotificationSeverity.WARNING
+    } else {
+      NotificationSeverity.OFF
+    }
+  }
 }
 
 case class Neo4jStreamingOptions(
@@ -451,12 +459,18 @@ case class Neo4jDriverOptions(
   lifetime: Int,
   acquisitionTimeout: Int,
   livenessCheckTimeout: Int,
-  connectionTimeout: Int
+  connectionTimeout: Int,
+  minNotificationSeverity: NotificationSeverity
 ) extends Serializable {
 
   def createDriver(): Driver = {
     val (url, _) = connectionUrls
-    GraphDatabase.driver(url, createAuthTokenManager, toDriverConfig)
+    val driver = GraphDatabase.driver(url, createAuthTokenManager, toDriverConfig)
+    if (minNotificationSeverity == NotificationSeverity.WARNING) {
+      new StrictDriver(driver)
+    } else {
+      driver
+    }
   }
 
   @nowarn("cat=deprecation")
@@ -464,6 +478,7 @@ case class Neo4jDriverOptions(
     val builder = Config.builder()
       .withUserAgent(s"neo4j-${Neo4jUtil.connectorEnv}-connector/${Neo4jUtil.connectorVersion}")
       .withLogging(Logging.slf4j())
+      .withMinimumNotificationSeverity(minNotificationSeverity)
 
     if (lifetime > -1) builder.withMaxConnectionLifetime(lifetime, TimeUnit.MILLISECONDS)
     if (acquisitionTimeout > -1) builder.withConnectionAcquisitionTimeout(acquisitionTimeout, TimeUnit.MILLISECONDS)
@@ -646,6 +661,7 @@ object Neo4jOptions {
   val CONNECTION_ACQUISITION_TIMEOUT_MSECS = "connection.acquisition.timeout.msecs"
   val CONNECTION_TIMEOUT_MSECS = "connection.timeout.msecs"
   val TRANSACTION_TIMEOUT_MSECS = "db.transaction.timeout"
+  val INTERNAL_STRICT_QUERY = "__internal_strict__" // fails on any Cypher warnings
 
   // session options
   val DATABASE = "database"
@@ -775,6 +791,7 @@ object Neo4jOptions {
   val DEFAULT_PARTITIONS = 1
   val DEFAULT_SAVE_MODE = SaveMode.Overwrite
   val DEFAULT_STREAMING_FROM = StreamingFrom.NOW
+  val DEFAULT_INTERNAL_STRICT_QUERY = false
 
   // Default values optimizations for Aura please look at: https://aura.support.neo4j.com/hc/en-us/articles/1500002493281-Neo4j-Java-driver-settings-for-Aura
   val DEFAULT_CONNECTION_MAX_LIFETIME_MSECS = Duration.ofMinutes(8).toMillis

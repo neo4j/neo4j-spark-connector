@@ -1599,10 +1599,10 @@ class ReadIT {
       Assumptions.assumeTrue(driver.serverSupportsApoc())
 
       val df = spark.read.format(classOf[DataSource].getName)
-        .option("query", "RETURN apoc.convert.toSet([1,1,3]) AS foo, 'bar' AS bar")
+        .option("query", """RETURN apoc.convert.toJson({name: "Cem Karaca", time: datetime()}) AS output""")
         .load()
 
-      assertThat(df.columns.toSeq.asJava).containsExactly("foo", "bar")
+      assertThat(df.columns.toSeq.asJava).containsExactly("output")
       assertThat(df.count()).isEqualTo(1)
     }
 
@@ -1857,6 +1857,8 @@ class ReadIT {
           spark.read
             .format(classOf[DataSource].getName)
             .option("query", s"MATCH (n:Label) RETURN elementId(n) as id $limitKeyword 100")
+            // generated query would yield 42I63 b/c of misplaced LIMIT in strict mode
+            .option("__internal_strict__", "false")
             .load()
             .show() // show is needed to trigger the exception because of changes in Spark 3
         })

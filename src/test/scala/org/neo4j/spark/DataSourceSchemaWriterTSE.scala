@@ -61,6 +61,7 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     .master("local[*]")
     .appName("DataSourceWriterTSE")
     .config("spark.sql.session.timeZone", timeZoneLock) // to make TIMESTAMP_NTZ tests deterministic
+    .config("neo4j.__internal_strict__", "true")
     .getOrCreate()
 
   final private val SHOW_CONSTRAINTS_QUERY =
