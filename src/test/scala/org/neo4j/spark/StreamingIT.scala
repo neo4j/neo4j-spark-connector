@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.api.util.SetSystemProperty
 import org.junit.jupiter.params.Parameter
 import org.junit.jupiter.params.ParameterizedClass
 import org.junit.jupiter.params.provider.ArgumentsSource
@@ -53,6 +54,7 @@ import scala.jdk.CollectionConverters.SeqHasAsJava
 @ParameterizedClass(name = "{argumentSetName}")
 @ArgumentsSource(classOf[Neo4jContainerProvider])
 @DisplayName("streaming")
+@SetSystemProperty(key = "strict.cypher", value = "true")
 class StreamingIT {
 
   @Parameter
@@ -107,7 +109,6 @@ class StreamingIT {
       createMovieNodes(0, 1)
 
       query = spark.readStream.format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option("labels", "Movie")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "NOW")
@@ -136,7 +137,6 @@ class StreamingIT {
       createMovieNodes(0, 1)
 
       query = spark.readStream.format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option("labels", "Movie")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "ALL")
@@ -165,7 +165,6 @@ class StreamingIT {
       createMovieNodes(0, 1)
 
       val stream = spark.readStream.format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option("labels", "Movie")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "NOW")
@@ -193,7 +192,6 @@ class StreamingIT {
       createLikesRelationships(0, 1)
 
       query = spark.readStream.format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option("relationship", "LIKES")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "NOW")
@@ -230,7 +228,6 @@ class StreamingIT {
       createLikesRelationships(0, 1)
 
       query = spark.readStream.format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option("relationship", "LIKES")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "ALL")
@@ -267,7 +264,6 @@ class StreamingIT {
       createLikesRelationships(0, 1)
 
       val stream = spark.readStream.format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option("relationship", "LIKES")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "ALL")
@@ -303,7 +299,6 @@ class StreamingIT {
       createPersonNodes(0, 1)
 
       query = spark.readStream.format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option(OptFrom, "NOW")
         .option(OptPropertyName, "timestamp")
         .option("query", personStreamingQuery)
@@ -330,7 +325,6 @@ class StreamingIT {
       createPersonNodes(0, 1)
 
       query = spark.readStream.format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "ALL")
         .option("query", personStreamingQuery)
@@ -357,7 +351,6 @@ class StreamingIT {
       createPersonNodes(0, 1)
 
       val stream = spark.readStream.format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "ALL")
         .option("query", personStreamingQuery)
@@ -385,7 +378,6 @@ class StreamingIT {
       driver.executableQuery("MATCH (p:Person) SET p:Human").execute()
 
       val stream = spark.readStream.format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "ALL")
         .option("query", personStreamingQuery)
@@ -489,7 +481,6 @@ class StreamingIT {
       val stream = memoryStream()
       query = stream.toDF().writeStream
         .format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option("save.mode", "Append")
         .option("labels", "Timestamp")
         .option("node.keys", "value")
@@ -510,7 +501,6 @@ class StreamingIT {
       val stream = memoryStream()
       query = stream.toDF().writeStream
         .format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option("save.mode", "Overwrite")
         .option("labels", "Timestamp")
         .option("node.keys", "value")
@@ -527,7 +517,6 @@ class StreamingIT {
       val stream = memoryStream()
       query = stream.toDF().writeStream
         .format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option("save.mode", "Append")
         .option("relationship", "PAIRS")
         .option("relationship.save.strategy", "keys")
@@ -554,7 +543,6 @@ class StreamingIT {
       val stream = memoryStream()
       query = stream.toDF().writeStream
         .format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option("save.mode", "Append")
         .option("relationship", "PAIRS")
         .option("relationship.save.strategy", "keys")
@@ -578,7 +566,6 @@ class StreamingIT {
       val stream = memoryStream()
       query = stream.toDF().writeStream
         .format(dataSourceFormat)
-        .option("__internal_strict__", "true")
         .option("query", "MERGE (m:MyNewNode {the_value: event.value})")
         .option("checkpointLocation", checkpoint())
         .start()

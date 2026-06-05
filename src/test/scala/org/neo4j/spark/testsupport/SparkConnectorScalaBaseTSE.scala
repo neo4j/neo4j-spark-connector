@@ -19,6 +19,7 @@ package org.neo4j.spark.testsupport
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.junit.jupiter.api._
+import org.junit.jupiter.api.util.SetSystemProperty
 import org.neo4j.spark.testsupport.Closeables.use
 
 object SparkConnectorScalaBaseTSE {
@@ -42,6 +43,7 @@ object SparkConnectorScalaBaseTSE {
 
 }
 
+@SetSystemProperty(key = "strict.cypher", value = "true")
 class SparkConnectorScalaBaseTSE {
   val conf: SparkConf = SparkConnectorScalaSuiteIT.conf
   val ss: SparkSession = SparkConnectorScalaSuiteIT.ss

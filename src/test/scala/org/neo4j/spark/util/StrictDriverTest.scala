@@ -19,6 +19,8 @@ package org.neo4j.spark.util
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.util.ClearSystemProperty
+import org.junit.jupiter.api.util.SetSystemProperty
 import org.neo4j.driver._
 import org.neo4j.driver.internal.summary.InternalGqlNotification
 import org.neo4j.driver.summary._
@@ -77,14 +79,18 @@ class StrictDriverTest {
   }
 
   @Test
-  def driver_cache_wraps_driver_only_when_strict_mode_is_enabled(): Unit = {
-    val portBase = 17600 + (System.nanoTime() % 1000).toInt
-    val strictCache = new DriverCache(neo4jDriverOptions(strict = true, portBase))
+  @SetSystemProperty(key = "neo4j.spark.strict.query", value = "true")
+  def driver_cache_wraps_driver_when_strict_mode_is_enabled(): Unit = {
+    val strictCache = new DriverCache(neo4jDriverOptions(port = 17600 + (System.nanoTime() % 1000).toInt))
     val strictDriver = strictCache.getOrCreate()
     assertThat(strictDriver).isInstanceOf(classOf[StrictDriver])
     strictCache.close()
+  }
 
-    val nonStrictCache = new DriverCache(neo4jDriverOptions(strict = false, portBase + 1))
+  @Test
+  @ClearSystemProperty(key = "neo4j.spark.strict.query")
+  def driver_cache_uses_regular_driver_when_strict_mode_is_disabled(): Unit = {
+    val nonStrictCache = new DriverCache(neo4jDriverOptions(port = 17600 + (System.nanoTime() % 1000).toInt))
     val nonStrictDriver = nonStrictCache.getOrCreate()
     assertThat(nonStrictDriver).isNotInstanceOf(classOf[StrictDriver])
     nonStrictCache.close()
@@ -107,12 +113,11 @@ class StrictDriverTest {
     new StubResultSummary(Set[GqlStatusObject](warning).asJava)
   }
 
-  private def neo4jDriverOptions(strict: Boolean, port: Int): Neo4jDriverOptions = {
+  private def neo4jDriverOptions(port: Int): Neo4jDriverOptions = {
     val options = new util.HashMap[String, String]
     options.put(Neo4jOptions.URL, s"bolt://localhost:$port")
     options.put(Neo4jOptions.AUTH_TYPE, "none")
     options.put(org.neo4j.spark.util.QueryType.QUERY.toString.toLowerCase, "RETURN 1")
-    options.put(Neo4jOptions.INTERNAL_STRICT_QUERY, strict.toString)
     new Neo4jOptions(options).connection
   }
 }

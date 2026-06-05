@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.util.SetSystemProperty
 import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.testsupport.TestUtil
@@ -41,7 +42,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
 import java.util.TimeZone
-
 import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.jdk.CollectionConverters.MapHasAsScala
 import scala.math.Ordering.Implicits.infixOrderingOps
@@ -61,7 +61,6 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     .master("local[*]")
     .appName("DataSourceWriterTSE")
     .config("spark.sql.session.timeZone", timeZoneLock) // to make TIMESTAMP_NTZ tests deterministic
-    .config("neo4j.__internal_strict__", "true")
     .getOrCreate()
 
   final private val SHOW_CONSTRAINTS_QUERY =
