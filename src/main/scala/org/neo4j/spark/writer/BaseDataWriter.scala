@@ -39,6 +39,7 @@ import java.time.Duration
 import java.util
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.locks.LockSupport
+
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters.MapHasAsJava
 
@@ -67,7 +68,10 @@ abstract class BaseDataWriter(
   private val retries = new CountDownLatch(options.transactionSettings.retries)
 
   private val query: String =
-    new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(neo4j, new CypherRenderer(neo4j, options), saveMode)).createQuery()
+    new Neo4jQueryService(
+      options,
+      new Neo4jQueryWriteStrategy(neo4j, new CypherRenderer(neo4j, options), saveMode)
+    ).createQuery()
 
   private val metrics = DataWriterMetrics()
 

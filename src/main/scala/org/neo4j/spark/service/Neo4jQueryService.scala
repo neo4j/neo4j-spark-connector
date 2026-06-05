@@ -29,10 +29,12 @@ import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core._
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.cypher.CypherRenderer
-import org.neo4j.spark.service.Neo4jQueryStrategy.unwindEventsClause
+import org.neo4j.spark.service.Neo4jQueryStrategy.VARIABLE_EVENT
+import org.neo4j.spark.service.Neo4jQueryStrategy.unwindEventsAsEvent
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jNodeMetadata
 import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.Neo4jRelationshipMetadata
 import org.neo4j.spark.util.Neo4jTuningOptions
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.NodeSaveMode
@@ -50,26 +52,7 @@ class Neo4jQueryWriteStrategy(
   override def createStatementForQuery(options: Neo4jOptions): String = {
     val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
     val scriptResult = Neo4jQueryStrategy.scriptResultClause(options)
-    val prefixedUnwind = preamble + scriptResult + unwindEventsClause
-    prefixedUnwind + options.query.value
-  }
-
-  private def cypherNode(nodeData: Neo4jNodeMetadata, alias: String): Node = {
-    val n = Cypher.node(nodeData.labels.head, nodeData.labels.tail: _*).named(alias)
-
-    val keyProperties =
-      nodeData.nodeKeys.toSeq.flatMap { case (_, keyName) =>
-        Seq(
-          keyName,
-          Cypher.property(Cypher.name(Neo4jQueryStrategy.VARIABLE_EVENT), Neo4jWriteMappingStrategy.KEYS, keyName)
-        )
-      }
-
-    if (keyProperties.nonEmpty) {
-      n.withProperties(keyProperties: _*)
-    } else {
-      n
-    }
+    preamble + scriptResult + unwindEventsAsEvent + options.query.value
   }
 
   private def createPropsList(props: Map[String, String], prefix: String): String = {
@@ -99,66 +82,145 @@ class Neo4jQueryWriteStrategy(
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
-    val relationshipKeyword = keywordFromSaveMode(saveMode)
-    val sourceKeyword = keywordFromSaveMode(options.relationshipMetadata.sourceSaveMode)
-    val targetKeyword = keywordFromSaveMode(options.relationshipMetadata.targetSaveMode)
+    val sourceNode = cypherNode(options.relationshipMetadata.source, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, "source")
+    val targetNode = cypherNode(options.relationshipMetadata.target, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, "target")
 
-    val relationship = options.relationshipMetadata.relationshipType.quote()
+    val relationshipRel =
+      cypherRelationship(sourceNode, targetNode, options.relationshipMetadata, Neo4jUtil.RELATIONSHIP_ALIAS)
 
-    val sourceLabels = options.relationshipMetadata.source.labels
-      .map(_.quote())
-      .mkString(":")
-
-    val targetLabels = options.relationshipMetadata.target.labels
-      .map(_.quote())
-      .mkString(":")
-
-    val sourceKeys = createPropsList(
-      options.relationshipMetadata.source.nodeKeys,
-      s"source.${Neo4jWriteMappingStrategy.KEYS}"
-    )
-    val targetKeys = createPropsList(
-      options.relationshipMetadata.target.nodeKeys,
-      s"target.${Neo4jWriteMappingStrategy.KEYS}"
-    )
-    val sourceQueryPart = createQueryPart(sourceKeyword, sourceLabels, sourceKeys, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)
-    val targetQueryPart = createQueryPart(targetKeyword, targetLabels, targetKeys, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)
-
-    val withQueryPart = if (sourceKeyword != "MATCH" && targetKeyword == "MATCH")
-      "\nWITH source, event"
-    else {
-      ""
-    }
-
-    val relKeys = if (options.relationshipMetadata.relationshipKeys.nonEmpty) {
-      options.relationshipMetadata.relationshipKeys
-        .map(t =>
-          s"${t._2.quote()}: ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.KEYS}.${t._1.quote()}"
+    val sourceNodeClause = options.relationshipMetadata.sourceSaveMode match {
+      case NodeSaveMode.Overwrite => Cypher.merge(sourceNode).mutate(
+          sourceNode,
+          Cypher.property(Cypher.name(VARIABLE_EVENT), "source", "properties")
         )
-        .mkString("{", ", ", "}")
-    } else {
-      ""
+      case NodeSaveMode.Append => Cypher.create(sourceNode).mutate(
+          sourceNode,
+          Cypher.property(Cypher.name(VARIABLE_EVENT), "source", "properties")
+        )
+      case NodeSaveMode.Match => Cypher.`match`(sourceNode)
     }
 
-    s"""${fullPreamble(neo4j, options)}UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
-       |$sourceQueryPart$withQueryPart
-       |$targetQueryPart
-       |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:$relationship$relKeys]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
-       |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} += ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.PROPERTIES}
-       |""".stripMargin
+    val bothNodesClause =
+      if (
+        options.relationshipMetadata.sourceSaveMode != NodeSaveMode.Match && options.relationshipMetadata.targetSaveMode == NodeSaveMode.Match
+      ) {
+        val withClause = sourceNodeClause.`with`(Cypher.name("source"), Cypher.name("event"))
+
+        options.relationshipMetadata.targetSaveMode match {
+          case NodeSaveMode.Overwrite => withClause.merge(targetNode).mutate(
+              targetNode,
+              Cypher.property(Cypher.name(VARIABLE_EVENT), "target", "properties")
+            )
+          case NodeSaveMode.Append => withClause.create(sourceNode).mutate(
+              sourceNode,
+              Cypher.property(Cypher.name(VARIABLE_EVENT), "target", "properties")
+            )
+          case NodeSaveMode.Match => withClause.`match`(targetNode)
+        }
+      } else {
+        options.relationshipMetadata.targetSaveMode match {
+          case NodeSaveMode.Overwrite => sourceNodeClause.merge(sourceNode).mutate(
+              sourceNode,
+              Cypher.property(Cypher.name(VARIABLE_EVENT), "source", "properties")
+            )
+          case NodeSaveMode.Append => sourceNodeClause.create(sourceNode).mutate(
+              sourceNode,
+              Cypher.property(Cypher.name(VARIABLE_EVENT), "source", "properties")
+            )
+          case NodeSaveMode.Match if options.relationshipMetadata.sourceSaveMode == NodeSaveMode.Match =>
+            Cypher.`match`(sourceNode, targetNode)
+          case _ => throw new IllegalStateException(
+              "Impossible state due to the way we build the internal query. Please report this bug."
+            )
+        }
+      }
+
+    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
+
+    val test = bothNodesClause
+      .merge(relationshipRel)
+      .mutate(relationshipRel, Cypher.property(Cypher.name(VARIABLE_EVENT), "rel", "properties"))
+      .build()
+
+    preamble + unwindEventsAsEvent + renderer.render(test)
   }
 
   override def createStatementForNodes(options: Neo4jOptions): String = {
     val node = cypherNode(options.nodeMetadata, "node")
+    val nodeMatcher = matcher(node, saveMode)
+    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
+    val query = renderer.render(nodeMatcher.mutate(node, Neo4jQueryStrategy.eventProperties).build())
+    preamble + unwindEventsAsEvent + query
+  }
 
-    val clause = saveMode match {
-      case SaveMode.Overwrite                       => Cypher.merge(node)
-      case SaveMode.Append | SaveMode.ErrorIfExists => Cypher.create(node)
+  private def cypherNode(nodeData: Neo4jNodeMetadata, alias: String, propertyPrefix: String = ""): Node = {
+    val n = Cypher.node(nodeData.labels.head, nodeData.labels.tail: _*).named(alias)
+
+    val keyProperties = cypherNodeKeys(nodeData.nodeKeys.toSeq, propertyPrefix)
+
+    if (keyProperties.nonEmpty) {
+      n.withProperties(keyProperties: _*)
+    } else {
+      n
+    }
+  }
+
+  private def cypherRelationship(
+    source: Node,
+    target: Node,
+    relationshipData: Neo4jRelationshipMetadata,
+    alias: String
+  ): Relationship = {
+    val r = source.relationshipTo(target, relationshipData.relationshipType).named(Cypher.name(alias))
+    val keyProperties = cypherRelationshipKeys(relationshipData.relationshipKeys.toSeq)
+
+    if (keyProperties.nonEmpty) {
+      r.withProperties(keyProperties: _*)
+    } else {
+      r
+    }
+  }
+
+  private def cypherNodeKeys(mappings: Seq[(String, String)], propertyPrefix: String): Seq[Object] = {
+    mappings.flatMap { case (to, from) =>
+      Seq(
+        from,
+        if (propertyPrefix.isBlank) {
+          Cypher.property(Cypher.name(Neo4jQueryStrategy.VARIABLE_EVENT), Neo4jWriteMappingStrategy.KEYS, from)
+        } else {
+          Cypher.property(
+            Cypher.name(Neo4jQueryStrategy.VARIABLE_EVENT),
+            propertyPrefix,
+            Neo4jWriteMappingStrategy.KEYS,
+            from
+          )
+        }
+      )
+    }
+  }
+
+  // NOTE: I think this might be a bug because why would we map rel keys but not map node keys?
+  // NOTE: But we still need to keep this becasue we need to refactor, that means bringing with all the bugs
+  private def cypherRelationshipKeys(mappings: Seq[(String, String)]): Seq[Object] = {
+    mappings.flatMap { case (to, from) =>
+      Seq(
+        from,
+        Cypher.property(
+          Cypher.name(Neo4jQueryStrategy.VARIABLE_EVENT),
+          "rel",
+          Neo4jWriteMappingStrategy.KEYS,
+          to
+        )
+      )
+    }
+  }
+
+  private def matcher(entity: PatternElement, saveMode: SaveMode): StatementBuilder.OngoingUpdate = {
+    saveMode match {
+      case SaveMode.Overwrite                       => Cypher.merge(entity)
+      case SaveMode.Append | SaveMode.ErrorIfExists => Cypher.create(entity)
       case _ => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")
     }
-
-    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
-    preamble + unwindEventsClause + renderer.render(clause.mutate(node, Neo4jQueryStrategy.eventProperties).build())
   }
 
   override def createStatementForGDS(options: Neo4jOptions): String =
@@ -571,9 +633,9 @@ object Neo4jQueryStrategy {
     else
       ""
 
-  val unwindEventsClause: String = s"UNWIND $$$VARIABLE_EVENTS AS $VARIABLE_EVENT "
+  val unwindEventsAsEvent: String = s"UNWIND $$$VARIABLE_EVENTS AS $VARIABLE_EVENT "
 
-  val eventProperties = Cypher.property(Cypher.name(VARIABLE_EVENT), Neo4jWriteMappingStrategy.PROPERTIES)
+  val eventProperties: Property = Cypher.property(Cypher.name(VARIABLE_EVENT), Neo4jWriteMappingStrategy.PROPERTIES)
 }
 
 abstract class Neo4jQueryStrategy {
