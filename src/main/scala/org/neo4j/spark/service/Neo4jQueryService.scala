@@ -55,32 +55,6 @@ class Neo4jQueryWriteStrategy(
     preamble + scriptResult + unwindEventsAsEvent + options.query.value
   }
 
-  private def createPropsList(props: Map[String, String], prefix: String): String = {
-    props
-      .map(key => {
-        s"${key._2.quote()}: ${Neo4jQueryStrategy.VARIABLE_EVENT}.$prefix.${key._2.quote()}"
-      }).mkString(", ")
-  }
-
-  private def keywordFromSaveMode(saveMode: Any): String = {
-    saveMode match {
-      case NodeSaveMode.Overwrite | SaveMode.Overwrite                                                 => "MERGE"
-      case NodeSaveMode.ErrorIfExists | SaveMode.ErrorIfExists | SaveMode.Append | NodeSaveMode.Append => "CREATE"
-      case NodeSaveMode.Match                                                                          => "MATCH"
-      case _ => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")
-    }
-  }
-
-  private def createQueryPart(keyword: String, labels: String, keys: String, alias: String): String = {
-    val setStatement = if (!keyword.equals("MATCH"))
-      s" SET $alias += ${Neo4jQueryStrategy.VARIABLE_EVENT}.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}"
-    else ""
-    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${
-        if (keys.isEmpty) ""
-        else s"{$keys}"
-      })$setStatement""".stripMargin
-  }
-
   override def createStatementForRelationships(options: Neo4jOptions): String = {
     val sourceNode = cypherNode(options.relationshipMetadata.source, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, "source")
     val targetNode = cypherNode(options.relationshipMetadata.target, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, "target")
@@ -100,40 +74,40 @@ class Neo4jQueryWriteStrategy(
       case NodeSaveMode.Match => Cypher.`match`(sourceNode)
     }
 
-    val bothNodesClause =
-      if (
-        options.relationshipMetadata.sourceSaveMode != NodeSaveMode.Match && options.relationshipMetadata.targetSaveMode == NodeSaveMode.Match
-      ) {
-        val withClause = sourceNodeClause.`with`(Cypher.name("source"), Cypher.name("event"))
+    val isSourceMatch = options.relationshipMetadata.sourceSaveMode == NodeSaveMode.Match
+    val isTargetMatch = options.relationshipMetadata.targetSaveMode == NodeSaveMode.Match
 
-        options.relationshipMetadata.targetSaveMode match {
-          case NodeSaveMode.Overwrite => withClause.merge(targetNode).mutate(
-              targetNode,
-              Cypher.property(Cypher.name(VARIABLE_EVENT), "target", "properties")
-            )
-          case NodeSaveMode.Append => withClause.create(sourceNode).mutate(
-              sourceNode,
-              Cypher.property(Cypher.name(VARIABLE_EVENT), "target", "properties")
-            )
-          case NodeSaveMode.Match => withClause.`match`(targetNode)
-        }
-      } else {
-        options.relationshipMetadata.targetSaveMode match {
-          case NodeSaveMode.Overwrite => sourceNodeClause.merge(sourceNode).mutate(
-              sourceNode,
-              Cypher.property(Cypher.name(VARIABLE_EVENT), "source", "properties")
-            )
-          case NodeSaveMode.Append => sourceNodeClause.create(sourceNode).mutate(
-              sourceNode,
-              Cypher.property(Cypher.name(VARIABLE_EVENT), "source", "properties")
-            )
-          case NodeSaveMode.Match if options.relationshipMetadata.sourceSaveMode == NodeSaveMode.Match =>
-            Cypher.`match`(sourceNode, targetNode)
-          case _ => throw new IllegalStateException(
-              "Impossible state due to the way we build the internal query. Please report this bug."
-            )
-        }
+    val bothNodesClause = if (!isSourceMatch && isTargetMatch) {
+      val withClause = sourceNodeClause.`with`(Cypher.name("source"), Cypher.name("event"))
+
+      options.relationshipMetadata.targetSaveMode match {
+        case NodeSaveMode.Overwrite => withClause.merge(targetNode).mutate(
+            targetNode,
+            Cypher.property(Cypher.name(VARIABLE_EVENT), "target", "properties")
+          )
+        case NodeSaveMode.Append => withClause.create(sourceNode).mutate(
+            sourceNode,
+            Cypher.property(Cypher.name(VARIABLE_EVENT), "target", "properties")
+          )
+        case NodeSaveMode.Match => withClause.`match`(targetNode)
       }
+    } else {
+      options.relationshipMetadata.targetSaveMode match {
+        case NodeSaveMode.Overwrite => sourceNodeClause.merge(targetNode).mutate(
+            targetNode,
+            Cypher.property(Cypher.name(VARIABLE_EVENT), "target", "properties")
+          )
+        case NodeSaveMode.Append => sourceNodeClause.create(targetNode).mutate(
+            targetNode,
+            Cypher.property(Cypher.name(VARIABLE_EVENT), "target", "properties")
+          )
+        case NodeSaveMode.Match if options.relationshipMetadata.sourceSaveMode == NodeSaveMode.Match =>
+          Cypher.`match`(sourceNode, targetNode)
+        case _ => throw new IllegalStateException(
+            "Impossible state due to the way we build the internal query. Please report this bug."
+          )
+      }
+    }
 
     val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
 
