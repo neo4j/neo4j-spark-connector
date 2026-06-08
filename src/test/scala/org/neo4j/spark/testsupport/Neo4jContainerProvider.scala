@@ -35,7 +35,7 @@ class Neo4jContainerProvider extends ArgumentsProvider {
       Arguments.argumentSet("with Vanilla Neo4j", baseContainer),
       Arguments.argumentSet("with Neo4j+APOC core", baseContainer.withPlugins("apoc")),
       Arguments.argumentSet("with Neo4j+GDS", baseContainer.withPlugins("graph-data-science")),
-      Arguments.argumentSet("with Neo4j+GDS+APOC", baseContainer.withPlugins("graph-data-science", "apoc"))
+      Arguments.argumentSet("with Neo4j+GDS+APOC core", baseContainer.withPlugins("graph-data-science", "apoc"))
     )
   }
 
