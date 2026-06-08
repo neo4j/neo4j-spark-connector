@@ -1197,6 +1197,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should fail validating options if ErrorIfExists is used`(): Unit = {
+    var didThrow = false
+
     val musicDf = Seq(
       (12, "John Bonham", "Drums"),
       (19, "John Mayer", "Guitar"),
@@ -1221,8 +1223,13 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     } catch {
       case e: IllegalArgumentException =>
         assertEquals("Save mode 'ErrorIfExists' is not supported on Spark 3.0, use 'Append' instead.", e.getMessage)
-      case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+        didThrow = true
+      case e: Throwable =>
+        fail(s"should throw ${classOf[IllegalArgumentException].getName}, but ${e.getClass.getName} was thrown")
     }
+
+    // TODO: When re-writing in assertj just use a should throw assertable
+    assertTrue(didThrow, s"should throw ${classOf[IllegalArgumentException].getName}, but nothing was thrown")
   }
 
   @Test
