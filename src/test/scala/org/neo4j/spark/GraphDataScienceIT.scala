@@ -172,7 +172,7 @@ class GraphDataScienceIT {
   }
 
   @Test
-  def works_with_map_return(): Unit = {
+  def hits_supports_map_results(): Unit = {
     initForHits()
 
     val procName = if (use(driver.session())(s => TestUtil.gdsVersion(s)) >= Versions.GDS_2_5)
