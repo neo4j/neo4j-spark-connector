@@ -53,7 +53,7 @@ class GraphDataScienceIT {
 
   var driver: Driver = _
 
-  var ss: SparkSession = _
+  var spark: SparkSession = _
 
   private val dataSourceFormat = classOf[DataSource].getName
 
