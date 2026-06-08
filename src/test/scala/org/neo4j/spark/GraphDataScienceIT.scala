@@ -192,7 +192,7 @@ class GraphDataScienceIT {
   }
 
   @Test
-  def works_with_path_return(): Unit = {
+  def yens_shortest_path_supports_path_results(): Unit = {
     initForYens()
 
     val sourceTargetNodes = ss.read.format(dataSourceFormat)
