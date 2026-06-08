@@ -269,7 +269,7 @@ class GraphDataScienceIT {
   }
 
   @Test
-  def works_with_k_nearest(): Unit = {
+  def runs_k_nearest(): Unit = {
     driver.executableQuery(
       """
         |CREATE (alice:Person {name: 'Alice', age: 24, lotteryNumbers: [1, 3], embedding: [1.0, 3.0]})
