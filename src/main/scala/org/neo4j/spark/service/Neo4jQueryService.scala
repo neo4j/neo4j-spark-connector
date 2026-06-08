@@ -82,7 +82,6 @@ class Neo4jQueryWriteStrategy(
     }
 
     val nodesMatcher = if (!isSourceMatch && isTargetMatch) {
-      // inject a with statement
       val sourceWith = sourceMatcher.`with`(Cypher.name(RELATIONSHIP_SOURCE_ALIAS), Cypher.name(VARIABLE_EVENT))
 
       options.relationshipMetadata.targetSaveMode match {
@@ -99,13 +98,15 @@ class Neo4jQueryWriteStrategy(
       }
     }
 
-    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
-
-    val finalStatement = nodesMatcher
-      .merge(rel)
+    val finalStatement = (saveMode match {
+      case SaveMode.Overwrite => nodesMatcher.merge(rel)
+      case SaveMode.Append    => nodesMatcher.create(rel)
+      case _                  => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")
+    })
       .mutate(rel, relEventProperties)
       .build()
 
+    val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
     preamble + unwindEventsAsEvent + renderer.render(finalStatement)
   }
 

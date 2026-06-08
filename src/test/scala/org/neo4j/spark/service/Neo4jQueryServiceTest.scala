@@ -802,6 +802,40 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
+  def testCompoundKeysForRelationshipWithPropsAndAppended(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "BOUGHT")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.source.node.keys", "FirstName:name,LastName:lastName")
+    options.put("relationship.source.save.mode", "Append")
+    options.put("relationship.target.labels", "Product")
+    options.put("relationship.target.node.keys", "ProductPrice:price,ProductId:id")
+    options.put("relationship.target.save.mode", "Overwrite")
+
+    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions, SaveMode.Append)).createQuery()
+
+    assertEquals(
+      s"""${prefix}UNWIND $$events AS event
+         |CREATE (source:`Person` {name: event.source.keys.name, lastName: event.source.keys.lastName}) SET source += event.source.properties
+         |MERGE (target:`Product` {price: event.target.keys.price, id: event.target.keys.id}) SET target += event.target.properties
+         |CREATE (source)-[rel:`BOUGHT`]->(target)
+         |SET rel += event.rel.properties
+         |""".stripMargin.replaceAll("\n", " ").trim,
+      query.trim
+    )
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("versions_and_prefixes"))
   def testRelationshipWithKeySaveStrategy(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
