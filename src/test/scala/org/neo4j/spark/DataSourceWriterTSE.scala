@@ -1222,7 +1222,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         .save()
     } catch {
       case e: IllegalArgumentException =>
-        assertEquals("Save mode 'ErrorIfExists' is not supported on Spark 3.0, use 'Append' instead.", e.getMessage)
+        assertEquals(
+          "This connector does not support save mode 'ErrorIfExists'. Use save mode 'Append' instead.",
+          e.getMessage
+        )
         didThrow = true
       case e: Throwable =>
         fail(s"should throw ${classOf[IllegalArgumentException].getName}, but ${e.getClass.getName} was thrown")

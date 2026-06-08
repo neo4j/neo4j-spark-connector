@@ -56,7 +56,7 @@ class Neo4jWriterBuilder(
         ValidationUtil.isFalse(
           o.relationshipMetadata.sourceSaveMode.equals(NodeSaveMode.ErrorIfExists)
             || o.relationshipMetadata.targetSaveMode.equals(NodeSaveMode.ErrorIfExists),
-          "Save mode 'ErrorIfExists' is not supported on Spark 3.0, use 'Append' instead."
+          "This connector does not support save mode 'ErrorIfExists'. Use save mode 'Append' instead."
         )
       }
     ))
