@@ -85,7 +85,7 @@ class GraphDataScienceIT {
   }
 
   @Test
-  def returns_the_page_rank(): Unit = {
+  def runs_page_rank(): Unit = {
     initForPageRank()
 
     val df = ss.read.format(dataSourceFormat)
