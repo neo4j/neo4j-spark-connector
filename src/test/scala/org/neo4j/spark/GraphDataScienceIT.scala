@@ -18,10 +18,9 @@ package org.neo4j.spark
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types._
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
@@ -30,7 +29,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.Parameter
 import org.junit.jupiter.params.ParameterizedClass
+import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ArgumentsSource
+import org.junit.jupiter.params.provider.MethodSource
 import org.neo4j.driver.Driver
 import org.neo4j.spark.testsupport.Closeables.use
 import org.neo4j.spark.testsupport.Neo4jContainerProvider
@@ -55,8 +56,6 @@ class GraphDataScienceIT {
 
   var spark: SparkSession = _
 
-  private val dataSourceFormat = classOf[DataSource].getName
-
   @BeforeEach
   def prepare(): Unit = {
     if (!neo4jContainer.isRunning) {
@@ -65,7 +64,7 @@ class GraphDataScienceIT {
     driver = neo4jContainer.driver()
     Assumptions.assumeTrue(driver.serverSupportsGds())
     driver.createOrReplaceDatabase("neo4j")
-    ss = neo4jContainer.spark()
+    spark = neo4jContainer.spark()
   }
 
   @AfterEach
@@ -80,7 +79,7 @@ class GraphDataScienceIT {
           |""".stripMargin
       ).execute()
     }
-    Option(ss).foreach(_.close())
+    Option(spark).foreach(_.close())
     Option(driver).foreach(_.close())
   }
 
@@ -88,24 +87,25 @@ class GraphDataScienceIT {
   def runs_page_rank(): Unit = {
     initForPageRank()
 
-    val df = ss.read.format(dataSourceFormat)
+    val df = spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.pageRank.stream")
       .option("gds.graphName", "myGraph")
       .option("gds.configuration.concurrency", "2")
       .load()
-    assertEquals(df.count(), 8)
+    assertThat(df.count()).isEqualTo(8)
 
-    assertEquals(StructType(Array(StructField("nodeId", LongType), StructField("score", DoubleType))), df.schema)
+    assertThat(df.schema)
+      .isEqualTo(StructType(Array(StructField("nodeId", LongType), StructField("score", DoubleType))))
 
-    val dfEstimate = ss.read.format(dataSourceFormat)
+    val dfEstimate = spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.pageRank.stream.estimate")
       .option("gds.graphNameOrConfiguration", "myGraph")
       .option("gds.algoConfiguration.concurrency", "2")
       .load()
-    assertEquals(dfEstimate.count(), 1)
+    assertThat(dfEstimate.count()).isEqualTo(1)
     dfEstimate.show(false)
 
-    assertEquals(
+    assertThat(dfEstimate.schema).isEqualTo(
       StructType(
         Array(
           StructField("requiredMemory", StringType),
@@ -118,57 +118,23 @@ class GraphDataScienceIT {
           StructField("heapPercentageMin", DoubleType),
           StructField("heapPercentageMax", DoubleType)
         )
-      ),
-      dfEstimate.schema
+      )
     )
   }
 
-  @Test
-  def fails_with_unsupported_options(): Unit = {
+  @ParameterizedTest
+  @MethodSource(Array("unsupportedOptionCases"))
+  def fails_with_unsupported_options(testCase: UnsupportedOptionCase): Unit = {
     initForPageRank()
 
-    def run(options: Map[String, String], error: String): Unit = {
-      try {
-        ss.read.format(dataSourceFormat)
-          .options(options)
+    assertThatExceptionOfType(classOf[IllegalArgumentException])
+      .isThrownBy(() => {
+        spark.read.format(classOf[DataSource].getName)
+          .options(testCase.options)
           .load()
           .show(false)
-        fail("Expected to throw an exception")
-      } catch {
-        case iae: IllegalArgumentException =>
-          assertTrue(iae.getMessage.equals(error))
-        case _: Throwable =>
-          fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
-      }
-    }
-
-    run(
-      Map(
-        "gds" -> "gds.pageRank.stream",
-        "gds.graphName" -> "myGraph",
-        "gds.configuration.concurrency" -> "2",
-        "partitions" -> "2"
-      ),
-      "For GDS queries we support only one partition"
-    )
-
-    run(
-      Map(
-        "gds" -> "gds.pageRank.write",
-        "gds.graphName" -> "myGraph",
-        "gds.configuration.concurrency" -> "2"
-      ),
-      "You cannot execute GDS mutate or write procedure in a read query"
-    )
-
-    run(
-      Map(
-        "gds" -> "gds.pageRank.mutate",
-        "gds.graphName" -> "myGraph",
-        "gds.configuration.concurrency" -> "2"
-      ),
-      "You cannot execute GDS mutate or write procedure in a read query"
-    )
+      })
+      .withMessage(testCase.error)
   }
 
   @Test
@@ -178,16 +144,15 @@ class GraphDataScienceIT {
     val procName = if (use(driver.session())(s => TestUtil.gdsVersion(s)) >= Versions.GDS_2_5)
       "gds.hits.stream"
     else "gds.alpha.hits.stream"
-    val df = ss.read.format(dataSourceFormat)
+    val df = spark.read.format(classOf[DataSource].getName)
       .option("gds", procName)
       .option("gds.graphName", "myGraph")
       .option("gds.configuration.hitsIterations", "20")
       .load()
-    assertEquals(df.count(), 9)
+    assertThat(df.count()).isEqualTo(9)
 
-    assertEquals(
-      StructType(Array(StructField("nodeId", LongType), StructField("values", MapType(StringType, StringType)))),
-      df.schema
+    assertThat(df.schema).isEqualTo(
+      StructType(Array(StructField("nodeId", LongType), StructField("values", MapType(StringType, StringType))))
     )
   }
 
@@ -195,7 +160,7 @@ class GraphDataScienceIT {
   def yens_shortest_path_supports_path_results(): Unit = {
     initForYens()
 
-    val sourceTargetNodes = ss.read.format(dataSourceFormat)
+    val sourceTargetNodes = spark.read.format(classOf[DataSource].getName)
       .option("labels", "Location")
       .load()
       .where("name IN ('A', 'F')")
@@ -210,7 +175,7 @@ class GraphDataScienceIT {
         sourceTargetNodes(1).getAs[String]("<elementId>").split(":").last.toLong
       )
 
-    val df = ss.read.format(dataSourceFormat)
+    val df = spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.shortestPath.yens.stream")
       .option("gds.graphName", "myGraph")
       .option("gds.configuration.sourceNode", sourceId)
@@ -218,9 +183,9 @@ class GraphDataScienceIT {
       .option("gds.configuration.k", 3)
       .option("gds.configuration.relationshipWeightProperty", "cost")
       .load()
-    assertEquals(df.count(), 3)
+    assertThat(df.count()).isEqualTo(3)
 
-    assertEquals(
+    assertThat(df.schema).isEqualTo(
       StructType(
         Array(
           StructField("index", LongType),
@@ -231,15 +196,14 @@ class GraphDataScienceIT {
           StructField("costs", ArrayType(DoubleType)),
           StructField("path", StringType)
         )
-      ),
-      df.schema
+      )
     )
 
     val (graphNameParam, algoConfigurationParam) =
       if (use(driver.session())(s => TestUtil.gdsVersion(s)) >= Versions.GDS_2_4)
         ("graphName", "configuration")
       else ("graphNameOrConfiguration", "algoConfiguration")
-    val dfEstimate = ss.read.format(dataSourceFormat)
+    val dfEstimate = spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.shortestPath.yens.stream.estimate")
       .option(s"gds.$graphNameParam", "myGraph")
       .option(s"gds.$algoConfigurationParam.sourceNode", sourceId)
@@ -247,10 +211,10 @@ class GraphDataScienceIT {
       .option(s"gds.$algoConfigurationParam.k", 3)
       .option(s"gds.$algoConfigurationParam.relationshipWeightProperty", "cost")
       .load()
-    assertEquals(dfEstimate.count(), 1)
+    assertThat(dfEstimate.count()).isEqualTo(1)
     dfEstimate.show(false)
 
-    assertEquals(
+    assertThat(dfEstimate.schema).isEqualTo(
       StructType(
         Array(
           StructField("requiredMemory", StringType),
@@ -263,8 +227,7 @@ class GraphDataScienceIT {
           StructField("heapPercentageMin", DoubleType),
           StructField("heapPercentageMax", DoubleType)
         )
-      ),
-      dfEstimate.schema
+      )
     )
   }
 
@@ -280,7 +243,7 @@ class GraphDataScienceIT {
         |""".stripMargin
     ).execute()
 
-    ss.read.format(dataSourceFormat)
+    spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.graph.project")
       .option("gds.graphName", "myGraph")
       .option("gds.nodeProjection.Person.properties", "['age','lotteryNumbers','embedding']")
@@ -288,7 +251,7 @@ class GraphDataScienceIT {
       .load()
       .show(false)
 
-    val df = ss.read.format(dataSourceFormat)
+    val df = spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.knn.stream")
       .option("gds.graphName", "myGraph")
       .option("gds.configuration.topK", 1)
@@ -299,20 +262,19 @@ class GraphDataScienceIT {
       .option("gds.configuration.deltaThreshold", 0.0)
       .load()
 
-    assertEquals(df.count(), 5)
+    assertThat(df.count()).isEqualTo(5)
 
-    assertEquals(
+    assertThat(df.schema).isEqualTo(
       StructType(
         Array(
           StructField("node1", LongType),
           StructField("node2", LongType),
           StructField("similarity", DoubleType)
         )
-      ),
-      df.schema
+      )
     )
 
-    val dfEstimate = ss.read.format(dataSourceFormat)
+    val dfEstimate = spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.knn.stream.estimate")
       .option("gds.graphNameOrConfiguration", "myGraph")
       .option("gds.algoConfiguration.topK", 1)
@@ -322,10 +284,10 @@ class GraphDataScienceIT {
       .option("gds.algoConfiguration.sampleRate", 1.0)
       .option("gds.algoConfiguration.deltaThreshold", 0.0)
       .load()
-    assertEquals(dfEstimate.count(), 1)
+    assertThat(dfEstimate.count()).isEqualTo(1)
     dfEstimate.show(false)
 
-    assertEquals(
+    assertThat(dfEstimate.schema).isEqualTo(
       StructType(
         Array(
           StructField("requiredMemory", StringType),
@@ -338,8 +300,7 @@ class GraphDataScienceIT {
           StructField("heapPercentageMin", DoubleType),
           StructField("heapPercentageMax", DoubleType)
         )
-      ),
-      dfEstimate.schema
+      )
     )
   }
 
@@ -372,7 +333,7 @@ class GraphDataScienceIT {
         |  (links)-[:LINKS {weight: 0.05}]->(d);
         |""".stripMargin
     ).execute()
-    ss.read.format(dataSourceFormat)
+    spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.graph.project")
       .option("gds.graphName", "myGraph")
       .option("gds.nodeProjection", "Page")
@@ -417,7 +378,7 @@ class GraphDataScienceIT {
         |  (h)-[:LINK]->(i);
         |""".stripMargin
     ).execute()
-    ss.read.format(dataSourceFormat)
+    spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.graph.project")
       .option("gds.graphName", "myGraph")
       .option("gds.nodeProjection", "Website")
@@ -446,7 +407,7 @@ class GraphDataScienceIT {
         |       (e)-[:ROAD {cost: 40}]->(f);
         |""".stripMargin
     ).execute()
-    ss.read.format(dataSourceFormat)
+    spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.graph.project")
       .option("gds.graphName", "myGraph")
       .option("gds.nodeProjection", "Location")
@@ -456,3 +417,37 @@ class GraphDataScienceIT {
       .show(false)
   }
 }
+
+object GraphDataScienceIT {
+
+  def unsupportedOptionCases: java.util.stream.Stream[UnsupportedOptionCase] =
+    java.util.stream.Stream.of(
+      UnsupportedOptionCase(
+        Map(
+          "gds" -> "gds.pageRank.stream",
+          "gds.graphName" -> "myGraph",
+          "gds.configuration.concurrency" -> "2",
+          "partitions" -> "2"
+        ),
+        "For GDS queries we support only one partition"
+      ),
+      UnsupportedOptionCase(
+        Map(
+          "gds" -> "gds.pageRank.write",
+          "gds.graphName" -> "myGraph",
+          "gds.configuration.concurrency" -> "2"
+        ),
+        "You cannot execute GDS mutate or write procedure in a read query"
+      ),
+      UnsupportedOptionCase(
+        Map(
+          "gds" -> "gds.pageRank.mutate",
+          "gds.graphName" -> "myGraph",
+          "gds.configuration.concurrency" -> "2"
+        ),
+        "You cannot execute GDS mutate or write procedure in a read query"
+      )
+    )
+}
+
+case class UnsupportedOptionCase(options: Map[String, String], error: String)
