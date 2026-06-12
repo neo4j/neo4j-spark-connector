@@ -94,7 +94,7 @@ class Neo4jQueryWriteStrategy(
         case NodeSaveMode.Overwrite              => sourceMatcher.merge(targetNode).mutate(targetNode, targetPropsName)
         case NodeSaveMode.Append                 => sourceMatcher.create(targetNode).mutate(targetNode, targetPropsName)
         case NodeSaveMode.Match if isSourceMatch => Cypher.`match`(sourceNode).`match`(targetNode)
-        case _ => throw new IllegalStateException("Impossible state reached. Please report this as a bug.")
+        case _ => throw new IllegalStateException("Impossible query state reached. Please report this as a bug.")
       }
     }
 
@@ -122,7 +122,7 @@ class Neo4jQueryWriteStrategy(
     val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
     val query = renderer.render(nodeMatcher.mutate(node, eventProperties).build())
 
-    preamble + Neo4jQueryStrategy.unwindEventsAsEvent + query
+    preamble + unwindEventsAsEvent + query
   }
 
   private def cypherNode(nodeData: Neo4jNodeMetadata, alias: String, prefix: Boolean = false): Node = {
@@ -158,10 +158,10 @@ class Neo4jQueryWriteStrategy(
       Seq(
         from,
         if (propertyPrefix.isBlank) {
-          Cypher.property(Cypher.name(Neo4jQueryStrategy.VARIABLE_EVENT), Neo4jWriteMappingStrategy.KEYS, from)
+          Cypher.property(Cypher.name(VARIABLE_EVENT), Neo4jWriteMappingStrategy.KEYS, from)
         } else {
           Cypher.property(
-            Cypher.name(Neo4jQueryStrategy.VARIABLE_EVENT),
+            Cypher.name(VARIABLE_EVENT),
             propertyPrefix,
             Neo4jWriteMappingStrategy.KEYS,
             from
@@ -176,7 +176,7 @@ class Neo4jQueryWriteStrategy(
       Seq(
         from,
         Cypher.property(
-          Cypher.name(Neo4jQueryStrategy.VARIABLE_EVENT),
+          Cypher.name(VARIABLE_EVENT),
           "rel",
           Neo4jWriteMappingStrategy.KEYS,
           to
@@ -217,7 +217,7 @@ class Neo4jQueryReadStrategy(
       s"${options.query.value}"
     }
 
-    val scriptResult = Neo4jQueryStrategy.scriptResultClause(options)
+    val scriptResult = scriptResultClause(options)
     val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
     s"$preamble$scriptResult$limitedQuery"
   }
