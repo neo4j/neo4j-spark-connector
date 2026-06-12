@@ -93,7 +93,7 @@ class Neo4jQueryWriteStrategy(
       options.relationshipMetadata.targetSaveMode match {
         case NodeSaveMode.Overwrite              => sourceMatcher.merge(targetNode).mutate(targetNode, targetPropsName)
         case NodeSaveMode.Append                 => sourceMatcher.create(targetNode).mutate(targetNode, targetPropsName)
-        case NodeSaveMode.Match if isSourceMatch => Cypher.`match`(sourceNode, targetNode)
+        case NodeSaveMode.Match if isSourceMatch => Cypher.`match`(sourceNode).`match`(targetNode)
         case _ => throw new IllegalStateException("Impossible state reached. Please report this as a bug.")
       }
     }

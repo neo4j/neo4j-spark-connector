@@ -730,8 +730,8 @@ class Neo4jQueryServiceTest {
 
     assertEquals(
       s"""${prefix}UNWIND $$events AS event
-         |MATCH (source:`Person` {name: event.source.keys.name, lastName: event.source.keys.lastName}),
-         |(target:`Product`:`Merch` {price: event.target.keys.price, id: event.target.keys.id})
+         |MATCH (source:`Person` {name: event.source.keys.name, lastName: event.source.keys.lastName})
+         |MATCH (target:`Product`:`Merch` {price: event.target.keys.price, id: event.target.keys.id})
          |MERGE (source)-[rel:`BOUGHT`]->(target)
          |SET rel += event.rel.properties
          |""".stripMargin.replaceAll("\n", " ").trim,
@@ -1292,8 +1292,8 @@ class Neo4jQueryServiceTest {
       new Neo4jQueryWriteStrategy(neo4jInfo, new CypherRenderer(neo4jInfo, neo4jOptions), SaveMode.Overwrite)
     )
     val wantQuery = """UNWIND $events AS event
-                      |MATCH (source:`Person`),
-                      |(target:`Person`)
+                      |MATCH (source:`Person`)
+                      |MATCH (target:`Person`)
                       |MERGE (source)-[rel:`KNOWS`]->(target)
                       |SET rel += event.rel.properties""".stripMargin.replaceAll("\n", " ")
 
