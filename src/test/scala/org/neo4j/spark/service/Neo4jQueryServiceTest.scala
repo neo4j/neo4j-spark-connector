@@ -50,9 +50,10 @@ import scala.collection.immutable.HashMap
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class Neo4jQueryServiceTest {
 
+  // Test cases for read-strategy
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testNodeOneLabel(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_labels_when_single_label(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -67,7 +68,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testNodeMultipleLabelsWhenRead(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_labels_when_multiple_labels(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
@@ -82,25 +83,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testNodeMultipleLabelsWhenWrite(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
-    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
-
-    val query: String =
-      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions, SaveMode.Append)).createQuery().trim
-
-    assertEquals(
-      s"${prefix}UNWIND $$events AS event CREATE (node:`Person`:`Player`:`Midfield`) SET node += event.properties",
-      query
-    )
-  }
-
-  @ParameterizedTest
-  @MethodSource(Array("versions_and_prefixes"))
-  def testNodeMultipleLabelsWithPartitions(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_labels_when_partitioned(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
@@ -121,7 +104,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testNodeOneLabelWithOneSelectedColumn(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_labels_when_one_column_is_selected(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -144,7 +131,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testNodeOneLabelWithMultipleColumnSelected(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_labels_when_multiple_columns_are_selected(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -167,7 +158,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testNodeOneLabelWithInternalIdSelected(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_labels_when_internal_id_is_selected(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -190,7 +185,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testNodeFilterEqualTo(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_labels_when_filtering_on_equality(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -214,7 +213,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testNodeFilterEqualNullSafe(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_labels_when_filtering_on_null_safe_equality(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -246,7 +249,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testNodeFilterEqualNullSafeWithNullValue(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_labels_when_filtering_on_null_safe_equality_and_value_is_null(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -275,7 +282,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testNodeFilterStartsEndsWith(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_labels_when_filtering_on_starts_or_end_with(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -307,7 +318,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testRelationshipWithOneColumnSelected(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_relationship_when_one_column_is_selected(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -338,7 +353,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testRelationshipWithMoreColumnSelected(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_relationship_when_multiple_columns_are_selected(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -369,7 +388,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testRelationshipWithMoreColumnSelectedWithPartitions(
+  def read_query_for_relationship_when_partitioned(
     neo4j: Neo4j,
     customCypherVersion: String,
     prefix: String
@@ -406,9 +425,14 @@ class Neo4jQueryServiceTest {
     )
   }
 
+  // TODO: consider removing because of overlap
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testRelationshipWithMoreColumnsSelected(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_relationship_when_multiple_columns_are_selected_version_2(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -439,7 +463,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testRelationshipFilterEqualTo(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_relationships_when_filtering_on_equality(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -471,7 +499,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testRelationshipFilterNotEqualTo(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_relationships_when_filtering_on_equality_with_or(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -504,7 +536,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testRelationshipAndFilterEqualTo(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_relationships_when_filtering_on_equality_with_and(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -541,7 +577,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testComplexNodeConditions(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_labels_with_complex_filtering(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("labels", "Person")
@@ -581,7 +617,68 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testRelationshipFilterComplexConditionsNoMap(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_relationship_with_complex_filtering_with_map_mode(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "true")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person:Customer")
+    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val filters: Array[Filter] = Array[Filter](
+      Or(
+        Or(EqualTo("source.name", "John Doe"), EqualTo("target.name", "John Doraemon")),
+        EqualTo("source.name", "Jane Doe")
+      ),
+      Or(EqualTo("target.age", 34), EqualTo("target.age", 18)),
+      EqualTo("rel.score", 12)
+    )
+
+    val query: String =
+      new Neo4jQueryService(
+        neo4jOptions,
+        new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), filters)
+      ).createQuery()
+
+    val parameterNames = Map(
+      "source.name_1" -> "$".concat("source.name".toParameterName("John Doe")),
+      "target.name_1" -> "$".concat("target.name".toParameterName("John Doraemon")),
+      "source.name_2" -> "$".concat("source.name".toParameterName("Jane Doe")),
+      "target.age_1" -> "$".concat("target.age".toParameterName(34)),
+      "target.age_2" -> "$".concat("target.age".toParameterName(18)),
+      "rel.score" -> "$".concat("rel.score".toParameterName(12))
+    )
+
+    assertEquals(
+      s"""${prefix}MATCH (source:`Person`)
+         | MATCH (target:`Person`:`Customer`)
+         | MATCH (source)-[rel:`KNOWS`]->(target)
+         | WHERE ((source.name = ${parameterNames("source.name_1")} OR target.name = ${
+          parameterNames(
+            "target.name_1"
+          )
+        } OR source.name = ${parameterNames("source.name_2")})
+         | AND (target.age = ${parameterNames("target.age_1")} OR target.age = ${parameterNames("target.age_2")})
+         | AND rel.score = ${parameterNames("rel.score")})
+         | RETURN rel, source AS source, target AS target
+         |""".stripMargin.replaceAll("\n", ""),
+      query
+    )
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("versions_and_prefixes"))
+  def read_query_for_relationship_with_complex_filtering_without_map_mode(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -631,245 +728,14 @@ class Neo4jQueryServiceTest {
     )
   }
 
+  // todo consider breaking up or soft assertions
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testRelationshipFilterComplexConditionsWithMap(
+  def read_query_for_labels_should_do_sum_aggregations(
     neo4j: Neo4j,
     customCypherVersion: String,
     prefix: String
   ): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put("relationship", "KNOWS")
-    options.put("relationship.nodes.map", "true")
-    options.put("relationship.source.labels", "Person")
-    options.put("relationship.target.labels", "Person:Customer")
-    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
-
-    val filters: Array[Filter] = Array[Filter](
-      Or(
-        Or(EqualTo("source.name", "John Doe"), EqualTo("target.name", "John Doraemon")),
-        EqualTo("source.name", "Jane Doe")
-      ),
-      Or(EqualTo("target.age", 34), EqualTo("target.age", 18)),
-      EqualTo("rel.score", 12)
-    )
-
-    val query: String =
-      new Neo4jQueryService(
-        neo4jOptions,
-        new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), filters)
-      ).createQuery()
-
-    val parameterNames = Map(
-      "source.name_1" -> "$".concat("source.name".toParameterName("John Doe")),
-      "target.name_1" -> "$".concat("target.name".toParameterName("John Doraemon")),
-      "source.name_2" -> "$".concat("source.name".toParameterName("Jane Doe")),
-      "target.age_1" -> "$".concat("target.age".toParameterName(34)),
-      "target.age_2" -> "$".concat("target.age".toParameterName(18)),
-      "rel.score" -> "$".concat("rel.score".toParameterName(12))
-    )
-
-    assertEquals(
-      s"""${prefix}MATCH (source:`Person`)
-         | MATCH (target:`Person`:`Customer`)
-         | MATCH (source)-[rel:`KNOWS`]->(target)
-         | WHERE ((source.name = ${parameterNames("source.name_1")} OR target.name = ${
-          parameterNames(
-            "target.name_1"
-          )
-        } OR source.name = ${parameterNames("source.name_2")})
-         | AND (target.age = ${parameterNames("target.age_1")} OR target.age = ${parameterNames("target.age_2")})
-         | AND rel.score = ${parameterNames("rel.score")})
-         | RETURN rel, source AS source, target AS target
-         |""".stripMargin.replaceAll("\n", ""),
-      query
-    )
-  }
-
-  @ParameterizedTest
-  @MethodSource(Array("versions_and_prefixes"))
-  def testCompoundKeysForNodes(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put("labels", "Location")
-    options.put("node.keys", "LocationName:name,LocationType:type,FeatureID:featureId")
-    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
-
-    val query: String =
-      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
-
-    assertEquals(
-      s"""${prefix}UNWIND $$events AS event
-         |MERGE (node:`Location` {name: event.keys.name, type: event.keys.type, featureId: event.keys.featureId})
-         |SET node += event.properties
-         |""".stripMargin.trim.replaceAll("\n", " "),
-      query
-    )
-  }
-
-  @ParameterizedTest
-  @MethodSource(Array("versions_and_prefixes"))
-  def testCompoundKeysForRelationship(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put("relationship", "BOUGHT")
-    options.put("relationship.source.labels", ":Person")
-    options.put("relationship.source.node.keys", "FirstName:name,LastName:lastName")
-    options.put("relationship.target.labels", ":Product:Merch")
-    options.put("relationship.target.node.keys", "ProductPrice:price,ProductId:id")
-
-    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
-
-    val query: String =
-      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
-
-    assertEquals(
-      s"""${prefix}UNWIND $$events AS event
-         |MATCH (source:`Person` {name: event.source.keys.name, lastName: event.source.keys.lastName})
-         |MATCH (target:`Product`:`Merch` {price: event.target.keys.price, id: event.target.keys.id})
-         |MERGE (source)-[rel:`BOUGHT`]->(target)
-         |SET rel += event.rel.properties
-         |""".stripMargin.replaceAll("\n", " ").trim,
-      query.trim
-    )
-  }
-
-  @ParameterizedTest
-  @MethodSource(Array("versions_and_prefixes"))
-  def testCompoundKeysForRelationshipMergeMatch(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put("relationship", "BOUGHT")
-    options.put("relationship.source.labels", "Person")
-    options.put("relationship.source.node.keys", "FirstName:name,LastName:lastName")
-    options.put("relationship.source.save.mode", "Overwrite")
-    options.put("relationship.target.labels", "Product")
-    options.put("relationship.target.node.keys", "ProductPrice:price,ProductId:id")
-    options.put("relationship.target.save.mode", "match")
-
-    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
-
-    val query: String =
-      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
-
-    assertEquals(
-      s"""${prefix}UNWIND $$events AS event
-         |MERGE (source:`Person` {name: event.source.keys.name, lastName: event.source.keys.lastName}) SET source += event.source.properties
-         |WITH source, event
-         |MATCH (target:`Product` {price: event.target.keys.price, id: event.target.keys.id})
-         |MERGE (source)-[rel:`BOUGHT`]->(target)
-         |SET rel += event.rel.properties
-         |""".stripMargin.replaceAll("\n", " ").trim,
-      query.trim
-    )
-  }
-
-  @ParameterizedTest
-  @MethodSource(Array("versions_and_prefixes"))
-  def testCompoundKeysForRelationshipMergeMerge(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put("relationship", "BOUGHT")
-    options.put("relationship.source.labels", "Person")
-    options.put("relationship.source.node.keys", "FirstName:name,LastName:lastName")
-    options.put("relationship.source.save.mode", "Overwrite")
-    options.put("relationship.target.labels", "Product")
-    options.put("relationship.target.node.keys", "ProductPrice:price,ProductId:id")
-    options.put("relationship.target.save.mode", "Overwrite")
-
-    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
-
-    val query: String =
-      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
-
-    assertEquals(
-      s"""${prefix}UNWIND $$events AS event
-         |MERGE (source:`Person` {name: event.source.keys.name, lastName: event.source.keys.lastName}) SET source += event.source.properties
-         |MERGE (target:`Product` {price: event.target.keys.price, id: event.target.keys.id}) SET target += event.target.properties
-         |MERGE (source)-[rel:`BOUGHT`]->(target)
-         |SET rel += event.rel.properties
-         |""".stripMargin.replaceAll("\n", " ").trim,
-      query.trim
-    )
-  }
-
-  @ParameterizedTest
-  @MethodSource(Array("versions_and_prefixes"))
-  def testCompoundKeysForRelationshipWithPropsAndAppended(
-    neo4j: Neo4j,
-    customCypherVersion: String,
-    prefix: String
-  ): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put("relationship", "BOUGHT")
-    options.put("relationship.source.labels", "Person")
-    options.put("relationship.source.node.keys", "FirstName:name,LastName:lastName")
-    options.put("relationship.source.save.mode", "Append")
-    options.put("relationship.target.labels", "Product")
-    options.put("relationship.target.node.keys", "ProductPrice:price,ProductId:id")
-    options.put("relationship.target.save.mode", "Overwrite")
-
-    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
-
-    val query: String =
-      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions, SaveMode.Append)).createQuery()
-
-    assertEquals(
-      s"""${prefix}UNWIND $$events AS event
-         |CREATE (source:`Person` {name: event.source.keys.name, lastName: event.source.keys.lastName}) SET source += event.source.properties
-         |MERGE (target:`Product` {price: event.target.keys.price, id: event.target.keys.id}) SET target += event.target.properties
-         |CREATE (source)-[rel:`BOUGHT`]->(target)
-         |SET rel += event.rel.properties
-         |""".stripMargin.replaceAll("\n", " ").trim,
-      query.trim
-    )
-  }
-
-  @ParameterizedTest
-  @MethodSource(Array("versions_and_prefixes"))
-  def testRelationshipWithKeySaveStrategy(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put("relationship", "DID BUY")
-    options.put("relationship.save.strategy", "keys")
-    options.put("relationship.source.labels", ":Person:Customer")
-    options.put("relationship.source.save.mode", "Overwrite")
-    options.put("relationship.source.node.keys", "first name,last name")
-    options.put("relationship.target.labels", "Product")
-    options.put("relationship.target.save.mode", "Match")
-    options.put("relationship.target.node.keys", "article number")
-    options.put("relationship.properties", "number of items")
-    options.put("relationship.keys", "transactionId:transaction identifier")
-
-    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
-
-    val query: String =
-      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
-
-    assertEquals(
-      s"""|${prefix}UNWIND $$events AS event
-          |MERGE (source:`Person`:`Customer` {`first name`: event.source.keys.`first name`, `last name`: event.source.keys.`last name`}) SET source += event.source.properties
-          |WITH source, event
-          |MATCH (target:`Product` {`article number`: event.target.keys.`article number`})
-          |MERGE (source)-[rel:`DID BUY` {`transaction identifier`: event.rel.keys.transactionId}]->(target)
-          |SET rel += event.rel.properties
-          |""".stripMargin.replaceAll("\n", " ").trim,
-      query.trim
-    )
-  }
-
-  @ParameterizedTest
-  @MethodSource(Array("versions_and_prefixes"))
-  def testShouldDoSumAggregationOnLabels(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -939,9 +805,14 @@ class Neo4jQueryServiceTest {
     )
   }
 
+  // todo consider breaking up or soft assertions
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testShouldDoSumAggregationOnRelationships(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_relationships_should_do_sum_aggregations(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "BOUGHT")
@@ -1030,7 +901,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testTopNForLabels(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_labels_with_top_n_partition_pagination(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -1064,7 +939,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testTopNForLabelsWithRequiredColumn(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_labels_with_top_n_partition_pagination_and_required_column(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -1099,7 +978,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testTopNForRelationships(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_relationship_with_top_n_partition_pagination(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -1143,7 +1026,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testTopNForRelationshipWithOneRequiredColumn(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_relationship_with_top_n_partition_pagination_and_required_column(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -1190,7 +1077,11 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_and_prefixes"))
-  def testTopNForCustomQueryIgnoresAggregation(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+  def read_query_for_custom_queries_with_top_n_partition_pagination_should_ignore_aggregations(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (p:Person) RETURN p")
@@ -1225,7 +1116,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("tuning_parameters"))
-  def testTuningPreambleForLabelsWhenRead(tuningOptions: Map[String, String], prefix: String): Unit = {
+  def read_query_for_labels_with_tuning_preamble(tuningOptions: Map[String, String], prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -1239,25 +1130,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("tuning_parameters"))
-  def testTuningPreambleForLabelsWhenWrite(tuningOptions: Map[String, String], prefix: String): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
-    val neo4jInfo = neo4j(version(5, 0), COMMUNITY)
-
-    val writeService = new Neo4jQueryService(
-      neo4jOptions,
-      new Neo4jQueryWriteStrategy(neo4jInfo, new CypherRenderer(neo4jInfo, neo4jOptions), SaveMode.Overwrite)
-    )
-
-    val wantQuery = "UNWIND $events AS event MERGE (node:`Person`) SET node += event.properties"
-    assertEquals(s"$prefix\n$wantQuery".trim, writeService.createQuery().trim)
-  }
-
-  @ParameterizedTest
-  @MethodSource(Array("tuning_parameters"))
-  def testTuningPreambleForRelationshipWhenRead(tuningOptions: Map[String, String], prefix: String): Unit = {
+  def read_query_for_relationship_with_tuning_preamble(tuningOptions: Map[String, String], prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -1276,7 +1149,315 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("tuning_parameters"))
-  def testTuningPreambleForRelationshipWhenWrite(tuningOptions: Map[String, String], prefix: String): Unit = {
+  def read_query_without_preamble_should_not_generate_a_preamble(
+    tuningOptions: Map[String, String],
+    ignored: String
+  ): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
+    val neo4jInfo = neo4j(version(5, 0), COMMUNITY)
+
+    val noPreambleReadService =
+      new Neo4jQueryService(
+        neo4jOptions,
+        new Neo4jQueryReadStrategy(
+          neo4jInfo,
+          new CypherRenderer(neo4jInfo, neo4jOptions),
+          withPreamble = false
+        )
+      )
+
+    val wantQuery = "MATCH (o:Object) RETURN o"
+    assertEquals(wantQuery, noPreambleReadService.createQuery().trim)
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("versions_prefix_and_tuning_cross_combination"))
+  def read_query_for_custom_queries_should_properly_embed_cypher_version_and_tuning_preamble(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    cypherVersionPreamble: String,
+    tuningOptions: Map[String, String],
+    tuningPrefix: String
+  ): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
+    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
+    val readService = new Neo4jQueryService(neo4jOptions, plainReadStrategy(neo4j, neo4jOptions))
+
+    val wantQuery = s"$tuningPrefix\n${cypherVersionPreamble}MATCH (o:Object) RETURN o"
+    assertEquals(wantQuery.trim, readService.createQuery().trim)
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("versions_prefix_and_tuning_cross_combination"))
+  def read_query_for_custom_queries_should_properly_embed_script_results_when_script_is_present(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    cypherVersionPreamble: String,
+    tuningOptions: Map[String, String],
+    tuningPrefix: String
+  ): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
+    options.put("script", "return 'foo'")
+    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
+    val versionedReadService = new Neo4jQueryService(neo4jOptions, plainReadStrategy(neo4j, neo4jOptions))
+
+    val wantQuery =
+      s"$tuningPrefix\n${cypherVersionPreamble}WITH $$scriptResult AS scriptResult MATCH (o:Object) RETURN o"
+
+    assertEquals(wantQuery.trim, versionedReadService.createQuery().trim)
+  }
+
+  private def plainReadStrategy(neo4j: Neo4j, neo4jOptions: Neo4jOptions): Neo4jQueryReadStrategy =
+    new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions))
+
+  // Test cases for write-strategy
+  @ParameterizedTest
+  @MethodSource(Array("versions_and_prefixes"))
+  def write_query_for_labels_when_multiple_labels(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
+    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions, SaveMode.Append)).createQuery().trim
+
+    assertEquals(
+      s"${prefix}UNWIND $$events AS event CREATE (node:`Person`:`Player`:`Midfield`) SET node += event.properties",
+      query
+    )
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("versions_and_prefixes"))
+  def write_query_for_labels_when_composite_key_is_used(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("labels", "Location")
+    options.put("node.keys", "LocationName:name,LocationType:type,FeatureID:featureId")
+    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
+
+    assertEquals(
+      s"""${prefix}UNWIND $$events AS event
+         |MERGE (node:`Location` {name: event.keys.name, type: event.keys.type, featureId: event.keys.featureId})
+         |SET node += event.properties
+         |""".stripMargin.trim.replaceAll("\n", " "),
+      query
+    )
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("versions_and_prefixes"))
+  def write_query_for_relationship_when_composite_key_is_used(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "BOUGHT")
+    options.put("relationship.source.labels", ":Person")
+    options.put("relationship.source.node.keys", "FirstName:name,LastName:lastName")
+    options.put("relationship.target.labels", ":Product:Merch")
+    options.put("relationship.target.node.keys", "ProductPrice:price,ProductId:id")
+
+    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
+
+    assertEquals(
+      s"""${prefix}UNWIND $$events AS event
+         |MATCH (source:`Person` {name: event.source.keys.name, lastName: event.source.keys.lastName})
+         |MATCH (target:`Product`:`Merch` {price: event.target.keys.price, id: event.target.keys.id})
+         |MERGE (source)-[rel:`BOUGHT`]->(target)
+         |SET rel += event.rel.properties
+         |""".stripMargin.replaceAll("\n", " ").trim,
+      query.trim
+    )
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("versions_and_prefixes"))
+  def write_query_for_relationship_when_source_merges_and_target_matches(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "BOUGHT")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.source.node.keys", "FirstName:name,LastName:lastName")
+    options.put("relationship.source.save.mode", "Overwrite")
+    options.put("relationship.target.labels", "Product")
+    options.put("relationship.target.node.keys", "ProductPrice:price,ProductId:id")
+    options.put("relationship.target.save.mode", "Match")
+
+    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
+
+    assertEquals(
+      s"""${prefix}UNWIND $$events AS event
+         |MERGE (source:`Person` {name: event.source.keys.name, lastName: event.source.keys.lastName}) SET source += event.source.properties
+         |WITH source, event
+         |MATCH (target:`Product` {price: event.target.keys.price, id: event.target.keys.id})
+         |MERGE (source)-[rel:`BOUGHT`]->(target)
+         |SET rel += event.rel.properties
+         |""".stripMargin.replaceAll("\n", " ").trim,
+      query.trim
+    )
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("versions_and_prefixes"))
+  def write_query_for_relationship_when_source_merges_and_target_merges(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "BOUGHT")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.source.node.keys", "FirstName:name,LastName:lastName")
+    options.put("relationship.source.save.mode", "Overwrite")
+    options.put("relationship.target.labels", "Product")
+    options.put("relationship.target.node.keys", "ProductPrice:price,ProductId:id")
+    options.put("relationship.target.save.mode", "Overwrite")
+
+    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
+
+    assertEquals(
+      s"""${prefix}UNWIND $$events AS event
+         |MERGE (source:`Person` {name: event.source.keys.name, lastName: event.source.keys.lastName}) SET source += event.source.properties
+         |MERGE (target:`Product` {price: event.target.keys.price, id: event.target.keys.id}) SET target += event.target.properties
+         |MERGE (source)-[rel:`BOUGHT`]->(target)
+         |SET rel += event.rel.properties
+         |""".stripMargin.replaceAll("\n", " ").trim,
+      query.trim
+    )
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("versions_and_prefixes"))
+  def write_query_for_relationship_when_source_creates_and_target_merges(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "BOUGHT")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.source.node.keys", "FirstName:name,LastName:lastName")
+    options.put("relationship.source.save.mode", "Append")
+    options.put("relationship.target.labels", "Product")
+    options.put("relationship.target.node.keys", "ProductPrice:price,ProductId:id")
+    options.put("relationship.target.save.mode", "Overwrite")
+
+    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions, SaveMode.Append)).createQuery()
+
+    assertEquals(
+      s"""${prefix}UNWIND $$events AS event
+         |CREATE (source:`Person` {name: event.source.keys.name, lastName: event.source.keys.lastName}) SET source += event.source.properties
+         |MERGE (target:`Product` {price: event.target.keys.price, id: event.target.keys.id}) SET target += event.target.properties
+         |CREATE (source)-[rel:`BOUGHT`]->(target)
+         |SET rel += event.rel.properties
+         |""".stripMargin.replaceAll("\n", " ").trim,
+      query.trim
+    )
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("versions_and_prefixes"))
+  def write_query_for_relationship_when_key_save_strategy(
+    neo4j: Neo4j,
+    customCypherVersion: String,
+    prefix: String
+  ): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "DID BUY")
+    options.put("relationship.save.strategy", "keys")
+    options.put("relationship.source.labels", ":Person:Customer")
+    options.put("relationship.source.save.mode", "Overwrite")
+    options.put("relationship.source.node.keys", "first name,last name")
+    options.put("relationship.target.labels", "Product")
+    options.put("relationship.target.save.mode", "Match")
+    options.put("relationship.target.node.keys", "article number")
+    options.put("relationship.properties", "number of items")
+    options.put("relationship.keys", "transactionId:transaction identifier")
+
+    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String =
+      new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions)).createQuery()
+
+    assertEquals(
+      s"""|${prefix}UNWIND $$events AS event
+          |MERGE (source:`Person`:`Customer` {`first name`: event.source.keys.`first name`, `last name`: event.source.keys.`last name`}) SET source += event.source.properties
+          |WITH source, event
+          |MATCH (target:`Product` {`article number`: event.target.keys.`article number`})
+          |MERGE (source)-[rel:`DID BUY` {`transaction identifier`: event.rel.keys.transactionId}]->(target)
+          |SET rel += event.rel.properties
+          |""".stripMargin.replaceAll("\n", " ").trim,
+      query.trim
+    )
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("tuning_parameters"))
+  def write_query_for_labels_when_tuning_parameters(tuningOptions: Map[String, String], prefix: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
+    val neo4jInfo = neo4j(version(5, 0), COMMUNITY)
+
+    val writeService = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryWriteStrategy(neo4jInfo, new CypherRenderer(neo4jInfo, neo4jOptions), SaveMode.Overwrite)
+    )
+
+    val wantQuery = "UNWIND $events AS event MERGE (node:`Person`) SET node += event.properties"
+    assertEquals(s"$prefix\n$wantQuery".trim, writeService.createQuery().trim)
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("tuning_parameters"))
+  def write_query_for_relationship_when_tuning_parameters(tuningOptions: Map[String, String], prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -1301,30 +1482,10 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("tuning_parameters"))
-  def testCanSkipPreambleWhenRead(tuningOptions: Map[String, String], ignored: String): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
-    val neo4jInfo = neo4j(version(5, 0), COMMUNITY)
-
-    val noPreambleReadService =
-      new Neo4jQueryService(
-        neo4jOptions,
-        new Neo4jQueryReadStrategy(
-          neo4jInfo,
-          new CypherRenderer(neo4jInfo, neo4jOptions),
-          withPreamble = false
-        )
-      )
-
-    val wantQuery = "MATCH (o:Object) RETURN o"
-    assertEquals(wantQuery, noPreambleReadService.createQuery().trim)
-  }
-
-  @ParameterizedTest
-  @MethodSource(Array("tuning_parameters"))
-  def testCanSkipPreambleWhenWrite(tuningOptions: Map[String, String], ignored: String): Unit = {
+  def write_query_without_preamble_should_not_generate_a_preamble(
+    tuningOptions: Map[String, String],
+    ignored: String
+  ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
@@ -1343,27 +1504,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_prefix_and_tuning_cross_combination"))
-  def testTuningAndVersionInclusionInCustomQueryWhenRead(
-    neo4j: Neo4j,
-    customCypherVersion: String,
-    cypherVersionPreamble: String,
-    tuningOptions: Map[String, String],
-    tuningPrefix: String
-  ): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
-    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
-    val readService = new Neo4jQueryService(neo4jOptions, plainReadStrategy(neo4j, neo4jOptions))
-
-    val wantQuery = s"$tuningPrefix\n${cypherVersionPreamble}MATCH (o:Object) RETURN o"
-    assertEquals(wantQuery.trim, readService.createQuery().trim)
-  }
-
-  @ParameterizedTest
-  @MethodSource(Array("versions_prefix_and_tuning_cross_combination"))
-  def testTuningAndVersionInclusionInCustomQueryWhenWrite(
+  def write_query_for_custom_queries_should_properly_embed_cypher_version_and_tuning_preamble(
     neo4j: Neo4j,
     customCypherVersion: String,
     cypherVersionPreamble: String,
@@ -1385,30 +1526,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("versions_prefix_and_tuning_cross_combination"))
-  def testScriptResultInclusionInCustomQueryWhenRead(
-    neo4j: Neo4j,
-    customCypherVersion: String,
-    cypherVersionPreamble: String,
-    tuningOptions: Map[String, String],
-    tuningPrefix: String
-  ): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
-    options.put("script", "return 'foo'")
-    options.put(Neo4jOptions.CYPHER_VERSION, customCypherVersion)
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(withTuning(options, tuningOptions))
-    val versionedReadService = new Neo4jQueryService(neo4jOptions, plainReadStrategy(neo4j, neo4jOptions))
-
-    val wantQuery =
-      s"$tuningPrefix\n${cypherVersionPreamble}WITH $$scriptResult AS scriptResult MATCH (o:Object) RETURN o"
-
-    assertEquals(wantQuery.trim, versionedReadService.createQuery().trim)
-  }
-
-  @ParameterizedTest
-  @MethodSource(Array("versions_prefix_and_tuning_cross_combination"))
-  def testScriptResultInclusionInCustomQuery(
+  def write_query_for_custom_queries_should_properly_embed_script_results_when_script_is_present(
     neo4j: Neo4j,
     customCypherVersion: String,
     cypherVersionPreamble: String,
@@ -1431,9 +1549,6 @@ class Neo4jQueryServiceTest {
     assertEquals(wantQuery.trim, versionedWriteService.createQuery().trim)
   }
 
-  def plainReadStrategy(neo4j: Neo4j, neo4jOptions: Neo4jOptions): Neo4jQueryReadStrategy =
-    new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions))
-
   def plainWriteStrategy(
     neo4j: Neo4j,
     neo4jOptions: Neo4jOptions,
@@ -1441,7 +1556,8 @@ class Neo4jQueryServiceTest {
   ): Neo4jQueryWriteStrategy =
     new Neo4jQueryWriteStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), saveMode)
 
-  def versions_and_prefixes(): Array[Array[Any]] = {
+  // Parameter methods
+  private def versions_and_prefixes(): Array[Array[Any]] = {
     Array(
       Array(neo4j(version(5, 0), COMMUNITY), "", ""),
       Array(neo4j(version(5, 0), ENTERPRISE), "", ""),
@@ -1458,22 +1574,14 @@ class Neo4jQueryServiceTest {
     )
   }
 
-  def neo4j(version: Neo4jVersion, edition: Neo4jEdition): Neo4j = {
-    new Neo4j(version, edition, SELF_MANAGED, Collections.emptySet())
-  }
-
-  def version(major: Int, minor: Int): Neo4jVersion = {
-    new Neo4jVersion(major, minor, 0)
-  }
-
-  def tuning_parameters(): Array[Array[Any]] = {
+  private def tuning_parameters(): Array[Array[Any]] = {
     Array(
       Array(Map.empty[String, String], ""),
       Array(Map[String, String]("cypher.tuning.withCustom" -> "set"), "CYPHER withCustom=set")
     )
   }
 
-  def versions_prefix_and_tuning_cross_combination(): Array[Array[Any]] = {
+  private def versions_prefix_and_tuning_cross_combination(): Array[Array[Any]] = {
     val tuningParameters = tuning_parameters()
     val versionParameters = versions_and_prefixes()
 
@@ -1487,6 +1595,15 @@ class Neo4jQueryServiceTest {
       tuningParameter(0), // tuningOptions: Map[String, String]
       tuningParameter(1) // tuningPrefix: String
     )
+  }
+
+  // Test case construction methods
+  private def neo4j(version: Neo4jVersion, edition: Neo4jEdition): Neo4j = {
+    new Neo4j(version, edition, SELF_MANAGED, Collections.emptySet())
+  }
+
+  private def version(major: Int, minor: Int): Neo4jVersion = {
+    new Neo4jVersion(major, minor, 0)
   }
 
   private def withTuning(
