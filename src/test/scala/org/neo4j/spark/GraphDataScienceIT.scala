@@ -70,14 +70,7 @@ class GraphDataScienceIT {
   @AfterEach
   def cleanUp(): Unit = {
     Option(driver).filter(_.serverSupportsGds()).foreach { d =>
-      d.executableQuery(
-        """
-          |CALL gds.graph.list() YIELD graphName
-          |WITH graphName AS g
-          |CALL gds.graph.drop(g) YIELD graphName
-          |RETURN *
-          |""".stripMargin
-      ).execute()
+      d.executableQuery("CALL gds.graph.drop('myGraph', false)").execute()
     }
     Option(spark).foreach(_.close())
     Option(driver).foreach(_.close())
@@ -103,7 +96,6 @@ class GraphDataScienceIT {
       .option("gds.algoConfiguration.concurrency", "2")
       .load()
     assertThat(dfEstimate.count()).isEqualTo(1)
-    dfEstimate.show(false)
 
     assertThat(dfEstimate.schema).isEqualTo(
       StructType(
@@ -125,8 +117,6 @@ class GraphDataScienceIT {
   @ParameterizedTest
   @MethodSource(Array("unsupportedOptionCases"))
   def fails_with_unsupported_options(testCase: UnsupportedOptionCase): Unit = {
-    initForPageRank()
-
     assertThatExceptionOfType(classOf[IllegalArgumentException])
       .isThrownBy(() => {
         spark.read.format(classOf[DataSource].getName)
@@ -139,13 +129,11 @@ class GraphDataScienceIT {
 
   @Test
   def hits_supports_map_results(): Unit = {
+    assumeTrue(use(driver.session())(s => TestUtil.neo4jVersion(s)) >= Versions.NEO4J_5)
     initForHits()
 
-    val procName = if (use(driver.session())(s => TestUtil.gdsVersion(s)) >= Versions.GDS_2_5)
-      "gds.hits.stream"
-    else "gds.alpha.hits.stream"
     val df = spark.read.format(classOf[DataSource].getName)
-      .option("gds", procName)
+      .option("gds", hitsStreamProc)
       .option("gds.graphName", "myGraph")
       .option("gds.configuration.hitsIterations", "20")
       .load()
@@ -212,7 +200,6 @@ class GraphDataScienceIT {
       .option(s"gds.$algoConfigurationParam.relationshipWeightProperty", "cost")
       .load()
     assertThat(dfEstimate.count()).isEqualTo(1)
-    dfEstimate.show(false)
 
     assertThat(dfEstimate.schema).isEqualTo(
       StructType(
@@ -285,7 +272,6 @@ class GraphDataScienceIT {
       .option("gds.algoConfiguration.deltaThreshold", 0.0)
       .load()
     assertThat(dfEstimate.count()).isEqualTo(1)
-    dfEstimate.show(false)
 
     assertThat(dfEstimate.schema).isEqualTo(
       StructType(
@@ -303,6 +289,10 @@ class GraphDataScienceIT {
       )
     )
   }
+
+  private def hitsStreamProc: String =
+    if (use(driver.session())(s => TestUtil.gdsVersion(s)) >= Versions.GDS_2_5) "gds.hits.stream"
+    else "gds.alpha.hits.stream"
 
   private def initForPageRank(): Unit = {
     driver.executableQuery(
@@ -344,7 +334,6 @@ class GraphDataScienceIT {
   }
 
   private def initForHits(): Unit = {
-    assumeTrue(use(driver.session())(s => TestUtil.neo4jVersion(s)) >= Versions.NEO4J_5)
     driver.executableQuery(
       """
         |CREATE
