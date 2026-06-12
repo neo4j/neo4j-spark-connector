@@ -20,9 +20,9 @@ import org.apache.spark.sql.connector.expressions.aggregate.Count
 import org.apache.spark.sql.connector.expressions.aggregate.Max
 import org.apache.spark.sql.connector.expressions.aggregate.Min
 import org.apache.spark.sql.connector.expressions.aggregate.Sum
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteWithGdsBase
@@ -44,7 +44,7 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
   }
 
   @Test
-  def testShouldDoAggregationOnGDS(): Unit = {
+  def read_query_for_gds_should_do_aggregation(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
     options.put("gds", "gds.pageRank.stream")
@@ -79,59 +79,56 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
       )
     ).createQuery()
 
-    assertTrue(query.endsWith(
+    assertThat(query).endsWith(
       """CALL gds.pageRank.stream($graphName)
         |YIELD nodeId, score
         |RETURN nodeId AS nodeId, max(score) AS `MAX(score)`, min(score) AS `MIN(score)`, count(score) AS `COUNT(score)`, count(DISTINCT score) AS `COUNT(DISTINCT score)`, sum(score) AS `SUM(score)`, sum(DISTINCT score) AS `SUM(DISTINCT score)`"""
         .stripMargin
         .replaceAll("\n", " ")
-    ))
+    )
   }
 
   @Test
-  def testQueryTuningNotSupported(): Unit = {
+  def read_query_for_gds_should_not_allow_cypher_preamble(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
     options.put("gds", "gds.pageRank.stream")
-    options.put("cypher.tuning.expression.engine", "compiled")
+    options.put("cypher.tuning.expressionEngine", "compiled")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val field = new DummyNamedReference("score")
 
-    val exception = assertThrows(
-      classOf[UnsupportedOperationException],
-      () => {
-        new Neo4jQueryService(
-          neo4jOptions,
-          new Neo4jQueryReadStrategy(
-            neo4j,
-            new CypherRenderer(neo4j, neo4jOptions),
-            Array.empty,
-            PartitionPagination.EMPTY,
-            List(
-              "nodeId",
-              "MAX(score)",
-              "MIN(score)",
-              "COUNT(score)",
-              "COUNT(DISTINCT score)",
-              "SUM(score)",
-              "SUM(DISTINCT score)"
-            ),
-            Array(
-              new Max(field),
-              new Min(field),
-              new Sum(field, false),
-              new Count(field, false),
-              new Count(field, true),
-              new Sum(field, false),
-              new Sum(field, true)
-            )
+    assertThatThrownBy(() => {
+      new Neo4jQueryService(
+        neo4jOptions,
+        new Neo4jQueryReadStrategy(
+          neo4j,
+          new CypherRenderer(neo4j, neo4jOptions),
+          Array.empty,
+          PartitionPagination.EMPTY,
+          List(
+            "nodeId",
+            "MAX(score)",
+            "MIN(score)",
+            "COUNT(score)",
+            "COUNT(DISTINCT score)",
+            "SUM(score)",
+            "SUM(DISTINCT score)"
+          ),
+          Array(
+            new Max(field),
+            new Min(field),
+            new Sum(field, false),
+            new Count(field, false),
+            new Count(field, true),
+            new Sum(field, false),
+            new Sum(field, true)
           )
-        ).createQuery()
-      }
-    )
-
-    assertTrue(exception.getMessage.contains("Query tuning parameters are not supported for GDS queries"))
+        )
+      ).createQuery()
+    })
+      .isInstanceOf(classOf[UnsupportedOperationException])
+      .hasMessageContaining("Query tuning parameters are not supported for GDS queries")
   }
 
 }
