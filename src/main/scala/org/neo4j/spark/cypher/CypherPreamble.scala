@@ -20,13 +20,12 @@ import org.neo4j.caniuse.CanIUse.INSTANCE.canIUse
 import org.neo4j.caniuse.Cypher.{INSTANCE => Cypher}
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.util.Neo4jOptions
-import org.neo4j.spark.util.Neo4jTuningOptions
 
 object CypherPreamble {
 
   def fullPreamble(neo4j: Neo4j, neo4jOptions: Neo4jOptions): String = {
     val version = versionPreamble(neo4j, neo4jOptions)
-    val tuning = tuningPreamble(neo4jOptions.tuning)
+    val tuning = tuningPreamble(neo4jOptions)
 
     if (tuning.isEmpty) {
       s"$version"
@@ -47,18 +46,14 @@ object CypherPreamble {
     }
   }
 
-  private def tuningPreamble(tuningOptions: Neo4jTuningOptions): String = {
+  def tuningPreamble(options: Neo4jOptions): String = {
     val cypher = "CYPHER "
 
-    val clause = tuningOptions.toMap
-      .filter { case (_, value) => value.nonEmpty }
-      .map { case (key, value) =>
-        if (!Neo4jTuningOptions.validTuningParameters.getOrElse(key, Set.empty).contains(value)) {
-          throw new IllegalArgumentException(
-            s"Found and stopped at first invalid tuning parameter for spark connector: $key=$value"
-          )
-        }
-        s"$key=$value"
+    val clause = options.tuning
+      .filter { case (parameter, value) => parameter.nonEmpty && value.nonEmpty }
+      .map {
+        case (parameter, value) if isValidElseThrow(parameter, value) =>
+          s"$parameter=$value"
       }
       .mkString(cypher, " ", "")
 
@@ -66,5 +61,23 @@ object CypherPreamble {
       ""
     else
       clause
+  }
+
+  private def isValidElseThrow(parameter: String, parameterValue: String): Boolean = {
+    val regex = "^[a-zA-Z0-9_.-]+$"
+
+    if (!parameter.matches(regex)) {
+      throw new IllegalArgumentException(
+        "Cypher tuning parameter name must be alphanumeric, underscore or hyphen. Found: " + parameter
+      )
+    }
+
+    if (!parameterValue.matches(regex)) {
+      throw new IllegalArgumentException(
+        "Cypher tuning parameter value must be alphanumeric, underscore or hyphen. Found: " + parameterValue
+      )
+    }
+
+    true
   }
 }

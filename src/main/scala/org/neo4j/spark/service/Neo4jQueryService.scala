@@ -39,7 +39,6 @@ import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jNodeMetadata
 import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jRelationshipMetadata
-import org.neo4j.spark.util.Neo4jTuningOptions
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.Neo4jUtil.RELATIONSHIP_ALIAS
 import org.neo4j.spark.util.Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS
@@ -550,7 +549,7 @@ class Neo4jQueryReadStrategy(
   }
 
   override def createStatementForGDS(options: Neo4jOptions): String = {
-    if (options.tuning != Neo4jTuningOptions.empty) {
+    if (options.tuning.nonEmpty) {
       throw new UnsupportedOperationException("Query tuning parameters are not supported for GDS queries")
     }
 

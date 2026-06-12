@@ -93,7 +93,7 @@ class Neo4jQueryServiceIT extends SparkConnectorScalaSuiteWithGdsBase {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithGdsBase.server.getBoltUrl)
     options.put("gds", "gds.pageRank.stream")
-    options.put(Neo4jOptions.TUNING_EXPRESSION_ENGINE, "compiled")
+    options.put("cypher.tuning.expression.engine", "compiled")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     val field = new DummyNamedReference("score")
