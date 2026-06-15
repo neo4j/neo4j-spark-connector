@@ -88,7 +88,7 @@ class SchemaService(
       retrieveSchemaFromApoc(query, Collections.singletonMap("config", apocConfig.asJava))
     } catch {
       case e: ClientException =>
-        logResolutionChange("Switching to query schema resolution", e)
+        logResolutionChange("APOC is not installed. Switching to query schema resolution", e)
         // TODO get back to Cypher DSL when rand function will be available
         val query =
           s"""${selectCypherVersionClause(neo4j)}MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
@@ -239,7 +239,7 @@ class SchemaService(
       retrieveSchemaFromApoc(query, params)
     } catch {
       case e: ClientException =>
-        logResolutionChange("Switching to query schema resolution", e)
+        logResolutionChange("APOC is not installed. Switching to query schema resolution", e)
         // TODO get back to Cypher DSL when rand function will be available
         val query =
           s"""${selectCypherVersionClause(
@@ -499,10 +499,10 @@ class SchemaService(
         countForNodeWithQuery(filters)
       }
     } catch {
-      case e: ClientException => {
-        logResolutionChange("Switching to query count resolution", e)
+      case e: ClientException =>
+        val logPrefix = if (filters.isEmpty) "APOC is not installed. " else ""
+        logResolutionChange(s"${logPrefix}Switching to query count resolution", e)
         countForNodeWithQuery(filters)
-      }
       case e: Throwable => logExceptionForCount(e)
     }
 
@@ -535,7 +535,8 @@ class SchemaService(
       }
     } catch {
       case e: ClientException => {
-        logResolutionChange("Switching to query count resolution", e)
+        val logPrefix = if (filters.isEmpty) "APOC is not installed. " else ""
+        logResolutionChange(s"${logPrefix}Switching to query count resolution", e)
         countForRelationshipWithQuery(filters)
       }
       case e: Throwable => logExceptionForCount(e)
