@@ -41,7 +41,6 @@ import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.util.DummyNamedReference
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
 import org.neo4j.spark.util.Neo4jOptions
-import org.neo4j.spark.util.Neo4jTuningOptions
 import org.neo4j.spark.util.QueryType
 
 import java.util.Collections
@@ -1226,7 +1225,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("tuning_parameters"))
-  def testTuningPreambleForLabelsWhenRead(tuningOptions: Neo4jTuningOptions, prefix: String): Unit = {
+  def testTuningPreambleForLabelsWhenRead(tuningOptions: Map[String, String], prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -1240,7 +1239,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("tuning_parameters"))
-  def testTuningPreambleForLabelsWhenWrite(tuningOptions: Neo4jTuningOptions, prefix: String): Unit = {
+  def testTuningPreambleForLabelsWhenWrite(tuningOptions: Map[String, String], prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -1258,7 +1257,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("tuning_parameters"))
-  def testTuningPreambleForRelationshipWhenRead(tuningOptions: Neo4jTuningOptions, prefix: String): Unit = {
+  def testTuningPreambleForRelationshipWhenRead(tuningOptions: Map[String, String], prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -1277,7 +1276,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("tuning_parameters"))
-  def testTuningPreambleForRelationshipWhenWrite(tuningOptions: Neo4jTuningOptions, prefix: String): Unit = {
+  def testTuningPreambleForRelationshipWhenWrite(tuningOptions: Map[String, String], prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "KNOWS")
@@ -1302,7 +1301,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("tuning_parameters"))
-  def testCanSkipPreambleWhenRead(tuningOptions: Neo4jTuningOptions, ignored: String): Unit = {
+  def testCanSkipPreambleWhenRead(tuningOptions: Map[String, String], ignored: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
@@ -1325,7 +1324,7 @@ class Neo4jQueryServiceTest {
 
   @ParameterizedTest
   @MethodSource(Array("tuning_parameters"))
-  def testCanSkipPreambleWhenWrite(tuningOptions: Neo4jTuningOptions, ignored: String): Unit = {
+  def testCanSkipPreambleWhenWrite(tuningOptions: Map[String, String], ignored: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH (o:Object) RETURN o")
@@ -1348,7 +1347,7 @@ class Neo4jQueryServiceTest {
     neo4j: Neo4j,
     customCypherVersion: String,
     cypherVersionPreamble: String,
-    tuningOptions: Neo4jTuningOptions,
+    tuningOptions: Map[String, String],
     tuningPrefix: String
   ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
@@ -1368,7 +1367,7 @@ class Neo4jQueryServiceTest {
     neo4j: Neo4j,
     customCypherVersion: String,
     cypherVersionPreamble: String,
-    tuningOptions: Neo4jTuningOptions,
+    tuningOptions: Map[String, String],
     tuningPrefix: String
   ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
@@ -1390,7 +1389,7 @@ class Neo4jQueryServiceTest {
     neo4j: Neo4j,
     customCypherVersion: String,
     cypherVersionPreamble: String,
-    tuningOptions: Neo4jTuningOptions,
+    tuningOptions: Map[String, String],
     tuningPrefix: String
   ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
@@ -1413,7 +1412,7 @@ class Neo4jQueryServiceTest {
     neo4j: Neo4j,
     customCypherVersion: String,
     cypherVersionPreamble: String,
-    tuningOptions: Neo4jTuningOptions,
+    tuningOptions: Map[String, String],
     tuningPrefix: String
   ): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
@@ -1469,12 +1468,8 @@ class Neo4jQueryServiceTest {
 
   def tuning_parameters(): Array[Array[Any]] = {
     Array(
-      Array(Neo4jTuningOptions.empty, ""),
-      Array(Neo4jTuningOptions.empty.copy(runtime = "parallel"), "CYPHER runtime=parallel"),
-      Array(
-        Neo4jTuningOptions.empty.copy(replan = "force", operatorEngine = "compiled"),
-        "CYPHER replan=force operatorEngine=compiled"
-      )
+      Array(Map.empty[String, String], ""),
+      Array(Map[String, String]("cypher.tuning.withCustom" -> "set"), "CYPHER withCustom=set")
     )
   }
 
@@ -1489,19 +1484,18 @@ class Neo4jQueryServiceTest {
       versionParameter(0), // neo4j: Neo4j
       versionParameter(1), // customVersion: String
       versionParameter(2), // versionPrefix: String
-      tuningParameter(0), // tuningOptions: Neo4jTuningOptions
+      tuningParameter(0), // tuningOptions: Map[String, String]
       tuningParameter(1) // tuningPrefix: String
     )
   }
 
   private def withTuning(
     options: java.util.Map[String, String],
-    tuning: Neo4jTuningOptions
+    tuning: Map[String, String]
   ): java.util.Map[String, String] = {
-    tuning.toMap.foreach {
+    tuning.foreach {
       case (key, value) =>
-        val dotCasedKey = key.replaceAll("([A-Z])", ".$1").toLowerCase
-        options.put(s"cypher.$dotCasedKey", value)
+        options.put(key, value)
     }
     options
   }

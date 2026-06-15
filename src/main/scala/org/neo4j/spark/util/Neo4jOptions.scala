@@ -151,16 +151,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
   val cypherVersion: String = getParameter(CYPHER_VERSION)
 
-  val tuning: Neo4jTuningOptions = Neo4jTuningOptions(
-    getParameter(TUNING_EXPRESSION_ENGINE),
-    getParameter(TUNING_INFER_SCHEMA_PARTS),
-    getParameter(TUNING_INTERPRETED_PIPES_FALLBACK),
-    getParameter(TUNING_OPERATOR_ENGINE),
-    getParameter(TUNING_PLANNER),
-    getParameter(TUNING_REPLAN),
-    getParameter(TUNING_RUNTIME),
-    getParameter(TUNING_UPDATE_STRATEGY)
-  )
+  val tuning: Map[String, String] = extractNeo4jTuningOptions()
 
   val connection: Neo4jDriverOptions = Neo4jDriverOptions(
     getRequiredParameter(URL),
@@ -366,6 +357,13 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       .map(t => (t._1.substring(TX_METADATA_OPTION_PREFIX.length), t._2))
       .toMap
       .toNestedPrimitiveDeserializedJsonJavaMap
+
+  private def extractNeo4jTuningOptions(): Map[String, String] =
+    options.asScala
+      .view
+      .filterKeys(k => k.toLowerCase.startsWith(CYPHER_TUNING_OPTION_PREFIX))
+      .map(t => (t._1.substring(CYPHER_TUNING_OPTION_PREFIX.length), t._2))
+      .toMap
 
   private def minimumNotificationSeverity(strictMode: Boolean): NotificationSeverity = {
     if (strictMode) {
@@ -606,49 +604,6 @@ case class Neo4jDriverOptions(
 
 }
 
-case class Neo4jTuningOptions(
-  expressionEngine: String,
-  inferSchemaParts: String,
-  interpretedPipesFallback: String,
-  operatorEngine: String,
-  planner: String,
-  replan: String,
-  runtime: String,
-  updateStrategy: String
-) {
-
-  def toMap: Map[String, String] = Map(
-    Neo4jOptions.TUNING_EXPRESSION_ENGINE_IN_CYPHER -> expressionEngine,
-    Neo4jOptions.TUNING_INFER_SCHEMA_PARTS_IN_CYPHER -> inferSchemaParts,
-    Neo4jOptions.TUNING_INTERPRETED_PIPES_FALLBACK_IN_CYPHER -> interpretedPipesFallback,
-    Neo4jOptions.TUNING_OPERATOR_ENGINE_IN_CYPHER -> operatorEngine,
-    Neo4jOptions.TUNING_PLANNER_IN_CYPHER -> planner,
-    Neo4jOptions.TUNING_REPLAN_IN_CYPHER -> replan,
-    Neo4jOptions.TUNING_RUNTIME_IN_CYPHER -> runtime,
-    Neo4jOptions.TUNING_UPDATE_STRATEGY_IN_CYPHER -> updateStrategy
-  )
-}
-
-object Neo4jTuningOptions {
-  val empty = Neo4jTuningOptions("", "", "", "", "", "", "", "")
-
-  val validTuningParameters: Map[String, Set[String]] = Map(
-    Neo4jOptions.TUNING_EXPRESSION_ENGINE_IN_CYPHER -> Set("default", "interpreted", "compiled"),
-    Neo4jOptions.TUNING_INFER_SCHEMA_PARTS_IN_CYPHER -> Set("off", "most_selective_label"),
-    Neo4jOptions.TUNING_INTERPRETED_PIPES_FALLBACK_IN_CYPHER -> Set(
-      "default",
-      "disabled",
-      "whitelisted_plans_only",
-      "all"
-    ),
-    Neo4jOptions.TUNING_OPERATOR_ENGINE_IN_CYPHER -> Set("default", "interpreted", "compiled"),
-    Neo4jOptions.TUNING_PLANNER_IN_CYPHER -> Set("cost", "idp", "dp"),
-    Neo4jOptions.TUNING_REPLAN_IN_CYPHER -> Set("default", "force", "skip"),
-    Neo4jOptions.TUNING_RUNTIME_IN_CYPHER -> Set("slotted", "pipelined", "parallel"),
-    Neo4jOptions.TUNING_UPDATE_STRATEGY_IN_CYPHER -> Set("default", "eager")
-  )
-}
-
 object Neo4jOptions {
 
   // connection options
@@ -753,22 +708,7 @@ object Neo4jOptions {
 
   // custom cypher version and query tuning parameters
   val CYPHER_VERSION = "cypher.version"
-  val TUNING_EXPRESSION_ENGINE = "cypher.expression.engine"
-  val TUNING_EXPRESSION_ENGINE_IN_CYPHER = "expressionEngine"
-  val TUNING_INFER_SCHEMA_PARTS = "cypher.infer.schema.parts"
-  val TUNING_INFER_SCHEMA_PARTS_IN_CYPHER = "inferSchemaParts"
-  val TUNING_INTERPRETED_PIPES_FALLBACK = "cypher.interpreted.pipes.fallback"
-  val TUNING_INTERPRETED_PIPES_FALLBACK_IN_CYPHER = "interpretedPipesFallback"
-  val TUNING_OPERATOR_ENGINE = "cypher.operator.engine"
-  val TUNING_OPERATOR_ENGINE_IN_CYPHER = "operatorEngine"
-  val TUNING_PLANNER = "cypher.planner"
-  val TUNING_PLANNER_IN_CYPHER = "planner"
-  val TUNING_REPLAN = "cypher.replan"
-  val TUNING_REPLAN_IN_CYPHER = "replan"
-  val TUNING_RUNTIME = "cypher.runtime"
-  val TUNING_RUNTIME_IN_CYPHER = "runtime"
-  val TUNING_UPDATE_STRATEGY = "cypher.update.strategy"
-  val TUNING_UPDATE_STRATEGY_IN_CYPHER = "updateStrategy"
+  val CYPHER_TUNING_OPTION_PREFIX = "cypher.tuning."
 
   // Data conversion
   val TYPE_CONVERSION = "type.conversion"
