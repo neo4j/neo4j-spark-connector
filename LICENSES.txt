@@ -12,12 +12,21 @@ Apache Software License, Version 2.0
   Neo4j Bolt Connection (Provider SPI)
   Neo4j Bolt Connection (Routed Source impl)
   Netty/Buffer
-  Netty/Codec
+  Netty/Codec/Base
+  Netty/Codec/Classes/Quic
+  Netty/Codec/Native/Quic
   Netty/Common
   Netty/Handler
   Netty/Resolver
+  Netty/TomcatNative [BoringSSL - Static]
   Netty/TomcatNative [OpenSSL - Classes]
   Netty/Transport
+  Netty/Transport/Classes/Epoll
+  Netty/Transport/Classes/io_uring
+  Netty/Transport/Classes/KQueue
+  Netty/Transport/Native/Epoll
+  Netty/Transport/Native/io_uring
+  Netty/Transport/Native/KQueue
   Netty/Transport/Native/Unix/Common
   Non-Blocking Reactive Foundation for the JVM
   org.apiguardian:apiguardian-api
