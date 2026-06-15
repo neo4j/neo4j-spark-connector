@@ -57,7 +57,7 @@ class Neo4jScanBuilder(neo4jInfo: Neo4j, neo4jOptions: Neo4jOptions, jobId: Stri
       neo4jOptions,
       jobId,
       requiredSchema,
-      predicates.flatMap(_.toFilter),
+      predicates.flatMap(_.toFilter(neo4jOptions)),
       requiredColumns,
       aggregateColumns,
       topN.orElse(limit.map((limit: Int) => TopN(limit)))

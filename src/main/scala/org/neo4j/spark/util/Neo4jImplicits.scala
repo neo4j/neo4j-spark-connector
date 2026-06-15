@@ -46,9 +46,6 @@ import javax.lang.model.SourceVersion
 
 object Neo4jImplicits {
 
-  private val sparkToNeo4jDataConverter = SparkToNeo4jDataConverter()
-  private val cypherToSparkTypeConverter = CypherToSparkTypeConverter()
-
   implicit class CypherImplicits(str: String) {
     private def isValidCypherIdentifier() = SourceVersion.isIdentifier(str) && !str.trim.startsWith("$")
 
@@ -88,13 +85,13 @@ object Neo4jImplicits {
 
   implicit class EntityImplicits(entity: Entity) {
 
-    def toStruct: StructType = {
+    def toStruct(options: Neo4jOptions): StructType = {
       val fields = entity.asMap().asScala
         .groupBy(_._1)
         .map(t => {
           val value = t._2.head._2
-          val cypherType = SchemaService.normalizedClassNameFromGraphEntity(value)
-          StructField(t._1, cypherToSparkTypeConverter.convert(cypherType))
+          val cypherType = SchemaService.normalizedClassNameFromGraphEntity(value, options)
+          StructField(t._1, CypherToSparkTypeConverter(options).convert(cypherType))
         })
       val entityFields = entity match {
         case _: Node => {
@@ -139,44 +136,49 @@ object Neo4jImplicits {
 
   implicit class PredicateImplicit(predicate: Predicate) {
 
-    def toFilter: Option[Filter] = {
+    def toFilter(options: Neo4jOptions): Option[Filter] = {
       predicate.name() match {
         case "IS_NULL"     => Some(IsNull(predicate.rawAttributeName()))
         case "IS_NOT_NULL" => Some(IsNotNull(predicate.rawAttributeName()))
         case "STARTS_WITH" =>
-          predicate.rawLiteralValue().map(lit => StringStartsWith(predicate.rawAttributeName(), lit.asString()))
+          predicate.rawLiteralValue(options).map(lit => StringStartsWith(predicate.rawAttributeName(), lit.asString()))
         case "ENDS_WITH" =>
-          predicate.rawLiteralValue().map(lit => StringEndsWith(predicate.rawAttributeName(), lit.asString()))
+          predicate.rawLiteralValue(options).map(lit => StringEndsWith(predicate.rawAttributeName(), lit.asString()))
         case "CONTAINS" =>
-          predicate.rawLiteralValue().map(lit => StringContains(predicate.rawAttributeName(), lit.asString()))
-        case "IN" => Some(In(predicate.rawAttributeName(), predicate.rawLiteralValues()))
-        case "="  => predicate.rawLiteralValue().map(lit => EqualTo(predicate.rawAttributeName(), lit.asObject()))
-        case "<>" => predicate.rawLiteralValue().map(lit => Not(EqualTo(predicate.rawAttributeName(), lit.asObject())))
+          predicate.rawLiteralValue(options).map(lit => StringContains(predicate.rawAttributeName(), lit.asString()))
+        case "IN" => Some(In(predicate.rawAttributeName(), predicate.rawLiteralValues(options)))
+        case "=" => predicate.rawLiteralValue(options).map(lit => EqualTo(predicate.rawAttributeName(), lit.asObject()))
+        case "<>" =>
+          predicate.rawLiteralValue(options).map(lit => Not(EqualTo(predicate.rawAttributeName(), lit.asObject())))
         case "<=>" =>
-          predicate.rawLiteralValue().map(lit => EqualNullSafe(predicate.rawAttributeName(), lit.asObject()))
-        case "<" => predicate.rawLiteralValue().map(lit => LessThan(predicate.rawAttributeName(), lit.asObject()))
+          predicate.rawLiteralValue(options).map(lit => EqualNullSafe(predicate.rawAttributeName(), lit.asObject()))
+        case "<" =>
+          predicate.rawLiteralValue(options).map(lit => LessThan(predicate.rawAttributeName(), lit.asObject()))
         case "<=" =>
-          predicate.rawLiteralValue().map(lit => LessThanOrEqual(predicate.rawAttributeName(), lit.asObject()))
-        case ">" => predicate.rawLiteralValue().map(lit => GreaterThan(predicate.rawAttributeName(), lit.asObject()))
+          predicate.rawLiteralValue(options).map(lit => LessThanOrEqual(predicate.rawAttributeName(), lit.asObject()))
+        case ">" =>
+          predicate.rawLiteralValue(options).map(lit => GreaterThan(predicate.rawAttributeName(), lit.asObject()))
         case ">=" =>
-          predicate.rawLiteralValue().map(lit => GreaterThanOrEqual(predicate.rawAttributeName(), lit.asObject()))
+          predicate.rawLiteralValue(options).map(lit =>
+            GreaterThanOrEqual(predicate.rawAttributeName(), lit.asObject())
+          )
         case "AND" =>
           val andPredicate = predicate.asInstanceOf[filter.And]
-          (andPredicate.left().toFilter, andPredicate.right().toFilter) match {
+          (andPredicate.left().toFilter(options), andPredicate.right().toFilter(options)) match {
             case (_, None)                 => None
             case (None, _)                 => None
             case (Some(left), Some(right)) => Some(And(left, right))
           }
         case "OR" =>
           val andPredicate = predicate.asInstanceOf[filter.Or]
-          (andPredicate.left().toFilter, andPredicate.right().toFilter) match {
+          (andPredicate.left().toFilter(options), andPredicate.right().toFilter(options)) match {
             case (_, None)                 => None
             case (None, _)                 => None
             case (Some(left), Some(right)) => Some(Or(left, right))
           }
         case "NOT" =>
           val notPredicate = predicate.asInstanceOf[filter.Not]
-          notPredicate.child().toFilter.map(Not)
+          notPredicate.child().toFilter(options).map(Not)
         case "ALWAYS_TRUE"  => Some(AlwaysTrue)
         case "ALWAYS_FALSE" => Some(AlwaysFalse)
       }
@@ -186,19 +188,19 @@ object Neo4jImplicits {
       predicate.references().head.fieldNames().mkString(".")
     }
 
-    def rawLiteralValue(): Option[Value] = {
+    def rawLiteralValue(options: Neo4jOptions): Option[Value] = {
       predicate.children()
         .filter(_.isInstanceOf[Literal[_]])
         .map(_.asInstanceOf[Literal[_]])
         .headOption
-        .map(literal => sparkToNeo4jDataConverter.convert(literal.value(), literal.dataType()))
+        .map(literal => SparkToNeo4jDataConverter(options).convert(literal.value(), literal.dataType()))
     }
 
-    def rawLiteralValues(): Array[Any] = {
+    def rawLiteralValues(options: Neo4jOptions): Array[Any] = {
       predicate.children()
         .filter(_.isInstanceOf[Literal[_]])
         .map(_.asInstanceOf[Literal[_]])
-        .map(v => sparkToNeo4jDataConverter.convert(v.value(), v.dataType()).asObject())
+        .map(v => SparkToNeo4jDataConverter(options).convert(v.value(), v.dataType()).asObject())
     }
   }
 
