@@ -60,7 +60,7 @@ project {
           name = "pull-request",
           javaVersions = setOf(JavaVersion.V_17),
           scalaVersions = setOf(ScalaVersion.V2_13),
-          pysparkVersions = setOf(PySparkVersion.V4_0),
+          pysparkVersions = setOf(PySparkVersion.V4_1),
           neo4jVersions = setOf(Neo4jVersion.V_5, Neo4jVersion.V_CALVER),
           forPullRequests = true,
       ) {

@@ -77,8 +77,8 @@ enum class PythonVersion(val version: String) {
 }
 
 enum class SparkVersion(val version: String) {
-  V4_0_1(version = "4.0.1"),
-  V4_1_0(version = "4.1.0"),
+  V4_0(version = "4.0.3"),
+  V4_1(version = "4.1.2"),
 }
 
 enum class PySparkVersion(
@@ -88,7 +88,7 @@ enum class PySparkVersion(
     val pythonVersions: Set<PythonVersion>,
 ) {
   V4_0(
-      SparkVersion.V4_0_1,
+      SparkVersion.V4_0,
       ScalaVersion.V2_13,
       setOf(
           JavaVersion.V_17,
@@ -103,7 +103,7 @@ enum class PySparkVersion(
       ),
   ),
   V4_1(
-      SparkVersion.V4_1_0,
+      SparkVersion.V4_1,
       ScalaVersion.V2_13,
       setOf(
           JavaVersion.V_17,
@@ -262,8 +262,8 @@ fun BuildSteps.commitAndPush(
     this.name = name
     scriptContent =
         """
-          #!/bin/bash -eu              
-         
+          #!/bin/bash -eu
+
           git add $includeFiles
           git commit -m "$commitMessage"
           git push
