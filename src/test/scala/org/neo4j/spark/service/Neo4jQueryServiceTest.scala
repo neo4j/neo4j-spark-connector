@@ -1583,7 +1583,7 @@ object Neo4jQueryServiceTest {
   }
 
   // Parameter methods
-  protected def _versions_and_prefixes(): Array[Array[Any]] = {
+  def _versions_and_prefixes(): Array[Array[Any]] = {
     Array(
       Array(neo4j(version(5, 0), COMMUNITY), "", ""),
       Array(neo4j(version(5, 0), ENTERPRISE), "", ""),
@@ -1600,14 +1600,14 @@ object Neo4jQueryServiceTest {
     )
   }
 
-  protected def _tuning_parameters(): Array[Array[Any]] = {
+  def _tuning_parameters(): Array[Array[Any]] = {
     Array(
       Array(Map.empty[String, String], ""),
       Array(Map[String, String]("cypher.tuning.withCustom" -> "set"), "CYPHER withCustom=set")
     )
   }
 
-  protected def _all_params_cross_combined(): Array[Array[Any]] = {
+  def _all_params_cross_combined(): Array[Array[Any]] = {
     val tuningParameters = _tuning_parameters()
     val versionParameters = _versions_and_prefixes()
 
