@@ -23,6 +23,7 @@ import org.apache.spark.sql.sources.LessThanOrEqual
 import org.apache.spark.sql.types.StructType
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.cypherdsl.core.Cypher
+import org.neo4j.spark.cypher.AutomaticAliaser
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.reader.BasePartitionReader
@@ -102,6 +103,7 @@ class BaseStreamingPartitionReader(
           new Neo4jQueryReadStrategy(
             neo4j,
             new CypherRenderer(neo4j, options),
+            new AutomaticAliaser(),
             filters,
             partitionSkipLimit,
             requiredColumns.fieldNames.toIndexedSeq,

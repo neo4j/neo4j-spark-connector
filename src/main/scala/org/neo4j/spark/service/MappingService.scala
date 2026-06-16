@@ -296,9 +296,7 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumn
   }
 
   override def query(elem: Record, schema: StructType): InternalRow = mapToInternalRow(
-    elem.asMap(new function.Function[Value, Any] {
-      override def apply(t: Value): Any = t.asObject()
-    }),
+    elem.asMap((t: Value) => t.asObject()),
     schema
   )
 }
