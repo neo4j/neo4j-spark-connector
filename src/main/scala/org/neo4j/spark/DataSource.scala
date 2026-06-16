@@ -30,6 +30,8 @@ import org.neo4j.spark.util._
 
 import java.util.UUID
 
+import scala.jdk.CollectionConverters.MapHasAsScala
+
 class DataSource extends TableProvider
     with DataSourceRegister {
 
@@ -75,8 +77,9 @@ class DataSource extends TableProvider
 
   private def getNeo4jOptions(caseInsensitiveStringMap: CaseInsensitiveStringMap) = {
     if (neo4jOptions == null) {
-      neo4jOptions =
-        Neo4jOptions.fromSession(SparkSession.getActiveSession, caseInsensitiveStringMap.asCaseSensitiveMap())
+      val session = SparkSession.getActiveSession
+      val externalOptions = caseInsensitiveStringMap.asCaseSensitiveMap().asScala.toMap
+      neo4jOptions = Neo4jOptions.fromSession(session, externalOptions)
     }
 
     ValidateNeo4jOptionsConsistency(getNeo4jInfo(neo4jOptions.connection), neo4jOptions).validate()

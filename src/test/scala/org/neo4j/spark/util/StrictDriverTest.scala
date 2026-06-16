@@ -114,11 +114,11 @@ class StrictDriverTest {
   }
 
   private def neo4jDriverOptions(port: Int): Neo4jDriverOptions = {
-    val options = new util.HashMap[String, String]
-    options.put(Neo4jOptions.URL, s"bolt://localhost:$port")
-    options.put(Neo4jOptions.AUTH_TYPE, "none")
-    options.put(org.neo4j.spark.util.QueryType.QUERY.toString.toLowerCase, "RETURN 1")
-    new Neo4jOptions(options).connection
+    new Neo4jOptions(Map(
+      Neo4jOptions.URL -> s"bolt://localhost:$port",
+      Neo4jOptions.AUTH_TYPE -> "none",
+      org.neo4j.spark.util.QueryType.QUERY.toString.toLowerCase -> "RETURN 1"
+    )).connection
   }
 }
 
