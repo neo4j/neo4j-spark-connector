@@ -167,7 +167,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS.toString
     ).toInt,
     getParameter(CONNECTION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt,
-    minimumNotificationSeverity(getParameter(INTERNAL_STRICT_QUERY, DEFAULT_INTERNAL_STRICT_QUERY.toString).toBoolean)
+    minimumNotificationSeverity
   )
 
   val session: Neo4jSessionOptions = Neo4jSessionOptions(
@@ -365,8 +365,8 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       .map(t => (t._1.substring(CYPHER_TUNING_OPTION_PREFIX.length), t._2))
       .toMap
 
-  private def minimumNotificationSeverity(strictMode: Boolean): NotificationSeverity = {
-    if (strictMode) {
+  private def minimumNotificationSeverity: NotificationSeverity = {
+    if (java.lang.Boolean.getBoolean(Neo4jOptions.STRICT_QUERY_SYSTEM_PROPERTY)) {
       NotificationSeverity.WARNING
     } else {
       NotificationSeverity.OFF
@@ -622,7 +622,9 @@ object Neo4jOptions {
   val CONNECTION_ACQUISITION_TIMEOUT_MSECS = "connection.acquisition.timeout.msecs"
   val CONNECTION_TIMEOUT_MSECS = "connection.timeout.msecs"
   val TRANSACTION_TIMEOUT_MSECS = "db.transaction.timeout"
-  val INTERNAL_STRICT_QUERY = "__internal_strict__" // fails on any Cypher warnings
+
+  // system properties
+  private val STRICT_QUERY_SYSTEM_PROPERTY = "strict.cypher"
 
   // session options
   val DATABASE = "database"
@@ -740,7 +742,6 @@ object Neo4jOptions {
   val DEFAULT_PARTITIONS = 1
   val DEFAULT_SAVE_MODE = SaveMode.Overwrite
   val DEFAULT_STREAMING_FROM = StreamingFrom.NOW
-  val DEFAULT_INTERNAL_STRICT_QUERY = false
 
   // Default values optimizations for Aura please look at: https://aura.support.neo4j.com/hc/en-us/articles/1500002493281-Neo4j-Java-driver-settings-for-Aura
   val DEFAULT_CONNECTION_MAX_LIFETIME_MSECS = Duration.ofMinutes(8).toMillis

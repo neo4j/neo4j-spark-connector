@@ -30,7 +30,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.neo4j.driver.types.IsoDuration
 import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
@@ -69,7 +68,6 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     .master("local[*]")
     .appName("DataSourceWriterTSE")
     .config("spark.sql.session.timeZone", timeZoneLock) // to make TIMESTAMP_NTZ tests deterministic
-    .config("neo4j.__internal_strict__", "true")
     .getOrCreate()
 
   final private val SHOW_CONSTRAINTS_QUERY =

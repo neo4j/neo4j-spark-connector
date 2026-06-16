@@ -50,7 +50,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
           .option("labels", ":City")
           .option("node.keys", "id")
           .option("schema.optimization.node.keys", "KEY")
-          .option("__internal_strict__", "true")
           .save()
       }
     )
@@ -82,7 +81,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
           .option("relationship.target.node.keys", "to:id")
           .option("relationship.properties", "airline")
           .option("schema.optimization.node.keys", "KEY")
-          .option("__internal_strict__", "true")
           .save()
       }
     )
@@ -114,7 +112,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
           .option("relationship.target.node.keys", "to:id")
           .option("relationship.properties", "airline")
           .option("schema.optimization.node.keys", "KEY")
-          .option("__internal_strict__", "true")
           .save()
       }
     )
@@ -152,7 +149,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
           .option("relationship.properties", "airline")
           .option("schema.optimization.node.keys", "KEY")
           .option("schema.optimization.relationship.keys", "KEY")
-          .option("__internal_strict__", "true")
           .save()
       }
     )
@@ -175,7 +171,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("labels", ":City")
       .option("node.keys", "id")
       .option("node.keys.skip.nulls", "true")
-      .option("__internal_strict__", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -204,7 +199,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("node.keys", "id")
       .option("node.keys.skip.nulls", "true")
       .option("schema.optimization.node.keys", "KEY")
-      .option("__internal_strict__", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -241,7 +235,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("schema.optimization.node.keys", "KEY")
       .option("relationship.source.node.keys.skip.nulls", "true")
       .option("relationship.target.node.keys.skip.nulls", "true")
-      .option("__internal_strict__", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -294,7 +287,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.properties", "airline")
       .option("relationship.source.node.keys.skip.nulls", "true")
       .option("relationship.target.node.keys.skip.nulls", "true")
-      .option("__internal_strict__", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -337,7 +329,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.properties", "airline")
       .option("relationship.source.node.keys.skip.nulls", "true")
       .option("relationship.target.node.keys.skip.nulls", "true")
-      .option("__internal_strict__", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -386,7 +377,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("schema.optimization.node.keys", "KEY")
       .option("relationship.source.node.keys.skip.nulls", "true")
       .option("relationship.target.node.keys.skip.nulls", "true")
-      .option("__internal_strict__", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -439,7 +429,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.properties", "airline")
       .option("relationship.source.node.keys.skip.nulls", "true")
       .option("relationship.target.node.keys.skip.nulls", "true")
-      .option("__internal_strict__", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -482,7 +471,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.properties", "airline")
       .option("relationship.source.node.keys.skip.nulls", "true")
       .option("relationship.target.node.keys.skip.nulls", "true")
-      .option("__internal_strict__", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>
@@ -535,7 +523,6 @@ class DataSourceWriterNeo4jSkipNullKeysTSE extends SparkConnectorScalaBaseTSE {
       .option("schema.optimization.node.keys", "KEY")
       .option("schema.optimization.relationship.keys", "KEY")
       .option("relationship.keys.skip.nulls", "true")
-      .option("__internal_strict__", "true")
       .save()
 
     use(SparkConnectorScalaSuiteIT.driver.session()) { session =>

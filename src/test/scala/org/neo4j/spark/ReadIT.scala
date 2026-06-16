@@ -32,6 +32,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.util.ClearSystemProperty
+import org.junit.jupiter.api.util.SetSystemProperty
 import org.junit.jupiter.params.Parameter
 import org.junit.jupiter.params.ParameterizedClass
 import org.junit.jupiter.params.ParameterizedTest
@@ -65,6 +67,7 @@ import scala.jdk.CollectionConverters.ListHasAsScala
 @ParameterizedClass(name = "{argumentSetName}")
 @ArgumentsSource(classOf[Neo4jContainerProvider])
 @DisplayName("reading")
+@SetSystemProperty(key = "strict.cypher", value = "true")
 class ReadIT {
 
   @Parameter
@@ -1851,14 +1854,14 @@ class ReadIT {
 
     @ParameterizedTest
     @ValueSource(strings = Array("limit", "\nlimit", "LIMIT", "\nLIMIT", "lImIT", "\nlImIT"))
+    @ClearSystemProperty(key = "strict.cypher")
     def fails_if_limit_is_used_at_the_end_of_the_query(limitKeyword: String): Unit = {
       assertThatExceptionOfType(classOf[IllegalArgumentException])
         .isThrownBy(() => {
           spark.read
             .format(classOf[DataSource].getName)
             .option("query", s"MATCH (n:Label) RETURN elementId(n) as id $limitKeyword 100")
-            // generated query would yield 42I63 b/c of misplaced LIMIT in strict mode
-            .option("__internal_strict__", "false")
+            // generated query would yield 42I63 because of misplaced LIMIT in strict mode
             .load()
             .show() // show is needed to trigger the exception because of changes in Spark 3
         })
