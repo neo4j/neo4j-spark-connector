@@ -123,7 +123,7 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
     )
     assertTrue(
       exception.getMessage.contains(
-        "The following queries inside the `script` are not valid,"
+        "The following queries inside the script options (`script` / `script.N`) are not valid,"
       )
     )
 
@@ -138,7 +138,33 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
         "EXPLAIN RETUR 2 AS two"
       )
     )
+  }
 
+  @Test
+  def testIndexedScriptShouldContainAnInvalidQuery(): Unit = {
+    val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    readOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
+    readOpts.put("query", "MATCH (f) RETURN f")
+    readOpts.put("script.1", "RETURN 1 AS one")
+    readOpts.put("script.2", "RETUR 2 AS two")
+
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      () => {
+        Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
+      }
+    )
+    assertTrue(
+      exception.getMessage.contains(
+        "The following queries inside the script options (`script` / `script.N`) are not valid,"
+      )
+    )
+
+    assertTrue(
+      exception.getMessage.contains(
+        "EXPLAIN RETUR 2 AS two"
+      )
+    )
   }
 
   @Test
