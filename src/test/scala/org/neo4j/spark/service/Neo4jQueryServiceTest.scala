@@ -27,6 +27,7 @@ import org.apache.spark.sql.connector.expressions.aggregate.Min
 import org.apache.spark.sql.connector.expressions.aggregate.Sum
 import org.apache.spark.sql.sources._
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
@@ -52,6 +53,7 @@ import scala.collection.immutable.HashMap
 class Neo4jQueryServiceTest {
 
   @Nested
+  @DisplayName("generates read cypher for")
   @TestInstance(TestInstance.Lifecycle.PER_CLASS)
   class ReadQueryServiceTest {
 
@@ -65,7 +67,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_when_single_label(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+    def labels_when_one_label_selected(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
       val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
       options.put(Neo4jOptions.URL, "bolt://localhost")
       options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -80,7 +82,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_when_multiple_labels(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+    def labels_when_multiple_labels_selected(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
       val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
       options.put(Neo4jOptions.URL, "bolt://localhost")
       options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
@@ -95,7 +97,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_when_partitioned(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+    def labels_when_partitioned(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
       val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
       options.put(Neo4jOptions.URL, "bolt://localhost")
       options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
@@ -116,7 +118,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_when_one_column_is_selected(
+    def labels_when_one_column_selected(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -143,7 +145,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_when_multiple_columns_are_selected(
+    def labels_when_multiple_columns_selected(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -170,7 +172,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_when_internal_id_is_selected(
+    def labels_when_internal_id_selected(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -197,7 +199,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_when_filtering_on_equality(
+    def labels_when_filtering_on_equality(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -225,7 +227,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_when_filtering_on_null_safe_equality(
+    def labels_when_filtering_on_null_safe_equality(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -260,7 +262,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_when_filtering_on_null_safe_equality_and_value_is_null(
+    def labels_when_filtering_on_null_safe_equality_and_value_is_null(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -292,7 +294,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_when_filtering_on_starts_or_end_with(
+    def labels_when_filtering_on_starts_or_end_with(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -327,7 +329,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_relationship_when_one_column_is_selected(
+    def relationship_when_one_column_selected(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -361,7 +363,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_relationship_when_multiple_columns_are_selected(
+    def relationship_when_multiple_columns_are_selected(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -395,7 +397,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_relationship_when_partitioned(
+    def relationship_when_partitioned(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -434,7 +436,7 @@ class Neo4jQueryServiceTest {
     // TODO: consider removing because of overlap
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_relationship_when_multiple_columns_are_selected_version_2(
+    def relationship_when_multiple_columns_are_selected_version_2(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -503,7 +505,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_relationships_when_filtering_on_equality_with_or(
+    def relationships_when_filtering_on_equality_with_or(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -539,7 +541,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_relationships_when_filtering_on_equality_with_and(
+    def relationships_when_filtering_on_equality_with_and(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -579,7 +581,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_with_complex_filtering(
+    def labels_when_complex_filtering(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -622,7 +624,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_relationship_with_complex_filtering_with_map_mode(
+    def relationship_when_complex_filtering_with_map_mode(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -678,7 +680,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_relationship_with_complex_filtering_without_map_mode(
+    def relationship_when_complex_filtering_without_map_mode(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -734,7 +736,7 @@ class Neo4jQueryServiceTest {
     // todo consider breaking up or soft assertions
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_should_do_sum_aggregations(
+    def labels_should_yield_sum_aggregations(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -808,7 +810,7 @@ class Neo4jQueryServiceTest {
     // todo consider breaking up or soft assertions
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_relationships_should_do_sum_aggregations(
+    def relationships_should_yield_sum_aggregations(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -898,7 +900,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_with_top_n_partition_pagination(
+    def labels_when_top_n_partition_pagination(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -936,7 +938,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_labels_with_top_n_partition_pagination_and_required_column(
+    def labels_with_top_n_partition_pagination_and_required_column(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -975,7 +977,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_relationship_with_top_n_partition_pagination(
+    def relationship_when_top_n_partition_pagination(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -1022,7 +1024,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_relationship_with_top_n_partition_pagination_and_required_column(
+    def relationship_when_top_n_partition_pagination_and_required_column(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -1072,7 +1074,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def read_query_for_custom_queries_with_top_n_partition_pagination_should_ignore_aggregations(
+    def custom_queries_when_top_n_partition_pagination_should_ignore_aggregations(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -1111,7 +1113,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("tuning_parameters"))
-    def read_query_for_labels_with_tuning_preamble(tuningOptions: Map[String, String], prefix: String): Unit = {
+    def labels_when_tuning_preamble(tuningOptions: Map[String, String], prefix: String): Unit = {
       val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
       options.put(Neo4jOptions.URL, "bolt://localhost")
       options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -1125,7 +1127,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("tuning_parameters"))
-    def read_query_for_relationship_with_tuning_preamble(tuningOptions: Map[String, String], prefix: String): Unit = {
+    def relationship_when_tuning_preamble(tuningOptions: Map[String, String], prefix: String): Unit = {
       val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
       options.put(Neo4jOptions.URL, "bolt://localhost")
       options.put("relationship", "KNOWS")
@@ -1144,7 +1146,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("tuning_parameters"))
-    def read_query_without_preamble_should_not_generate_a_preamble(
+    def custom_query_when_no_preamble_should_not_generate_any_preamble(
       tuningOptions: Map[String, String],
       ignored: String
     ): Unit = {
@@ -1170,7 +1172,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("all_params_cross_combined"))
-    def read_query_for_custom_queries_should_properly_embed_cypher_version_and_tuning_preamble(
+    def custom_query_should_properly_embed_cypher_version_and_tuning_preamble(
       neo4j: Neo4j,
       customCypherVersion: String,
       cypherVersionPreamble: String,
@@ -1190,7 +1192,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("all_params_cross_combined"))
-    def read_query_for_custom_queries_should_properly_embed_script_results_when_script_is_present(
+    def custom_query_should_properly_embed_script_results_when_script_is_present(
       neo4j: Neo4j,
       customCypherVersion: String,
       cypherVersionPreamble: String,
@@ -1215,8 +1217,9 @@ class Neo4jQueryServiceTest {
       new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions))
   }
 
-  @TestInstance(TestInstance.Lifecycle.PER_CLASS)
   @Nested
+  @DisplayName("generates write cypher for")
+  @TestInstance(TestInstance.Lifecycle.PER_CLASS)
   class WriteQueryServiceTest {
 
     import Neo4jQueryServiceTest._
@@ -1229,7 +1232,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def write_query_for_labels_when_multiple_labels(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
+    def labels_when_multiple_labels(neo4j: Neo4j, customCypherVersion: String, prefix: String): Unit = {
       val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
       options.put(Neo4jOptions.URL, "bolt://localhost")
       options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
@@ -1246,7 +1249,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def write_query_for_labels_when_composite_key_is_used(
+    def labels_when_composite_key_is_used(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -1271,7 +1274,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def write_query_for_relationship_when_composite_key_is_used(
+    def relationship_when_composite_key_is_used(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -1302,7 +1305,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def write_query_for_relationship_when_source_merges_and_target_matches(
+    def relationship_when_source_merges_and_target_matches(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -1336,7 +1339,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def write_query_for_relationship_when_source_merges_and_target_merges(
+    def relationship_when_source_merges_and_target_merges(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -1369,7 +1372,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def write_query_for_relationship_when_source_creates_and_target_merges(
+    def relationship_when_source_creates_and_target_merges(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -1402,7 +1405,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def write_query_for_relationship_when_key_save_strategy(
+    def relationship_when_key_save_strategy(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -1439,7 +1442,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("tuning_parameters"))
-    def write_query_for_labels_when_tuning_parameters(tuningOptions: Map[String, String], prefix: String): Unit = {
+    def labels_when_tuning_parameters(tuningOptions: Map[String, String], prefix: String): Unit = {
       val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
       options.put(Neo4jOptions.URL, "bolt://localhost")
       options.put(QueryType.LABELS.toString.toLowerCase, "Person")
@@ -1457,7 +1460,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("tuning_parameters"))
-    def write_query_for_relationship_when_tuning_parameters(
+    def relationship_when_tuning_parameters(
       tuningOptions: Map[String, String],
       prefix: String
     ): Unit = {
@@ -1485,7 +1488,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("tuning_parameters"))
-    def write_query_without_preamble_should_not_generate_a_preamble(
+    def custom_query_without_preamble_should_not_generate_any_preamble(
       tuningOptions: Map[String, String],
       ignored: String
     ): Unit = {
@@ -1507,7 +1510,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("all_params_cross_combined"))
-    def write_query_for_custom_queries_should_properly_embed_cypher_version_and_tuning_preamble(
+    def custom_query_should_properly_embed_cypher_version_and_tuning_preamble(
       neo4j: Neo4j,
       customCypherVersion: String,
       cypherVersionPreamble: String,
@@ -1529,7 +1532,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("all_params_cross_combined"))
-    def write_query_for_custom_queries_should_properly_embed_script_results_when_script_is_present(
+    def custom_query_should_properly_embed_script_results_when_script_is_present(
       neo4j: Neo4j,
       customCypherVersion: String,
       cypherVersionPreamble: String,
