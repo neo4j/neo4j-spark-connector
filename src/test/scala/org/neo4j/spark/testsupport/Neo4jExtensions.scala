@@ -46,6 +46,14 @@ object Neo4jExtensions {
           .set("neo4j.authentication.basic.password", container.getAdminPassword))
         .getOrCreate()
     }
+
+    def authenticatedOptions(): Map[String, String] = {
+      Map(
+        "url" -> container.getBoltUrl,
+        "authentication.basic.username" -> "neo4j",
+        "authentication.basic.password" -> container.getAdminPassword
+      )
+    }
   }
 
   implicit class DriverExtensions(driver: Driver) {

@@ -17,9 +17,14 @@
 package org.neo4j.spark
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.connector.expressions.aggregate.Count
+import org.apache.spark.sql.connector.expressions.aggregate.Max
+import org.apache.spark.sql.connector.expressions.aggregate.Min
+import org.apache.spark.sql.connector.expressions.aggregate.Sum
 import org.apache.spark.sql.types._
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Assumptions.assumeTrue
@@ -32,15 +37,24 @@ import org.junit.jupiter.params.ParameterizedClass
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ArgumentsSource
 import org.junit.jupiter.params.provider.MethodSource
+import org.neo4j.caniuse.Neo4j
+import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver.Driver
+import org.neo4j.spark.cypher.CypherRenderer
+import org.neo4j.spark.service.Neo4jQueryReadStrategy
+import org.neo4j.spark.service.Neo4jQueryService
+import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.testsupport.Closeables.use
 import org.neo4j.spark.testsupport.Neo4jContainerProvider
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
 import org.neo4j.spark.testsupport.TestUtil
 import org.neo4j.spark.testsupport.Versions
+import org.neo4j.spark.util.DummyNamedReference
+import org.neo4j.spark.util.Neo4jOptions
 import org.testcontainers.neo4j.Neo4jContainer
 
+import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.math.Ordering.Implicits.infixOrderingOps
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -56,6 +70,8 @@ class GraphDataScienceIT {
 
   var spark: SparkSession = _
 
+  var neo4j: Neo4j = _
+
   @BeforeEach
   def prepare(): Unit = {
     if (!neo4jContainer.isRunning) {
@@ -65,6 +81,7 @@ class GraphDataScienceIT {
     Assumptions.assumeTrue(driver.serverSupportsGds())
     driver.createOrReplaceDatabase("neo4j")
     spark = neo4jContainer.spark()
+    neo4j = Neo4jDetector.INSTANCE.detect(driver)
   }
 
   @AfterEach
@@ -288,6 +305,95 @@ class GraphDataScienceIT {
         )
       )
     )
+  }
+
+  @Test
+  def generates_read_query_that_aggregates(): Unit = {
+    val neo4jOptions = new Neo4jOptions(
+      (neo4jContainer.authenticatedOptions() ++ Map("gds" -> "gds.pageRank.stream"))
+        .asJava
+    )
+
+    val field = new DummyNamedReference("score")
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        neo4j,
+        new CypherRenderer(neo4j, neo4jOptions),
+        Array.empty,
+        PartitionPagination.EMPTY,
+        List(
+          "nodeId",
+          "MAX(score)",
+          "MIN(score)",
+          "COUNT(score)",
+          "COUNT(DISTINCT score)",
+          "SUM(score)",
+          "SUM(DISTINCT score)"
+        ),
+        Array(
+          new Max(field),
+          new Min(field),
+          new Sum(field, false),
+          new Count(field, false),
+          new Count(field, true),
+          new Sum(field, false),
+          new Sum(field, true)
+        )
+      )
+    ).createQuery()
+
+    assertThat(query).endsWith(
+      """CALL gds.pageRank.stream($graphName)
+        |YIELD nodeId, score
+        |RETURN nodeId AS nodeId, max(score) AS `MAX(score)`, min(score) AS `MIN(score)`, count(score) AS `COUNT(score)`, count(DISTINCT score) AS `COUNT(DISTINCT score)`, sum(score) AS `SUM(score)`, sum(DISTINCT score) AS `SUM(DISTINCT score)`"""
+        .stripMargin
+        .replaceAll("\n", " ")
+    )
+  }
+
+  @Test
+  def refuses_read_query_with_cypher_preamble(): Unit = {
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(
+      (neo4jContainer.authenticatedOptions() ++ Map(
+        "gds" -> "gds.pageRank.stream",
+        "cypher.tuning.expressionEngine" -> "compiled"
+      )).asJava
+    )
+
+    val field = new DummyNamedReference("score")
+
+    assertThatThrownBy(() => {
+      new Neo4jQueryService(
+        neo4jOptions,
+        new Neo4jQueryReadStrategy(
+          neo4j,
+          new CypherRenderer(neo4j, neo4jOptions),
+          Array.empty,
+          PartitionPagination.EMPTY,
+          List(
+            "nodeId",
+            "MAX(score)",
+            "MIN(score)",
+            "COUNT(score)",
+            "COUNT(DISTINCT score)",
+            "SUM(score)",
+            "SUM(DISTINCT score)"
+          ),
+          Array(
+            new Max(field),
+            new Min(field),
+            new Sum(field, false),
+            new Count(field, false),
+            new Count(field, true),
+            new Sum(field, false),
+            new Sum(field, true)
+          )
+        )
+      ).createQuery()
+    })
+      .isInstanceOf(classOf[UnsupportedOperationException])
+      .hasMessageContaining("Query tuning parameters are not supported for GDS queries")
   }
 
   private def hitsStreamProc: String =
