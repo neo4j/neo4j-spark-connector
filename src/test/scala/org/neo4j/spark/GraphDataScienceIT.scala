@@ -37,6 +37,7 @@ import org.junit.jupiter.params.ParameterizedClass
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ArgumentsSource
 import org.junit.jupiter.params.provider.MethodSource
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver.Driver
 import org.neo4j.spark.cypher.CypherRenderer
@@ -69,6 +70,8 @@ class GraphDataScienceIT {
 
   var spark: SparkSession = _
 
+  var neo4j: Neo4j = _
+
   @BeforeEach
   def prepare(): Unit = {
     if (!neo4jContainer.isRunning) {
@@ -78,6 +81,7 @@ class GraphDataScienceIT {
     Assumptions.assumeTrue(driver.serverSupportsGds())
     driver.createOrReplaceDatabase("neo4j")
     spark = neo4jContainer.spark()
+    neo4j = Neo4jDetector.INSTANCE.detect(driver)
   }
 
   @AfterEach
@@ -305,8 +309,6 @@ class GraphDataScienceIT {
 
   @Test
   def generates_read_query_that_aggregates(): Unit = {
-    val neo4j = Neo4jDetector.INSTANCE.detect(neo4jContainer.driver())
-
     val neo4jOptions = new Neo4jOptions(
       (neo4jContainer.authenticatedOptions() ++ Map("gds" -> "gds.pageRank.stream"))
         .asJava
@@ -352,8 +354,6 @@ class GraphDataScienceIT {
 
   @Test
   def refuses_read_query_with_cypher_preamble(): Unit = {
-    val neo4j = Neo4jDetector.INSTANCE.detect(neo4jContainer.driver())
-
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(
       (neo4jContainer.authenticatedOptions() ++ Map(
         "gds" -> "gds.pageRank.stream",

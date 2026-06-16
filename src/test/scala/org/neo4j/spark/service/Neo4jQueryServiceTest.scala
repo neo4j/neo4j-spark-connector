@@ -736,7 +736,7 @@ class Neo4jQueryServiceTest {
     // todo consider breaking up or soft assertions
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def labels_should_yield_sum_aggregations(
+    def labels_yields_sum_aggregations(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -810,7 +810,7 @@ class Neo4jQueryServiceTest {
     // todo consider breaking up or soft assertions
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def relationships_should_yield_sum_aggregations(
+    def relationships_yields_sum_aggregations(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -1074,7 +1074,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
-    def custom_queries_when_top_n_partition_pagination_should_ignore_aggregations(
+    def custom_queries_when_top_n_partition_pagination_ignores_aggregations(
       neo4j: Neo4j,
       customCypherVersion: String,
       prefix: String
@@ -1146,7 +1146,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("tuning_parameters"))
-    def custom_query_when_no_preamble_should_not_generate_any_preamble(
+    def custom_query_without_preamble_options_does_not_generate_any_preamble(
       tuningOptions: Map[String, String],
       ignored: String
     ): Unit = {
@@ -1172,7 +1172,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("all_params_cross_combined"))
-    def custom_query_should_properly_embed_cypher_version_and_tuning_preamble(
+    def custom_query_properly_embeds_cypher_version_and_tuning_preamble(
       neo4j: Neo4j,
       customCypherVersion: String,
       cypherVersionPreamble: String,
@@ -1192,7 +1192,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("all_params_cross_combined"))
-    def custom_query_should_properly_embed_script_results_when_script_is_present(
+    def custom_query_properly_embeds_script_results_when_script_is_present(
       neo4j: Neo4j,
       customCypherVersion: String,
       cypherVersionPreamble: String,
@@ -1488,7 +1488,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("tuning_parameters"))
-    def custom_query_without_preamble_should_not_generate_any_preamble(
+    def custom_query_without_preamble_options_does_not_generate_any_preamble(
       tuningOptions: Map[String, String],
       ignored: String
     ): Unit = {
@@ -1510,7 +1510,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("all_params_cross_combined"))
-    def custom_query_should_properly_embed_cypher_version_and_tuning_preamble(
+    def custom_query_properly_embeds_cypher_version_and_tuning_preamble(
       neo4j: Neo4j,
       customCypherVersion: String,
       cypherVersionPreamble: String,
@@ -1532,7 +1532,7 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("all_params_cross_combined"))
-    def custom_query_should_properly_embed_script_results_when_script_is_present(
+    def custom_query_properly_embeds_script_results_when_script_is_present(
       neo4j: Neo4j,
       customCypherVersion: String,
       cypherVersionPreamble: String,
