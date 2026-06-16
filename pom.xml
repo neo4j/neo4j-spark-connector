@@ -61,14 +61,14 @@
         <mockito.version>5.23.0</mockito.version>
         <neo4j.experimental>false</neo4j.experimental>
         <neo4j.version>4.4.20</neo4j.version>
-        <netty-bom.version>4.1.135.Final</netty-bom.version>
+        <netty-bom.version>4.2.15.Final</netty-bom.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scala-maven-plugin.version>4.9.10</scala-maven-plugin.version>
         <scala.binary.version>2.13</scala.binary.version>
         <scala.version>2.13.18</scala.version>
         <slf4j-api.version>2.0.18</slf4j-api.version>
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
-        <spark.version>4.0.1</spark.version>
+        <spark.version>4.1.2</spark.version>
         <spotless-maven-plugin.version>3.6.0</spotless-maven-plugin.version>
         <test.jvm.args>-XX:+IgnoreUnrecognizedVMOptions
             --add-opens=java.base/java.lang=ALL-UNNAMED

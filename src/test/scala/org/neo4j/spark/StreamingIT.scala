@@ -17,9 +17,8 @@
 package org.neo4j.spark
 
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.streaming.MemoryStream
+import org.apache.spark.sql.execution.streaming.runtime.MemoryStream
 import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.streaming.Trigger
 import org.assertj.core.api.Assertions.assertThat
@@ -577,9 +576,8 @@ class StreamingIT {
 
     private def memoryStream(): MemoryStream[Int] = {
       val session = spark
-      implicit val sqlContext: SQLContext = session.sqlContext
       import session.implicits._
-      MemoryStream[Int]
+      MemoryStream[Int](session)
     }
 
     private def feed(stream: MemoryStream[Int])(values: Array[Int]): Unit = {
