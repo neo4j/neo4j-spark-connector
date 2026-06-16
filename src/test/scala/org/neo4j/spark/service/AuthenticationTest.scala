@@ -34,16 +34,20 @@ import org.testcontainers.shaded.com.google.common.io.BaseEncoding
 import java.net.URI
 import java.util
 
+import scala.jdk.CollectionConverters.MapHasAsScala
+
 class AuthenticationTest {
 
   @Test
   def testLdapConnectionToken(): Unit = {
     val token = BaseEncoding.base64.encode("user:password".getBytes)
-    val options = new util.HashMap[String, String]
-    options.put("url", "bolt://localhost:7687")
-    options.put("authentication.type", "custom")
-    options.put("authentication.custom.credentials", token)
-    options.put("labels", "Person")
+
+    val options = Map(
+      "url" -> "bolt://localhost:7687",
+      "authentication.type" -> "custom",
+      "authentication.custom.credentials" -> token,
+      "labels" -> "Person"
+    )
 
     stubGraphDatabaseConnectionCallAndAssertToken(options, AuthTokens.custom("", token, "", ""))
   }
@@ -51,15 +55,17 @@ class AuthenticationTest {
   @Test
   def testBearerAuthToken(): Unit = {
     val token = BaseEncoding.base64.encode("user:password".getBytes)
-    val options = new util.HashMap[String, String]
-    options.put("url", "bolt://localhost:7687")
-    options.put("authentication.type", "bearer")
-    options.put("authentication.bearer.token", token)
+
+    val options = Map(
+      "url" -> "bolt://localhost:7687",
+      "authentication.type" -> "bearer",
+      "authentication.bearer.token" -> token
+    )
 
     stubGraphDatabaseConnectionCallAndAssertToken(options, AuthTokens.bearer(token))
   }
 
-  def stubGraphDatabaseConnectionCallAndAssertToken(options: java.util.Map[String, String], token: AuthToken): Unit = {
+  def stubGraphDatabaseConnectionCallAndAssertToken(options: Map[String, String], token: AuthToken): Unit = {
     val neo4jOptions = new Neo4jOptions(options)
     val neo4jDriverOptions = neo4jOptions.connection
     val driverCache = new DriverCache(neo4jDriverOptions)

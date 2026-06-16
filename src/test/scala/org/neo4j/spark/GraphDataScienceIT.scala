@@ -54,7 +54,6 @@ import org.neo4j.spark.util.DummyNamedReference
 import org.neo4j.spark.util.Neo4jOptions
 import org.testcontainers.neo4j.Neo4jContainer
 
-import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.math.Ordering.Implicits.infixOrderingOps
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -309,10 +308,7 @@ class GraphDataScienceIT {
 
   @Test
   def generates_read_query_that_aggregates(): Unit = {
-    val neo4jOptions = new Neo4jOptions(
-      (neo4jContainer.authenticatedOptions() ++ Map("gds" -> "gds.pageRank.stream"))
-        .asJava
-    )
+    val neo4jOptions = new Neo4jOptions(neo4jContainer.authenticatedOptions() ++ Map("gds" -> "gds.pageRank.stream"))
 
     val field = new DummyNamedReference("score")
     val query: String = new Neo4jQueryService(
@@ -355,10 +351,10 @@ class GraphDataScienceIT {
   @Test
   def refuses_read_query_with_cypher_preamble(): Unit = {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(
-      (neo4jContainer.authenticatedOptions() ++ Map(
+      neo4jContainer.authenticatedOptions() ++ Map(
         "gds" -> "gds.pageRank.stream",
         "cypher.tuning.expressionEngine" -> "compiled"
-      )).asJava
+      )
     )
 
     val field = new DummyNamedReference("score")

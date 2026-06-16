@@ -26,6 +26,7 @@ import org.neo4j.spark.util.Neo4jOptions
 
 import java.util.stream.Stream
 
+import scala.jdk.CollectionConverters.MapHasAsScala
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
 private case class TuningTestCase(
@@ -63,7 +64,7 @@ class CypherPreambleTest {
             options.put(key, value)
           }
 
-          val neo4jOptions = new Neo4jOptions(options)
+          val neo4jOptions = new Neo4jOptions(options.asScala.toMap)
           val tuningPreamble = CypherPreamble.tuningPreamble(neo4jOptions)
 
           assertThat(tuningPreamble).isEmpty()
@@ -116,7 +117,7 @@ class CypherPreambleTest {
             options.put(key, value)
           }
 
-          val neo4jOptions = new Neo4jOptions(options)
+          val neo4jOptions = new Neo4jOptions(options.asScala.toMap)
           val tuningPreamble = CypherPreamble.tuningPreamble(neo4jOptions)
 
           assertThat(tuningPreamble).isEqualTo(testCase.expectedOutput)
@@ -153,7 +154,7 @@ class CypherPreambleTest {
             options.put(key, value)
           }
 
-          val neo4jOptions = new Neo4jOptions(options)
+          val neo4jOptions = new Neo4jOptions(options.asScala.toMap)
 
           assertThatThrownBy(() => CypherPreamble.tuningPreamble(neo4jOptions)).isExactlyInstanceOf(
             classOf[IllegalArgumentException]
