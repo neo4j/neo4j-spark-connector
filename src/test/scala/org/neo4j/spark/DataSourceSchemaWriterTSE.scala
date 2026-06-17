@@ -552,7 +552,6 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship", "MY_REL")
-      .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":NodeA")
       .option("relationship.source.save.mode", "Overwrite")
       .option("relationship.source.node.keys", "idSource:id")
