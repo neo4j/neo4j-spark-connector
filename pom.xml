@@ -440,7 +440,8 @@
                         </includes>
                         <forkCount>1</forkCount>
                         <reuseForks>false</reuseForks>
-                        <argLine>${test.jvm.args}</argLine>
+                        <!-- Avoid Netty 4.2 native transport which causes hangs in local tests. -->
+                        <argLine>${test.jvm.args} -Dio.netty.transport.noNative=true</argLine>
                         <useModulePath>false</useModulePath>
                     </configuration>
                     <executions>
@@ -499,7 +500,8 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                     <configuration>
-                        <argLine>${test.jvm.args}</argLine>
+                        <!-- Avoid Netty 4.2 native transport which causes hangs in local tests. -->
+                        <argLine>${test.jvm.args} -Dio.netty.transport.noNative=true</argLine>
                     </configuration>
                 </plugin>
                 <plugin>
