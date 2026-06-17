@@ -214,8 +214,8 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   }
 
   private def getSchema(options: Map[String, String]): StructType = {
-    val urlMapping = Neo4jOptions.URL -> SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options + urlMapping)
+    val neo4jOptions: Neo4jOptions =
+      new Neo4jOptions(options + (Neo4jOptions.URL -> SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl))
 
     val driverCache = new DriverCache(neo4jOptions.connection)
     val neo4j = new Neo4j(

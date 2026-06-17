@@ -57,14 +57,9 @@ class CypherPreambleTest {
       dynamicTest(
         "when " + testCase.name,
         () => {
-          val options = new java.util.HashMap[String, String]()
-          options.put(Neo4jOptions.URL, "stub-url-doesnt-matter-but-is-required")
+          val neo4jOptions =
+            new Neo4jOptions(testCase.tuningOptions + (Neo4jOptions.URL -> "stub-url-doesnt-matter-but-is-required"))
 
-          testCase.tuningOptions.foreach { case (key, value) =>
-            options.put(key, value)
-          }
-
-          val neo4jOptions = new Neo4jOptions(options.asScala.toMap)
           val tuningPreamble = CypherPreamble.tuningPreamble(neo4jOptions)
 
           assertThat(tuningPreamble).isEmpty()
@@ -110,17 +105,14 @@ class CypherPreambleTest {
       dynamicTest(
         "when " + testCase.name,
         () => {
-          val options = new java.util.HashMap[String, String]()
-          options.put(Neo4jOptions.URL, "stub-url-doesnt-matter-but-is-required")
+          val neo4jOptions =
+            new Neo4jOptions(testCase.tuningOptions + (Neo4jOptions.URL -> "stub-url-doesnt-matter-but-is-required"))
 
-          testCase.tuningOptions.foreach { case (key, value) =>
-            options.put(key, value)
-          }
+          // we don't care about the order of peramble params, but we care about their individual shape
+          val tuningPreambleSplit = CypherPreamble.tuningPreamble(neo4jOptions).split(" ")
 
-          val neo4jOptions = new Neo4jOptions(options.asScala.toMap)
-          val tuningPreamble = CypherPreamble.tuningPreamble(neo4jOptions)
-
-          assertThat(tuningPreamble).isEqualTo(testCase.expectedOutput)
+          assertThat(tuningPreambleSplit).containsExactlyInAnyOrder(testCase.expectedOutput.split(" "): _*)
+          assertThat(tuningPreambleSplit(0)).isEqualTo("CYPHER")
         }
       )
     }
@@ -147,14 +139,8 @@ class CypherPreambleTest {
       dynamicTest(
         "when " + testCase.name,
         () => {
-          val options = new java.util.HashMap[String, String]()
-          options.put(Neo4jOptions.URL, "stub-url-doesnt-matter-but-is-required")
-
-          testCase.tuningOptions.foreach { case (key, value) =>
-            options.put(key, value)
-          }
-
-          val neo4jOptions = new Neo4jOptions(options.asScala.toMap)
+          val neo4jOptions =
+            new Neo4jOptions(testCase.tuningOptions + (Neo4jOptions.URL -> "stub-url-doesnt-matter-but-is-required"))
 
           assertThatThrownBy(() => CypherPreamble.tuningPreamble(neo4jOptions)).isExactlyInstanceOf(
             classOf[IllegalArgumentException]
