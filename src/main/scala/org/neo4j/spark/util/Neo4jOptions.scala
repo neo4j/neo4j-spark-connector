@@ -45,33 +45,33 @@ import scala.jdk.CollectionConverters.MapHasAsScala
 import scala.jdk.CollectionConverters.SetHasAsJava
 import scala.language.implicitConversions
 
-class Neo4jOptions(private val options: java.util.Map[String, String]) extends Serializable with Logging {
+class Neo4jOptions(private val options: Map[String, String]) extends Serializable with Logging {
 
   import Neo4jOptions._
   import QueryType._
 
-  def asMap() = new util.HashMap[String, String](options)
+  val toMap: Map[String, String] = options
 
   private def getRequiredParameter(parameter: String): String = {
-    if (!options.containsKey(parameter) || options.get(parameter).isEmpty) {
+    if (options.getOrElse(parameter, "").isEmpty) {
       throw new IllegalArgumentException(s"Parameter '$parameter' is required")
     }
 
-    options.get(parameter)
+    options(parameter)
   }
 
   private def getParameter(parameter: String, defaultValue: String = ""): String =
     getParameterOption(parameter).getOrElse(defaultValue)
 
   private def getParameterOption(parameter: String): Option[String] =
-    Some(options.get(parameter))
+    options.get(parameter)
       .flatMap(Option(_)) // to turn null into None
       .map(_.trim)
 
   private def getAuthenticationParameters: Map[String, String] = {
     val authType = getParameter(AUTH_TYPE, DEFAULT_AUTH_TYPE)
     val authNamespace = s"$AUTH.$authType"
-    val providedParameters = options.asScala
+    val providedParameters = options
       .view
       .filterKeys(_.startsWith(authNamespace))
       .map(t => (t._1.substring(authNamespace.length + 1), t._2))
@@ -305,7 +305,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
   val streamingOrderBy: String = getParameter(ORDER_BY, getParameter(STREAMING_PROPERTY_NAME))
 
-  val apocConfig: Neo4jApocConfig = Neo4jApocConfig(options.asScala
+  val apocConfig: Neo4jApocConfig = Neo4jApocConfig(options
     .view
     .filterKeys(_.startsWith("apoc."))
     .mapValues(Neo4jUtil.mapper.readValue(_, classOf[java.util.Map[String, AnyRef]]).asScala)
@@ -342,7 +342,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   }
 
   private def extractNeo4jGdsMetadata(): Neo4jGdsMetadata = Neo4jGdsMetadata(
-    options.asScala
+    options
       .view
       .filterKeys(k => k.startsWith(GDS_OPTION_PREFIX))
       .map(t => (t._1.substring(GDS_OPTION_PREFIX.length), t._2))
@@ -351,7 +351,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
   )
 
   private def extractNeo4jTransactionMetadata(): util.Map[String, Any] =
-    options.asScala
+    options
       .view
       .filterKeys(k => k.startsWith(TX_METADATA_OPTION_PREFIX))
       .map(t => (t._1.substring(TX_METADATA_OPTION_PREFIX.length), t._2))
@@ -359,7 +359,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       .toNestedPrimitiveDeserializedJsonJavaMap
 
   private def extractNeo4jTuningOptions(): Map[String, String] =
-    options.asScala
+    options
       .view
       .filterKeys(k => k.toLowerCase.startsWith(CYPHER_TUNING_OPTION_PREFIX))
       .map(t => (t._1.substring(CYPHER_TUNING_OPTION_PREFIX.length), t._2))
@@ -757,7 +757,7 @@ object Neo4jOptions {
 
   private val DEFAULT_TYPE_CONVERSION = "default"
 
-  def fromSession(sparkSession: Option[SparkSession], options: java.util.Map[String, String]): Neo4jOptions = {
+  def fromSession(sparkSession: Option[SparkSession], options: Map[String, String]): Neo4jOptions = {
     val sessionLevelOptions = sparkSession
       .map {
         _.conf
@@ -769,7 +769,7 @@ object Neo4jOptions {
       }
       .getOrElse(Map.empty)
 
-    new Neo4jOptions((sessionLevelOptions ++ options.asScala).asJava)
+    new Neo4jOptions(sessionLevelOptions ++ options)
   }
 }
 
@@ -811,15 +811,6 @@ object RelationshipSaveStrategy extends CaseInsensitiveEnumeration {
 
 object NodeSaveMode extends CaseInsensitiveEnumeration {
   val Overwrite, ErrorIfExists, Match, Append = Value
-
-  def fromSaveMode(saveMode: SaveMode): Value = {
-    saveMode match {
-      case SaveMode.Overwrite     => Overwrite
-      case SaveMode.ErrorIfExists => ErrorIfExists
-      case SaveMode.Append        => Append
-      case _                      => throw new IllegalArgumentException(s"SaveMode $saveMode not supported")
-    }
-  }
 }
 
 object SchemaStrategy extends CaseInsensitiveEnumeration {

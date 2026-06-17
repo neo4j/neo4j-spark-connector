@@ -62,9 +62,8 @@ class Neo4jTable(neo4j: Neo4j, schema: StructType, neo4jOptions: Neo4jOptions, j
   }
 
   override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {
-    val mapOptions = neo4jOptions.asMap()
-    mapOptions.put(Neo4jOptions.ACCESS_MODE, AccessMode.WRITE.toString)
-    val writeNeo4jOptions = new Neo4jOptions(mapOptions)
-    new Neo4jWriterBuilder(neo4j, info.queryId(), info.schema(), SaveMode.Append, writeNeo4jOptions)
+    val accessModeWrite = Neo4jOptions.ACCESS_MODE -> AccessMode.WRITE.toString
+    val neo4jWriterOptions = new Neo4jOptions(neo4jOptions.toMap + accessModeWrite)
+    new Neo4jWriterBuilder(neo4j, info.queryId(), info.schema(), SaveMode.Append, neo4jWriterOptions)
   }
 }

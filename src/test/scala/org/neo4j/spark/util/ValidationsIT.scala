@@ -28,10 +28,11 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   @Test
   def testReadQueryShouldBeSyntacticallyInvalid(): Unit = {
     // given
-    val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     val query = "MATCH (f{) RETURN f"
-    readOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
-    readOpts.put("query", query)
+    val readOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      "query" -> query
+    )
 
     // when & then
     val exception = assertThrows(
@@ -54,9 +55,10 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   def testReadQueryShouldBeSemanticallyInvalid(): Unit = {
     // given
     val query = "MERGE (n:TestNode{id: 1}) RETURN n"
-    val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    readOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
-    readOpts.put("query", query)
+    val readOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      "query" -> query
+    )
 
     // when & then
     val exception = assertThrows(
@@ -76,10 +78,11 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   def testReadQueryCountBeSyntacticallyInvalid(): Unit = {
     // given
     val query = "MATCH (f{) RETURN f"
-    val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    readOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
-    readOpts.put("query", "MATCH (f) RETURN f")
-    readOpts.put("query.count", query)
+    val readOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      "query" -> "MATCH (f) RETURN f",
+      "query.count" -> query
+    )
 
     // when & then
     val exception = assertThrows(
@@ -101,10 +104,11 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   @Test
   def testScriptQueryCountShouldContainAnInvalidQuery(): Unit = {
     // given
-    val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    readOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
-    readOpts.put("query", "MATCH (f) RETURN f")
-    readOpts.put("script", "RETURN 1 AS one; RETUR 2 AS two; RETURN 3 AS three")
+    val readOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      "query" -> "MATCH (f) RETURN f",
+      "script" -> "RETURN 1 AS one; RETUR 2 AS two; RETURN 3 AS three"
+    )
 
     // when & then
     val exception = assertThrows(
@@ -137,10 +141,11 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   def testWriteQueryShouldBeSyntacticallyInvalid(): Unit = {
     // given
     val query = "MERGE (f{) RETURN f"
-    val writeOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    writeOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
-    writeOpts.put(Neo4jOptions.ACCESS_MODE, AccessMode.WRITE.toString)
-    writeOpts.put("query", query)
+    val writeOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      Neo4jOptions.ACCESS_MODE -> AccessMode.WRITE.toString,
+      "query" -> query
+    )
 
     // when & then
     val exception = assertThrows(
@@ -163,10 +168,11 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   def testWriteQueryShouldBeSemanticallyInvalid(): Unit = {
     // given
     val query = "MATCH (n:TestNode{id: 1}) RETURN n"
-    val writeOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    writeOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
-    writeOpts.put(Neo4jOptions.ACCESS_MODE, AccessMode.WRITE.toString)
-    writeOpts.put("query", query)
+    val writeOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      Neo4jOptions.ACCESS_MODE -> AccessMode.WRITE.toString,
+      "query" -> query
+    )
 
     // when & then
     val exception = assertThrows(

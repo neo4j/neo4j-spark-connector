@@ -30,20 +30,18 @@ import org.neo4j.spark.util.Neo4jOptions
 
 import java.util.Collections
 
-import scala.jdk.CollectionConverters.MapHasAsJava
-
 class SchemaServiceTest {
 
   @Test
   def does_not_overflow_when_partition_size_is_over_max_value_of_32bit_integers(): Unit = {
     // note: _ cannot be used to separate digit groups, as this requires Scala 2.13+
-    val opts = options(
+    val options = new Neo4jOptions(Map(
       "url" -> "bolt://example.com",
       "partitions" -> 2.toString,
       "query.count" -> (2L * 2147483648L).toString, // 2 * (Integer.MAX_VALUE + 1)
       "query" -> "MERGE (:Node)"
-    )
-    val schemaService = new SchemaService(neo4j(), opts, mock(classOf[DriverCache], RETURNS_DEEP_STUBS))
+    ))
+    val schemaService = new SchemaService(neo4j(), options, mock(classOf[DriverCache], RETURNS_DEEP_STUBS))
 
     val pages = schemaService.skipLimitFromPartition(Some(TopN(1024)))
 
@@ -51,12 +49,6 @@ class SchemaServiceTest {
     assertEquals(List(0, 2147483648L), pages.map(_.skip).toList)
     assertEquals(List(2147483648L, 2147483648L), pages.map(_.topN.limit).toList)
     assertEquals(List(0, 0), pages.map(_.topN.orders.size).toList)
-  }
-
-  private def options(kv: (String, String)*): Neo4jOptions = {
-    new Neo4jOptions(
-      kv.toMap.asJava
-    )
   }
 
   private def neo4j(): Neo4j = {

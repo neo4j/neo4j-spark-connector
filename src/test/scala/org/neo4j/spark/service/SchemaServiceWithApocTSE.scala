@@ -21,9 +21,7 @@ import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestMethodOrder
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDeploymentType
 import org.neo4j.caniuse.Neo4jEdition
@@ -38,7 +36,6 @@ import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.QueryType
 
-import java.util
 import java.util.Collections
 
 class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
@@ -55,9 +52,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromNodeBoolean(): Unit = {
     initTest("CREATE (p:Person {is_hero: true})")
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("is_hero", DataTypes.BooleanType))), schema)
@@ -66,9 +61,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromNodeString(): Unit = {
     initTest("CREATE (p:Person {name: 'John'})")
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("name", DataTypes.StringType))), schema)
@@ -77,9 +70,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromNodeLong(): Unit = {
     initTest("CREATE (p:Person {age: 93})")
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("age", DataTypes.LongType))), schema)
@@ -88,9 +79,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromNodeDouble(): Unit = {
     initTest("CREATE (p:Person {ratio: 43.120})")
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("ratio", DataTypes.DoubleType))), schema)
@@ -99,9 +88,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromNodePoint2D(): Unit = {
     initTest("CREATE (p:Person {location: point({x: 12.32, y: 49.32})})")
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("location", CypherToSparkTypeConverter.pointType))), schema)
@@ -110,9 +97,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromDate(): Unit = {
     initTest("CREATE (p:Person {born_on: date('1998-01-05')})")
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("born_on", DataTypes.DateType))), schema)
@@ -121,9 +106,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromDateTime(): Unit = {
     initTest("CREATE (p:Person {arrived_at: datetime('1998-01-05')})")
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("arrived_at", DataTypes.TimestampType))), schema)
@@ -132,9 +115,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromTime(): Unit = {
     initTest("CREATE (p:Person {arrived_at: time('125035.556+0100')})")
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("arrived_at", CypherToSparkTypeConverter.timeType))), schema)
@@ -143,9 +124,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromStringArray(): Unit = {
     initTest("CREATE (p:Person {names: ['John', 'Doe']})")
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(
@@ -157,9 +136,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromDateArray(): Unit = {
     initTest("CREATE (p:Person {names: [date('2019-11-19'), date('2019-11-20')]})")
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(
@@ -171,9 +148,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromTimestampArray(): Unit = {
     initTest("CREATE (p:Person {dates: [datetime('2019-11-19'), datetime('2019-11-20')]})")
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(
@@ -185,9 +160,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromTimeArray(): Unit = {
     initTest("CREATE (p:Person {dates: [time('125035.556+0100'), time('125125.556+0100')]})")
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(
@@ -199,9 +172,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromIntegerArray(): Unit = {
     initTest("CREATE (p:Person {ages: [42, 101]})")
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("ages", DataTypes.createArrayType(DataTypes.LongType)))), schema)
@@ -216,10 +187,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
         (p3:Person {age: 25, location: point({latitude: 12.12, longitude: 31.13})})
     """
     )
-
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
-
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(
@@ -245,9 +213,9 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       .executeWrite((tx: TransactionContext) => tx.run(query).consume())
   }
 
-  private def getSchema(options: java.util.Map[String, String]): StructType = {
-    options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
-    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+  private def getSchema(options: Map[String, String]): StructType = {
+    val neo4jOptions: Neo4jOptions =
+      new Neo4jOptions(options + (Neo4jOptions.URL -> SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl))
 
     val driverCache = new DriverCache(neo4jOptions.connection)
     val neo4j = new Neo4j(

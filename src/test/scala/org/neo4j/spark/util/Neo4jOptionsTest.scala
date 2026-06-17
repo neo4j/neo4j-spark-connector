@@ -17,9 +17,7 @@
 package org.neo4j.spark.util
 
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatCode
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.neo4j.driver.AccessMode
 import org.neo4j.driver.Value
@@ -36,8 +34,7 @@ class Neo4jOptionsTest {
 
   @Test
   def requires_url(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put(QueryType.QUERY.toString.toLowerCase, "Person")
+    val options = Map(QueryType.QUERY.toString -> "Person")
 
     assertThatExceptionOfType(classOf[IllegalArgumentException])
       .isThrownBy(() => new Neo4jOptions(options)).withMessage("Parameter 'url' is required")
@@ -45,38 +42,35 @@ class Neo4jOptionsTest {
 
   @Test
   def supports_relationship_table_name(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
-    options.put(Neo4jOptions.RELATIONSHIP_SOURCE_LABELS, "Person")
-    options.put(Neo4jOptions.RELATIONSHIP_TARGET_LABELS, "Answer")
-
-    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      QueryType.RELATIONSHIP.toString.toLowerCase -> "KNOWS",
+      Neo4jOptions.RELATIONSHIP_SOURCE_LABELS -> "Person",
+      Neo4jOptions.RELATIONSHIP_TARGET_LABELS -> "Answer"
+    ))
 
     assertThat(neo4jOptions.getTableName).isEqualTo("table_Person_KNOWS_Answer")
   }
 
   @Test
   def supports_labels_table_name(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put("labels", "Person:Admin")
-
-    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      "labels" -> "Person:Admin"
+    ))
 
     assertThat(neo4jOptions.getTableName).isEqualTo("table_Person-Admin")
   }
 
   @Test
   def supports_relationship_node_modes_are_case_insensitive(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
-    options.put(Neo4jOptions.RELATIONSHIP_SAVE_STRATEGY, "nAtIve")
-    options.put(Neo4jOptions.RELATIONSHIP_SOURCE_SAVE_MODE, "Errorifexists")
-    options.put(Neo4jOptions.RELATIONSHIP_TARGET_SAVE_MODE, "overwrite")
-
-    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      QueryType.RELATIONSHIP.toString.toLowerCase -> "KNOWS",
+      Neo4jOptions.RELATIONSHIP_SAVE_STRATEGY -> "nAtIve",
+      Neo4jOptions.RELATIONSHIP_SOURCE_SAVE_MODE -> "Errorifexists",
+      Neo4jOptions.RELATIONSHIP_TARGET_SAVE_MODE -> "overwrite"
+    ))
 
     assertThat(neo4jOptions.relationshipMetadata.saveStrategy).isEqualTo(RelationshipSaveStrategy.NATIVE)
     assertThat(neo4jOptions.relationshipMetadata.sourceSaveMode).isEqualTo(NodeSaveMode.ErrorIfExists)
@@ -85,10 +79,11 @@ class Neo4jOptionsTest {
 
   @Test
   def supports_relationship_write_strategy_is_not_present_should_throw_exception(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.LABELS.toString.toLowerCase, "PERSON")
-    options.put("relationship.save.strategy", "nope")
+    val options = Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      QueryType.LABELS.toString -> "PERSON",
+      "relationship.save.strategy" -> "nope"
+    )
 
     assertThatExceptionOfType(classOf[NoSuchElementException])
       .isThrownBy(() => new Neo4jOptions(options))
@@ -98,11 +93,10 @@ class Neo4jOptionsTest {
   @Test
   def supports_query_should_have_query_type(): Unit = {
     val query: String = "MATCH n RETURN n"
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.QUERY.toString.toLowerCase, query)
-
-    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      QueryType.QUERY.toString.toLowerCase -> query
+    ))
 
     assertThat(neo4jOptions.query.queryType).isEqualTo(QueryType.QUERY)
     assertThat(neo4jOptions.query.value).isEqualTo(query)
@@ -111,11 +105,10 @@ class Neo4jOptionsTest {
   @Test
   def supports_node_should_have_label_type(): Unit = {
     val label: String = "Person"
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.LABELS.toString.toLowerCase, label)
-
-    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      QueryType.LABELS.toString.toLowerCase -> label
+    ))
 
     assertThat(neo4jOptions.query.queryType).isEqualTo(QueryType.LABELS)
     assertThat(neo4jOptions.query.value).isEqualTo(label)
@@ -124,11 +117,10 @@ class Neo4jOptionsTest {
   @Test
   def supports_relationship_should_have_relationship_type(): Unit = {
     val relationship: String = "KNOWS"
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.LABELS.toString.toLowerCase, relationship)
-
-    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      QueryType.LABELS.toString.toLowerCase -> relationship
+    ))
 
     assertThat(neo4jOptions.query.queryType).isEqualTo(QueryType.LABELS)
     assertThat(neo4jOptions.query.value).isEqualTo(relationship)
@@ -136,22 +128,20 @@ class Neo4jOptionsTest {
 
   @Test
   def supports_push_down_column_is_disabled(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put("pushdown.columns.enabled", "false")
-
-    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      "pushdown.columns.enabled" -> "false"
+    ))
 
     assertThat(neo4jOptions.pushdownColumnsEnabled).isFalse
   }
 
   @Test
   def supports_driver_defaults(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.QUERY.toString.toLowerCase, "MATCH n RETURN n")
-
-    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      QueryType.QUERY.toString.toLowerCase -> "MATCH n RETURN n"
+    ))
 
     assertThat(neo4jOptions.session.database).isEqualTo("")
     assertThat(neo4jOptions.session.accessMode).isEqualTo(AccessMode.READ)
@@ -172,11 +162,10 @@ class Neo4jOptionsTest {
 
   @Test
   def supports_apoc_configuration(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put("apoc.meta.nodeTypeProperties", """{"nodeLabels": ["Label"], "mandatory": false}""")
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-
-    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions = new Neo4jOptions(Map(
+      "apoc.meta.nodeTypeProperties" -> """{"nodeLabels": ["Label"], "mandatory": false}""",
+      Neo4jOptions.URL -> "bolt://localhost"
+    ))
 
     val expected = Map("apoc.meta.nodeTypeProperties" -> Map(
       "nodeLabels" -> Seq("Label").asJava,
@@ -188,21 +177,20 @@ class Neo4jOptionsTest {
 
   @Test
   def supports_null_property(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put("relationship.properties", null)
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-
-    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions = new Neo4jOptions(Map(
+      "relationship.properties" -> null,
+      Neo4jOptions.URL -> "bolt://localhost"
+    ))
 
     assertThat(None).isEqualTo(neo4jOptions.relationshipMetadata.properties)
   }
 
   @Test
   def supports_multiple_urls(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "neo4j://localhost, neo4j://foo.bar:7687, neo4j://foo.bar.baz:7783")
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "neo4j://localhost, neo4j://foo.bar:7687, neo4j://foo.bar.baz:7783"
+    ))
 
-    val neo4jOptions = new Neo4jOptions(options)
     val (baseUrl, resolvers) = neo4jOptions.connection.connectionUrls
 
     assertThat(baseUrl).isEqualTo(URI.create("neo4j://localhost"))
@@ -211,13 +199,12 @@ class Neo4jOptionsTest {
 
   @Test
   def supports_gds_properties(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783")
-    options.put("gds", "gds.pageRank.stream")
-    options.put("gds.graphName", "myGraph")
-    options.put("gds.configuration.concurrency", "2")
-
-    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783",
+      "gds" -> "gds.pageRank.stream",
+      "gds.graphName" -> "myGraph",
+      "gds.configuration.concurrency" -> "2"
+    ))
 
     assertThat(neo4jOptions.query.queryType).isEqualTo(QueryType.GDS)
     assertThat(neo4jOptions.query.value).isEqualTo("gds.pageRank.stream")
@@ -231,11 +218,10 @@ class Neo4jOptionsTest {
 
   @Test
   def supports_transaction_timeout(): Unit = {
-    val rawOptions = new java.util.HashMap[String, String]()
-    rawOptions.put(Neo4jOptions.URL, "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783")
-    rawOptions.put("db.transaction.timeout", "1000")
-
-    val neo4jOptions = new Neo4jOptions(rawOptions)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783",
+      "db.transaction.timeout" -> "1000"
+    ))
 
     val transactionConfig = neo4jOptions.toNeo4jTransactionConfig
     assertThat(transactionConfig.timeout()).isEqualTo(Duration.ofMillis(1000))
@@ -243,10 +229,9 @@ class Neo4jOptionsTest {
 
   @Test
   def supports_default_transaction_timeout(): Unit = {
-    val rawOptions = new java.util.HashMap[String, String]()
-    rawOptions.put(Neo4jOptions.URL, "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783")
-
-    val neo4jOptions = new Neo4jOptions(rawOptions)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783"
+    ))
 
     val transactionConfig = neo4jOptions.toNeo4jTransactionConfig
 
@@ -255,15 +240,15 @@ class Neo4jOptionsTest {
 
   @Test
   def supports_transaction_metadata(): Unit = {
-    val rawOptions = new java.util.HashMap[String, String]()
-    rawOptions.put(Neo4jOptions.URL, "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783")
-    rawOptions.put("db.transaction.metadata.foo", "bar")
-    rawOptions.put("db.transaction.metadata.bar", "true")
-    rawOptions.put("db.transaction.metadata.qix", "42")
-    rawOptions.put("db.transaction.metadata.my.thing", "23.0")
-    rawOptions.put("db.transaction.metadata.json_array_treated_as_string", "[true,43]")
-    rawOptions.put("db.transaction.metadata.json_map_treated_as_string", """{"map": false}""")
-    val neo4jOptions = new Neo4jOptions(rawOptions)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783",
+      "db.transaction.metadata.foo" -> "bar",
+      "db.transaction.metadata.bar" -> "true",
+      "db.transaction.metadata.qix" -> "42",
+      "db.transaction.metadata.my.thing" -> "23.0",
+      "db.transaction.metadata.json_array_treated_as_string" -> "[true,43]",
+      "db.transaction.metadata.json_map_treated_as_string" -> """{"map": false}"""
+    ))
 
     val transactionConfig = neo4jOptions.toNeo4jTransactionConfig
 
