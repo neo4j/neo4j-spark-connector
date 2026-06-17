@@ -1692,15 +1692,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         "query",
         "CREATE (n:Person{fullName: event.name + ' ' + event.surname, age: scriptResult[0].age[event.name]})"
       )
-      .option(
-        "script",
-        """CREATE INDEX person_surname FOR (p:Person) ON (p.surname);
-          |CREATE CONSTRAINT product_name_sku FOR (p:Product)
-          | REQUIRE (p.name, p.sku)
-          | IS NODE KEY;
-          |RETURN {Andrea: 36, Davide: 32} AS age;
-          |""".stripMargin
-      )
+      .option("script.1", "CREATE INDEX person_surname FOR (p:Person) ON (p.surname);")
+      .option("script.2", "CREATE CONSTRAINT product_name_sku FOR (p:Product) REQUIRE (p.name, p.sku) IS NODE KEY;")
+      .option("script.3", "RETURN {Andrea: 36, Davide: 32} AS age;")
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(
