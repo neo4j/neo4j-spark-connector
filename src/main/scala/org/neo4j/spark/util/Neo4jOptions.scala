@@ -364,18 +364,15 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
 
   private def extractScript(): Array[String] = {
     val fromScript = getParameter(SCRIPT)
-      .split(";")
-      .map(_.trim)
-      .filterNot(_.isEmpty)
 
     val fromScriptOptions = options.asScala
       .view
       .filterKeys(_.startsWith(SCRIPT_PREFIX))
       .map { case (key, value) =>
         val index = key.substring(SCRIPT_PREFIX.length)
-        if (!index.matches("[1-9]\\d*")) {
+        if (!index.matches("\\d+")) {
           throw new IllegalArgumentException(
-            s"Script option '$key' must use a positive integer suffix"
+            s"Script option '$key' must have an integer suffix"
           )
         }
         (index.toInt, value)
@@ -390,7 +387,7 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
     }
 
     if (fromScript.nonEmpty) {
-      return fromScript
+      return Array(fromScript)
     }
 
     fromScriptOptions

@@ -278,18 +278,12 @@ class Neo4jOptionsTest {
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(
       Neo4jOptions.SCRIPT,
-      """
-        CREATE INDEX person_surname FOR (p:Person) ON (p.surname);
-        CREATE CONSTRAINT product_name_sku FOR (p:Product) REQUIRE (p.name, p.sku) IS NODE KEY;
-        RETURN 36 AS age;
-        """.stripMargin
+      "CREATE INDEX person_surname FOR (p:Person) ON (p.surname);"
     )
 
     val neo4jOptions = new Neo4jOptions(options)
     assertThat(neo4jOptions.script).isEqualTo(Array(
-      "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)",
-      "CREATE CONSTRAINT product_name_sku FOR (p:Product) REQUIRE (p.name, p.sku) IS NODE KEY",
-      "RETURN 36 AS age"
+      "CREATE INDEX person_surname FOR (p:Person) ON (p.surname);"
     ))
   }
 
@@ -302,7 +296,7 @@ class Neo4jOptionsTest {
       "CREATE CONSTRAINT product_name_sku FOR (p:Product) REQUIRE (p.name, p.sku) IS NODE KEY"
     )
     options.put(s"${Neo4jOptions.SCRIPT_PREFIX}3", "RETURN 36 AS age")
-    options.put(s"${Neo4jOptions.SCRIPT_PREFIX}1", "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)")
+    options.put(s"${Neo4jOptions.SCRIPT_PREFIX}01", "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)")
 
     val neo4jOptions = new Neo4jOptions(options)
     assertThat(neo4jOptions.script).isEqualTo(Array(
@@ -326,7 +320,7 @@ class Neo4jOptionsTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = Array("invalid", "0", "-1", "1.5", "01", "1a", ""))
+  @ValueSource(strings = Array("invalid", "-1", "1.5", "a1", "1a", ""))
   def fails_when_indexed_script_suffix_is_not_a_positive_integer(suffix: String): Unit = {
     val options = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
@@ -334,7 +328,7 @@ class Neo4jOptionsTest {
 
     assertThatExceptionOfType(classOf[IllegalArgumentException])
       .isThrownBy(() => new Neo4jOptions(options)).withMessage(
-        s"Script option 'script.$suffix' must use a positive integer suffix"
+        s"Script option 'script.$suffix' must have an integer suffix"
       )
   }
 }
