@@ -52,7 +52,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromNodeBoolean(): Unit = {
     initTest("CREATE (p:Person {is_hero: true})")
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("is_hero", DataTypes.BooleanType))), schema)
@@ -61,7 +61,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromNodeString(): Unit = {
     initTest("CREATE (p:Person {name: 'John'})")
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("name", DataTypes.StringType))), schema)
@@ -70,7 +70,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromNodeLong(): Unit = {
     initTest("CREATE (p:Person {age: 93})")
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("age", DataTypes.LongType))), schema)
@@ -79,7 +79,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromNodeDouble(): Unit = {
     initTest("CREATE (p:Person {ratio: 43.120})")
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("ratio", DataTypes.DoubleType))), schema)
@@ -88,7 +88,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromNodePoint2D(): Unit = {
     initTest("CREATE (p:Person {location: point({x: 12.32, y: 49.32})})")
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("location", CypherToSparkTypeConverter.pointType))), schema)
@@ -97,7 +97,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromDate(): Unit = {
     initTest("CREATE (p:Person {born_on: date('1998-01-05')})")
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("born_on", DataTypes.DateType))), schema)
@@ -106,7 +106,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromDateTime(): Unit = {
     initTest("CREATE (p:Person {arrived_at: datetime('1998-01-05')})")
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("arrived_at", DataTypes.TimestampType))), schema)
@@ -115,7 +115,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromTime(): Unit = {
     initTest("CREATE (p:Person {arrived_at: time('125035.556+0100')})")
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("arrived_at", CypherToSparkTypeConverter.timeType))), schema)
@@ -124,7 +124,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromStringArray(): Unit = {
     initTest("CREATE (p:Person {names: ['John', 'Doe']})")
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(
@@ -136,7 +136,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromDateArray(): Unit = {
     initTest("CREATE (p:Person {names: [date('2019-11-19'), date('2019-11-20')]})")
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(
@@ -148,7 +148,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromTimestampArray(): Unit = {
     initTest("CREATE (p:Person {dates: [datetime('2019-11-19'), datetime('2019-11-20')]})")
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(
@@ -160,7 +160,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromTimeArray(): Unit = {
     initTest("CREATE (p:Person {dates: [time('125035.556+0100'), time('125125.556+0100')]})")
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(
@@ -172,7 +172,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testGetSchemaFromIntegerArray(): Unit = {
     initTest("CREATE (p:Person {ages: [42, 101]})")
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(StructField("ages", DataTypes.createArrayType(DataTypes.LongType)))), schema)
@@ -187,7 +187,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
         (p3:Person {age: 25, location: point({latitude: 12.12, longitude: 31.13})})
     """
     )
-    val options = Map(QueryType.LABELS.toString -> "Person")
+    val options = Map(QueryType.LABELS.toString.toLowerCase -> "Person")
     val schema = getSchema(options)
 
     assertEquals(
