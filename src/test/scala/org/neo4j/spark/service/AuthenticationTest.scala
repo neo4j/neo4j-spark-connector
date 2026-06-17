@@ -18,7 +18,7 @@ package org.neo4j.spark.service
 
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers._
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
 import org.mockito.Mockito.times
 import org.neo4j.driver.AuthToken
@@ -32,9 +32,6 @@ import org.neo4j.spark.util.Neo4jOptions
 import org.testcontainers.shaded.com.google.common.io.BaseEncoding
 
 import java.net.URI
-import java.util
-
-import scala.jdk.CollectionConverters.MapHasAsScala
 
 class AuthenticationTest {
 

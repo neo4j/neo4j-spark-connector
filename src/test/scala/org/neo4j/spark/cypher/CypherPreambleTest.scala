@@ -26,7 +26,6 @@ import org.neo4j.spark.util.Neo4jOptions
 
 import java.util.stream.Stream
 
-import scala.jdk.CollectionConverters.MapHasAsScala
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
 private case class TuningTestCase(

@@ -25,15 +25,15 @@ import org.neo4j.spark.testsupport.Closeables.use
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT.server
 
-import scala.jdk.CollectionConverters.MapHasAsScala
-
 class Neo4jOptionsIT extends SparkConnectorScalaSuiteIT {
 
   @Test
   @ClearSystemProperty(key = "strict.cypher")
   def creates_regular_driver(): Unit = {
-    val options = Map(Neo4jOptions.URL -> server.getBoltUrl, Neo4jOptions.AUTH_TYPE -> "none")
-    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> server.getBoltUrl,
+      Neo4jOptions.AUTH_TYPE -> "none"
+    ))
 
     use(neo4jOptions.connection.createDriver()) { driver =>
       assertThat(driver)
@@ -48,8 +48,10 @@ class Neo4jOptionsIT extends SparkConnectorScalaSuiteIT {
   @Test
   @SetSystemProperty(key = "strict.cypher", value = "true")
   def creates_strict_driver(): Unit = {
-    val options = Map(Neo4jOptions.URL -> server.getBoltUrl, Neo4jOptions.AUTH_TYPE -> "none")
-    val neo4jOptions = new Neo4jOptions(options)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> server.getBoltUrl,
+      Neo4jOptions.AUTH_TYPE -> "none"
+    ))
 
     use(neo4jOptions.connection.createDriver()) { driver =>
       assertThat(driver).isInstanceOf(classOf[StrictDriver])
@@ -59,14 +61,10 @@ class Neo4jOptionsIT extends SparkConnectorScalaSuiteIT {
   @Test
   @Disabled("This requires a fix on driver, ignoring until it is implemented")
   def creates_driver_with_resolver(): Unit = {
-    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    options.put(
-      Neo4jOptions.URL,
-      s"neo4j://localhost.localdomain:8888, bolt://localhost.localdomain:9999, ${server.getBoltUrl}"
-    )
-    options.put(Neo4jOptions.AUTH_TYPE, "none")
-
-    val neo4jOptions = new Neo4jOptions(options.asScala.toMap)
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.AUTH_TYPE -> "none",
+      Neo4jOptions.URL -> s"neo4j://localhost.localdomain:8888, bolt://localhost.localdomain:9999, ${server.getBoltUrl}"
+    ))
 
     use(neo4jOptions.connection.createDriver()) { driver =>
       assertThat(driver).isNotNull()
