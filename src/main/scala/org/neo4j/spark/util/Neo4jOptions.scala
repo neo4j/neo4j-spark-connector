@@ -365,7 +365,7 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
   private def extractScript(): Array[String] = {
     val fromScript = getParameter(SCRIPT)
 
-    val fromScriptOptions = options.asScala
+    val fromScriptOptions = options
       .view
       .filterKeys(_.startsWith(SCRIPT_PREFIX))
       .map { case (key, value) =>

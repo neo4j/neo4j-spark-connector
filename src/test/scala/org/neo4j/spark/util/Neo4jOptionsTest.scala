@@ -274,14 +274,11 @@ class Neo4jOptionsTest {
 
   @Test
   def extracts_script_from_single_script_option(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(
-      Neo4jOptions.SCRIPT,
-      "CREATE INDEX person_surname FOR (p:Person) ON (p.surname);"
-    )
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      Neo4jOptions.SCRIPT -> "CREATE INDEX person_surname FOR (p:Person) ON (p.surname);"
+    ))
 
-    val neo4jOptions = new Neo4jOptions(options)
     assertThat(neo4jOptions.script).isEqualTo(Array(
       "CREATE INDEX person_surname FOR (p:Person) ON (p.surname);"
     ))
@@ -289,16 +286,13 @@ class Neo4jOptionsTest {
 
   @Test
   def sorts_script_by_index_when_using_indexed_script_options(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(
-      s"${Neo4jOptions.SCRIPT_PREFIX}2",
-      "CREATE CONSTRAINT product_name_sku FOR (p:Product) REQUIRE (p.name, p.sku) IS NODE KEY"
-    )
-    options.put(s"${Neo4jOptions.SCRIPT_PREFIX}3", "RETURN 36 AS age")
-    options.put(s"${Neo4jOptions.SCRIPT_PREFIX}01", "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)")
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      s"${Neo4jOptions.SCRIPT_PREFIX}2" -> "CREATE CONSTRAINT product_name_sku FOR (p:Product) REQUIRE (p.name, p.sku) IS NODE KEY",
+      s"${Neo4jOptions.SCRIPT_PREFIX}3" -> "RETURN 36 AS age",
+      s"${Neo4jOptions.SCRIPT_PREFIX}01" -> "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)"
+    ))
 
-    val neo4jOptions = new Neo4jOptions(options)
     assertThat(neo4jOptions.script).isEqualTo(Array(
       "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)",
       "CREATE CONSTRAINT product_name_sku FOR (p:Product) REQUIRE (p.name, p.sku) IS NODE KEY",
@@ -308,10 +302,11 @@ class Neo4jOptionsTest {
 
   @Test
   def fails_when_both_script_options_provided(): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(Neo4jOptions.SCRIPT, "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)")
-    options.put(s"${Neo4jOptions.SCRIPT_PREFIX}1", "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)")
+    val options = Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      Neo4jOptions.SCRIPT -> "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)",
+      s"${Neo4jOptions.SCRIPT_PREFIX}1" -> "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)"
+    )
 
     assertThatExceptionOfType(classOf[IllegalArgumentException])
       .isThrownBy(() => new Neo4jOptions(options)).withMessage(
@@ -322,9 +317,10 @@ class Neo4jOptionsTest {
   @ParameterizedTest
   @ValueSource(strings = Array("invalid", "-1", "1.5", "a1", "1a", ""))
   def fails_when_indexed_script_suffix_is_not_a_positive_integer(suffix: String): Unit = {
-    val options = new java.util.HashMap[String, String]()
-    options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(s"${Neo4jOptions.SCRIPT_PREFIX}$suffix", "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)")
+    val options = Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      s"${Neo4jOptions.SCRIPT_PREFIX}$suffix" -> "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)"
+    )
 
     assertThatExceptionOfType(classOf[IllegalArgumentException])
       .isThrownBy(() => new Neo4jOptions(options)).withMessage(

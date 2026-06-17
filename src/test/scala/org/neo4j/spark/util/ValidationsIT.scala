@@ -106,18 +106,12 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   }
 
   @Test
-  def testScriptQueryCountShouldContainAnInvalidQuery(): Unit = {
-    // given
+  def testReadScriptShouldNotContainAnInvalidQuery(): Unit = {
     val readOpts = Map(
       Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
       "query" -> "MATCH (f) RETURN f",
-      "script" -> "RETURN 1 AS one; RETUR 2 AS two; RETURN 3 AS three"
+      "script" -> "RETUR 1 AS one;"
     )
-  def testReadScriptShouldNotContainAnInvalidQuery(): Unit = {
-    val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    readOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
-    readOpts.put("query", "MATCH (f) RETURN f")
-    readOpts.put("script", "RETUR 1 AS one;")
 
     val exception = assertThrows(
       classOf[IllegalArgumentException],
@@ -147,10 +141,11 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
 
   @Test
   def testReadScriptShouldNotContainMultipleQueries(): Unit = {
-    val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    readOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
-    readOpts.put("query", "MATCH (f) RETURN f")
-    readOpts.put("script", "RETURN 1 AS one; RETURN 2 AS two; RETURN 3 AS three;")
+    val readOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      "query" -> "MATCH (f) RETURN f",
+      "script" -> "RETURN 1 AS one; RETURN 2 AS two; RETURN 3 AS three;"
+    )
 
     val exception = assertThrows(
       classOf[IllegalArgumentException],
@@ -180,11 +175,12 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
 
   @Test
   def testReadIndexedScriptShouldNotContainAnInvalidQuery(): Unit = {
-    val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    readOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
-    readOpts.put("query", "MATCH (f) RETURN f")
-    readOpts.put("script.1", "RETURN 1 AS one")
-    readOpts.put("script.2", "RETUR 2 AS two")
+    val readOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      "query" -> "MATCH (f) RETURN f",
+      "script.1" -> "RETURN 1 AS one",
+      "script.2" -> "RETUR 2 AS two"
+    )
 
     val exception = assertThrows(
       classOf[IllegalArgumentException],
@@ -208,11 +204,12 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
 
   @Test
   def testWriteScriptShouldNotContainAnInvalidQuery(): Unit = {
-    val writeOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    writeOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
-    writeOpts.put(Neo4jOptions.ACCESS_MODE, AccessMode.WRITE.toString)
-    writeOpts.put("query", "CREATE (n:Person);")
-    writeOpts.put("script", "RETUR 1 AS one;")
+    val writeOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      Neo4jOptions.ACCESS_MODE -> AccessMode.WRITE.toString,
+      "query" -> "CREATE (n:Person);",
+      "script" -> "RETUR 1 AS one;"
+    )
 
     val exception = assertThrows(
       classOf[IllegalArgumentException],
@@ -230,11 +227,12 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
 
   @Test
   def testWriteScriptShouldNotContainMultipleQueries(): Unit = {
-    val writeOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    writeOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
-    writeOpts.put(Neo4jOptions.ACCESS_MODE, AccessMode.WRITE.toString)
-    writeOpts.put("query", "CREATE (n:Person);")
-    writeOpts.put("script", "RETURN 1 AS one; RETURN 2 AS two; RETURN 3 AS three;")
+    val writeOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      Neo4jOptions.ACCESS_MODE -> AccessMode.WRITE.toString,
+      "query" -> "CREATE (n:Person);",
+      "script" -> "RETURN 1 AS one; RETURN 2 AS two; RETURN 3 AS three;"
+    )
 
     val exception = assertThrows(
       classOf[IllegalArgumentException],
@@ -252,12 +250,13 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
 
   @Test
   def testWriteIndexedScriptShouldNotContainAnInvalidQuery(): Unit = {
-    val writeOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
-    writeOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
-    writeOpts.put(Neo4jOptions.ACCESS_MODE, AccessMode.WRITE.toString)
-    writeOpts.put("query", "CREATE (n:Person);")
-    writeOpts.put("script.1", "RETURN 1 AS one")
-    writeOpts.put("script.2", "RETUR 2 AS two")
+    val writeOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      Neo4jOptions.ACCESS_MODE -> AccessMode.WRITE.toString,
+      "query" -> "CREATE (n:Person);",
+      "script.1" -> "RETURN 1 AS one",
+      "script.2" -> "RETUR 2 AS two"
+    )
 
     val exception = assertThrows(
       classOf[IllegalArgumentException],
