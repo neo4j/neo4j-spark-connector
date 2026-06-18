@@ -106,24 +106,23 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   }
 
   @Test
-  def testScriptQueryCountShouldContainAnInvalidQuery(): Unit = {
-    // given
+  def testReadScriptShouldNotContainAnInvalidQuery(): Unit = {
     val readOpts = Map(
       Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
       "query" -> "MATCH (f) RETURN f",
-      "script" -> "RETURN 1 AS one; RETUR 2 AS two; RETURN 3 AS three"
+      "script" -> "RETUR 1 AS one;"
     )
 
-    // when & then
     val exception = assertThrows(
       classOf[IllegalArgumentException],
       () => {
         Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
       }
     )
+
     assertTrue(
       exception.getMessage.contains(
-        "The following queries inside the `script` are not valid,"
+        "The following script queries are not valid,"
       )
     )
 
@@ -135,10 +134,142 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
 
     assertTrue(
       exception.getMessage.contains(
-        "EXPLAIN RETUR 2 AS two"
+        "EXPLAIN RETUR 1 AS one;"
+      )
+    )
+  }
+
+  @Test
+  def testReadScriptShouldNotContainMultipleQueries(): Unit = {
+    val readOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      "query" -> "MATCH (f) RETURN f",
+      "script" -> "RETURN 1 AS one; RETURN 2 AS two; RETURN 3 AS three;"
+    )
+
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      () => {
+        Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
+      }
+    )
+
+    assertTrue(
+      exception.getMessage.contains(
+        "The following script queries are not valid,"
       )
     )
 
+    assertTrue(
+      exception.getMessage.contains(
+        "Query not compiled for the following exception: ClientException: Expected exactly one statement per query but got: "
+      )
+    )
+
+    assertTrue(
+      exception.getMessage.contains(
+        "EXPLAIN RETURN 1 AS one; RETURN 2 AS two; RETURN 3 AS three;"
+      )
+    )
+  }
+
+  @Test
+  def testReadIndexedScriptShouldNotContainAnInvalidQuery(): Unit = {
+    val readOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      "query" -> "MATCH (f) RETURN f",
+      "script.1" -> "RETURN 1 AS one",
+      "script.2" -> "RETUR 2 AS two"
+    )
+
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      () => {
+        Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
+      }
+    )
+
+    assertTrue(
+      exception.getMessage.contains(
+        "The following script queries are not valid,"
+      )
+    )
+
+    assertTrue(
+      exception.getMessage.contains(
+        "EXPLAIN RETUR 2 AS two"
+      )
+    )
+  }
+
+  @Test
+  def testWriteScriptShouldNotContainAnInvalidQuery(): Unit = {
+    val writeOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      Neo4jOptions.ACCESS_MODE -> AccessMode.WRITE.toString,
+      "query" -> "CREATE (n:Person);",
+      "script" -> "RETUR 1 AS one;"
+    )
+
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      () => {
+        Validations.validate(ValidateWrite(neo4j, new Neo4jOptions(writeOpts), "1", null))
+      }
+    )
+
+    assertTrue(
+      exception.getMessage.contains(
+        "The following script query is not valid, please check the syntax: RETUR 1 AS one;"
+      )
+    )
+  }
+
+  @Test
+  def testWriteScriptShouldNotContainMultipleQueries(): Unit = {
+    val writeOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      Neo4jOptions.ACCESS_MODE -> AccessMode.WRITE.toString,
+      "query" -> "CREATE (n:Person);",
+      "script" -> "RETURN 1 AS one; RETURN 2 AS two; RETURN 3 AS three;"
+    )
+
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      () => {
+        Validations.validate(ValidateWrite(neo4j, new Neo4jOptions(writeOpts), "1", null))
+      }
+    )
+
+    assertTrue(
+      exception.getMessage.contains(
+        "The following script query is not valid, please check the syntax: RETURN 1 AS one; RETURN 2 AS two; RETURN 3 AS three;"
+      )
+    )
+  }
+
+  @Test
+  def testWriteIndexedScriptShouldNotContainAnInvalidQuery(): Unit = {
+    val writeOpts = Map(
+      Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
+      Neo4jOptions.ACCESS_MODE -> AccessMode.WRITE.toString,
+      "query" -> "CREATE (n:Person);",
+      "script.1" -> "RETURN 1 AS one",
+      "script.2" -> "RETUR 2 AS two"
+    )
+
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      () => {
+        Validations.validate(ValidateWrite(neo4j, new Neo4jOptions(writeOpts), "1", null))
+      }
+    )
+
+    assertTrue(
+      exception.getMessage.contains(
+        "The following script query is not valid, please check the syntax: RETUR 2 AS two"
+      )
+    )
   }
 
   @Test

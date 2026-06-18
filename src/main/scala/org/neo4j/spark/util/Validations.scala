@@ -261,7 +261,7 @@ case class ValidateWrite(
       neo4jOptions.script.foreach(query =>
         ValidationUtil.isTrue(
           schemaService.isValidQuery(query, new java.util.HashMap[String, AnyRef]()),
-          s"The following query inside the `${Neo4jOptions.SCRIPT}` is not valid, please check the syntax: $query"
+          s"The following script query is not valid, please check the syntax: $query"
         )
       )
 
@@ -349,7 +349,7 @@ case class ValidateRead(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId: String)
       ValidationUtil.isTrue(
         scriptErrors.isEmpty,
         s"""
-           |The following queries inside the `${Neo4jOptions.SCRIPT}` are not valid,
+           |The following script queries are not valid,
            |please check their syntax:
            |$scriptErrors
            |""".stripMargin

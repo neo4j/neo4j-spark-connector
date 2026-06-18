@@ -225,10 +225,7 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
 
   val transactionSettings: Neo4jTransactionSettings = initNeo4jTransactionSettings()
 
-  val script: Array[String] = getParameter(SCRIPT)
-    .split(";")
-    .map(_.trim)
-    .filterNot(_.isEmpty)
+  val script: Array[String] = extractScript()
 
   private def initNeo4jTransactionSettings(): Neo4jTransactionSettings = {
     val retries = getParameter(TRANSACTION_RETRIES, DEFAULT_TRANSACTION_RETRIES.toString).toInt
@@ -364,6 +361,37 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
       .filterKeys(k => k.toLowerCase.startsWith(CYPHER_TUNING_OPTION_PREFIX))
       .map(t => (t._1.substring(CYPHER_TUNING_OPTION_PREFIX.length), t._2))
       .toMap
+
+  private def extractScript(): Array[String] = {
+    val fromScript = getParameter(SCRIPT)
+
+    val fromScriptOptions = options
+      .view
+      .filterKeys(_.startsWith(SCRIPT_PREFIX))
+      .map { case (key, value) =>
+        val index = key.substring(SCRIPT_PREFIX.length)
+        if (!index.matches("\\d+")) {
+          throw new IllegalArgumentException(
+            s"Script option '$key' must have an integer suffix"
+          )
+        }
+        (index.toInt, value)
+      }
+      .toSeq
+      .sortBy(_._1)
+      .map(_._2.trim)
+      .toArray
+
+    if (fromScript.nonEmpty && fromScriptOptions.nonEmpty) {
+      throw new IllegalArgumentException("'script' and 'script.N' options cannot be used together")
+    }
+
+    if (fromScript.nonEmpty) {
+      return Array(fromScript)
+    }
+
+    fromScriptOptions
+  }
 
   private def minimumNotificationSeverity: NotificationSeverity = {
     if (java.lang.Boolean.getBoolean(Neo4jOptions.STRICT_QUERY_SYSTEM_PROPERTY)) {
@@ -707,6 +735,7 @@ object Neo4jOptions {
   val STREAMING_QUERY_OFFSET = "streaming.query.offset"
 
   val SCRIPT = "script"
+  val SCRIPT_PREFIX = "script."
 
   // custom cypher version and query tuning parameters
   val CYPHER_VERSION = "cypher.version"
@@ -775,6 +804,7 @@ object Neo4jOptions {
 
 class StaticAuthTokenManager(authToken: AuthToken) extends AuthTokenManager {
   override def getToken: CompletionStage[AuthToken] = CompletableFuture.completedStage(authToken)
+
   override def handleSecurityException(authToken: AuthToken, exception: exceptions.SecurityException): Boolean = false
 }
 
