@@ -318,13 +318,13 @@ class Neo4jOptionsTest {
       () => new Neo4jOptions(options)
     )
     assertEquals(
-      "'script' and 'script.N' options cannot be used together",
+      "'script' and indexed script options ('script.1', 'script.2', etc.) cannot be used together.",
       exception.getMessage
     )
   }
 
   @Test
-  def testIndexedScriptSuffixMustBeAnInteger(): Unit = {
+  def testIndexedScriptSuffixMustContainOnlyDigits(): Unit = {
     Seq("invalid", "-1", "1.5", "a1", "1a", "").foreach { suffix =>
       val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
       options.put(Neo4jOptions.URL, "bolt://localhost")
@@ -335,7 +335,7 @@ class Neo4jOptionsTest {
         () => new Neo4jOptions(options)
       )
       assertEquals(
-        s"Script option 'script.$suffix' must have an integer suffix",
+        s"Script option 'script.$suffix' must have a suffix containing only digits.",
         exception.getMessage
       )
     }
