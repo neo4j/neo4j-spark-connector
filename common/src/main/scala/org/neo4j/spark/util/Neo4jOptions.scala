@@ -242,7 +242,7 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
         val index = key.substring(SCRIPT_PREFIX.length)
         if (!index.matches("\\d+")) {
           throw new IllegalArgumentException(
-            s"Script option '$key' must have an integer suffix"
+            s"Script option '$key' must have a suffix containing only digits."
           )
         }
         (index.toInt, value)
@@ -253,11 +253,17 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       .toArray
 
     if (fromScript.nonEmpty && fromScriptOptions.nonEmpty) {
-      throw new IllegalArgumentException("'script' and 'script.N' options cannot be used together")
+      throw new IllegalArgumentException(
+        "'script' and indexed script options ('script.1', 'script.2', etc.) cannot be used together."
+      )
     }
 
     if (fromScript.nonEmpty) {
-      logWarning("Script option 'script' is deprecated. Please use 'script.N' instead")
+      if (fromScript.length > 1) {
+        logWarning(
+          "Using multiple statements in the 'script' option is deprecated. Use indexed script options ('script.1', 'script.2', etc.) instead."
+        )
+      }
       return fromScript
     }
 
