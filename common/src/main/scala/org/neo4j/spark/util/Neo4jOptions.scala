@@ -228,10 +228,41 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
 
   val transactionSettings: Neo4jTransactionSettings = initNeo4jTransactionSettings()
 
-  val script: Array[String] = getParameter(SCRIPT)
-    .split(";")
-    .map(_.trim)
-    .filterNot(_.isEmpty)
+  val script: Array[String] = extractScript()
+
+  private def extractScript(): Array[String] = {
+    val fromScript = getParameter(SCRIPT)
+      .split(";")
+      .map(_.trim)
+      .filterNot(_.isEmpty)
+
+    val fromScriptOptions = options.asScala
+      .filterKeys(_.startsWith(SCRIPT_PREFIX))
+      .map { case (key, value) =>
+        val index = key.substring(SCRIPT_PREFIX.length)
+        if (!index.matches("\\d+")) {
+          throw new IllegalArgumentException(
+            s"Script option '$key' must have an integer suffix"
+          )
+        }
+        (index.toInt, value)
+      }
+      .toSeq
+      .sortBy(_._1)
+      .map(_._2.trim)
+      .toArray
+
+    if (fromScript.nonEmpty && fromScriptOptions.nonEmpty) {
+      throw new IllegalArgumentException("'script' and 'script.N' options cannot be used together")
+    }
+
+    if (fromScript.nonEmpty) {
+      logWarning("Script option 'script' is deprecated. Please use 'script.N' instead")
+      return fromScript
+    }
+
+    fromScriptOptions
+  }
 
   private def initNeo4jTransactionSettings(): Neo4jTransactionSettings = {
     val retries = getParameter(TRANSACTION_RETRIES, DEFAULT_TRANSACTION_RETRIES.toString).toInt
@@ -626,6 +657,7 @@ object Neo4jOptions {
   val STREAMING_QUERY_OFFSET = "streaming.query.offset"
 
   val SCRIPT = "script"
+  val SCRIPT_PREFIX = "script."
 
   // Data conversion
   val TYPE_CONVERSION = "type.conversion"

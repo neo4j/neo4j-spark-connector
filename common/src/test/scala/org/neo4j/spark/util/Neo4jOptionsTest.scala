@@ -268,4 +268,76 @@ class Neo4jOptionsTest {
     // Then it is not set
     assertNull(transactionConfig.timeout())
   }
+
+  @Test
+  def testScriptOptionIsSplitOnSemicolon(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(Neo4jOptions.SCRIPT, "RETURN 1 AS one; RETURN 2 AS two;")
+
+    val neo4jOptions = new Neo4jOptions(options)
+
+    assertArrayEquals(
+      Array("RETURN 1 AS one", "RETURN 2 AS two").asInstanceOf[Array[AnyRef]],
+      neo4jOptions.script.asInstanceOf[Array[AnyRef]]
+    )
+  }
+
+  @Test
+  def testIndexedScriptOptionsAreSortedByIndex(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(
+      s"${Neo4jOptions.SCRIPT_PREFIX}2",
+      "CREATE CONSTRAINT product_name_sku FOR (p:Product) REQUIRE (p.name, p.sku) IS NODE KEY"
+    )
+    options.put(s"${Neo4jOptions.SCRIPT_PREFIX}3", "RETURN 36 AS age")
+    options.put(s"${Neo4jOptions.SCRIPT_PREFIX}01", "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)")
+
+    val neo4jOptions = new Neo4jOptions(options)
+
+    assertArrayEquals(
+      Array(
+        "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)",
+        "CREATE CONSTRAINT product_name_sku FOR (p:Product) REQUIRE (p.name, p.sku) IS NODE KEY",
+        "RETURN 36 AS age"
+      ).asInstanceOf[Array[AnyRef]],
+      neo4jOptions.script.asInstanceOf[Array[AnyRef]]
+    )
+  }
+
+  @Test
+  def testMixingScriptAndIndexedScriptOptionsFails(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(Neo4jOptions.SCRIPT, "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)")
+    options.put(s"${Neo4jOptions.SCRIPT_PREFIX}1", "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)")
+
+    val exception = assertThrows(
+      classOf[IllegalArgumentException],
+      () => new Neo4jOptions(options)
+    )
+    assertEquals(
+      "'script' and 'script.N' options cannot be used together",
+      exception.getMessage
+    )
+  }
+
+  @Test
+  def testIndexedScriptSuffixMustBeAnInteger(): Unit = {
+    Seq("invalid", "-1", "1.5", "a1", "1a", "").foreach { suffix =>
+      val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+      options.put(Neo4jOptions.URL, "bolt://localhost")
+      options.put(s"${Neo4jOptions.SCRIPT_PREFIX}$suffix", "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)")
+
+      val exception = assertThrows(
+        classOf[IllegalArgumentException],
+        () => new Neo4jOptions(options)
+      )
+      assertEquals(
+        s"Script option 'script.$suffix' must have an integer suffix",
+        exception.getMessage
+      )
+    }
+  }
 }

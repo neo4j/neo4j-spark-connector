@@ -96,7 +96,7 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
     // then
     expectedException.expect(classOf[IllegalArgumentException])
     expectedException.expectMessage(
-      CoreMatchers.containsString("The following queries inside the `script` are not valid,")
+      CoreMatchers.containsString("The following script queries are not valid,")
     )
     expectedException.expectMessage(
       CoreMatchers.containsString("Query not compiled for the following exception: ClientException: Invalid input ")
