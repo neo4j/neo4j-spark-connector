@@ -192,6 +192,7 @@ class StreamingIT {
 
       query = spark.readStream.format(dataSourceFormat)
         .option("relationship", "LIKES")
+        .option("relationship.save.strategy", "native")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "NOW")
         .option("relationship.source.labels", "Person")
@@ -228,6 +229,7 @@ class StreamingIT {
 
       query = spark.readStream.format(dataSourceFormat)
         .option("relationship", "LIKES")
+        .option("relationship.save.strategy", "native")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "ALL")
         .option("relationship.source.labels", "Person")
@@ -264,6 +266,7 @@ class StreamingIT {
 
       val stream = spark.readStream.format(dataSourceFormat)
         .option("relationship", "LIKES")
+        .option("relationship.save.strategy", "native")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "ALL")
         .option("relationship.source.labels", "Person")
@@ -518,7 +521,6 @@ class StreamingIT {
         .format(dataSourceFormat)
         .option("save.mode", "Append")
         .option("relationship", "PAIRS")
-        .option("relationship.save.strategy", "keys")
         .option("relationship.source.labels", ":From")
         .option("relationship.source.node.keys", "value")
         .option("relationship.source.save.mode", "Append")
@@ -544,7 +546,6 @@ class StreamingIT {
         .format(dataSourceFormat)
         .option("save.mode", "Append")
         .option("relationship", "PAIRS")
-        .option("relationship.save.strategy", "keys")
         .option("relationship.source.labels", ":From")
         .option("relationship.source.node.keys", "value")
         .option("relationship.source.save.mode", "Overwrite")

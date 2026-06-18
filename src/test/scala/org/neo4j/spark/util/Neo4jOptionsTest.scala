@@ -156,7 +156,7 @@ class Neo4jOptionsTest {
     assertThat(
       neo4jOptions.connection.livenessCheckTimeout
     ).isEqualTo(Neo4jOptions.DEFAULT_CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS)
-    assertThat(neo4jOptions.relationshipMetadata.saveStrategy).isEqualTo(RelationshipSaveStrategy.NATIVE)
+    assertThat(neo4jOptions.relationshipMetadata.saveStrategy).isEqualTo(RelationshipSaveStrategy.KEYS)
     assertThat(neo4jOptions.pushdownFiltersEnabled).isTrue
   }
 

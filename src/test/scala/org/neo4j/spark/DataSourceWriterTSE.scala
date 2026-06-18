@@ -1064,7 +1064,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Overwrite)
       .option("relationship", "PLAYS")
-      .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.save.mode", "Overwrite")
       .option("relationship.source.node.keys", "name")
@@ -1125,7 +1124,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
             .mode(SaveMode.Append)
             .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
             .option("relationship", "PLAYS")
-            .option("relationship.save.strategy", "NATIVE")
+            .option("relationship.save.strategy", "native")
             .option("relationship.source.labels", ":Person")
             .option("relationship.source.save.mode", "Overwrite")
             .option("relationship.target.labels", ":Instrument")
@@ -1162,7 +1161,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship", "PLAYS")
       .option("relationship.source.save.mode", "Overwrite")
       .option("relationship.target.save.mode", "Overwrite")
-      .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.node.keys", "name:name")
       .option("relationship.target.labels", ":Instrument")
@@ -1214,7 +1212,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         .option("relationship", "PLAYS")
         .option("relationship.source.save.mode", "ErrorIfExists")
         .option("relationship.target.save.mode", "Overwrite")
-        .option("relationship.save.strategy", "keys")
         .option("relationship.source.labels", ":Musician")
         .option("relationship.source.node.keys", "name:name")
         .option("relationship.target.labels", ":Instrument")
@@ -1247,7 +1244,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship", "PLAYS")
       .option("relationship.source.save.mode", "Overwrite")
       .option("relationship.target.save.mode", "Overwrite")
-      .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.node.keys", "name:name")
       .option("relationship.target.labels", ":Instrument")
@@ -1263,7 +1259,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship", "PLAYS")
       .option("relationship.source.save.mode", "Overwrite")
       .option("relationship.target.save.mode", "Overwrite")
-      .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.node.keys", "name:name")
       .option("relationship.target.labels", ":Instrument")
@@ -1286,7 +1281,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       "relationship" -> "PLAYS",
       "relationship.source.save.mode" -> "Overwrite",
       "relationship.target.save.mode" -> "Overwrite",
-      "relationship.save.strategy" -> "keys",
       "relationship.source.labels" -> ":Musician",
       "relationship.source.node.keys" -> "name",
       "relationship.target.labels" -> ":Instrument",
@@ -1629,7 +1623,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.save.mode", "Overwrite")
       .option("relationship", "PLAYS")
       .option("relationship.properties", "experience")
-      .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.node.keys", "id")
       .option("relationship.source.node.properties", "name")
@@ -1761,7 +1754,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship", "PLAYS")
-      .option("relationship.save.strategy", "keys")
       .option("relationship.source.save.mode", "Overwrite")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.node.keys", "name")
@@ -1804,7 +1796,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship", "PLAYS")
-      .option("relationship.save.strategy", "keys")
       .option("relationship.source.save.mode", "match")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.node.keys", "name")
@@ -1841,7 +1832,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship", "PLAYS")
-      .option("relationship.save.strategy", "keys")
       .option("relationship.source.save.mode", "overwrite")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.node.keys", "`who:name`")
@@ -2026,7 +2016,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship", "WATCHED")
-      .option("relationship.save.strategy", "keys")
       .option("relationship.source.save.mode", "Overwrite")
       .option("relationship.source.labels", ":User")
       .option("relationship.source.node.keys", "username:name")
