@@ -1294,6 +1294,7 @@ class Neo4jQueryServiceTest {
       val neo4jOptions = new Neo4jOptions(Map(
         Neo4jOptions.URL -> "bolt://localhost",
         "relationship" -> "BOUGHT",
+        "relationship.save.strategy" -> "native",
         "relationship.source.labels" -> ":Person",
         "relationship.source.node.keys" -> "FirstName:name,LastName:lastName",
         "relationship.target.labels" -> ":Product:Merch",
@@ -1324,6 +1325,7 @@ class Neo4jQueryServiceTest {
       val neo4jOptions = new Neo4jOptions(Map(
         Neo4jOptions.URL -> "bolt://localhost",
         "relationship" -> "BOUGHT",
+        "relationship.save.strategy" -> "native",
         "relationship.source.labels" -> "Person",
         "relationship.source.node.keys" -> "FirstName:name,LastName:lastName",
         "relationship.source.save.mode" -> "Overwrite",
@@ -1357,6 +1359,7 @@ class Neo4jQueryServiceTest {
       val neo4jOptions = new Neo4jOptions(Map(
         Neo4jOptions.URL -> "bolt://localhost",
         "relationship" -> "BOUGHT",
+        "relationship.save.strategy" -> "native",
         "relationship.source.labels" -> "Person",
         "relationship.source.node.keys" -> "FirstName:name,LastName:lastName",
         "relationship.source.save.mode" -> "Overwrite",
@@ -1389,6 +1392,7 @@ class Neo4jQueryServiceTest {
       val neo4jOptions = new Neo4jOptions(Map(
         Neo4jOptions.URL -> "bolt://localhost",
         "relationship" -> "BOUGHT",
+        "relationship.save.strategy" -> "native",
         "relationship.source.labels" -> "Person",
         "relationship.source.node.keys" -> "FirstName:name,LastName:lastName",
         "relationship.source.save.mode" -> "Append",

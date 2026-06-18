@@ -760,7 +760,7 @@ object Neo4jOptions {
   val DEFAULT_SCHEMA_OPTIMIZATION_NODE_KEY = ConstraintsOptimizationType.NONE
   val DEFAULT_SCHEMA_OPTIMIZATION_RELATIONSHIP_KEY = ConstraintsOptimizationType.NONE
   val DEFAULT_SCHEMA_OPTIMIZATION = SchemaConstraintsOptimizationType.NONE
-  val DEFAULT_RELATIONSHIP_SAVE_STRATEGY: RelationshipSaveStrategy.Value = RelationshipSaveStrategy.NATIVE
+  val DEFAULT_RELATIONSHIP_SAVE_STRATEGY: RelationshipSaveStrategy.Value = RelationshipSaveStrategy.KEYS
   val DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE: NodeSaveMode.Value = NodeSaveMode.Match
   val DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE: NodeSaveMode.Value = NodeSaveMode.Match
   val DEFAULT_PUSHDOWN_FILTERS_ENABLED = true

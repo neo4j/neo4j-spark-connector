@@ -22,11 +22,9 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.neo4j.driver._
 import org.neo4j.spark.SparkConnectorAuraTest._
-import org.neo4j.spark.testsupport.Closeables.use
 import org.neo4j.spark.testsupport.TestUtil
 
 object SparkConnectorAuraTest {
@@ -60,19 +58,14 @@ object SparkConnectorAuraTest {
   }
 }
 
+/**
+ * Notice: running this test will populate the targeted database with data. Please do not test against a production database.
+ */
 class SparkConnectorAuraTest {
 
   val ss: SparkSession = SparkSession.builder().getOrCreate()
 
   import ss.implicits._
-
-  @BeforeEach
-  def setUp(): Unit = {
-    use(neo4j.session(SessionConfig.forDatabase("system"))) {
-      session =>
-        session.run("CREATE OR REPLACE DATABASE neo4j WAIT 30 seconds").consume()
-    }
-  }
 
   @Test
   def shouldWriteToAndReadFromAura(): Unit = {
@@ -89,7 +82,6 @@ class SparkConnectorAuraTest {
       .option("relationship", "PLAYS")
       .option("relationship.source.save.mode", "Append")
       .option("relationship.target.save.mode", "Append")
-      .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.node.keys", "name:name")
       .option("relationship.target.labels", ":Instrument")
