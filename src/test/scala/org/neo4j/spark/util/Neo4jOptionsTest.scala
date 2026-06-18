@@ -310,13 +310,13 @@ class Neo4jOptionsTest {
 
     assertThatExceptionOfType(classOf[IllegalArgumentException])
       .isThrownBy(() => new Neo4jOptions(options)).withMessage(
-        "'script' and 'script.N' options cannot be used together"
+        "'script' and indexed script options ('script.1', 'script.2', etc.) cannot be used together."
       )
   }
 
   @ParameterizedTest
   @ValueSource(strings = Array("invalid", "-1", "1.5", "a1", "1a", ""))
-  def fails_when_indexed_script_suffix_is_not_a_positive_integer(suffix: String): Unit = {
+  def fails_when_indexed_script_suffix_contains_non_digit_characters(suffix: String): Unit = {
     val options = Map(
       Neo4jOptions.URL -> "bolt://localhost",
       s"${Neo4jOptions.SCRIPT_PREFIX}$suffix" -> "CREATE INDEX person_surname FOR (p:Person) ON (p.surname)"
@@ -324,7 +324,7 @@ class Neo4jOptionsTest {
 
     assertThatExceptionOfType(classOf[IllegalArgumentException])
       .isThrownBy(() => new Neo4jOptions(options)).withMessage(
-        s"Script option 'script.$suffix' must have an integer suffix"
+        s"Script option 'script.$suffix' must have a suffix containing only digits."
       )
   }
 }
