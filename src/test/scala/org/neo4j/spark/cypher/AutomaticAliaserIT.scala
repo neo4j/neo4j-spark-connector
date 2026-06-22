@@ -34,6 +34,7 @@ import org.neo4j.cypherdsl.core.Cypher.asterisk
 import org.neo4j.cypherdsl.core.Cypher.callRawCypher
 import org.neo4j.driver.Driver
 import org.neo4j.driver.exceptions.ClientException
+import org.neo4j.spark.testsupport.Neo4jContainerProvider.ADMIN_PASSWORD
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
 import org.neo4j.spark.testsupport.TestUtil
 import org.testcontainers.junit.jupiter.Container
@@ -50,7 +51,7 @@ class AutomaticAliaserIT {
 
   @Container
   private val container = new Neo4jContainer(TestUtil.neo4jImage())
-    .withAdminPassword("letmein!")
+    .withAdminPassword(ADMIN_PASSWORD)
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
 
   private var driver: Option[Driver] = None
