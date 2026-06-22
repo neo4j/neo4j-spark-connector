@@ -32,6 +32,8 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import org.neo4j.caniuse.CanIUse.{INSTANCE => CanIUse}
+import org.neo4j.caniuse.Cypher.{INSTANCE => Cypher}
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDeploymentType.SELF_MANAGED
 import org.neo4j.caniuse.Neo4jEdition
@@ -1128,7 +1130,8 @@ class Neo4jQueryServiceTest {
         )
       ).createQuery()
 
-      val callParens = if (neo4j.getVersion.compareTo(new Neo4jVersion(5, 23, 0)) >= 0) " () " else " "
+      val callParens =
+        if (CanIUse.canIUse(Cypher.callSubqueryWithVariableScopeClause()).withNeo4j(neo4j)) " () " else " "
       assertThat(
         query
       ).isEqualTo(
@@ -1221,7 +1224,8 @@ class Neo4jQueryServiceTest {
       val neo4jOptions = new Neo4jOptions(optionsMap ++ tuningOptions)
       val readService = new Neo4jQueryService(neo4jOptions, plainReadStrategy(neo4j, neo4jOptions))
 
-      val callParens = if (neo4j.getVersion.compareTo(new Neo4jVersion(5, 23, 0)) >= 0) " () " else " "
+      val callParens =
+        if (CanIUse.canIUse(Cypher.callSubqueryWithVariableScopeClause()).withNeo4j(neo4j)) " () " else " "
       val wantQuery =
         s"$tuningPrefix\n${cypherVersionPreamble}CALL$callParens{MATCH (o:Object) RETURN o} RETURN *"
       assertThat(readService.createQuery().trim).isEqualTo(wantQuery.trim)
@@ -1246,7 +1250,8 @@ class Neo4jQueryServiceTest {
       val neo4jOptions = new Neo4jOptions(optionsMap ++ tuningOptions)
       val versionedReadService = new Neo4jQueryService(neo4jOptions, plainReadStrategy(neo4j, neo4jOptions))
 
-      val callParens = if (neo4j.getVersion.compareTo(new Neo4jVersion(5, 23, 0)) >= 0) " () " else " "
+      val callParens =
+        if (CanIUse.canIUse(Cypher.callSubqueryWithVariableScopeClause()).withNeo4j(neo4j)) " () " else " "
       val wantQuery =
         s"$tuningPrefix\n${cypherVersionPreamble}CALL$callParens{WITH $$scriptResult AS scriptResult MATCH (o:Object) RETURN o} RETURN *"
 
