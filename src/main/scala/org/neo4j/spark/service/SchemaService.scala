@@ -640,9 +640,13 @@ class SchemaService(
 
   def validateQueryCount(query: String): String =
     try {
-      val resultSummary = session.executeRead(tx => tx.run(s"EXPLAIN $query").consume(), sessionTransactionConfig)
-      val queryType = resultSummary.queryType()
-      val plan = resultSummary.plan()
+      val summary = session.executeRead(tx => tx.run(s"EXPLAIN $query").consume(), sessionTransactionConfig)
+      val queryType = summary.queryType()
+      val maybePlan = summary.queryPlan()
+      if (maybePlan.isEmpty) {
+        return ""
+      }
+      val plan = maybePlan.get()
       val expectedQueryTypes =
         Set(org.neo4j.driver.summary.QueryType.READ_ONLY, org.neo4j.driver.summary.QueryType.SCHEMA_WRITE)
       val isReadOnly = expectedQueryTypes.contains(queryType)
