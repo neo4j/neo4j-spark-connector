@@ -25,6 +25,8 @@ import org.neo4j.driver.AccessMode
 import org.neo4j.driver.Value
 import org.neo4j.driver.net.ServerAddress
 import org.neo4j.spark.util.MapConverter.toScala
+import org.neo4j.spark.util.Neo4jOptions.GDS_TELEMETRY_ACTION
+import org.neo4j.spark.util.Neo4jOptions.GDS_TELEMETRY_NAME
 
 import java.net.URI
 import java.time.Duration
@@ -270,6 +272,36 @@ class Neo4jOptionsTest {
       "json_array_treated_as_string" -> "[true,43]",
       "json_map_treated_as_string" -> """{"map":false}"""
     ))
+  }
+
+  @Test
+  def populates_gds_telemetry_in_transaction_metadata(): Unit = {
+    val expectedValue = "Any value really, as this is primarily a test for existence."
+
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783",
+      "gds" -> expectedValue
+    ))
+
+    val transactionMetadata = neo4jOptions.toNeo4jTransactionConfig.metadata()
+
+    assertThat(transactionMetadata.get(GDS_TELEMETRY_ACTION).asString()).isEqualTo(expectedValue)
+    assertThat(transactionMetadata.get(GDS_TELEMETRY_NAME)).isNotNull
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = Array("labels", "relationship", "query"))
+  def no_gds_telemetry_in_transaction_metadata_when_not_gds(queryType: String): Unit = {
+
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783",
+      queryType -> "_"
+    ))
+
+    val transactionMetadata = neo4jOptions.toNeo4jTransactionConfig.metadata()
+
+    assertThat(transactionMetadata.get(GDS_TELEMETRY_ACTION)).isNull()
+    assertThat(transactionMetadata.get(GDS_TELEMETRY_NAME)).isNull()
   }
 
   @Test
