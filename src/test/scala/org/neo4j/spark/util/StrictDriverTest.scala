@@ -306,15 +306,18 @@ final private class StubResultSummary(private val warnings: util.Set[GqlStatusOb
   override def queryType(): org.neo4j.driver.summary.QueryType =
     throw new UnsupportedOperationException
 
+  @nowarn("cat=deprecation")
   override def hasPlan(): Boolean =
     false
 
+  @nowarn("cat=deprecation")
   override def hasProfile(): Boolean =
     false
 
   override def plan(): Plan =
     throw new UnsupportedOperationException
 
+  @nowarn("cat=deprecation")
   override def profile(): ProfiledPlan =
     throw new UnsupportedOperationException
 
