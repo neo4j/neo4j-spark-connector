@@ -48,5 +48,5 @@ class Neo4jContainerProvider extends ArgumentsProvider {
 }
 
 object Neo4jContainerProvider {
-  private val ADMIN_PASSWORD = "letmein!"
+  val ADMIN_PASSWORD = "letmein!"
 }

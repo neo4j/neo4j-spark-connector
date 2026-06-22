@@ -26,7 +26,15 @@ import org.apache.spark.sql.sources.And
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.Or
 import org.neo4j.caniuse.Neo4j
+import org.neo4j.cypherdsl.core.Cypher.callRawCypher
 import org.neo4j.cypherdsl.core._
+import org.neo4j.cypherdsl.core.renderer.Configuration
+import org.neo4j.cypherdsl.core.renderer.GeneralizedRenderer
+import org.neo4j.cypherdsl.core.renderer.Renderer
+import org.neo4j.cypherdsl.parser.CypherParser
+import org.neo4j.cypherdsl.parser.ExpressionCreatedEventType
+import org.neo4j.cypherdsl.parser.Options
+import org.neo4j.spark.cypher.AutomaticAliaser
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.service.Neo4jQueryStrategy.VARIABLE_EVENT
@@ -191,6 +199,7 @@ class Neo4jQueryWriteStrategy(
 class Neo4jQueryReadStrategy(
   private val neo4j: Neo4j,
   private val renderer: CypherRenderer,
+  private val aliaser: AutomaticAliaser,
   private val filters: Array[Filter] = Array.empty[Filter],
   private val partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
   private val requiredColumns: Seq[String] = Seq.empty,
@@ -202,23 +211,33 @@ class Neo4jQueryReadStrategy(
   private val hasSkipLimit: Boolean = partitionPagination.skip != -1 && partitionPagination.topN.limit != -1
 
   override def createStatementForQuery(options: Neo4jOptions): String = {
-    if (partitionPagination.topN.orders.nonEmpty) {
-      logWarning(
-        s"""Top N push-down optimizations with aggregations are not supported for custom queries.
-           |\tThese aggregations are going to be ignored.
-           |\tPlease specify the aggregations in the custom query directly""".stripMargin
-      )
-    }
-
-    val limitedQuery = if (hasSkipLimit) {
-      s"${options.query.value} SKIP ${partitionPagination.skip} LIMIT ${partitionPagination.topN.limit}"
-    } else {
-      s"${options.query.value}"
-    }
-
     val scriptResult = scriptResultClause(options)
+    val query = aliaser.aliasResults(options.query.value)
+    var statement: StatementBuilder.BuildableStatement[ResultStatement] =
+      callRawCypher(s"$scriptResult${query}")
+        .returning(Cypher.asterisk())
+    if (partitionPagination.topN.orders.nonEmpty) {
+      statement = statement
+        .asInstanceOf[StatementBuilder.TerminalExposesOrderBy]
+        .orderBy(partitionPagination.topN
+          .orders
+          .map(order => {
+            convertSort(order)
+          })
+          .toSeq
+          .asJava)
+    }
+    if (partitionPagination.skip != -1) {
+      statement = statement.asInstanceOf[StatementBuilder.TerminalExposesSkip]
+        .skip(partitionPagination.skip)
+    }
+    if (partitionPagination.topN.limit != -1) {
+      statement = statement.asInstanceOf[StatementBuilder.TerminalExposesLimit]
+        .limit(partitionPagination.topN.limit)
+    }
+
     val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
-    s"$preamble$scriptResult$limitedQuery"
+    s"$preamble${renderer.render(statement.build())}"
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
@@ -258,15 +277,21 @@ class Neo4jQueryReadStrategy(
         }
       case _ => Some(entity)
     }
-    val direction =
-      if (order.direction() == SortDirection.ASCENDING) SortItem.Direction.ASC else SortItem.Direction.DESC
 
     Cypher.sort(
       container
         .map(_.property(sortExpression.removeAlias()))
         .getOrElse(Cypher.name(sortExpression.unquote())),
-      direction
+      direction(order)
     )
+  }
+
+  private def convertSort(order: SortOrder): SortItem = {
+    Cypher.sort(Cypher.name(order.expression().describe().unquote()), direction(order))
+  }
+
+  private def direction(order: SortOrder): SortItem.Direction = {
+    if (order.direction() == SortDirection.ASCENDING) SortItem.Direction.ASC else SortItem.Direction.DESC
   }
 
   private def buildReturnExpression(sourceNode: Node, targetNode: Node, relationship: Relationship): Seq[Expression] = {
@@ -310,14 +335,19 @@ class Neo4jQueryReadStrategy(
     fields: Seq[Expression]
   ): Statement = {
     val ret = if (hasSkipLimit) {
-      val id = entity match {
+      val id: FunctionInvocation = entity match {
         case node: Node        => Cypher.elementId(node)
         case rel: Relationship => Cypher.elementId(rel)
       }
-      query
-        .`with`(entity)
-        // Spark does not push down limits/top N when aggregation is involved
-        .orderBy(id)
+
+      val statement = query.`with`(entity)
+      val orderedStatement: StatementBuilder.ExposesSkip = if (partitionPagination.topN.orders.nonEmpty) {
+        statement.orderBy(partitionPagination.topN.orders.map(order => convertSort(entity, order)): _*)
+      } else {
+        statement.orderBy(id)
+      }
+
+      orderedStatement
         .skip(partitionPagination.skip)
         .limit(partitionPagination.topN.limit)
         .returning(fields: _*)

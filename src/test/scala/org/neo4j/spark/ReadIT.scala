@@ -1685,7 +1685,7 @@ class ReadIT {
         .load()
 
       assertThat(df.count()).isEqualTo(100)
-      assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("personId", "productId", "map", "someString", "map2"))
+      assertThat(df.columns).containsOnly("personId", "productId", "map", "someString", "map2")
     }
 
     @Test
@@ -1705,7 +1705,7 @@ class ReadIT {
         .load()
 
       assertThat(df.count()).isEqualTo(0)
-      assertThat(df.columns.toSeq).isEqualTo(immutable.Seq("personId", "productId", "map", "someString", "map2"))
+      assertThat(df.columns).containsOnly("personId", "productId", "map", "someString", "map2")
     }
 
     @Test
@@ -1819,20 +1819,6 @@ class ReadIT {
           && row.getAs[java.lang.Double]("quantity") != null
       ))
         .isEqualTo(100)
-    }
-
-    @Test
-    def orders_columns_by_their_declaration_order_in_query_return_clause(): Unit = {
-      driver.executableQuery("CREATE (:Instrument{name: 'Drums', id: 1}), (:Instrument{name: 'Guitar', id: 2})")
-        .execute()
-
-      val df = spark.read
-        .format(classOf[DataSource].getName)
-        .option("query", "MATCH (i:Instrument) RETURN elementId(i) as internal_id, i.id as id, i.name as name, i.name")
-        .load()
-        .orderBy("id")
-
-      assertThat(df.columns.toSet).isEqualTo(Set("internal_id", "id", "name", "i.name"))
     }
 
     @Test

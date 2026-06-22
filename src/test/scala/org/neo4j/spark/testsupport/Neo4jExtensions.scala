@@ -18,17 +18,29 @@ package org.neo4j.spark.testsupport
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
+import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.Driver
 import org.neo4j.driver.GraphDatabase
 import org.neo4j.driver.QueryConfig
+import org.neo4j.spark.cypher.CypherRenderer
+import org.neo4j.spark.util.Neo4jOptions
 import org.testcontainers.neo4j.Neo4jContainer
 
 import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.util.Try
+import scala.util.Using
 
 object Neo4jExtensions {
 
   implicit class Neo4jContainerExtensions(container: Neo4jContainer) {
+
+    def cypherRenderer(options: Neo4jOptions = defaultNeo4jSparkOptions): CypherRenderer = {
+      Using(driver()) { driver =>
+        val neo4j = Neo4jDetector.INSTANCE.detect(driver)
+        return new CypherRenderer(neo4j, options)
+      }.get
+    }
 
     def driver(): Driver = {
       val auth = AuthTokens.basic("neo4j", container.getAdminPassword)
@@ -53,6 +65,16 @@ object Neo4jExtensions {
         "authentication.basic.username" -> "neo4j",
         "authentication.basic.password" -> container.getAdminPassword
       )
+    }
+
+    private def defaultNeo4jSparkOptions = {
+      val options = Map[String, String](
+        "url" -> container.getBoltUrl,
+        "username" -> "neo4j",
+        "password" -> container.getAdminPassword,
+        "query" -> "RETURN 42"
+      )
+      new Neo4jOptions(options)
     }
   }
 

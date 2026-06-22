@@ -40,6 +40,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver.Driver
+import org.neo4j.spark.cypher.AutomaticAliaser
 import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.service.Neo4jQueryReadStrategy
 import org.neo4j.spark.service.Neo4jQueryService
@@ -316,6 +317,7 @@ class GraphDataScienceIT {
       new Neo4jQueryReadStrategy(
         neo4j,
         new CypherRenderer(neo4j, neo4jOptions),
+        new AutomaticAliaser(),
         Array.empty,
         PartitionPagination.EMPTY,
         List(
@@ -365,6 +367,7 @@ class GraphDataScienceIT {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
+          new AutomaticAliaser(),
           Array.empty,
           PartitionPagination.EMPTY,
           List(
