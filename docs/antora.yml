@@ -1,14 +1,14 @@
 name: spark
+title: Neo4j Spark
 version: '4.2'
-title: Neo4j Spark Connector
 start_page: ROOT:index.adoc
 nav:
-  - modules/ROOT/nav.adoc
+- modules/ROOT/content-nav.adoc
 
 asciidoc:
   attributes:
     theme: docs
-    connector-version: 4.2.0
+    connector-version: 4.2
     copyright: Neo4j Inc.
     url-neo4j-product-gds-lib: https://neo4j.com/product/graph-data-science-library/
     url-gh-spark-notebooks: https://github.com/utnaf/neo4j-connector-apache-spark-notebooks
