@@ -23,13 +23,13 @@ import org.assertj.core.api.Assertions.assertThatObject
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.Arguments.argumentSet
 import org.junit.jupiter.params.provider.MethodSource
-import org.neo4j.cypherdsl.core.Cypher
 import org.neo4j.cypherdsl.core.Cypher.asterisk
 import org.neo4j.cypherdsl.core.Cypher.callRawCypher
 import org.neo4j.driver.Driver
@@ -47,7 +47,7 @@ import scala.jdk.CollectionConverters.MapHasAsJava
 
 @Testcontainers
 @TestInstance(PER_CLASS)
-class AutomaticAliaserIT {
+class QueryEmbedderIT {
 
   @Container
   private val container = new Neo4jContainer(TestUtil.neo4jImage())
@@ -56,7 +56,7 @@ class AutomaticAliaserIT {
 
   private var driver: Option[Driver] = None
 
-  private val aliaser = new AutomaticAliaser()
+  private val embedder = new QueryEmbedder()
 
   @BeforeEach
   def prepare(): Unit = {
@@ -70,87 +70,76 @@ class AutomaticAliaserIT {
     driver.foreach(_.close())
   }
 
-  @ParameterizedTest
-  @MethodSource(Array("alias_cases"))
-  def aliases_query_for_subquery_embedding(subquery: String, params: Map[String, AnyRef]): Unit = {
+  @Test
+  def aliases_query_before_embedding_as_call_subquery(): Unit = {
     assertThat(driver.isDefined).isTrue
     val renderer = container.cypherRenderer()
-    val unaliasedQueryStatement = callRawCypher(subquery).returning(asterisk()).build()
-    // see https://neo4j.com/docs/status-codes/current/errors/gql-errors/42N21/
+    val query = "MATCH (o:Object) RETURN 42, false, o.name, o.brother"
+    val unaliasedQueryStatement = callRawCypher(query).returning(asterisk()).build()
     verifyQueryFailsWithAliasingError(renderer.render(unaliasedQueryStatement))
 
-    val aliasedQueryStatement = callRawCypher(aliaser.aliasResults(subquery)).returning(asterisk()).build()
+    val embeddedQuery = embedder.embed(query, "").build()
 
+    assertThat(embeddedQuery.getCypher).isEqualTo(
+      "CALL () {MATCH (o:Object) RETURN 42 AS `42`, false AS false, o.name AS `o.name`, o.brother AS `o.brother`} RETURN `42`, false, `o.name`, `o.brother`"
+    )
+    assertThatCode(() => driver.get.executableQuery(renderer.render(embeddedQuery)).execute())
+      .doesNotThrowAnyException()
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("embed_cases"))
+  def embeds_query_as_call_subquery(
+    query: String,
+    scriptResult: String,
+    params: Map[String, AnyRef],
+    expectedEmbeddedQuery: String
+  ): Unit = {
+    assertThat(driver.isDefined).isTrue
+
+    val embeddedQuery = embedder.embed(query, scriptResult).build()
+
+    val renderer = container.cypherRenderer()
+    assertThat(embeddedQuery.getCypher).isEqualTo(expectedEmbeddedQuery)
     assertThatCode(() =>
-      driver.get.executableQuery(renderer.render(aliasedQueryStatement))
+      driver.get.executableQuery(renderer.render(embeddedQuery))
         .withParameters(params.asJava)
         .execute()
     )
       .doesNotThrowAnyException()
   }
 
-  private def alias_cases(): Stream[Arguments] = {
-    {
-      Stream.of(
-        argumentSet(
-          "unaliased number literal",
-          "RETURN 42",
-          Map[String, AnyRef]()
-        ),
-        argumentSet(
-          "unaliased boolean literal",
-          "RETURN false",
-          Map[String, AnyRef]()
-        ),
-        argumentSet(
-          "unaliased string literal",
-          "RETURN 'foo'",
-          Map[String, AnyRef]()
-        ),
-        argumentSet(
-          "unaliased array literal",
-          "RETURN ['foo']",
-          Map[String, AnyRef]()
-        ),
-        argumentSet(
-          "unaliased map literal",
-          "RETURN {foo: 'bar'}",
-          Map[String, AnyRef]()
-        ),
-        argumentSet(
-          "unaliased parameter",
-          "RETURN $foo",
-          Map[String, AnyRef]("foo" -> "")
-        ),
-        argumentSet(
-          "unaliased function call",
-          "UNWIND [1, 2, 3] AS x RETURN avg(x)",
-          Map[String, AnyRef]()
-        ),
-        argumentSet(
-          "unaliased node property",
-          "MATCH (n:Person) RETURN n.bar",
-          Map[String, AnyRef]()
-        ),
-        argumentSet(
-          "unaliased relationship property",
-          "MATCH ()-[r:LINKS]->() RETURN r.bar",
-          Map[String, AnyRef]()
-        ),
-        argumentSet(
-          "unaliased field access",
-          "UNWIND [{foo: 'bar'}] AS object RETURN object.foo",
-          Map[String, AnyRef]()
-        ),
-        argumentSet(
-          "unaliased indexed array access",
-          "UNWIND [['foo']] AS array RETURN array[0]",
-          Map[String, AnyRef]()
-        )
+  private def embed_cases(): Stream[Arguments] =
+    Stream.of(
+      argumentSet(
+        "preserves return all",
+        "MATCH (o:Object) RETURN *",
+        "",
+        Map[String, AnyRef](),
+        "CALL () {MATCH (o:Object) RETURN *} RETURN *"
+      ),
+      argumentSet(
+        "embeds with script result",
+        "MATCH (o:Object) RETURN o",
+        "WITH $scriptResult AS scriptResult ",
+        Map[String, AnyRef]("scriptResult" -> ""),
+        "CALL () {WITH $scriptResult AS scriptResult MATCH (o:Object) RETURN o} RETURN o"
+      ),
+      argumentSet(
+        "keeps ordering through nested call",
+        "MATCH (n) CALL (n) { RETURN 1 AS a, 2 AS b } RETURN b AS x, a AS y",
+        "",
+        Map[String, AnyRef](),
+        "CALL () {MATCH (n) CALL (*) {RETURN 1 AS a, 2 AS b} RETURN b AS x, a AS y} RETURN x, y"
+      ),
+      argumentSet(
+        "preserves order after asterisk",
+        "WITH 42 as y RETURN *, y AS x",
+        "",
+        Map[String, AnyRef](),
+        "CALL () {WITH 42 AS y RETURN *, y AS x} RETURN *, x"
       )
-    }
-
-  }
+    )
 
   private def verifyQueryFailsWithAliasingError(query: String): Unit = {
     assertThatThrownBy(() => driver.get.executableQuery(query).execute())

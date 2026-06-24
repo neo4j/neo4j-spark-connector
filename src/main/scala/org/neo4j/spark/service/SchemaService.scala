@@ -36,9 +36,9 @@ import org.neo4j.driver.summary
 import org.neo4j.spark.config.TopN
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.converter.SparkToCypherTypeConverter
-import org.neo4j.spark.cypher.AutomaticAliaser
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.cypher.CypherRenderer
+import org.neo4j.spark.cypher.QueryEmbedder
 import org.neo4j.spark.service.SchemaService.normalizedClassName
 import org.neo4j.spark.service.SchemaService.normalizedClassNameFromGraphEntity
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
@@ -72,7 +72,13 @@ class SchemaService(
   private val renderer = new CypherRenderer(neo4j, options)
 
   private val queryReadStrategy =
-    new Neo4jQueryReadStrategy(neo4j, renderer, new AutomaticAliaser(), filters, withPreamble = false)
+    new Neo4jQueryReadStrategy(
+      neo4j,
+      renderer,
+      new QueryEmbedder(),
+      filters,
+      withPreamble = false
+    )
 
   private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
 

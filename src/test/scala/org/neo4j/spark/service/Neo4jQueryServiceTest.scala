@@ -41,8 +41,8 @@ import org.neo4j.caniuse.Neo4jEdition.COMMUNITY
 import org.neo4j.caniuse.Neo4jEdition.ENTERPRISE
 import org.neo4j.caniuse.Neo4jVersion
 import org.neo4j.spark.config.TopN
-import org.neo4j.spark.cypher.AutomaticAliaser
 import org.neo4j.spark.cypher.CypherRenderer
+import org.neo4j.spark.cypher.QueryEmbedder
 import org.neo4j.spark.util.DummyNamedReference
 import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
 import org.neo4j.spark.util.Neo4jOptions
@@ -112,7 +112,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           partitionPagination = PartitionPagination(0, 0, TopN(100))
         )
       ).createQuery()
@@ -138,7 +138,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty[Filter],
           PartitionPagination.EMPTY,
           Seq("name")
@@ -166,7 +166,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty[Filter],
           PartitionPagination.EMPTY,
           List("name", "bornDate")
@@ -194,7 +194,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty[Filter],
           PartitionPagination.EMPTY,
           List("<elementId>")
@@ -224,7 +224,12 @@ class Neo4jQueryServiceTest {
       val query: String =
         new Neo4jQueryService(
           neo4jOptions,
-          new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), new AutomaticAliaser(), filters)
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
+            new QueryEmbedder(),
+            filters
+          )
         ).createQuery()
 
       val paramName = "$" + "name".toParameterName("John Doe")
@@ -253,7 +258,12 @@ class Neo4jQueryServiceTest {
       val query: String =
         new Neo4jQueryService(
           neo4jOptions,
-          new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), new AutomaticAliaser(), filters)
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
+            new QueryEmbedder(),
+            filters
+          )
         ).createQuery()
 
       val nameParameterName = "$" + "name".toParameterName("John Doe")
@@ -288,7 +298,12 @@ class Neo4jQueryServiceTest {
       val query: String =
         new Neo4jQueryService(
           neo4jOptions,
-          new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), new AutomaticAliaser(), filters)
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
+            new QueryEmbedder(),
+            filters
+          )
         ).createQuery()
 
       val nameParameterName = "$" + "name".toParameterName(null)
@@ -320,7 +335,12 @@ class Neo4jQueryServiceTest {
       val query: String =
         new Neo4jQueryService(
           neo4jOptions,
-          new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), new AutomaticAliaser(), filters)
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
+            new QueryEmbedder(),
+            filters
+          )
         ).createQuery()
 
       val nameOneParameterName = "$" + "name".toParameterName("Person Name")
@@ -355,7 +375,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty[Filter],
           PartitionPagination.EMPTY,
           List("source.name")
@@ -390,7 +410,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty[Filter],
           PartitionPagination.EMPTY,
           List("source.name", "<source.elementId>")
@@ -425,7 +445,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty[Filter],
           PartitionPagination(0, 0, TopN(limit = 100)),
           List("source.name", "<source.elementId>")
@@ -465,7 +485,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty[Filter],
           PartitionPagination.EMPTY,
           List("source.name", "source.id", "rel.someprops", "target.date")
@@ -502,7 +522,12 @@ class Neo4jQueryServiceTest {
       val query: String =
         new Neo4jQueryService(
           neo4jOptions,
-          new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), new AutomaticAliaser(), filters)
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
+            new QueryEmbedder(),
+            filters
+          )
         ).createQuery()
 
       val parameterName = "$" + "source.name".toParameterName("John Doe")
@@ -537,7 +562,12 @@ class Neo4jQueryServiceTest {
       val query: String =
         new Neo4jQueryService(
           neo4jOptions,
-          new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), new AutomaticAliaser(), filters)
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
+            new QueryEmbedder(),
+            filters
+          )
         ).createQuery()
 
       val paramOneName = "$" + "source.name".toParameterName("John Doe")
@@ -574,7 +604,12 @@ class Neo4jQueryServiceTest {
       val query: String =
         new Neo4jQueryService(
           neo4jOptions,
-          new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), new AutomaticAliaser(), filters)
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
+            new QueryEmbedder(),
+            filters
+          )
         ).createQuery()
 
       val sourceIdParameterName = "$" + "source.id".toParameterName(14)
@@ -612,7 +647,12 @@ class Neo4jQueryServiceTest {
       val query: String =
         new Neo4jQueryService(
           neo4jOptions,
-          new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), new AutomaticAliaser(), filters)
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
+            new QueryEmbedder(),
+            filters
+          )
         ).createQuery()
 
       val parameterNames: Map[String, String] = HashMap(
@@ -661,7 +701,12 @@ class Neo4jQueryServiceTest {
       val query: String =
         new Neo4jQueryService(
           neo4jOptions,
-          new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), new AutomaticAliaser(), filters)
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
+            new QueryEmbedder(),
+            filters
+          )
         ).createQuery()
 
       val parameterNames = Map(
@@ -717,7 +762,12 @@ class Neo4jQueryServiceTest {
       val query: String =
         new Neo4jQueryService(
           neo4jOptions,
-          new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), new AutomaticAliaser(), filters)
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
+            new QueryEmbedder(),
+            filters
+          )
         ).createQuery()
 
       val parameterNames = Map(
@@ -764,7 +814,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty[Filter],
           PartitionPagination.EMPTY,
           Seq("name", "SUM(DISTINCT age)", "SUM(age)"),
@@ -785,7 +835,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty[Filter],
           PartitionPagination.EMPTY,
           Seq("name", "COUNT(DISTINCT name)", "COUNT(name)"),
@@ -805,7 +855,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty[Filter],
           PartitionPagination.EMPTY,
           Seq("name", "MAX(age)", "MIN(age)"),
@@ -844,7 +894,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty,
           PartitionPagination.EMPTY,
           List("source.fullName", "SUM(DISTINCT `target.price`)", "SUM(`target.price`)"),
@@ -870,7 +920,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty,
           PartitionPagination.EMPTY,
           List("source.fullName", "COUNT(DISTINCT `target.id`)", "COUNT(`target.id`)"),
@@ -894,7 +944,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty,
           PartitionPagination.EMPTY,
           List("source.fullName", "MAX(`target.price`)", "MIN(`target.price`)"),
@@ -933,7 +983,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           partitionPagination = PartitionPagination(
             0,
             0,
@@ -972,7 +1022,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           requiredColumns = Array("name").toIndexedSeq,
           partitionPagination = PartitionPagination(
             0,
@@ -1015,7 +1065,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty[Filter],
           PartitionPagination(
             0,
@@ -1063,7 +1113,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty[Filter],
           PartitionPagination(
             0,
@@ -1111,7 +1161,7 @@ class Neo4jQueryServiceTest {
         new Neo4jQueryReadStrategy(
           neo4j,
           new CypherRenderer(neo4j, neo4jOptions),
-          new AutomaticAliaser(),
+          new QueryEmbedder(),
           Array.empty[Filter],
           PartitionPagination(
             0,
@@ -1135,7 +1185,7 @@ class Neo4jQueryServiceTest {
       assertThat(
         query
       ).isEqualTo(
-        s"${prefix}CALL$callParens{MATCH (p:Person) RETURN p} RETURN * ORDER BY name DESC SKIP 0 LIMIT 24"
+        s"${prefix}CALL$callParens{MATCH (p:Person) RETURN p} RETURN p ORDER BY name DESC SKIP 0 LIMIT 24"
       )
     }
 
@@ -1198,12 +1248,12 @@ class Neo4jQueryServiceTest {
           new Neo4jQueryReadStrategy(
             neo4jInfo,
             new CypherRenderer(neo4jInfo, neo4jOptions),
-            new AutomaticAliaser(),
+            new QueryEmbedder(),
             withPreamble = false
           )
         )
 
-      assertThat(noPreambleReadService.createQuery().trim).isEqualTo("CALL {MATCH (o:Object) RETURN o} RETURN *")
+      assertThat(noPreambleReadService.createQuery().trim).isEqualTo("CALL {MATCH (o:Object) RETURN o} RETURN o")
     }
 
     @ParameterizedTest
@@ -1227,7 +1277,7 @@ class Neo4jQueryServiceTest {
       val callParens =
         if (CanIUse.canIUse(Cypher.callSubqueryWithVariableScopeClause()).withNeo4j(neo4j)) " () " else " "
       val wantQuery =
-        s"$tuningPrefix\n${cypherVersionPreamble}CALL$callParens{MATCH (o:Object) RETURN o} RETURN *"
+        s"$tuningPrefix\n${cypherVersionPreamble}CALL$callParens{MATCH (o:Object) RETURN o} RETURN o"
       assertThat(readService.createQuery().trim).isEqualTo(wantQuery.trim)
     }
 
@@ -1253,13 +1303,17 @@ class Neo4jQueryServiceTest {
       val callParens =
         if (CanIUse.canIUse(Cypher.callSubqueryWithVariableScopeClause()).withNeo4j(neo4j)) " () " else " "
       val wantQuery =
-        s"$tuningPrefix\n${cypherVersionPreamble}CALL$callParens{WITH $$scriptResult AS scriptResult MATCH (o:Object) RETURN o} RETURN *"
+        s"$tuningPrefix\n${cypherVersionPreamble}CALL$callParens{WITH $$scriptResult AS scriptResult MATCH (o:Object) RETURN o} RETURN o"
 
       assertThat(versionedReadService.createQuery().trim).isEqualTo(wantQuery.trim)
     }
 
     private def plainReadStrategy(neo4j: Neo4j, neo4jOptions: Neo4jOptions): Neo4jQueryReadStrategy =
-      new Neo4jQueryReadStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), new AutomaticAliaser())
+      new Neo4jQueryReadStrategy(
+        neo4j,
+        new CypherRenderer(neo4j, neo4jOptions),
+        new QueryEmbedder()
+      )
   }
 
   @Nested
