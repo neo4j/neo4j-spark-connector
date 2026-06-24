@@ -90,7 +90,7 @@ The graph structure is decomposed into three tables.
 To have this decomposition you can use two strategies that allow to extract metadata from your graph:
 
 * <<APOC>>
-* <<Automatic Sampling>>.
+* <<_automatic_sampling>>.
 
 == Graph transforms
 
@@ -320,7 +320,7 @@ explain different scenarios.
 The two core techniques are:
 
 * <<APOC>>
-* <<Automatic sampling>>
+* <<_automatic_sampling>>
 
 === APOC
 

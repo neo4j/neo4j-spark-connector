@@ -27,6 +27,7 @@ such works with Neo4j Community Edition as well, with the appropriate version nu
 [TIP]
 **Neo4j versions prior to 3.5 are not supported.** 
 
+[#_spark_compatibility]
 === Spark and Scala compatibility
 
 This connector currently supports:
