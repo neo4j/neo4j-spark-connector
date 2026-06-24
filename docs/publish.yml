@@ -1,14 +1,13 @@
+# Use this playbook file when you need to build and publish multuple versions of your content together
 site:
-  title: Neo4j Connector for Apache Spark User Guide
-  url: https://neo4j.com/docs
+  title: Neo4j Spark
+  url: https://neo4j.com/docs/
   start_page: spark:ROOT:index.adoc
 
 content:
   sources:
-    - url: ../
-      branches: ['4.2', '4.1', '4.0']
-      start_path: doc/docs
-      edit_url: https://github.com/neo4j-contrib/neo4j-spark-connector/tree/{refname}/{path}
+    - url: https://github.com/neo4j/docs-spark.git
+      branches: ['5.x', '4.2', '4.1', '4.0']
       exclude:
       - '!**/_includes/*'
       - '!**/readme.adoc'
@@ -16,7 +15,7 @@ content:
 
 ui:
   bundle:
-    url: https://s3-eu-west-1.amazonaws.com/static-content.neo4j.com/build/ui-bundle-latest.zip
+    url: https://static-content.neo4j.com/build/ui-bundle-latest.zip
     snapshot: true
   output_dir: /assets
 
@@ -25,29 +24,34 @@ urls:
 
 antora:
   extensions:
-  - require: "@neo4j-antora/antora-modify-sitemaps"
-    sitemap_version: '4.2'
-    sitemap_loc_version: 'current'
-    move_sitemaps_to_components: true
+  - "@neo4j-antora/aliases-redirects"
+  - "@neo4j-antora/roles-labels"
+  - "@neo4j-antora/table-footnotes"
+  - "@neo4j-antora/xref-hash-validator"
 
 asciidoc:
   extensions:
   - "@neo4j-documentation/remote-include"
   - "@neo4j-documentation/macros"
-  - "@neo4j-antora/antora-listing-roles"
+  - "@neo4j-antora/mark-terms"
   attributes:
     page-theme: docs
     page-type: Docs
     page-search-type: Docs
     page-search-site: Reference Docs
     page-canonical-root: /docs
+    page-terms-to-mark: Cypher
     page-pagination: true
-    page-no-canonical: true
-    page-origin-private: false
+    page-no-canonical: true 
+    page-origin-private: true
     page-hide-toc: false
     page-mixpanel: 4bfb2414ab973c741b6f067bf06d5575
     includePDF: false
     nonhtmloutput: ""
     experimental: ''
-    copyright: 2022
+    copyright: 2026
     common-license-page-uri: https://neo4j.com/docs/license/
+    check-mark: icon:check[]
+    cross-mark: icon:times[]
+    neo4j-base-uri: ''
+    neo4j-docs-base-uri: /docs
