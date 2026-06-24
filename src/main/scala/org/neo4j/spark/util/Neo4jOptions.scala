@@ -333,7 +333,7 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
     val txMetadata = extractNeo4jTransactionMetadata()
     if (query.queryType == QueryType.GDS) {
       txMetadata.put(GDS_TELEMETRY_ACTION, query.value)
-      txMetadata.put(GDS_TELEMETRY_NAME, gdsMetadata.parameters.getOrDefault("graphName", "_"))
+      txMetadata.put(GDS_TELEMETRY_GRAPH_NAME, gdsMetadata.parameters.getOrDefault("graphName", "_"))
     }
 
     if (!txMetadata.isEmpty) {
@@ -736,7 +736,7 @@ object Neo4jOptions {
   // GDS
   private val GDS_OPTION_PREFIX = "gds."
   val GDS_TELEMETRY_ACTION = "gds.telemetry.action"
-  val GDS_TELEMETRY_NAME = "gds.telemetry.name"
+  val GDS_TELEMETRY_GRAPH_NAME = "gds.telemetry.graph_name"
 
   // Streaming
   val STREAMING_PROPERTY_NAME = "streaming.property.name"
