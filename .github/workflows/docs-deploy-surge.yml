@@ -22,7 +22,7 @@ on:
       - completed
 
 jobs:
-  # [Optional] Restrict automatic dpeloyment to PRs from the upstream repo
+  # [Optional] Restrict automatic deployment to PRs from the upstream repo
   # For fork PRs, requires manual approval via the "preview" environment.
   # For PRs from the main repository this job is skipped and deploy-docs runs immediately.
   # Setup: create a "preview" environment in Settings → Environments with required reviewers.
@@ -56,7 +56,7 @@ jobs:
             var artifacts = await github.rest.actions.listWorkflowRunArtifacts({
                owner: context.repo.owner,
                repo: context.repo.repo,
-               run_id: ${{ env.RUN_ID }},
+               run_id: process.env.RUN_ID,
             });
 
             var matchArtifactDocs = artifacts.data.artifacts.filter((artifact) => {
@@ -131,7 +131,27 @@ jobs:
         run: |
           cd "$ARTIFACT_DIR"
           unzip changelog.zip
-      
+
+      # The changelog file is built from untrusted PR content and its contents
+      # are posted to the PR as a comment. A malicious artifact could make
+      # `changelog` a symlink pointing at an arbitrary file the runner can read,
+      # turning the comment step into an arbitrary-file-read. Reject anything
+      # that isn't a plain regular file before we read it.
+      - id: validate-changelog
+        name: Validate changelog is a regular file
+        if: ${{ steps.find-changelog.outputs.has-changelog == 'true' }}
+        env:
+          CHANGELOG_FILE: ${{ runner.temp }}/artifacts/changelog/changelog
+        run: |
+          if [ -L "$CHANGELOG_FILE" ]; then
+            echo "Security Alert: changelog is a symlink — refusing!"
+            exit 1
+          fi
+          if [ ! -f "$CHANGELOG_FILE" ]; then
+            echo "changelog missing or not a regular file"
+            exit 1
+          fi
+
       - id: get-deploy-id
         name: Get deploy ID
         env:

@@ -10,6 +10,8 @@ on:
     branches:
       - '5.0'
       - '4.[0-2]'
+    paths:
+      - "docs/**"
     types:
       - closed
 
