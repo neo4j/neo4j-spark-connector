@@ -95,7 +95,7 @@ In order to have this decomposition we use, under-the-hood, two strategies that 
 metadata from your graph:
 
 * <<APOC>>
-* <<Automatic Sampling>>
+* <<_automatic_sampling>>.
 
 == Graph Transforms
 
@@ -327,7 +327,7 @@ explain different scenarios.
 The two core techniques are:
 
 * <<APOC>>
-* <<Automatic Sampling>>
+* <<_automatic_sampling>>
 
 === APOC
 
