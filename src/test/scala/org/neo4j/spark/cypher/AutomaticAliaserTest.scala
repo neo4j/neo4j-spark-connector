@@ -31,22 +31,35 @@ import java.util.stream.Stream;
 class AutomaticAliaserTest {
 
   @ParameterizedTest
-  @MethodSource(Array("alias_cases"))
+  @MethodSource(Array("alias_result_cases"))
   def aliases_query(initialQuery: String, expectedQuery: String): Unit = {
-    val query = new AutomaticAliaser().aliasResults(initialQuery)
+    val query = new AutomaticAliaser().aliasResults(initialQuery).query
 
     assertThat(query).isEqualTo(expectedQuery)
   }
 
   @ParameterizedTest
-  @MethodSource(Array("preserve_cases"))
+  @MethodSource(Array("preserve_result_cases"))
   def preserves_query(query: String): Unit = {
-    val result = new AutomaticAliaser().aliasResults(query)
+    val result = new AutomaticAliaser().aliasResults(query).query
 
     assertThat(result).isEqualTo(query)
   }
 
-  private def alias_cases(): Stream[Arguments] = {
+  @ParameterizedTest
+  @MethodSource(Array("return_field_cases"))
+  def detects_return_fields(
+    initialQuery: String,
+    expectedQuery: String,
+    expectedFields: Seq[String]
+  ): Unit = {
+    val result = new AutomaticAliaser().aliasResults(initialQuery)
+
+    assertThat(result.query).isEqualTo(expectedQuery)
+    assertThat(result.returnedFields).isEqualTo(expectedFields)
+  }
+
+  private def alias_result_cases(): Stream[Arguments] = {
     Stream.of(
       argumentSet(
         "unaliased number literal",
@@ -106,7 +119,7 @@ class AutomaticAliaserTest {
     )
   }
 
-  private def preserve_cases(): Stream[Arguments] = {
+  private def preserve_result_cases(): Stream[Arguments] = {
     Stream.of(
       argumentSet(
         "whole node",
@@ -163,6 +176,35 @@ class AutomaticAliaserTest {
       argumentSet(
         "aliased indexed array access",
         "UNWIND [['foo']] AS array RETURN array[0] AS foo"
+      )
+    )
+  }
+
+  private def return_field_cases(): Stream[Arguments] = {
+    Stream.of(
+      argumentSet(
+        "outer aliased return after scoped subquery",
+        "MATCH (n) CALL (n) { MATCH (n)-[:THINGY]->(m) RETURN m,n } RETURN n AS foo, m AS bar",
+        "MATCH (n) CALL (*) {MATCH (n)-[:THINGY]->(m) RETURN m, n} RETURN n AS foo, m AS bar",
+        Seq("foo", "bar")
+      ),
+      argumentSet(
+        "aliased expression return",
+        "MATCH (n) RETURN n.foo, n.bar AS bar",
+        "MATCH (n) RETURN n.foo AS `n.foo`, n.bar AS bar",
+        Seq("n.foo", "bar")
+      ),
+      argumentSet(
+        "return all",
+        "MATCH (n) RETURN *",
+        "MATCH (n) RETURN *",
+        Seq("*")
+      ),
+      argumentSet(
+        "return all and aliases",
+        "MATCH (n) RETURN *, n AS m",
+        "MATCH (n) RETURN *, n AS m",
+        Seq("*", "m")
       )
     )
   }

@@ -26,8 +26,8 @@ import org.neo4j.driver.Record
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.Values
-import org.neo4j.spark.cypher.AutomaticAliaser
 import org.neo4j.spark.cypher.CypherRenderer
+import org.neo4j.spark.cypher.QueryEmbedder
 import org.neo4j.spark.service._
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
@@ -154,7 +154,7 @@ abstract class BasePartitionReader(
       new Neo4jQueryReadStrategy(
         neo4j,
         new CypherRenderer(neo4j, options),
-        new AutomaticAliaser(),
+        new QueryEmbedder(),
         filters,
         partitionSkipLimit,
         requiredColumns.fieldNames.toIndexedSeq,

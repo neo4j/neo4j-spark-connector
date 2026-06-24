@@ -34,9 +34,9 @@ import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.cypherdsl.parser.CypherParser
 import org.neo4j.cypherdsl.parser.ExpressionCreatedEventType
 import org.neo4j.cypherdsl.parser.Options
-import org.neo4j.spark.cypher.AutomaticAliaser
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.cypher.CypherRenderer
+import org.neo4j.spark.cypher.QueryEmbedder
 import org.neo4j.spark.service.Neo4jQueryStrategy.VARIABLE_EVENT
 import org.neo4j.spark.service.Neo4jQueryStrategy.eventProperties
 import org.neo4j.spark.service.Neo4jQueryStrategy.relEventProperties
@@ -199,7 +199,7 @@ class Neo4jQueryWriteStrategy(
 class Neo4jQueryReadStrategy(
   private val neo4j: Neo4j,
   private val renderer: CypherRenderer,
-  private val aliaser: AutomaticAliaser,
+  private val queryEmbedder: QueryEmbedder,
   private val filters: Array[Filter] = Array.empty[Filter],
   private val partitionPagination: PartitionPagination = PartitionPagination.EMPTY,
   private val requiredColumns: Seq[String] = Seq.empty,
@@ -212,10 +212,8 @@ class Neo4jQueryReadStrategy(
 
   override def createStatementForQuery(options: Neo4jOptions): String = {
     val scriptResult = scriptResultClause(options)
-    val query = aliaser.aliasResults(options.query.value)
     var statement: StatementBuilder.BuildableStatement[ResultStatement] =
-      callRawCypher(s"$scriptResult${query}")
-        .returning(Cypher.asterisk())
+      queryEmbedder.embed(options.query.value, scriptResult)
     if (partitionPagination.topN.orders.nonEmpty) {
       statement = statement
         .asInstanceOf[StatementBuilder.TerminalExposesOrderBy]

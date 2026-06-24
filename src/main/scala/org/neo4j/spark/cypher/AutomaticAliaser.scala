@@ -16,6 +16,9 @@
  */
 package org.neo4j.spark.cypher
 
+import org.neo4j.cypherdsl.core.AliasedExpression
+import org.neo4j.cypherdsl.core.Asterisk
+import org.neo4j.cypherdsl.core.Clauses
 import org.neo4j.cypherdsl.core.Expression
 import org.neo4j.cypherdsl.core.FunctionInvocation
 import org.neo4j.cypherdsl.core.ListExpression
@@ -24,6 +27,7 @@ import org.neo4j.cypherdsl.core.Literal
 import org.neo4j.cypherdsl.core.MapExpression
 import org.neo4j.cypherdsl.core.Parameter
 import org.neo4j.cypherdsl.core.Property
+import org.neo4j.cypherdsl.core.SymbolicName
 import org.neo4j.cypherdsl.core.ast.Visitable
 import org.neo4j.cypherdsl.core.renderer.Configuration
 import org.neo4j.cypherdsl.core.renderer.GeneralizedRenderer
@@ -33,22 +37,47 @@ import org.neo4j.cypherdsl.parser.ExpressionCreatedEventType.ON_RETURN_ITEM
 import org.neo4j.cypherdsl.parser.Options
 import org.neo4j.spark.cypher.AutomaticAliaser.defaultRenderer
 
-class AutomaticAliaser(private val fragmentRenderer: GeneralizedRenderer = defaultRenderer()) {
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-  def aliasResults(query: String): String = {
-    val statement: Visitable = CypherParser.parse(query, renderingOptions())
-    fragmentRenderer.render(statement)
+private[cypher] class AutomaticAliaser(private val fragmentRenderer: GeneralizedRenderer = defaultRenderer()) {
+
+  /**
+   * This aliases the results of a query if necessary.
+   * For instance, <pre><code>MATCH (n) RETURN n.foo</pre></code>
+   * gets replaced with
+   * <pre><code>MATCH (n) RETURN n.foo AS &#96;n.foo&#96;</pre></code>
+   * @param query the original query
+   * @return the same query, with aliased returned columns if necessary
+   */
+  def aliasResults(query: String): AliasedQuery = {
+    val returnFields = new ReturnFields()
+    val statement: Visitable = CypherParser.parse(query, renderingOptions(returnFields))
+    AliasedQuery(fragmentRenderer.render(statement), returnFields.fields)
   }
 
-  private def renderingOptions() =
-    Options.newOptions.withCallback(
-      ON_RETURN_ITEM,
-      classOf[Expression],
-      alias _
-    ).build
+  private def renderingOptions(returnFields: ReturnFields) =
+    Options.newOptions
+      .withCallback(
+        ON_RETURN_ITEM,
+        classOf[Expression],
+        alias _
+      )
+      // parse & extract return fields, last return clause wins (ie overwrites ReturnFields)
+      .withReturnClauseFactory(returnDefinition => {
+        returnFields.update(returnDefinition.getExpressions.asScala.toSeq)
+        Clauses.returning(
+          returnDefinition.isDistinct,
+          returnDefinition.getExpressions,
+          returnDefinition.getOptionalSortItems,
+          returnDefinition.getOptionalSkip,
+          returnDefinition.getOptionalLimit
+        )
+      })
+      .build
 
   private def alias(expression: Expression): Expression =
     expression match {
+      case asterisk: Asterisk                     => asterisk
       case literal: Literal[_]                    => literal.as(fragmentRenderer.render(literal))
       case param: Parameter[_]                    => param.as(fragmentRenderer.render(param))
       case listExpression: ListExpression         => listExpression.as(fragmentRenderer.render(listExpression))
@@ -58,7 +87,27 @@ class AutomaticAliaser(private val fragmentRenderer: GeneralizedRenderer = defau
       case property: Property                     => property.as(fragmentRenderer.render(property))
       case _                                      => expression
     }
+
+  private class ReturnFields {
+    private var names: Seq[String] = Seq.empty
+
+    def fields: Seq[String] = names
+
+    def update(expressions: Seq[Expression]): Unit = {
+      names = expressions.map(returnFieldName)
+    }
+
+    private def returnFieldName(expression: Expression): String =
+      expression match {
+        case _: Asterisk                => "*"
+        case aliased: AliasedExpression => aliased.getAlias
+        case name: SymbolicName         => name.getValue
+        case other                      => fragmentRenderer.render(other)
+      }
+  }
 }
+
+private[cypher] case class AliasedQuery(query: String, returnedFields: Seq[String])
 
 private object AutomaticAliaser {
 
