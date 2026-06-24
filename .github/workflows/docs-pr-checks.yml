@@ -11,6 +11,7 @@ on:
       - '4.[0-2]'
     paths:
       - "docs/**"
+      - ".github/workflows/docs-*.yml"
 
 jobs:
 
