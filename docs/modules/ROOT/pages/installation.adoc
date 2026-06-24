@@ -1,0 +1,144 @@
+= Installation
+:description: This chapter describes the quick way to get started with Neo4j Connector for Apache Spark.
+
+[#version]
+== Choose the correct version
+
+Make sure to match both the Spark version and the Scala version of your setup.
+Here is a compatibility table to help you choose the correct version of the connector.
+
+.Compatibility table
+[cols="1,3,3"]
+|===
+| Spark Version | Artifact (*Scala 2.12*) | Artifact (*Scala 2.13*)
+
+|*3.4*, *3.5*
+|`org.neo4j:neo4j-connector-apache-spark_2.12:{exact-connector-version}_for_spark_3`
+|`org.neo4j:neo4j-connector-apache-spark_2.13:{exact-connector-version}_for_spark_3`
+
+|*3.3*
+|`org.neo4j:neo4j-connector-apache-spark_2.12:5.1.0_for_spark_3`
+|`org.neo4j:neo4j-connector-apache-spark_2.13:5.1.0_for_spark_3`
+
+|===
+
+Spark versions prior to 3.3 are not supported.
+
+[#shell]
+== Usage with the Spark shell
+
+The connector is available via link:https://spark-packages.org/package/neo4j/neo4j-spark-connector[Spark Packages]:
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+[source, shell, subs="attributes+"]
+----
+$SPARK_HOME/bin/spark-shell --packages neo4j:neo4j-spark-connector:{exact-connector-version}-s_{scala-version}
+----
+=====
+
+[.include-with-Python]
+=====
+[source, shell, subs="attributes+"]
+----
+$SPARK_HOME/bin/pyspark --packages neo4j:neo4j-spark-connector:{exact-connector-version}-s_{scala-version}
+----
+=====
+====
+
+or through artifacts deployed to Maven Central:
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+[source, shell, subs="attributes+"]
+----
+$SPARK_HOME/bin/spark-shell --packages org.neo4j:neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3
+----
+=====
+
+[.include-with-Python]
+=====
+[source, shell, subs="attributes+"]
+----
+$SPARK_HOME/bin/pyspark --packages org.neo4j:neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3
+----
+=====
+====
+
+Alternatively, you can download the connector JAR file from the link:https://neo4j.com/product/connectors/apache-spark-connector/[Neo4j Connector Page] or from the link:https://github.com/neo4j/neo4j-spark-connector/releases[GitHub releases page] and run the following command to launch a Spark interactive shell with the connector included:
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+[source, shell, subs="attributes+"]
+----
+$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector-{exact-connector-version}-s_{scala-version}.jar
+----
+=====
+
+[.include-with-Python]
+=====
+[source, shell, subs="attributes+"]
+----
+$SPARK_HOME/bin/pyspark --jars neo4j-spark-connector-{exact-connector-version}-s_{scala-version}.jar
+----
+=====
+====
+
+[#applications]
+== Self-contained applications
+
+For non-Python applications:
+
+. Include the connector in your application using the application's build tool.
+. Package the application.
+. Use `spark-submit` to run the application.
+
+For Python applications, run `spark-submit` directly.
+
+As for the `spark-shell`, you can run `spark-submit` via Spark Packages or with a local JAR file.
+See the xref:quickstart.adoc#applications[Quickstart] for code examples.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.A minimal `build.sbt`
+[source, sbt, subs="attributes+"]
+----
+include::example$scala/build.sbt[]
+----
+
+If you use the link:https://github.com/databricks/sbt-spark-package[sbt-spark-package plugin], add the following to your `build.sbt` instead:
+
+[source, shell, subs="attributes+"]
+----
+scala spDependencies += "org.neo4j/neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3"
+----
+=====
+
+[.include-with-Java]
+=====
+.A minimal `pom.xml`
+[source, xml, subs="attributes+"]
+----
+include::example$java/pom.xml[]
+----
+=====
+====
+
+=== Other build tools
+
+==== Gradle
+[source, `build.gradle`, subs="attributes+"]
+----
+dependencies {
+    // list of dependencies
+    compile "org.neo4j:neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3"
+}
+----

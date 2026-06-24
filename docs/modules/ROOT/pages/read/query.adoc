@@ -1,0 +1,181 @@
+= Read with a Cypher query
+
+include::partial$sparksession.adoc[]
+
+If you need more flexibility, you can use the `query` option to run a custom Cypher query.
+
+The query *must* include a `RETURN` clause.
+With stored procedures, you need to include a `YIELD` clause before `RETURN`.
+
+.`query` option example
+[source, scala]
+----
+val query = """
+  MATCH (n:Person)
+  WITH n
+  LIMIT 2
+  RETURN id(n) AS id, n.name AS name
+"""
+
+spark.read.format("org.neo4j.spark.DataSource")
+  .option("query", query)
+  .load()
+  .show()
+----
+
+.Result
+|===
+|id |name
+
+|0|John Doe
+|1|Jane Doe
+|===
+
+== DataFrame columns
+
+The structure of the result DataFrame is defined by the query itself.
+See the xref:read/schema.adoc#query[Schema inference] page for more details.
+
+This option is best suited when you return individual properties rather than graph entities (nodes, relationships, paths).
+Returning a graph entity, anyway, does not cause an error.
+
+[cols="1l,1l"]
+|===
+|Recommended|Not recommended
+
+|MATCH (p:Person)
+RETURN id(p) AS id, p.name AS name
+
+|MATCH (p:Person)
+RETURN p
+|===
+
+[TIP]
+====
+If you need to return a graph entity, use the xref:read/labels.adoc[`labels`] or xref:read/relationship.adoc[`relationship`] read options instead.
+====
+
+[[limit-query]]
+== Limit the results
+
+The connector uses `SKIP` and `LIMIT` internally to support partitioned reads; as a result, `SKIP` and `LIMIT` clauses are not allowed in a custom Cypher query.
+Attempts to do this will cause execution errors.
+
+A possible workaround is to use `SKIP` and `LIMIT` _before_ the `RETURN` clause.
+For example, the following query fails:
+
+[source,cypher]
+----
+MATCH (p:Person)
+RETURN p.name AS name
+ORDER BY name
+LIMIT 10
+----
+
+The query can be rewritten with `LIMIT` before the `RETURN` to complete successfully:
+
+[source,cypher]
+----
+MATCH (p:Person)
+WITH p.name AS name
+ORDER BY name
+LIMIT 10
+RETURN p.name
+----
+
+[CAUTION]
+====
+When you rewrite a query, make sure the new query is equivalent to your original query so that the result is the same.
+====
+
+You can also use the `query.count` option instead of rewriting your query.
+See the xref:performance/spark.adoc#parallelize[Spark optimizations] page for more details.
+
+== The `script` option
+
+The `script` option allows to run a sequence of Cypher queries _before_ executing the read operation.
+
+The result of the `script` can be used in a subsequent `query`, for example to inject query parameters.
+
+[CAUTION]
+====
+Do not use this option to inject large amounts of data in a Cypher query.
+See the <<performance>> section below for the recommended alternative.
+====
+
+.`script` and `query` example
+[source, scala]
+----
+val script = "RETURN 'foo' AS val"
+val query = """
+  UNWIND range(1, 2) as id
+  RETURN id AS val, scriptResult[0].val AS script
+"""
+
+spark.read.format("org.neo4j.spark.DataSource")
+  .option("script", script)
+  .option("query", query)
+  .load()
+  .show()
+----
+
+.Result
+|===
+|val|script
+
+|1|foo
+|2|foo
+|===
+
+[[performance]]
+=== Performance considerations
+
+The `script` option is not meant to inject a massive volume of data.
+Doing so would result in inefficient queries.
+
+The recommended process is to create a dedicated dataframe containing the new data, then join it with another dataframe performing the actual reads against Neo4j.
+Spark supports multiple pushdown optimizations including filter pushdown, which means the resulting read query will be efficient.
+
+[.tabbed-example]
+====
+[.include-with-Wrong-usage]
+=====
+[source, scala]
+----
+// Suppose there are many nodes that match,
+// resulting in a large list of values
+val script = "MATCH (f:Filter) RETURN collect(f.id) AS ids"
+
+// Sending a large list to the server would add a lot of memory pressure
+val query = """
+  MATCH (n:Comment)
+  WHERE n.filterId IN scriptResult[0].ids
+  RETURN n.id AS id
+"""
+spark.read.format("org.neo4j.spark.DataSource")
+  .option("script", script)
+  .option("query", query)
+  .load()
+  .show()
+----
+=====
+
+[.include-with-Correct-usage]
+=====
+[source, scala]
+----
+import org.apache.spark.sql.functions.col
+
+val filterDf = spark.read.format("org.neo4j.spark.DataSource")
+  .option("labels", "Filter")
+  .load()
+
+val commentDf = spark.read.format("org.neo4j.spark.DataSource")
+  .option("labels", "Comment")
+  .load()
+
+// Pushdown optimizations filter data at the source (Neo4j) to minimize data transfer
+val resultDf = commentDf.join(filterDf, col("filterId") === filterDf("id"))
+----
+=====
+====

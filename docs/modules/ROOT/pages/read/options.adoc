@@ -1,0 +1,111 @@
+= Reader options
+
+.List of available read options
+|===
+|Setting name |Description |Default value |Required
+
+|`query`
+|Cypher query to read the data
+|_(none)_
+|Yes^*^
+
+|`labels`
+|List of node labels separated by colon.
+The first label is to be the primary label.
+|_(none)_
+|Yes^*^
+
+|`relationship`
+|Type of a relationship
+|_(none)_
+|Yes^*^
+
+|`schema.flatten.limit`
+|Number of records to be used to create the Schema (only if APOC is not installed,
+or for custom Cypher queries provided via `query` options).
+|`10`
+|No
+
+|`schema.strategy`
+|Strategy used by the connector in order to compute the Schema definition for the Dataset.
+Possible values are `string`, `sample`.
+When `string` is set, it coerces all the properties to String, otherwise it tries to sample the Neo4j's dataset.
+|`sample`
+|No
+
+|`pushdown.filters.enabled`
+|Enable or disable the PushdownFilters support.
+|`true`
+|No
+
+|`pushdown.columns.enabled`
+|Enable or disable the PushdownColumn support.
+|`true`
+|No
+
+|`pushdown.aggregate.enabled`
+|Enable or disable the PushdownAggregate support.
+|`true`
+|No
+
+|`pushdown.limit.enabled` label:new[v.5.1]
+|Enable or disable the PushdownLimit support.
+|`true`
+|No
+
+|`pushdown.topN.enabled` label:new[v.5.2]
+|Enable or disable the PushDownTopN support.
+|`true`
+|No
+
+|`partitions`
+|This defines the parallelization level while pulling data from Neo4j.
+
+*Note*: as more parallelization does not mean better query performance, tune wisely in according to
+your Neo4j installation.
+|`1`
+|No
+
+|`type.conversion` label:new[v5.4]
+|Data conversion logic. When set to `legacy`, timestamps, intervals and byte arrays are processed the same way as they were before 5.4.0. See xref:../types.adoc[] for more information.
+|`default`
+|No
+
+4+|*Query specific options*
+
+|`query.count`
+a|Query count is used only in combination with `query` option. This is a query that returns a `count`
+field like the following:
+----
+MATCH (p:Person)-[r:BOUGHT]->(pr:Product)
+WHERE pr.name = 'An Awesome Product'
+RETURN count(p) AS count
+----
+
+or *a simple number* that represents the number of records returned by `query`.
+Consider that the number passed by this value represents the volume of the data pulled off Neo4j,
+so use it carefully.
+|_(empty)_
+|No
+
+4+|*Relationship specific options*
+
+|`relationship.nodes.map`
+|If it's set to `true`, `source` and `target` nodes are returned as Map<String, String>, otherwise we flatten the properties by returning
+every single node property as column prefixed by `source` or `target`
+|`false`
+|No
+
+|`relationship.source.labels`
+|List of source node labels separated by colon.
+|_(empty)_
+|Yes
+
+|`relationship.target.labels`
+|List of target node labels separated by colon.
+|_(empty)_
+|Yes
+
+|===
+
+^*^ Just one of the options can be specified at the time.

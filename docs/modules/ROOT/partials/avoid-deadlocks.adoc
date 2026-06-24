@@ -1,0 +1,4 @@
+[WARNING]
+====
+To avoid deadlocks, always use a single partition (with `coalesce(1)` or `repartition(1)`) before writing relationships to Neo4j.
+====

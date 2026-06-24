@@ -1,0 +1,21 @@
+<project>
+  <groupId>org.neo4j</groupId>
+  <artifactId>spark-app</artifactId>
+  <modelVersion>4.0.0</modelVersion>
+  <name>Spark App</name>
+  <packaging>jar</packaging>
+  <version>1.0</version>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_{scala-version}</artifactId>
+      <version>{spark-version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-connector-apache-spark_{scala-version}</artifactId>
+      <version>{exact-connector-version}_for_spark_3</version>
+    </dependency>
+  </dependencies>
+</project>

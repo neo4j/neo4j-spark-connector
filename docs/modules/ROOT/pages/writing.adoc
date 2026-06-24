@@ -1,0 +1,150 @@
+= Writing to Neo4j
+
+:description: The chapters describes writing methods to a Neo4j database using Neo4j Spark connector.
+
+The connector provides three data source options to write data to a Neo4j database.
+
+.Write options
+[cols="1, 2, 2, 1"]
+|===
+|Option|Description|Value|Default
+
+|`labels`
+|Use this if you only need to xref:write/labels.adoc[create or update nodes] with their properties, or as a first step before adding relationships.
+|Colon-separated list of node labels to create or update.
+|_(empty)_
+
+|`relationship`
+|Use this if you need to xref:write/relationship.adoc[create or update relationships] along with their source and target nodes.
+|Relationship type to create or update.
+|_(empty)_
+
+|`query`
+|Use this if you need more flexibility and know how to xref:write/query.adoc[write a Cypher query].
+|Cypher query with a `CREATE` or `MERGE` clause.
+|_(empty)_
+|===
+
+[#examples]
+== Examples
+
+include::partial$sparksession.adoc[]
+
+[TIP]
+====
+You can run the xref:reading.adoc#examples[read examples] for each option to check the data after writing.
+====
+
+[#example-labels]
+=== `labels` option
+
+Write the `:Person` nodes.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+include::example$scala/BasicLabels.scala[tags=code-write]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+include::example$python/basic_labels.py[tags=code-write]
+----
+=====
+====
+
+See xref:write/labels.adoc[] for more information and examples.
+
+[#example-relationship]
+=== `relationship` option
+
+Write the `:BOUGHT` relationship with its source and target nodes and its properties.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+include::example$scala/BasicRelationship.scala[tags=code-write]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+include::example$python/basic_relationship.py[tags=code-write]
+----
+=====
+====
+
+See xref:write/relationship.adoc[] for more information and examples.
+
+[#example-query]
+=== `query` option
+
+Use a Cypher query to write data.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+include::example$scala/BasicQuery.scala[tags=code-write]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+include::example$python/basic_query.py[tags=code-write]
+----
+=====
+====
+
+See xref:write/query.adoc[] for more information and examples.
+
+[#save-mode]
+== Save mode
+
+Regardless of the write option, the connector supports two save modes for the data source `mode()` method:
+
+* The `Append` mode creates new nodes or relationships by building a `CREATE` Cypher query.
+* The `Overwrite` mode creates or updates new nodes or relationships by building a `MERGE` Cypher query.
+** Requires the `node.keys` option when used with the `labels` option.
+** Requires the `relationship.source.node.keys` and `relationship.target.node.keys` when used with the `relationship` option.
+
+== Type mapping
+
+See xref:types.adoc[] for the full type mapping between Spark DataFrames and Neo4j.
+
+== Performance considerations
+
+Since writing is typically an expensive operation, make sure you write only the DataFrame columns you need.
+
+For example, if the columns from the data source are `name`, `surname`, `age`, and `livesIn`, but you only need `name` and `surname`, you can do the following:
+
+[source, scala]
+----
+df.select(df("name"), df("surname"))
+  .write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.Append)
+  .option("labels", ":Person")
+  .save()
+----

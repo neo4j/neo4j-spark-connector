@@ -1,0 +1,323 @@
+= Write relationships
+
+include::partial$sparksession.adoc[]
+
+With the `relationship` option, the connector writes a Spark DataFrame to the Neo4j database by specifying source, target nodes, and a relationship.
+
+include::partial$avoid-deadlocks.adoc[]
+
+The connector builds a `CREATE` or a `MERGE` Cypher query (depending on the xref:writing.adoc#save-mode[save mode]) that uses the `UNWIND` clause to write a batch of rows (an `events` list with size defined by the `batch.size` option).
+
+The rest of the query is built depending on a number of data source options.
+
+.Write options
+[cols="4, 3a, 3a, 1"]
+|===
+|Option |Description |Value |Default
+
+|`relationship.save.strategy`
+|Defines the <<strategies, save strategy>> to use.
+|
+* `native` requires the DataFrame to use a specific schema.
+* `keys` is more flexible.
+|`native`
+
+|`relationship.source.save.mode`
+
+and
+
+`relationship.target.save.mode`
+|Define the <<node-save-modes, node save mode>>, and can be set independently for source and target nodes.
+|
+* `Match` mode performs a `MATCH`.
+* `Append` mode performs a `CREATE`.
+* `Overwrite` mode performs a `MERGE`.
+|`Match`
+
+|`relationship.source.labels`
+
+and
+
+`relationship.target.labels`
+|*Required.*
+
+Define the labels to assign to source and target nodes.
+|Colon-separated list of labels.
+|_(empty)_
+
+|`relationship.source.node.keys`
+
+and
+
+`relationship.target.node.keys`
+|When the <<node-save-modes, node save mode>> is `Match` or `Overwrite`, define the node keys that identify the nodes.
+|Comma-separated list of `key:value` pairs.
+
+If `key` and `value` have the same value (for example `"name:name"`), you can omit one.
+|_(empty)_
+
+|`relationship.source.node.properties`
+
+and
+
+`relationship.target.node.properties`
+|When the <<strategies, save strategy>> is `keys`, define which DataFrame columns to write as source/target node properties.
+|Comma-separated list of `key:value` pairs.
+
+If `key` and `value` have the same value (for example `"name:name"`), you can omit one.
+|_(empty)_
+
+|`relationship.properties`
+|When the <<strategies, save strategy>> is `keys`, defines which DataFrame columns to write as relationship properties.
+|Comma-separated list of `key:value` pairs.
+
+If `key` and `value` have the same value (for example `"name:name"`), you can omit one.
+|_(empty)_
+|===
+
+[#strategies]
+== Save strategies
+
+The save strategy defines the way the connector maps the DataFrame schema to Neo4j nodes and relationships.
+
+[#strategy-native]
+=== `native` strategy
+
+The `native` strategy requires the DataFrame to conform to the xref:read/relationship.adoc#rel-schema-columns[relationship read schema] with the `relationship.nodes.map` option set to `false`.
+The DataFrame must include at least one of the `rel.[property name]`, `source.[property name]`, or `target.[property name]` columns.
+
+A good use case for this mode is transferring data from a database to another one.
+When you use the connector to xref:read/relationship.adoc[read a relationship], the resulting DataFrame has the correct schema.
+
+[NOTE]
+====
+If you use the connector to read data from a database and write data to a different database, you need to set the connection options xref:configuration.adoc#_multiple_connections[on each DataFrame] rather than on the Spark session.
+====
+
+The following example shows how to use the `native` strategy with the `Append` save mode both for the relationship and for source/target nodes.
+If run multiple times, it creates duplicate relationships and nodes.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse, indent=0]
+----
+include::example$scala/WriteRelationship.scala[tags=code-native]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse, indent=0]
+----
+include::example$python/write_relationship.py[tags=code-native]
+----
+=====
+====
+
+.Equivalent Cypher query
+[%collapsible]
+====
+[source, cypher]
+----
+UNWIND $events AS event
+CREATE (source:Customer)
+SET source += event.source.properties
+CREATE (target:Product)
+SET target += event.target.properties
+CREATE (source)-[rel:BOUGHT]->(target)
+SET rel += event.rel.properties
+----
+====
+
+[#strategy-keys]
+=== `keys` strategy
+
+The `keys` strategy gives more control on how relationships and source/target nodes are written.
+It does not require any specific schema for the DataFrame, and you can specify which columns to write as node and relationship properties.
+
+The following example shows how to use the `keys` strategy with the `Append` save mode both for the relationship and for source/target nodes.
+If run multiple times, it creates duplicate relationships and nodes.
+
+[#rel-specify-keys]
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse, indent=0]
+----
+include::example$scala/WriteRelationship.scala[tags=code-keys]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse, indent=0]
+----
+include::example$python/write_relationship.py[tags=code-keys]
+----
+=====
+====
+
+.Equivalent Cypher query
+[%collapsible]
+====
+[source, cypher]
+----
+UNWIND $events AS event
+CREATE (source:Customer)
+SET source += event.source.properties
+CREATE (target:Product)
+SET target += event.target.properties
+CREATE (source)-[rel:BOUGHT]->(target)
+SET rel += event.rel.properties
+----
+====
+
+[#node-save-modes]
+== Node save modes
+
+The examples from the previous section use the `Append` mode for both relationships and nodes; this means that new relationships and new nodes are created every time the code is run.
+
+Node save modes different from `Append` have a different behaviour.
+
+=== `Match` mode
+
+The `Match` mode requires nodes with the selected labels and keys to already exist.
+This mode requires both the `relationship.source.node.keys` and the `relationship.target.node.keys` options.
+
+The following example does not create any relationships if there are no matching nodes.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse, indent=0]
+----
+include::example$scala/WriteRelationship.scala[tags=code-match]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse, indent=0]
+----
+include::example$python/write_relationship.py[tags=code-match]
+----
+=====
+====
+
+.Equivalent Cypher query
+[%collapsible]
+====
+[source, cypher]
+----
+UNWIND $events AS event
+MATCH (source:Customer {id: event.source.keys.id})
+MATCH (target:Product {name: event.target.keys.name})
+CREATE (source)-[rel:BOUGHT]->(target)
+SET rel += event.rel.properties
+----
+====
+
+=== `Overwrite` mode
+
+The `Overwrite` mode creates nodes with the selected labels and keys if they do not already exist.
+This mode requires both the `relationship.source.node.keys` and the `relationship.target.node.keys` options.
+
+If run multiple times, the following example creates duplicate relationships but no duplicate nodes.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse, indent=0]
+----
+include::example$scala/WriteRelationship.scala[tags=code-overwrite]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse, indent=0]
+----
+include::example$python/write_relationship.py[tags=code-overwrite]
+----
+=====
+====
+
+.Equivalent Cypher query
+[%collapsible]
+====
+[source, cypher]
+----
+UNWIND $events AS event
+MERGE (source:Customer {id: event.source.keys.id})
+SET source += event.source.properties
+MERGE (target:Product {name: event.target.keys.name})
+SET target += event.target.properties
+CREATE (source)-[rel:BOUGHT]->(target)
+SET rel += event.rel.properties
+----
+====
+
+[IMPORTANT]
+====
+Due to the concurrency of Spark jobs, when using the `Overwrite` mode you should use the xref:write/schema-optimization.adoc#node-constraints-unique[property uniqueness constraint] to guarantee node uniqueness.
+====
+
+== Overwrite nodes and relationships
+
+If you need to upsert both nodes and relationships, you must use the `Overwrite` mode for all the `relationship.source.node.keys`, `relationship.target.node.keys`, and `mode` options.
+
+If run multiple times, the following example does not create any duplicate nodes or relationships.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse, indent=0]
+----
+include::example$scala/WriteRelationship.scala[tags=code-overwrite-node-rel]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse, indent=0]
+----
+include::example$python/write_relationship.py[tags=code-overwrite-node-rel]
+----
+=====
+====
+
+.Equivalent Cypher query
+[%collapsible]
+====
+[source, cypher]
+----
+UNWIND $events AS event
+MERGE (source:Customer {id: event.source.keys.id})
+SET source += event.source.properties
+MERGE (target:Product {name: event.target.keys.name})
+SET target += event.target.properties
+MERGE (source)-[rel:BOUGHT]->(target)
+SET rel += event.rel.properties
+----
+====
+
+[IMPORTANT]
+====
+Due to the concurrency of Spark jobs, when using the `Overwrite` mode you should use the xref:write/schema-optimization.adoc#node-constraints-unique[property uniqueness constraint] to guarantee node uniqueness.
+====

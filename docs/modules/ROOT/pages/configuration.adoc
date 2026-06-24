@@ -1,0 +1,301 @@
+[#options]
+= Options and configuration
+
+:description: The chapter describes configuration options of Neo4j Connector for Apache Spark.  
+
+When using the connector, any valid Neo4j driver option can be set using the `option` method in
+Spark, like so:
+
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+val df = spark.read.format("org.neo4j.spark.DataSource")
+        .option("url", "neo4j://localhost:7687")
+        .option("authentication.type", "basic")
+        .option("authentication.basic.username", "myuser")
+        .option("authentication.basic.password", "neo4jpassword")
+        .option("labels", "Person")
+        .load()
+----
+
+Alternatively, you can specify a global configuration in the Spark Session to avoid retyping connection options every time.
+You can set any Neo4j Connector option, just prepend it with `neo4j.`.
+
+For example, if you want to set the option `authentication.type` in the session, you have to type `neo4j.authentication.type`.
+Here is a full example:
+
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder()
+    .config("neo4j.url", "neo4j://localhost:7687")
+    .config("neo4j.authentication.type", "basic")
+    .config("neo4j.authentication.basic.username", "myuser")
+    .config("neo4j.authentication.basic.password", "neo4jpassword")
+    .getOrCreate()
+
+val dfPerson = spark.read.format("org.neo4j.spark.DataSource")
+        .option("labels", "Person")
+        .load()
+
+val dfProduct = spark.read.format("org.neo4j.spark.DataSource")
+        .option("labels", "Product")
+        .load()
+----
+[#custom-auth-supplier, role=label--new-5.3.9]
+== Custom authentication supplier
+Starting from version 5.3.9, the connector provides an option to use a custom authentication supplier in addition to
+already supported authentication types, such as `none`, `basic`, `kerberos`, `custom` and `bearer`.
+
+The authentication supplier needs to implement interface `org.neo4j.connectors.authn.AuthenticationTokenSupplierFactory` from the `org.neo4j.connectors:commons-authn-spi` library.
+The interface requires implementing two methods:
+
+* *String getName()* - returns the name of the supplier.
+Must be unique and not clash with existing authentication types.
+
+* *Supplier<AuthenticationToken> create(String, String, Map<String, String>)* - accepts username, password and additional parameters and return a supplier of `AuthenticationToken`.
+
+An `AuthenticationToken` instance is an abstract representation of an arbitrary authentication to be presented to the Neo4j server and can contain a principal and its credentials (username and password), a token or other ways of confirming an identity.
+
+The interface itself offers the following factories:
+
+* `AuthenticationToken#bearer`
+* `AuthenticationToken#kerberos`
+* `AuthenticationToken#none`
+* `AuthenticationToken#usernameAndPassword`
+* `AuthenticationToken#custom`
+
+The typical use-case for an authentication supplier is supporting expiring tokens issued by OAuth 2.0 or OIDC providers.
+
+Custom authentication supplier can be used via the service loader mechanism and by setting configuration parameter `authentication.type` to the name
+of the supplier. Additional parameters can be specified as configuration options prefixed with `authentication.$name.`.
+
+=== Keycloak authentication supplier example
+[WARNING]
+====
+This supplier is based on the Keycloak client, which requires Java 11 or later.
+====
+
+An authentication supplier for link:https://www.keycloak.org/[Keycloak] is provided as part of the `org.neo4j.connectors:commons-authn-keycloak` library.
+
+It includes:
+
+* A factory class creating an instance of an authentication token supplier:
++
+[source, java]
+----
+include::example$java/KeycloakOIDCAuthenticationSupplierFactory.java[]
+----
+
+* A supplier that collects an access token from a Keycloak server and refreshes it on expiration:
++
+[source, java]
+----
+include::example$java/KeycloakOIDCAuthenticationSupplier.java[]
+----
+
+You can configure Spark to use keycloak authentication as follows:
+[source, scala]
+----
+val df = spark.read
+  .format("org.neo4j.spark.DataSource")
+  .option("url", s"$NEO4J_URL")
+  .option("authentication.type", "keycloak")
+  .option("authentication.keycloak.username", s"$KEYCLOAK_USERNAME")
+  .option("authentication.keycloak.password", s"$KEYCLOAK_PASSWORD")
+  .option("authentication.keycloak.authServerUrl", s"$KEYCLOAK_URL")
+  .option("authentication.keycloak.realm", s"$KEYCLOAK_REALM")
+  .option("authentication.keycloak.clientId", s"$KEYCLOAK_CLIENT_ID")
+  .option("authentication.keycloak.clientSecret", s"$KEYCLOAK_CLIENT_SECRET")
+  .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.age as age")
+  .load()
+----
+
+== Neo4j driver options
+
+Under the covers, the Spark connector uses the link:https://neo4j.com/docs/java-manual/current/get-started/#java-driver-get-started-about[official Neo4j Java Driver].  In many situations, you want the control to set driver options to account for your production deployment of Neo4j and how to communicate with it. You can do this using the `options` example above.
+
+The following table captures the most common configuration settings to use with the Neo4j driver.  For full
+documentation on all possible configuration options for Neo4j Drivers, see the link:https://neo4j.com/docs/java-manual/current[Neo4j Java Driver manual].
+
+.List of available configuration settings
+|===
+|Setting name |Description |Default value |Required
+
+4+|*Driver options*
+
+|`url`
+a|The url of the Neo4j instance to connect to.
+
+When provided with a comma-separated list of URIs, the link:https://neo4j.com/docs/java-manual/current/client-applications/#java-driver-resolver-function[resolver function] feature of the driver will be activated.
+The first URI will be used as original host while the rest are treated as resolver function outputs.
+|_(none)_
+|Yes
+
+|`authentication.type`
+a|
+The authentication methods to be used:
+
+* `none`
+* `basic`
+* `kerberos`
+* `custom`
+* `bearer` label:new[v.5.1]
+* any <<custom-auth-supplier, custom authentication supplier>> label:new[v.5.3.9]
+
+See link:https://neo4j.com/docs/java-manual/4.4/client-applications/#java-driver-authentication[Authentication] for more information.
+|`basic`
+|No
+
+|`authentication.basic.username`
+|Username to use for basic authentication type
+|_(Neo4j Driver default)_
+|No
+
+|`authentication.basic.password`
+|Username to use for basic authentication type
+|_(Neo4j Driver default)_
+|No
+
+|`authentication.kerberos.ticket`
+|Kerberos Auth Ticket
+|_(Neo4j Driver default)_
+|No
+
+|`authentication.custom.principal`
+|This is used to identify who this token represents
+|_(Neo4j Driver default)_
+|No
+
+|`authentication.custom.credentials`
+|These are the credentials authenticating the principal
+|_(Neo4j Driver default)_
+|No
+
+|`authentication.custom.realm`
+|This is the "realm" string specifying the authentication provider
+|_(Neo4j Driver default)_
+|No
+
+|`authentication.bearer.token`
+|This is the token to provide for the bearer authentication scheme
+|_(Neo4j Driver default)_
+|No
+
+|`encryption.enabled`
+|Specify if encryption should be enabled.
+This setting is ignored if you use a URI scheme with `+s` or `+ssc`
+|`false`
+|No
+
+|`encryption.trust.strategy`
+a|Set certificate trust strategy, it is ignored if the connection URI uses `+s` or `+ssc` as suffix.
+Available values are:
+
+* `TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`
+* `TRUST_CUSTOM_CA_SIGNED_CERTIFICATES`
+* `TRUST_ALL_CERTIFICATES`.
+|_(Neo4j Driver default)_
+|No
+
+|`encryption.ca.certificate.path`
+|Set certificate path for `TRUST_CUSTOM_CA_SIGNED_CERTIFICATES` trust strategy
+|_(Neo4j Driver default)_
+|No
+
+|`connection.max.lifetime.msecs`
+|Connection lifetime in milliseconds
+|_(Neo4j Driver default)_
+|No
+
+|`connection.liveness.timeout.msecs`
+|Liveness check timeout in milliseconds
+|_(Neo4j Driver default)_
+|No
+
+|`connection.acquisition.timeout.msecs`
+|Connection acquisition timeout in milliseconds
+|_(Neo4j Driver default)_
+|No
+
+|`connection.timeout.msecs`
+|Connection timeout in milliseconds
+|_(Neo4j Driver default)_
+|No
+
+|`db.transaction.timeout`
+|Transaction timeout in milliseconds
+|_(Neo4j Driver default)_
+|No
+
+4+|*Session options*
+
+|`database`
+|Database name to connect to.
+The driver allows to define the database in the URL,
+yet in case you set this option, it has the priority compared to the one defined in the URL.
+|_(Neo4j Driver default)_
+|No
+
+|`access.mode`
+a|Possible values are: 
+
+* `read`
+* `write`
+
+Used only while you're pulling data from Neo4j.
+In case of `read`, the connector in a cluster environment
+routes the requests to the followers, otherwise to the leader.
+|`read`
+|No
+|===
+
+== Multiple connections
+
+Neo4j Connector for Apache Spark allows you to use more than one connection in a single Spark Session.
+For example, you can read data from a database and write them in another database in the same session.
+
+.Reading from a database and writing to a different one
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+val df = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://first.host.com:7687")
+  .option("labels", "Person")
+  .load()
+
+df.write.format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.ErrorIfExists)
+  .option("url", "neo4j://second.host.com:7687")
+  .option("labels", "Person")
+  .save()
+----
+
+Another case to use multiple connections is when you want to merge two datasources.
+
+.Merge data from two databases
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+val dfOne = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://first.host.com:7687")
+  .option("labels", "Person")
+  .load()
+
+val dfTwo = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://second.host.com:7687")
+  .option("labels", "Person")
+  .load()
+
+val dfJoin = dfOne.join(dfTwo, dfOne("name") === dfTwo("name"))
+----

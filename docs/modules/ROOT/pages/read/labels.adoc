@@ -1,0 +1,89 @@
+= Read nodes
+
+include::partial$sparksession.adoc[]
+
+With the `labels` option, the connector reads data from the Neo4j database as a set of nodes with the given labels.
+
+The connector builds a `MATCH` Cypher query that uses `SKIP` and `LIMIT` to read a batch of rows.
+
+The code from the xref:reading.adoc#example-labels[example] reads the `:Person` nodes with their node properties into a DataFrame.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+include::example$scala/BasicLabels.scala[tags=code-read]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+include::example$python/basic_labels.py[tags=code-read]
+----
+=====
+====
+
+.Equivalent Cypher query
+[%collapsible]
+====
+[source, cypher]
+----
+MATCH (n:Person)
+RETURN 
+  id(n) AS `<id>`, 
+  labels(n) AS `<labels>`, 
+  n.surname AS surname, 
+  n.name AS name, 
+  n.age AS age
+...
+----
+
+The query may include `SKIP` and `LIMIT` clauses depending on the level of parallelism.
+====
+
+.Result
+|===
+|<id>|<labels>|surname|name|age
+
+|0|[Person]|Doe|Jane|40
+|39|[Person]|Doe|John|42
+|===
+
+You can read nodes with multiple labels using the colon as a separator.
+The colon before the first label is optional.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+include::example$scala/MultipleLabels.scala[tags=code-read]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+include::example$python/multiple_labels.py[tags=code-read]
+----
+=====
+====
+
+== DataFrame columns
+
+The resulting DataFrame contains as many columns as the number of node properties plus two additional columns:
+
+* `<id>`: internal Neo4j ID
+* `<labels>`: list of labels for each node
+
+The schema for the node property columns is inferred as explained in xref:read/schema.adoc[].

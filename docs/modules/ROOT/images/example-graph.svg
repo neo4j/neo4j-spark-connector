@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="333.59982"
+   height="89.659882"
+   viewBox="-177.67203 -30.132273 333.59982 89.659882"
+   version="1.1"
+   id="svg5"
+   sodipodi:docname="example-graph.svg"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs
+     id="defs5" />
+  <sodipodi:namedview
+     id="namedview5"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="3.9926799"
+     inkscape:cx="163.29884"
+     inkscape:cy="43.83021"
+     inkscape:window-width="1920"
+     inkscape:window-height="1027"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg5" />
+  <title
+     id="title1">Neo4j Graph Visualization</title>
+  <desc
+     id="desc1">Created using Neo4j (http://www.neo4j.com/)</desc>
+  <g
+     class="layer relationships"
+     id="g2"
+     transform="matrix(1.6882502,0,0,1.6882502,117.21806,15.673792)">
+    <g
+       class="relationship"
+       transform="rotate(0.43607028,74.433908,-19534.662)"
+       id="g1">
+      <path
+         class="b-outline"
+         fill="#a5abb6"
+         stroke="none"
+         d="m 25,0.5 h 24.191244 v -1 H 25 Z m 64.4139,0 h 24.19124 v 3 l 7,-3.5 -7,-3.5 v 3 H 89.4139 Z"
+         id="path1" />
+      <text
+         text-anchor="middle"
+         pointer-events="none"
+         font-size="8px"
+         fill="#000000"
+         x="69.302574"
+         y="3"
+         font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+         id="text1">BOUGHT</text>
+    </g>
+  </g>
+  <g
+     class="layer nodes"
+     id="g5"
+     transform="matrix(1.6882502,0,0,1.6882502,117.21806,15.673792)">
+    <g
+       class="node"
+       aria-label="graph-node-14"
+       transform="translate(-148.67203,-1.1322728)"
+       id="g3">
+      <circle
+         class="b-outline"
+         cx="0"
+         cy="0"
+         r="25"
+         fill="#a5abb6"
+         stroke="#9aa1ac"
+         stroke-width="2px"
+         id="circle2" />
+      <text
+         class="caption"
+         text-anchor="middle"
+         pointer-events="none"
+         x="0"
+         y="5"
+         font-size="10px"
+         fill="#ffffff"
+         font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+         id="text2">Customer</text>
+    </g>
+    <g
+       class="node"
+       aria-label="graph-node-15"
+       transform="translate(-3.0711008,-0.02410285)"
+       id="g4">
+      <circle
+         class="b-outline"
+         cx="0"
+         cy="0"
+         r="25"
+         fill="#a5abb6"
+         stroke="#9aa1ac"
+         stroke-width="2px"
+         id="circle3" />
+      <text
+         class="caption"
+         text-anchor="middle"
+         pointer-events="none"
+         x="0"
+         y="5"
+         font-size="10px"
+         fill="#ffffff"
+         font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+         id="text3">Product</text>
+    </g>
+  </g>
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>Neo4j Graph Visualization</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>

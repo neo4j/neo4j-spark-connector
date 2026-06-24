@@ -1,0 +1,55 @@
+= Neo4j Connector for Apache Spark
+:description: This chapter provides an introduction to the Neo4j Connector for Apache Spark.
+:page-aliases: overview.adoc
+
+The Neo4j Connector for Apache Spark provides integration between Neo4j and Apache Spark.
+
+You can use the connector to process and transfer data between Neo4j and other platforms such as xref:databricks.adoc[Databricks] and several xref:dwh.adoc[data warehouses].
+Based on the Spark DataSource API, the connector supports all the programming languages that Spark supports.
+
+== Graphs and DataFrames
+
+The connector uses _schema inference_ to convert Neo4j graphs into Spark table-based DataFrames.
+For example, consider a graph with the following schema:
+
+image::example-graph.svg["Example graph"]
+
+The connector creates a DataFrame with `:Customer` and `:Product` nodes connected by the `BOUGHT` relationship, along with any node or relationship properties.
+The xref:read/schema.adoc[] section shows a more detailed example of this process, while the xref:types.adoc[] section shows how data types are mapped between Neo4j and Spark.
+
+The connector supports writing DataFrames to Neo4j as well, and custom Cypher queries both for xref:read/query.adoc[reading] and for xref:write/query.adoc[writing] data.
+
+== Compatibility
+
+=== Neo4j compatibility
+The connector supports Neo4j 2025.x, 5.x, and 4.4, whether run as a managed service in link:{neo4j-docs-base-uri}/aura/[Neo4j Aura], as a single instance, or as a cluster.
+It supports both the Community and the Enterprise Edition.
+
+=== Spark and Scala compatibility
+
+The connector currently supports Spark versions 3.3, 3.4 and 3.5 as well as Databricks 12.2, 13.3, 14.3 with Scala 2.12 and Scala 2.13.
+
+== Training
+
+An introduction to the connector by Andrea Santurbano is available on YouTube.
+
+++++
+<iframe width="560" height="315" src="https://www.youtube.com/embed/581Zd-Yihew?start=58" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+++++
+
+
+== License
+
+The link:https://github.com/neo4j/neo4j-spark-connector/[source code] is provided under the terms of the Apache 2.0 license.
+You are free to download, modify, and redistribute the connector; however, Neo4j support applies only to official builds provided by Neo4j.
+
+== Support
+
+For Neo4j Enterprise and Neo4j AuraDB customers, official releases of this connector are supported under the terms of your existing Neo4j support agreement.  This support extends only to regular releases and excludes
+alpha, beta, and pre-releases.  If you have any questions about the support policy, get in touch with
+Neo4j.
+
+// Make this depending on the backend if PDF needs to be generated
+(C) {copyright}
+
+License: link:{common-license-page-uri}[Creative Commons 4.0]
