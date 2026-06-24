@@ -1,0 +1,132 @@
+= Snowflake
+
+:description: This chapter shows how to exchange data between Neo4j and Snowflake using Apache Spark
+
+Snowflake is a fully managed SaaS (software as a service) that provides a single platform for data warehousing, data lakes, data engineering, data science, data application development, and secure sharing and consumption of real-time / shared data.
+Snowflake has out-of-the-box features like separation of storage and compute, on-the-fly scalable compute, data sharing, data cloning, and third-party tools support to handle the demanding needs of growing enterprises.
+
+== Prerequisites
+
+You need Snowflake instance up-and-running. If you don't have one,
+you can create it from link:https://signup.snowflake.com/[here, window=_blank].
+
+=== Dependencies
+
+Required dependencies are:
+
+* `net.snowflake:spark-snowflake_<scala_version>:<version>`
+* `net.snowflake:snowflake-jdbc:<version>`
+
+== From Snowflake to Neo4j
+
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+[source,scala]
+----
+// Step (1)
+// Load a table into a Spark DataFrame
+val snowflakeDF: DataFrame = spark.read
+  .format("snowflake")
+  .option("sfURL", "<account_identifier>.snowflakecomputing.com")
+  .option("sfUser", "<user_name>")
+  .option("sfPassword", "<password>")
+  .option("sfDatabase", "<database>")
+  .option("sfSchema", "<schema>")
+  .option("dbtable", "CUSTOMER")
+  .load()
+
+// Step (2)
+// Save the `snowflakeDF` as nodes with labels `Person` and `Customer` into Neo4j
+snowflakeDF.write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.ErrorIfExists)
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .save()
+----
+=====
+[.include-with-python]
+=====
+[source,python]
+----
+# Step (1)
+# Load a table into a Spark DataFrame
+snowflakeDF = (spark.read
+  .format("snowflake")
+  .option("sfURL", "<account_identifier>.snowflakecomputing.com")
+  .option("sfUser", "<user_name>")
+  .option("sfPassword", "<password>")
+  .option("sfDatabase", "<database>")
+  .option("sfSchema", "<schema>")
+  .option("dbtable", "CUSTOMER")
+  .load())
+
+# Step (2)
+# Save the `snowflakeDF` as nodes with labels `Person` and `Customer` into Neo4j
+(snowflakeDF.write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.ErrorIfExists)
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .save())
+----
+=====
+====
+
+== From Neo4j to Snowflake
+
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+[source,scala]
+----
+// Step (1)
+// Load `:Person:Customer` nodes as DataFrame
+val neo4jDF: DataFrame = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .load()
+
+// Step (2)
+// Save the `neo4jDF` as table CUSTOMER into Snowflake
+neo4jDF.write
+  .format("snowflake")
+  .mode("overwrite")
+  .option("sfURL", "<account_identifier>.snowflakecomputing.com")
+  .option("sfUser", "<user_name>")
+  .option("sfPassword", "<password>")
+  .option("sfDatabase", "<database>")
+  .option("sfSchema", "<schema>")
+  .option("dbtable", "CUSTOMER")
+  .save()
+----
+=====
+[.include-with-python]
+=====
+[source,python]
+----
+# Step (1)
+# Load `:Person:Customer` nodes as DataFrame
+neo4jDF = (spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .load())
+
+# Step (2)
+# Save the `neo4jDF` as table CUSTOMER into Snowflake
+(neo4jDF.write
+  .format("snowflake")
+  .mode("overwrite")
+  .option("sfURL", "<account_identifier>.snowflakecomputing.com")
+  .option("sfUser", "<user_name>")
+  .option("sfPassword", "<password>")
+  .option("sfDatabase", "<database>")
+  .option("sfSchema", "<schema>")
+  .option("dbtable", "CUSTOMER")
+  .save())
+----
+=====
+====

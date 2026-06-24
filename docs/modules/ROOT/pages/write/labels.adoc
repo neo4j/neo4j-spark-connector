@@ -1,0 +1,108 @@
+= Write nodes
+
+include::partial$sparksession.adoc[]
+
+With the `labels` option, the connector writes a DataFrame to the Neo4j database as a set of nodes with the given labels.
+
+The connector builds a `CREATE` or a `MERGE` Cypher query (depending on the xref:writing.adoc#save-mode[save mode]) that uses the `UNWIND` clause to write a batch of rows (an `events` list with size defined by the `batch.size` option).
+
+The code from the xref:writing.adoc#example-labels[example] creates new nodes with the `:Person` label.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+include::example$scala/BasicLabels.scala[tags=code-write]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+include::example$python/basic_labels.py[tags=code-write]
+----
+=====
+====
+
+.Equivalent Cypher query
+[%collapsible]
+====
+[source, cypher]
+----
+UNWIND $events AS event
+CREATE (n:Person)
+SET n += event.properties
+----
+====
+
+You can write nodes with multiple labels using the colon as a separator.
+The colon before the first label is optional.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+include::example$scala/MultipleLabels.scala[tags=code-write]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+include::example$python/multiple_labels.py[tags=code-write]
+----
+=====
+====
+
+== Node keys
+
+With the `Overwrite` mode, you must specify the DataFrame columns to use as keys to match the nodes.
+The `node.keys` option takes a comma-separated list of `key:value` pairs, where the key is the DataFrame column name and the value is the node property name.
+
+[NOTE]
+====
+If `key` and `value` are the same, you can omit the `value`.
+For example, `"name:name,surname:surname"` is equivalent to `"name,surname"`.
+====
+
+The same code using the `Overwrite` save mode:
+
+.Overwrite example
+[source, scala]
+----
+df.write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.Overwrite)
+  .option("labels", ":Person")
+  .option("node.keys", "name,surname")
+  .save()
+----
+
+.Equivalent Cypher query
+[%collapsible]
+====
+[source, cypher]
+----
+UNWIND $events AS event
+MERGE (n:Person {
+  name: event.keys.name, 
+  surname: event.keys.surname
+})
+SET n += event.properties
+----
+====
+
+[IMPORTANT]
+====
+Due to the concurrency of Spark jobs, when using the `Overwrite` mode you should use the xref:write/schema-optimization.adoc#node-constraints-unique[property uniqueness constraint] to guarantee node uniqueness.
+====

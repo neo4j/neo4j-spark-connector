@@ -1,0 +1,5 @@
+[CAUTION]
+====
+This page includes instructions on the usage of a third-party platform, which may be subject to changes beyond our control.
+In case of doubt, refer to the third-party platform documentation.
+====

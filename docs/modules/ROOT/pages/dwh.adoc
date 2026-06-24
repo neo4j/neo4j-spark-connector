@@ -1,0 +1,7 @@
+= Data warehouses
+
+You can use the Spark connector to efficiently move data between Neo4j and other data sources.
+
+The connector supports the following data warehouses:
+
+include::partial$dwh-list.adoc[]

@@ -1,0 +1,5 @@
+[NOTE]
+====
+All the examples in this page assume that the `SparkSession` has been initialized with the appropriate authentication options.
+See the xref:quickstart.adoc#shell[Quickstart examples] for more details.
+====

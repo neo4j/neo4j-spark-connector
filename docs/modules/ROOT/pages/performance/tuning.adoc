@@ -1,0 +1,123 @@
+= Parameter tuning
+
+To get the best possible performance reading from (and particularly writing to) Neo4j, make sure you've gone
+through this checklist:
+
+. <<batch-size>>
+. <<neo4j-memory>>
+. <<parallelism>>
+. <<sampling>>
+
+[#batch-size]
+== Tune the batch size
+
+Writing data to Neo4j happens transactionally in batches; if you want to write 1 million nodes, you might break
+that into 40 batches of 25,000.  The batch size of the connector is controlled by the `batch.size` option and
+is set to a fairly low, conservative level. _This is likely too low for many applications and can be improved
+with better knowledge of your data_.
+
+Batch size trade-off is as follows:
+
+* The bigger the batch size, the better the overall ingest performance, because it means fewer transactions,
+and less overall transactional overhead.
+* When batch sizes become too large, so that Neo4j's heap memory cannot accommodate them, it can cause out of
+memory errors on the server and cause failures.
+
+[NOTE]
+**Best write throughput comes when you use the largest batch size you can, while staying in the range of memory
+available on the server.**
+
+It's impossible to pick a single batch size that works for everyone, because how much memory your transactions
+take up depends on the number of properties & relationships, and other factors.  A good general aggressive value
+to try is around 20,000 - but you can increase this number if your data is small, or if you have a lot of memory
+on the server.  Lower the number if it's a small database server, or the data your pushing has many large
+properties.
+
+[#neo4j-memory]
+== Tune the Neo4j memory configuration.
+
+In the link:https://neo4j.com/docs/operations-manual/current/performance/memory-configuration/[Neo4j Operations Manual], important
+advice is given on how to size the heap and page cache of the server.  What's important for Spark is this:
+
+* Heap affects how big transactions can get.  The bigger the heap, the larger the batch size you can use.
+* Page cache affects how much of your database stays resident in RAM at any given time. Page caches which
+are much smaller than your database cause performance to suffer.
+
+[#parallelism]
+== Tune the parallelism
+
+Spark is fundamentally about partitioning and parallelism; the go-to technique is to split a batch of
+data into partitions for each machine to work on in parallel.   
+In Neo4j, parallelism works very differently, which we will describe in this chapter.
+
+=== Write parallelism in Neo4j
+
+[NOTE]
+**For most writes to Neo4j, it is strongly recommended to repartition your DataFrame to one partition only.**
+
+When writing nodes and relationships in Neo4j:
+
+* writing a relationship locks both nodes.
+* writing a node locks the node.
+
+Additionally, in the Neo4j Causal Cluster model, only the cluster leader may write data. Since writes scale vertically in Neo4j, the practical parallelism is limited to the number of cores on the leader.
+
+The reason a single partition for writes is recommended is that it eliminates lock contention between writes. Suppose
+one partition is writing:
+
+```
+(:Person { name: "Michael" })-[:KNOWS]->(:Person { name: "Andrea" })
+```
+
+While another partition is writing:
+
+```
+(:Person { name: "Andrea" })-[:KNOWS]->(:Person { name: "Davide" })
+```
+
+The relationship write locks the "Andrea" node - and these writes cannot continue in parallel in any case. As
+a result, you may not gain performance by parallelizing more, if threads have to wait for each other's locks. In
+extreme cases with too much parallelism, Neo4j may reject the writes with lock contention errors.
+
+=== Dataset partitioning
+
+[NOTE]
+**You can use as many partitions as there are cores in the Neo4j server, if you have properly partitioned your data to avoid Neo4j locks.**
+
+There is an exception to the "one partition" rule above: if your data writes are partitioned ahead of time to avoid locks, you
+can generally do as many write threads to Neo4j as there are cores in the server. Suppose we want to write a long list of `:Person` nodes, and we know they are distinct by the person `id`. We might stream those into Neo4j in four different partitions, as there will not be any lock contention.
+
+[#sampling]
+== Tune the schema sampling
+
+Since the sampling process can be expensive and impact the performance of a data extraction job, it is crucial to tune the sampling parameters properly.
+
+[#sampling-apoc]
+=== APOC sampling
+
+If APOC is installed, the schema inference uses the link:{neo4j-docs-base-uri}/apoc/current/overview/apoc.meta/apoc.meta.nodeTypeProperties/[`apoc.meta.nodeTypeProperties`^] and the link:{neo4j-docs-base-uri}/apoc/current/overview/apoc.meta/apoc.meta.relTypeProperties/[`apoc.meta.relTypeProperties`^] procedures.
+
+You can tune the `sample` parameter for both using the `apoc.meta.nodeTypeProperties` and `apoc.meta.relTypeProperties` options.
+For example:
+
+[source, scala]
+----
+df.read
+  .format(classOf[DataSource].getName)
+  .option("labels", ":Product")
+  .option("apoc.meta.nodeTypeProperties", """{"sample": 10}""")
+  .load()
+----
+
+The option supports all the configuration parameters except:
+
+* `includeLabels` for `apoc.meta.nodeTypeProperties`, because the labels are defined by
+the `labels` option.
+* `includeRels` for `apoc.meta.relTypeProperties`, because the relationship is defined by
+the `relationship` option.
+
+=== Automatic sampling
+
+When APOC is not installed or when the `query` option is used, the connector infers the schema from a number of records.
+
+You can tune the `schema.flatten.limit` option to increase or decrease this number.

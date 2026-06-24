@@ -1,0 +1,211 @@
+= Read relationships
+
+include::partial$sparksession.adoc[]
+
+You can read a relationship and its source and target nodes by specifying the relationship type, the source node labels, and the target node labels.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+include::example$scala/BasicRelationship.scala[tags=code-read]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+include::example$python/basic_relationship.py[tags=code-read]
+----
+=====
+====
+
+.Equivalent Cypher query
+[%collapsible]
+====
+[source, cypher]
+----
+MATCH (source:Customer)
+MATCH (target:Product)
+MATCH (source)-[rel:BOUGHT]->(target)
+RETURN ...
+----
+
+The exact `RETURN` clause depends on the value of the `relationship.nodes.map` option.
+====
+
+[[rel-schema-columns]]
+== DataFrame columns
+
+When reading data with this method, the DataFrame contains the following columns:
+
+* `<rel.id>`: internal Neo4j ID
+* `<rel.type>`: relationship type
+* `rel.[property name]`: relationship properties
+
+Additional columns are added depending on the value of the `relationship.nodes.map` option:
+
+|===
+|`relationship.nodes.map` set to `false` (default)|`relationship.nodes.map` set to `true`
+
+a|
+* `<source.id>`: internal Neo4j ID of source node
+* `<source.labels>`: list of labels for source node
+* `<target.id>`: internal Neo4j ID of target node
+* `<target.labels>`: list of labels for target node
+* `source.[property name]`: source node properties
+* `target.[property name]`: target node properties
+
+a|
+* `source`: map of source node properties
+* `target`: map of target node properties
+|===
+
+[[rel-schema-no-map]]
+.`relationship.nodes.map` set to `false`
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse, indent=0]
+----
+include::example$scala/ReadRelationship.scala[tags=code-nodes-map-false]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse, indent=0]
+----
+include::example$python/read_relationship.py[tags=code-nodes-map-false]
+----
+=====
+====
+
+.Result
+|===
+|<rel.id>|<rel.type>|<source.id>|<source.labels>|source.surname|source.name|source.id|<target.id>|<target.labels>|target.name|rel.order|rel.quantity
+
+|3189|BOUGHT|1100|[Customer]|Doe|John|1|1040|[Product]|Product 1|ABC100|200
+|3190|BOUGHT|1099|[Customer]|Doe|Jane|2|1039|[Product]|Product 2|ABC200|100
+|===
+
+.`relationship.nodes.map` set to `true`
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse, indent=0]
+----
+include::example$scala/ReadRelationship.scala[tags=code-nodes-map-true]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse, indent=0]
+----
+include::example$python/read_relationship.py[tags=code-nodes-map-true]
+----
+=====
+====
+
+.Result
+[cols="2,2,3l,3l,2,2"]
+|===
+|<rel.id>|<rel.type>|<source>|<target>|rel.order|rel.quantity
+
+|3189|BOUGHT|{surname: "Doe", name: "John", id: 1, <labels>: ["Customer"], <id>: 1100}|{name: "Product 1", <labels>: ["Product"], <id>: 1040}|ABC100|200
+|3190|BOUGHT|{surname: "Doe", name: "Jane", id: 2, <labels>: ["Customer"], <id>: 1099}|{name: "Product 2", <labels>: ["Product"], <id>: 1039}|ABC200|100
+|===
+
+The schema for the node and relationship property columns is inferred as explained in xref:read/schema.adoc[].
+
+== Filtering
+
+You can use the `where` and `filter` functions in Spark to filter properties of the relationship, the source node, or the target node.
+The correct format of the filter depends on the value of `relationship.nodes.map` option.
+
+|===
+|`relationship.nodes.map` set to `false` (default)|`relationship.nodes.map` set to `true`
+
+a|
+* ``\`source.[property]` `` for the source node properties
+* ``\`rel.[property]` `` for the relationship property
+* ``\`target.[property]` `` for the target node property
+
+a|
+* ``\`<source>`.\`[property]` `` for the source node map properties
+* ``\`<rel>`.\`[property]` `` for the relationship map property
+* ``\`<target>`.\`[property]` `` for the target node map property
+|===
+
+Examples:
+
+.`relationship.nodes.map` set to `false`
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse, indent=0]
+----
+include::example$scala/ReadRelationship.scala[tags=code-nodes-map-false-filter]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse, indent=0]
+----
+include::example$python/read_relationship.py[tags=code-nodes-map-false-filter]
+----
+=====
+====
+
+.Result
+|===
+|<rel.id>|<rel.type>|<source.id>|<source.labels>|source.surname|source.name|source.id|<target.id>|<target.labels>|target.name|rel.order|rel.quantity
+
+|3190|BOUGHT|1099|[Customer]|Doe|Jane|2|1039|[Product]|Product 2|ABC200|100
+|===
+
+.`relationship.nodes.map` set to `true`
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse, indent=0]
+----
+include::example$scala/ReadRelationship.scala[tags=code-nodes-map-true-filter]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse, indent=0]
+----
+include::example$python/read_relationship.py[tags=code-nodes-map-true-filter]
+----
+=====
+====
+
+.Result
+[cols="2,2,3l,3l,2,2"]
+|===
+|<rel.id>|<rel.type>|<source>|<target>|rel.order|rel.quantity
+
+|3190|BOUGHT|{surname: "Doe", name: "Jane", id: 2, <labels>: ["Customer"], <id>: 1099}|{name: "Product 2", <labels>: ["Product"], <id>: 1039}|ABC200|100
+|===

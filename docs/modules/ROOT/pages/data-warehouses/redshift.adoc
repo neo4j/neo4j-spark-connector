@@ -1,0 +1,235 @@
+= Amazon Redshift
+
+:description: This chapter shows how to exchange data between Neo4j and Redshift using Apache Spark
+
+Amazon Redshift uses SQL to analyze structured and semi-structured  data across data warehouses, operational databases, and data lakes, using AWS-designed hardware and machine learning to deliver the best price performance at any scale.
+
+== Prerequisites
+
+You need an Amazon Redshift instance up-and-running. If you don't have one
+you can create it from link:https://aws.amazon.com/it/redshift[here, window=_blank].
+
+=== Dependencies
+
+If you're in the Databricks Runtime environment you don't need to add any external dependency, otherwise you may need:
+
+* `com.amazon.redshift:redshift-jdbc42:<version>`
+* `org.apache.spark:spark-avro_<scala_version>:<version>`
+* `io.github.spark-redshift-community:spark-redshift_<scala_version>:<version>`
+* `com.amazonaws:aws-java-sdk:<version>`
+
+== From Redshift to Neo4j
+
+=== In Databricks Runtime
+
+A good starting point in this case is this link:https://docs.databricks.com/data/data-sources/aws/amazon-redshift.html#parameters[Databricks Guide, window=_blank].
+
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+[source,scala]
+----
+// Step (1)
+// Load a table into a Spark DataFrame
+val redshiftDF: DataFrame = spark.read
+  .format("com.databricks.spark.redshift")
+  .option("url", "jdbc:redshift://<the-rest-of-the-connection-string>")
+  .option("dbtable", "CUSTOMER")
+  .option("tempdir", "s3a://<your-bucket>/<your-directory-path>")
+  .load()
+
+// Step (2)
+// Save the `redshiftDF` as nodes with labels `Person` and `Customer` into Neo4j
+redshiftDF.write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.ErrorIfExists)
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .save()
+----
+=====
+[.include-with-python]
+=====
+[source,python]
+----
+# Step (1)
+# Load a table into a Spark DataFrame
+redshiftDF = (spark.read
+  .format("com.databricks.spark.redshift")
+  .option("url", "jdbc:redshift://<the-rest-of-the-connection-string>")
+  .option("dbtable", "CUSTOMER")
+  .option("tempdir", "s3a://<your-bucket>/<your-directory-path>")
+  .load())
+
+# Step (2)
+# Save the `redshiftDF` as nodes with labels `Person` and `Customer` into Neo4j
+(redshiftDF.write
+  .format("org.neo4j.spark.DataSource")
+  .mode("ErrorIfExists")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .save())
+----
+=====
+====
+
+=== In any other Spark Runtime with Redshift community dependencies
+
+A good starting point in this case is this link:https://github.com/spark-redshift-community/spark-redshift#parameters[Redshift Community repository, window=_blank]
+
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+[source,scala]
+----
+// Step (1)
+// Load a table into a Spark DataFrame
+val redshiftDF: DataFrame = spark.read
+  .format("io.github.spark_redshift_community.spark.redshift")
+  .option("url", "jdbc:redshift://<the-rest-of-the-connection-string>")
+  .option("dbtable", "CUSTOMER")
+  .option("tempdir", "s3a://<your-bucket>/<your-directory-path>")
+  .load()
+
+// Step (2)
+// Save the `redshiftDF` as nodes with labels `Person` and `Customer` into Neo4j
+redshiftDF.write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.ErrorIfExists)
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .save()
+----
+=====
+[.include-with-python]
+=====
+[source,python]
+----
+# Step (1)
+# Load a table into a Spark DataFrame
+redshiftDF = (spark.read
+  .format("io.github.spark_redshift_community.spark.redshift")
+  .option("url", "jdbc:redshift://<the-rest-of-the-connection-string>")
+  .option("dbtable", "CUSTOMER")
+  .option("tempdir", "s3a://<your-bucket>/<your-directory-path>")
+  .load())
+
+# Step (2)
+# Save the `redshiftDF` as nodes with labels `Person` and `Customer` into Neo4j
+(redshiftDF.write
+  .format("org.neo4j.spark.DataSource")
+  .mode("ErrorIfExists")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .save())
+----
+=====
+====
+
+== From Neo4j to Redshift
+
+=== In Databricks Runtime
+
+A good starting point in this case is this link:https://docs.databricks.com/data/data-sources/aws/amazon-redshift.html#parameters[Databricks Guide, window=_blank].
+
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+[source,scala]
+----
+// Step (1)
+// Load `:Person:Customer` nodes as DataFrame
+val neo4jDF: DataFrame = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .load()
+
+// Step (2)
+// Save the `neo4jDF` as table CUSTOMER into Redshift
+neo4jDF.write
+  .format("com.databricks.spark.redshift")
+  .option("url", "jdbc:redshift://<the-rest-of-the-connection-string>")
+  .option("dbtable", "CUSTOMER")
+  .option("tempdir", "s3a://<your-bucket>/<your-directory-path>")
+  .mode("error")
+  .save()
+----
+=====
+[.include-with-python]
+=====
+[source,python]
+----
+# Step (1)
+# Load `:Person:Customer` nodes as DataFrame
+neo4jDF = (spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .load())
+
+# Step (2)
+# Save the `neo4jDF` as table CUSTOMER into Redshift
+(neo4jDF.write
+  .format("com.databricks.spark.redshift")
+  .option("url", "jdbc:redshift://<the-rest-of-the-connection-string>")
+  .option("dbtable", "CUSTOMER")
+  .option("tempdir", "s3a://<your-bucket>/<your-directory-path>")
+  .mode("error")
+  .save())
+----
+=====
+====
+
+=== In any other Spark Runtime with Redshift community dependencies
+
+A good starting point in this case is this link:https://github.com/spark-redshift-community/spark-redshift#parameters[RediShift Community repository].
+
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+[source,scala]
+----
+// Step (1)
+// Load `:Person:Customer` nodes as DataFrame
+val neo4jDF: DataFrame = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .load()
+
+// Step (2)
+// Save the `neo4jDF` as table CUSTOMER into Redshift
+neo4jDF.write
+  .format("io.github.spark_redshift_community.spark.redshift")
+  .option("url", "jdbc:redshift://<the-rest-of-the-connection-string>")
+  .option("dbtable", "CUSTOMER")
+  .option("tempdir", "s3a://<your-bucket>/<your-directory-path>")
+  .mode("error")
+  .save()
+----
+=====
+[.include-with-python]
+=====
+[source,python]
+----
+# Step (1)
+# Load `:Person:Customer` nodes as DataFrame
+neo4jDF = (spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .load())
+
+# Step (2)
+# Save the `neo4jDF` as table CUSTOMER into Redshift
+(neo4jDF.write
+  .format("io.github.spark_redshift_community.spark.redshift")
+  .option("url", "jdbc:redshift://<the-rest-of-the-connection-string>")
+  .option("dbtable", "CUSTOMER")
+  .option("tempdir", "s3a://<your-bucket>/<your-directory-path>")
+  .mode("error")
+  .save())
+----
+=====
+====

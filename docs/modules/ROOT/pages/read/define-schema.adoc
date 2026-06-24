@@ -1,0 +1,63 @@
+= Define a schema
+
+There are two alternatives to using schema inference:
+
+* <<string-strategy>>.
+* <<custom-schema>>.
+
+[#string-strategy]
+== Use the `string` strategy
+
+When you set the `schema.strategy` option to `string`, every DataFrame column is assigned the `String` type.
+
+.`string` strategy example
+[source, scala]
+----
+val df = spark.read
+  .format("org.neo4j.spark.DataSource")
+  .option("schema.strategy", "string")
+  .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.age as age")
+  .load()
+----
+
+This strategy is useful when property types may differ, for example when a property accepts both number and string values.
+
+[#custom-schema]
+== Define a custom schema
+
+If you need more control, you can provide your own schema using the `.schema()` method.
+
+.Custom schema example
+[source, scala]
+----
+import org.apache.spark.sql.types.{DataTypes, StructType, StructField}
+
+val userSchema = StructType(
+  Array(
+    StructField("id", DataTypes.StringType), 
+    StructField("age", DataTypes.StringType)
+  )
+)
+
+spark.read.format("org.neo4j.spark.DataSource")
+  .schema(userSchema)
+  .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.age as age")
+  .load()
+----
+
+The user-defined schema only works if all the values of a property can be converted to the desired type.
+
+If you need to convert only _some_ of the values, use the <<string-strategy, `string` strategy>> and some custom Scala or Python code.
+
+.Type conversion example
+[source, scala]
+----
+import scala.jdk.CollectionConverters._
+
+val result = df.collectAsList()
+
+for (row <- result.asScala) {
+  // if <some specific condition> then convert like below
+  println(s"""Age is: ${row.getString(0).toLong}""")
+}
+----

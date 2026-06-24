@@ -1,0 +1,37 @@
+* xref:index.adoc[]
+
+* *Getting started*
+* xref:installation.adoc[]
+* xref:quickstart.adoc[]
+* xref:databricks.adoc[]
+* xref:dwh.adoc[Data warehouses support]
++
+--
+include::partial$dwh-list.adoc[]
+--
+
+* *Operations*
+* xref:reading.adoc[]
+** xref:read/labels.adoc[]
+** xref:read/relationship.adoc[]
+** xref:read/query.adoc[]
+** xref:read/schema.adoc[]
+** xref:read/define-schema.adoc[]
+** xref:read/options.adoc[]
+* xref:writing.adoc[]
+** xref:write/labels.adoc[]
+** xref:write/relationship.adoc[]
+** xref:write/query.adoc[]
+** xref:write/schema-optimization.adoc[]
+** xref:write/options.adoc[]
+* xref:architecture.adoc[]
+** xref:performance/modeling.adoc[]
+** xref:performance/tuning.adoc[]
+** xref:performance/spark.adoc[]
+* xref:gds.adoc[]
+* xref:streaming.adoc[]
+
+* *Reference*
+* xref:types.adoc[]
+* xref:configuration.adoc[]
+* xref:faq.adoc[]
