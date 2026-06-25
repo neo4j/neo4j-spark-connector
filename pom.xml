@@ -70,7 +70,8 @@
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
         <spark.version>4.1.2</spark.version>
         <spotless-maven-plugin.version>3.7.0</spotless-maven-plugin.version>
-        <test.jvm.args>-XX:+IgnoreUnrecognizedVMOptions
+        <test.jvm.args>
+            -XX:+IgnoreUnrecognizedVMOptions
             --add-opens=java.base/java.lang=ALL-UNNAMED
             --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
             --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
@@ -85,7 +86,14 @@
             --add-opens=java.base/sun.security.action=ALL-UNNAMED
             --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
             --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED
-            -Djdk.reflect.useDirectMethodHandle=false</test.jvm.args>
+            -Djdk.reflect.useDirectMethodHandle=false
+            <!-- Avoid Netty 4.2 native transport which causes hangs in local tests. -->
+            -Dio.netty.transport.noNative=true
+            <!-- Manually register Mockito as an agent (dynamic agent loading is [going to be] prohibited -->
+            -javaagent:${org.mockito:mockito-core:jar}
+            <!-- Disable CDS because Mockito's Java agent appends to the bootstrap classpath. -->
+            -Xshare:off
+        </test.jvm.args>
         <testcontainers.version>2.0.5</testcontainers.version>
     </properties>
     <dependencyManagement>
@@ -440,8 +448,7 @@
                         </includes>
                         <forkCount>1</forkCount>
                         <reuseForks>false</reuseForks>
-                        <!-- Avoid Netty 4.2 native transport which causes hangs in local tests. -->
-                        <argLine>${test.jvm.args} -Dio.netty.transport.noNative=true</argLine>
+                        <argLine>${test.jvm.args}</argLine>
                         <useModulePath>false</useModulePath>
                     </configuration>
                     <executions>
@@ -500,8 +507,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                     <configuration>
-                        <!-- Avoid Netty 4.2 native transport which causes hangs in local tests. -->
-                        <argLine>${test.jvm.args} -Dio.netty.transport.noNative=true</argLine>
+                        <argLine>${test.jvm.args}</argLine>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -661,6 +667,17 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
