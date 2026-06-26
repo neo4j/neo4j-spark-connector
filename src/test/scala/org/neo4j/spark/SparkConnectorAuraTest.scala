@@ -48,7 +48,10 @@ object SparkConnectorAuraTest {
         .set("spark.driver.host", "127.0.0.1"))
       .getOrCreate()
 
-    neo4j = GraphDatabase.driver(url.get, AuthTokens.basic(username.get, password.get))
+    neo4j = GraphDatabase.driver(
+      url.get,
+      AuthTokens.basic(username.get, password.get)
+    )
   }
 
   @AfterAll
