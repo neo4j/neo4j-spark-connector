@@ -38,7 +38,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.TimeUnit
 
-import scala.annotation.nowarn
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.jdk.CollectionConverters.MapHasAsScala
@@ -511,11 +510,9 @@ case class Neo4jDriverOptions(
     }
   }
 
-  @nowarn("cat=deprecation")
   private def toDriverConfig: Config = {
     val builder = Config.builder()
       .withUserAgent(s"neo4j-${Neo4jUtil.connectorEnv}-connector/${Neo4jUtil.connectorVersion}")
-      .withLogging(Logging.slf4j())
       .withMinimumNotificationSeverity(minNotificationSeverity)
 
     if (lifetime > -1) builder.withMaxConnectionLifetime(lifetime, TimeUnit.MILLISECONDS)
