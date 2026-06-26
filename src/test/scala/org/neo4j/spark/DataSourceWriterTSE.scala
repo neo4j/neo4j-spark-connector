@@ -190,7 +190,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       ss.read.format(classOf[DataSource].getName)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
         .load()
-        .show() // we need the action to be able to trigger the exception because of the changes in Spark 3
     } catch {
       case e: IllegalArgumentException =>
         assertEquals("No valid option found. One of `GDS`, `LABELS`, `QUERY`, `RELATIONSHIP` is required", e.getMessage)
@@ -1275,7 +1274,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       options + ("relationship.properties" -> "experience, rating:avgRating, instrument")
     })
 
-    resultDf.show(false)
     assertEquals(4, resultDf.count())
 
     val res = resultDf.orderBy("`source.name`").collectAsList()
@@ -1369,7 +1367,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       options + ("relationship.properties" -> "")
     })
 
-    resultDf.show(false)
     assertEquals(4, resultDf.count())
 
     val res = resultDf.orderBy("`source.name`").collectAsList()
@@ -1491,7 +1488,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def `should write relations with KEYS mode with default properties`(): Unit = {
     val resultDf = writeKeyModeRelationshipWriteDataSet()
 
-    resultDf.show(false)
     assertEquals(4, resultDf.count())
 
     val res = resultDf.orderBy("`source.name`").collectAsList()

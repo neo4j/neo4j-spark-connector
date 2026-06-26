@@ -139,7 +139,7 @@ class GraphDataScienceIT {
         spark.read.format(classOf[DataSource].getName)
           .options(testCase.options)
           .load()
-          .show(false)
+          .count()
       })
       .withMessage(testCase.error)
   }
@@ -253,7 +253,7 @@ class GraphDataScienceIT {
       .option("gds.nodeProjection.Person.properties", "['age','lotteryNumbers','embedding']")
       .option("gds.relationshipProjection", "*")
       .load()
-      .show(false)
+      .count()
 
     val df = spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.knn.stream")
@@ -435,7 +435,7 @@ class GraphDataScienceIT {
       .option("gds.relationshipProjection", "LINKS")
       .option("gds.configuration.relationshipProperties", "weight")
       .load()
-      .show(false)
+      .count()
   }
 
   private def initForHits(): Unit = {
@@ -478,7 +478,7 @@ class GraphDataScienceIT {
       .option("gds.nodeProjection", "Website")
       .option("gds.relationshipProjection.LINK.indexInverse", "true")
       .load()
-      .show(false)
+      .count()
   }
 
   private def initForYens(): Unit = {
@@ -508,7 +508,7 @@ class GraphDataScienceIT {
       .option("gds.relationshipProjection", "ROAD")
       .option("gds.configuration.relationshipProperties", "cost")
       .load()
-      .show(false)
+      .count()
   }
 }
 
