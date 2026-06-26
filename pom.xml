@@ -554,7 +554,6 @@
                             <descriptorRef>jar-with-dependencies</descriptorRef>
                         </descriptorRefs>
                         <finalName>${project.build.finalName}</finalName>
-                        <appendAssemblyId>false</appendAssemblyId>
                     </configuration>
                     <executions>
                         <execution>
@@ -562,6 +561,24 @@
                                 <goal>single</goal>
                             </goals>
                             <phase>package</phase>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>com.coderplus.maven.plugins</groupId>
+                    <artifactId>copy-rename-maven-plugin</artifactId>
+                    <version>1.0</version>
+                    <executions>
+                        <execution>
+                            <id>copy-file</id>
+                            <goals>
+                                <goal>rename</goal>
+                            </goals>
+                            <phase>package</phase>
+                            <configuration>
+                                <sourceFile>${project.build.directory}/${project.build.finalName}-jar-with-dependencies.jar</sourceFile>
+                                <destinationFile>${project.build.directory}/${project.build.finalName}.jar</destinationFile>
+                            </configuration>
                         </execution>
                     </executions>
                 </plugin>
@@ -651,6 +668,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.coderplus.maven.plugins</groupId>
+                <artifactId>copy-rename-maven-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
