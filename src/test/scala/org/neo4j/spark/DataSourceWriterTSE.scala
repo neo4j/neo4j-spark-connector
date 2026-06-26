@@ -29,7 +29,6 @@ import org.apache.spark.sql.types.DayTimeIntervalType
 import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.sql.types.YearMonthIntervalType
 import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.function.Executable
 import org.junit.jupiter.params.ParameterizedTest
@@ -1000,7 +999,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  @Disabled("This won't work right now because we can't know if we are in a Write or Read context")
   def `should throw an exception for a read only query`(): Unit = {
     val ds = (1 to 100).map(i => Person("Andrea " + i, "Santurbano " + i, 36, null)).toDS()
 
@@ -1014,7 +1012,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
     } catch {
       case illegalArgumentException: IllegalArgumentException =>
-        assertTrue(illegalArgumentException.getMessage.equals("Please provide a valid WRITE query"))
+        assertTrue(illegalArgumentException.getMessage.equals(
+          "Invalid query `MATCH (r:Read) RETURN r` because the accepted types are [WRITE_ONLY, READ_WRITE], but the actual type is READ_ONLY"
+        ))
       case t: Throwable => fail(
           s"should be thrown a ${classOf[IllegalArgumentException].getName}, but it's ${t.getClass.getSimpleName}: ${t.getMessage}"
         )
@@ -1230,40 +1230,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     // TODO: When re-writing in assertj just use a should throw assertable
     assertTrue(didThrow, s"should throw ${classOf[IllegalArgumentException].getName}, but nothing was thrown")
-  }
-
-  @Test
-  @Disabled("trying to recreate the deadlock issue")
-  def `should give better errors if transaction fails`(): Unit = {
-    val df = List.fill(200)(("John Bonham", "Drums")).toDF("name", "instrument")
-
-    df.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Overwrite)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("relationship", "PLAYS")
-      .option("relationship.source.save.mode", "Overwrite")
-      .option("relationship.target.save.mode", "Overwrite")
-      .option("relationship.source.labels", ":Musician")
-      .option("relationship.source.node.keys", "name:name")
-      .option("relationship.target.labels", ":Instrument")
-      .option("relationship.target.node.keys", "instrument:name")
-      .save()
-
-    df.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Overwrite)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("transaction.retries", 0)
-      .option("partitions", "10")
-      .option("relationship", "PLAYS")
-      .option("relationship.source.save.mode", "Overwrite")
-      .option("relationship.target.save.mode", "Overwrite")
-      .option("relationship.source.labels", ":Musician")
-      .option("relationship.source.node.keys", "name:name")
-      .option("relationship.target.labels", ":Instrument")
-      .option("relationship.target.node.keys", "instrument:name")
-      .save()
   }
 
   def writeKeyModeRelationshipWriteDataSet(
