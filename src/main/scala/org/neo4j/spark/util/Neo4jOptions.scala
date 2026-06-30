@@ -324,17 +324,21 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
 
   def toNeo4jTransactionConfig: TransactionConfig = {
     val timeout = getParameter(TRANSACTION_TIMEOUT_MSECS, DEFAULT_TRANSACTION_TIMEOUT)
-
     val builder = TransactionConfig.builder()
     if (timeout != null) {
       val duration = Duration.ofMillis(timeout.toInt)
       builder.withTimeout(duration)
     }
 
-    val txMetadata = extractNeo4jTransactionMetadata()
+    val txMetadata = extractConfiguredTransactionMetadata()
+    if (query.queryType == QueryType.GDS) {
+      txMetadata.put(GDS_TELEMETRY_ACTION, query.value)
+    }
+
     if (!txMetadata.isEmpty) {
       builder.withMetadata(txMetadata)
     }
+
     builder.build()
   }
 
@@ -347,7 +351,7 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
       .toNestedDeserializedJavaMap
   )
 
-  private def extractNeo4jTransactionMetadata(): util.Map[String, Any] =
+  private def extractConfiguredTransactionMetadata(): util.Map[String, Any] =
     options
       .view
       .filterKeys(k => k.startsWith(TX_METADATA_OPTION_PREFIX))
@@ -730,6 +734,7 @@ object Neo4jOptions {
 
   // GDS
   private val GDS_OPTION_PREFIX = "gds."
+  val GDS_TELEMETRY_ACTION = "gds.telemetry.action"
 
   // Streaming
   val STREAMING_PROPERTY_NAME = "streaming.property.name"
