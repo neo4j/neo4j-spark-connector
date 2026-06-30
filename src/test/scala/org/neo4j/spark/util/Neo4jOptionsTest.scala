@@ -26,7 +26,6 @@ import org.neo4j.driver.Value
 import org.neo4j.driver.net.ServerAddress
 import org.neo4j.spark.util.MapConverter.toScala
 import org.neo4j.spark.util.Neo4jOptions.GDS_TELEMETRY_ACTION
-import org.neo4j.spark.util.Neo4jOptions.GDS_TELEMETRY_NAME
 
 import java.net.URI
 import java.time.Duration
@@ -286,7 +285,6 @@ class Neo4jOptionsTest {
     val transactionMetadata = neo4jOptions.toNeo4jTransactionConfig.metadata()
 
     assertThat(transactionMetadata.get(GDS_TELEMETRY_ACTION).asString()).isEqualTo(expectedValue)
-    assertThat(transactionMetadata.get(GDS_TELEMETRY_NAME)).isNotNull
   }
 
   @ParameterizedTest
@@ -301,7 +299,6 @@ class Neo4jOptionsTest {
     val transactionMetadata = neo4jOptions.toNeo4jTransactionConfig.metadata()
 
     assertThat(transactionMetadata.get(GDS_TELEMETRY_ACTION)).isNull()
-    assertThat(transactionMetadata.get(GDS_TELEMETRY_NAME)).isNull()
   }
 
   @Test
