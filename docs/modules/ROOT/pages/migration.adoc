@@ -1,0 +1,129 @@
+= Migration guide
+:description: This chapter describes how to migrate between releases of the Neo4j Connector for Apache Spark that contain breaking changes.
+
+This guide covers the upgrade boundaries of the 5.x line that contain *breaking changes*.
+For the complete list of changes per release, see xref:changelog.adoc[].
+
+[cols="1,3"]
+|===
+|Upgrade |Breaking change
+
+|xref:#_5_0_to_5_1[5.0 → 5.1]
+|Minimum Spark version raised to *3.3*.
+
+|xref:#_5_1_to_5_2[5.1 → 5.2]
+|Minimum Spark version raised to *3.4*.
+
+|xref:#_5_2_to_5_3[5.2 → 5.3]
+|`schema.optimization.type` deprecated in favor of granular options.
+
+|xref:#_5_3_to_5_4[5.3 → 5.4]
+|Default type conversion changed for timestamps, intervals, and byte arrays; `relationship.properties` map is now strict.
+|===
+
+[#_5_0_to_5_1]
+== 5.0 → 5.1
+
+*What changed*: the baseline Apache Spark version was raised from 3.2 to *3.3* to support push-down v2 filters and LIMIT optimizations.
+Connector builds for Spark 3.2 are no longer compatible with 5.1.0.
+If you need to stay on Spark 3.3, connector version 5.1.0 is the latest available — see xref:installation.adoc#version[the compatibility table].
+
+*How to migrate*:
+
+. Upgrade your Spark cluster to *3.3 or later*.
+. Use the 5.1.0 artifact built for Spark 3:
++
+[source, shell, subs="attributes+"]
+----
+org.neo4j:neo4j-connector-apache-spark_{scala-version}:5.1.0_for_spark_3
+----
++
+. If you cannot upgrade Spark, stay on the 5.0.x line.
+
+See the xref:changelog.adoc#_5_1_0[5.1.0 release notes] for the full list of changes.
+
+[#_5_1_to_5_2]
+== 5.1 → 5.2
+
+*What changed*: the baseline Apache Spark version was raised from 3.3 to *3.4* to support the push-down Top N optimization.
+Connector builds for Spark 3.3 are no longer compatible with 5.2.0.
+
+*How to migrate*:
+
+. Upgrade your Spark cluster to *3.4 or later*.
+. Use the 5.2.0 (or later) artifact built for Spark 3:
++
+[source, shell, subs="attributes+"]
+----
+org.neo4j:neo4j-connector-apache-spark_{scala-version}:5.2.0_for_spark_3
+----
++
+. If you cannot upgrade Spark to 3.4, stay on 5.1.0.
+
+See the xref:changelog.adoc#_5_2_0[5.2.0 release notes] for the full list of changes.
+
+[#_5_2_to_5_3]
+== 5.2 → 5.3
+
+*What changed*: the single `schema.optimization.type` option was *deprecated* in 5.3.0 in favor of three granular options that decouple index, key, and constraint creation.
+
+*How to migrate*: replace `schema.optimization.type` according to what you were optimizing:
+
+[cols="2,3"]
+|===
+|Before (5.2.x) |After (5.3.0+)
+
+|`schema.optimization.type` = `INDEX`
+|`schema.optimization.type` = `INDEX` (unchanged — still used to create indexes)
+
+|`schema.optimization.type` = `NODE_CONSTRAINTS`
+|`schema.optimization.node.keys` = `UNIQUE` or `KEY`
+
+|(relationship key constraints)
+|`schema.optimization.relationship.keys` = `UNIQUE` or `KEY`
+
+|(type / existence constraints)
+|`schema.optimization` = `TYPE`, `EXISTS`, or `TYPE,EXISTS`
+|===
+
+The deprecated option keeps working for backward compatibility, but you should migrate to the granular options.
+See xref:write/schema-optimization.adoc[] for the full reference and examples.
+
+[#_5_3_to_5_4]
+== 5.3 → 5.4
+
+5.4.0 contains two breaking changes: the default type conversion and the `relationship.properties` map semantics.
+
+=== Type conversion default
+
+*What changed*: the default type-conversion logic changed.
+Starting with 5.4.0, *timestamps, intervals, and byte arrays* are processed differently from previous releases.
+
+*How to migrate*:
+
+* If you rely on the pre-5.4.0 behavior, set the `type.conversion` option to `legacy` on your read and write operations:
++
+[source, python]
+----
+df = spark.read \
+    .format("org.neo4j.spark.DataSource") \
+    .option("type.conversion", "legacy") \
+    .option("labels", "Person") \
+    .load()
+----
++
+* If you want the new behavior (recommended), leave `type.conversion` at its default value of `default` and review xref:types.adoc[] to confirm how your timestamp, interval, and byte-array columns are now mapped.
+
+=== Strict `relationship.properties` map
+
+*What changed*: when `relationship.save.strategy` is `keys` and the `relationship.properties` map is set, only the relationships listed in the map are written as relationship properties.
+Before 5.4.0, properties that were *not* listed in the map were also written, using their original names.
+
+*How to migrate*:
+
+* If you want only the mapped properties to be written (the new behavior), no change is required.
+* If you relied on the previous behavior where unmapped fields were written too, add those fields explicitly to the `relationship.properties` map, or leave the option unset so that all unmapped fields are written.
+
+See xref:write/options.adoc[] for the `relationship.properties` reference.
+
+See the xref:changelog.adoc#_5_4_0[5.4.0 release notes] and xref:types.adoc[] for details.

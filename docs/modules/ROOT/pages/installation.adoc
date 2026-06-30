@@ -5,50 +5,20 @@
 == Choose the correct version
 
 Make sure to match both the Spark version and the Scala version of your setup.
-Here is a compatibility table to help you choose the correct version of the connector.
+See xref:compatibility.adoc[] to determine what connector version is suitable for your setup.
 
-.Compatibility table
-[cols="1,3,3"]
-|===
-| Spark Version | Artifact (*Scala 2.12*) | Artifact (*Scala 2.13*)
-
-|*3.4*, *3.5*
-|`org.neo4j:neo4j-connector-apache-spark_2.12:{exact-connector-version}_for_spark_3`
-|`org.neo4j:neo4j-connector-apache-spark_2.13:{exact-connector-version}_for_spark_3`
-
-|*3.3*
-|`org.neo4j:neo4j-connector-apache-spark_2.12:5.1.0_for_spark_3`
-|`org.neo4j:neo4j-connector-apache-spark_2.13:5.1.0_for_spark_3`
-
-|===
-
-Spark versions prior to 3.3 are not supported.
+The examples below show the installation process using the latest {connector-version} connector.
 
 [#shell]
 == Usage with the Spark shell
 
-The connector is available via link:https://spark-packages.org/package/neo4j/neo4j-spark-connector[Spark Packages]:
-
-[.tabbed-example]
+[NOTE]
 ====
-[.include-with-Scala]
-=====
-[source, shell, subs="attributes+"]
-----
-$SPARK_HOME/bin/spark-shell --packages neo4j:neo4j-spark-connector:{exact-connector-version}-s_{scala-version}
-----
-=====
-
-[.include-with-Python]
-=====
-[source, shell, subs="attributes+"]
-----
-$SPARK_HOME/bin/pyspark --packages neo4j:neo4j-spark-connector:{exact-connector-version}-s_{scala-version}
-----
-=====
+Starting from version 5.4.0, the connector is not published to
+Spark Packages anymore.
 ====
 
-or through artifacts deployed to Maven Central:
+The connector is available via Maven Central:
 
 [.tabbed-example]
 ====

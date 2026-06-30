@@ -10,7 +10,7 @@ The connector options for schema optimization are summarized below.
 [CAUTION]
 ====
 The schema optimization options described here cannot be used with the `query` option.
-If you are using a xref:write/query.adoc[custom Cypher query], you need to create indexes and constraints manually using the xref:write/query.adoc#script-option[`script` option].
+If you are using a xref:write/query.adoc[custom Cypher query], you need to create indexes and constraints manually using the xref:write/query.adoc#script-option[script options].
 ====
 
 .Schema optimization options
@@ -18,71 +18,21 @@ If you are using a xref:write/query.adoc[custom Cypher query], you need to creat
 |===
 |Option|Description|Value|Default
 
-|`schema.optimization.type` label:deprecated[Deprecated in 5.3]
-|Creates <<indexes, indexes>> and <<node-constraints-unique, property uniqueness>> constraints on nodes using the properties defined by the `node.keys` option.
-
-(*Deprecated* in favor of `schema.optimization.node.keys`, `schema.optimization.relationship.keys`, `schema.optimization`)
-|One of `NONE`, `INDEX`, `NODE_CONSTRAINTS`
-|`NONE`
-
-|`schema.optimization.node.keys` label:new[New in 5.3]
+|`schema.optimization.node.keys`
 |Creates <<node-constraints-unique, property uniqueness>> and <<node-constraints-key, key>> constraints on nodes using the properties defined by the `node.keys` option.
 |One of `UNIQUE`, `KEY`, `NONE`
 |`NONE`
 
-|`schema.optimization.relationship.keys` label:new[New in 5.3]
+|`schema.optimization.relationship.keys`
 |Creates <<rel-constraints-unique, property uniqueness>> and <<rel-constraints-key, key>> constraints on relationships using the properties defined by the `relationship.keys` option.
 |One of `UNIQUE`, `KEY`, `NONE`
 |`NONE`
 
-|`schema.optimization` label:new[New in 5.3]
+|`schema.optimization`
 |Creates <<constraints-type-existence, property type and property existence>> constraints on both nodes and relationships, enforcing the type and non-nullability from the DataFrame schema.
 |Comma-separated list of `TYPE`, `EXISTS`, `NONE`
 |`NONE`
 |===
-
-[#indexes]
-[role=label--deprecated]
-== Indexes on node properties
-
-link:https://neo4j.com/docs/cypher-manual/current/indexes/search-performance-indexes/overview/[Indexes] in Neo4j are often used to increase search performance.
-
-You can create an index by setting the `schema.optimization.type` option to `INDEX`.
-
-.Example
-[source, scala, role=nocollapse]
-----
-val df = List(
-  "Product 1",
-  "Product 2",
-).toDF("name")
-
-df.write
-  .format("org.neo4j.spark.DataSource")
-  .mode(SaveMode.Overwrite)
-  .option("labels", ":Product")
-  .option("node.keys", "name")
-  .option("schema.optimization.type", "INDEX")
-  .save()
-----
-
-[%collapsible]
-.Schema query
-====
-Before the writing process starts, the connector runs the following schema query:
-
-[source, cypher]
-----
-CREATE INDEX spark_INDEX_Product_name FOR (n:Product) ON (n.name)
-----
-
-The format of the index name is `spark_INDEX_<LABEL>_<NODE_KEYS>`, where `<LABEL>` is the first label from the `labels` option and `<NODE_KEYS>` is a dash-separated sequence of one or more properties as specified in the `node.keys` options.
-====
-
-Notes:
-
-* The index is not recreated if already present.
-* With multiple labels, only the first label is used to create the index.
 
 [#node-constraints-unique]
 == Node property uniqueness constraints
