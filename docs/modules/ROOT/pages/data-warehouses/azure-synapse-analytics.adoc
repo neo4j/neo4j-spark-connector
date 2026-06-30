@@ -1,0 +1,127 @@
+= Azure Synapse Analytics
+
+:description: This chapter shows how to exchange data between Neo4j and Azure Synapse Analytics using Apache Spark
+
+Azure Synapse Analytics (formerly SQL Data Warehouse) is a cloud-based enterprise data warehouse that leverages massively parallel processing (MPP) to quickly run complex queries across petabytes of data.
+
+== Prerequisites
+
+You need an Azure Synapse Analytics instance up-and-running. If you don't have one
+you can create it from link:https://azure.microsoft.com/en-us/services/synapse-analytics/[here, window=_blank].
+
+=== Dependencies
+
+Azure Synapse Analytics works via Spark only in Databricks Runtime as the required connector is not released publicly.
+
+=== Authentication
+
+The Azure Synapse Connector uses three types of network connections:
+
+* Spark driver to Azure Synapse
+* Spark driver and executors to Azure storage account
+* Azure Synapse to Azure storage account
+
+To choose the authentication method that fits better for your use-case
+we suggest to check the official link:https://docs.microsoft.com/en-us/azure/databricks/data/data-sources/azure/synapse-analytics#--authentication[Azure Synapse Docs]
+
+== From Azure Synapse Analytics to Neo4j
+
+Given the authentication method that you choose, following an example about how to ingest data from an
+Azure Synapse Analytics table into Neo4j as nodes:
+
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+[source,scala]
+----
+// Step (1)
+// Load a table into a Spark DataFrame
+val azureDF: DataFrame = spark.read
+  .format("com.databricks.spark.sqldw")
+  .option("url", "jdbc:sqlserver://<the-rest-of-the-connection-string>")
+  .option("dbTable", "CUSTOMER")
+  .load()
+
+// Step (2)
+// Save the `azureDF` as nodes with labels `Person` and `Customer` into Neo4j
+azureDF.write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.ErrorIfExists)
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .save()
+----
+=====
+[.include-with-python]
+=====
+[source,python]
+----
+# Step (1)
+# Load a table into a Spark DataFrame
+azureDF = (spark.read
+  .format("com.databricks.spark.sqldw")
+  .option("url", "jdbc:sqlserver://<the-rest-of-the-connection-string>")
+  .option("dbTable", "CUSTOMER")
+  .load())
+
+# Step (2)
+# Save the `azureDF` as nodes with labels `Person` and `Customer` into Neo4j
+(azureDF.write
+  .format("org.neo4j.spark.DataSource")
+  .mode("ErrorIfExists")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .save())
+----
+=====
+====
+
+== From Neo4j to Azure Synapse Analytics
+
+Given the authentication method that you choose, following an example about how to ingest data from Neo4j
+into an Azure Synapse Analytics table:
+
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+[source,scala]
+----
+// Step (1)
+// Load `:Person:Customer` nodes as DataFrame
+val neo4jDF: DataFrame = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .load()
+
+// Step (2)
+// Save the `neo4jDF` as table CUSTOMER into Azure Synapse Analytics
+neo4jDF.write
+  .format("com.databricks.spark.sqldw")
+  .option("url", "jdbc:sqlserver://<the-rest-of-the-connection-string>")
+  .option("dbTable", "CUSTOMER")
+  .save()
+----
+=====
+[.include-with-python]
+=====
+[source,python]
+----
+# Step (1)
+# Load `:Person:Customer` nodes as DataFrame
+neo4jDF = (spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Person:Customer")
+  .load())
+
+# Step (2)
+# Save the `neo4jDF` as table CUSTOMER into Azure Synapse Analytics
+(neo4jDF.write
+  .format("com.databricks.spark.sqldw")
+  .option("url", "jdbc:sqlserver://<the-rest-of-the-connection-string>")
+  .option("dbTable", "CUSTOMER")
+  .save())
+----
+=====
+====

@@ -1,0 +1,169 @@
+= Quickstart
+:description: This chapter describes the quick way to get started with Neo4j Connector for Apache Spark.
+:page-aliases: python.adoc, playground.adoc, quick-java-example.adoc, aura.adoc, neo4j-cluster.adoc
+
+== Before you start
+
+. link:{neo4j-docs-base-uri}/operations-manual/current/installation/[Install] Neo4j or get a link:{neo4j-docs-base-uri}/aura/[Neo4j Aura] instance.
+Note down the <<uri, connection URI>> and the access credentials.
++
+[TIP]
+====
+In an Enterprise environment, consider creating a separate username/password for Spark access instead of the default `neo4j` account.
+====
+
+. Make sure you have Java (version 8 or above) installed.
+. Download Spark as documented on the link:https://spark.apache.org/downloads.html[Spark website].
+. If you are developing a non-Python self-contained application, make sure you have a xref:installation.adoc#applications[build tool] installed.
+
+[#uri]
+=== Connection URI
+
+Local instance::
+Use the `neo4j://` protocol, for example `neo4j://localhost:7687`.
+
+Neo4j Aura::
+Use the `neo4j+s://` protocol.
+An Aura connection URI has the form `neo4j+s://xxxxxxxx.databases.neo4j.io`.
+
+Neo4j Cluster::
+Use the `neo4j+s://` protocol to link:{neo4j-docs-base-uri}/operations-manual/current/clustering/setup/routing/[route transactions] appropriately (_write_ transactions to the leader, _read_ transactions to followers and read replicas).
+
+[#shell]
+== Usage with the Spark shell
+
+You can copy-paste and run the following examples directly in the xref:installation.adoc#shell[interactive Spark shell] (`spark-shell` for Scala, `pyspark` for Python).
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+
+[source, scala]
+----
+include::example$scala/Quickstart.scala[]
+----
+=====
+
+[.include-with-Python]
+=====
+[TIP]
+======
+Wrap chained methods in parentheses to avoid syntax errors.
+======
+
+[NOTE]
+======
+Some common API constants are specified as strings in the PySpark API.
+For example, the save mode in the Python API is set with `df.mode("Append")`.
+======
+
+[source, python]
+----
+include::example$python/quickstart.py[]
+----
+=====
+====
+
+[#applications]
+== Self-contained applications
+
+Non-Python applications require some additional setup.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+. Create a `scala-example` directory.
+. Copy the `build.sbt` from the xref:installation.adoc#applications[Installation section] and the `example.jsonl` below into the new directory.
++
+.example.jsonl
+[source, jsonl]
+----
+include::example$example.jsonl[]
+----
+. Create a `src/main/scala` directory and copy the `SparkApp.scala` file below.
++
+.SparkApp.scala
+[source, scala]
+----
+include::example$scala/SparkApp.scala[]
+----
+. Run `sbt package`.
+. Run `spark-submit`:
++
+[source, shell, subs="attributes+"]
+----
+$SPARK_HOME/bin/spark-submit \
+  --packages org.neo4j:neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3 \
+  --class SparkApp \
+  target/scala-{scala-version}/spark-app_{scala-version}-1.0.jar
+----
+
+=====
+
+[.include-with-Python]
+=====
+
+. Create a `python-example` directory.
+. Copy the `example.jsonl` and `spark_app.py` files below into the new directory.
++
+.example.jsonl
+[source, jsonl]
+----
+include::example$example.jsonl[]
+----
++
+.spark_app.py
+[source, python]
+----
+include::example$python/spark_app.py[]
+----
+. Run `spark-submit`:
++
+[source, shell, subs="attributes+"]
+----
+$SPARK_HOME/bin/spark-submit \
+  --packages org.neo4j:neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3 \
+  spark_app.py
+----
+
+=====
+
+[.include-with-Java]
+=====
+. Create a `java-example` directory.
+. Copy the `pom.xml` from the xref:installation.adoc#applications[Installation section] and the `example.jsonl` below into the new directory.
++
+.example.jsonl
+[source, jsonl]
+----
+include::example$example.jsonl[]
+----
+. Create a `src/main/java` directory and copy the `SparkApp.java` file below.
++
+[source, java]
+----
+include::example$java/SparkApp.java[]
+----
+
+. Run `mvn package`.
+. Run `spark-submit`:
++
+[source, shell, subs="attributes+"]
+----
+$SPARK_HOME/bin/spark-submit \
+  --packages org.neo4j:neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3 \
+  --class SparkApp \
+  target/spark-app-1.0.jar
+----
+
+=====
+====
+
+== Jupyter notebooks
+
+The code repository includes two https://github.com/neo4j/neo4j-spark-connector/tree/5.0/examples[Jupyter notebooks] that show how to use the connector in a data-driven workflow:
+
+* `neo4j_data_engineering.ipynb` shows how to create Spark jobs to read data from and write data to Neo4j.
+* `neo4j_data_science.ipynb` shows how to combine Pandas (in PySpark) with the Neo4j Graph Data Science library to highlight frauds in a banking scenario.

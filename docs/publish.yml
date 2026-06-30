@@ -1,0 +1,58 @@
+# Use this playbook file when you need to build and publish multuple versions of your content together
+site:
+  title: Neo4j Spark
+  url: https://neo4j.com/docs/
+  start_page: spark:ROOT:index.adoc
+
+content:
+  sources:
+    - url: ./
+      edit_url: https://github.com/neo4j/docs-spark/tree/{refname}/{path}
+      branches: ['HEAD', '4.2', '4.1', '4.0']
+      exclude:
+      - '!**/_includes/*'
+      - '!**/readme.adoc'
+      - '!**/README.adoc'
+
+ui:
+  bundle:
+    url: https://static-content.neo4j.com/build/ui-bundle-latest.zip
+    snapshot: true
+  output_dir: /assets
+
+urls:
+  html_extension_style: indexify
+
+antora:
+  extensions:
+  - "@neo4j-antora/aliases-redirects"
+  - "@neo4j-antora/roles-labels"
+  - "@neo4j-antora/table-footnotes"
+  - "@neo4j-antora/xref-hash-validator"
+
+asciidoc:
+  extensions:
+  - "@neo4j-documentation/remote-include"
+  - "@neo4j-documentation/macros"
+  - "@neo4j-antora/mark-terms"
+  attributes:
+    page-theme: docs
+    page-type: Docs
+    page-search-type: Docs
+    page-search-site: Reference Docs
+    page-canonical-root: /docs
+    page-terms-to-mark: Cypher
+    page-pagination: true
+    page-no-canonical: true 
+    page-origin-private: false
+    page-hide-toc: false
+    page-mixpanel: 4bfb2414ab973c741b6f067bf06d5575
+    includePDF: false
+    nonhtmloutput: ""
+    experimental: ''
+    copyright: 2026
+    common-license-page-uri: https://neo4j.com/docs/license/
+    check-mark: icon:check[]
+    cross-mark: icon:times[]
+    neo4j-base-uri: ''
+    neo4j-docs-base-uri: /docs

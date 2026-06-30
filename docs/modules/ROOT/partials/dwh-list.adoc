@@ -1,0 +1,4 @@
+* xref:data-warehouses/snowflake.adoc[]
+* xref:data-warehouses/bigquery.adoc[]
+* xref:data-warehouses/redshift.adoc[]
+* xref:data-warehouses/azure-synapse-analytics.adoc[]
