@@ -1,0 +1,112 @@
+= Google BigQuery
+
+:description: This chapter shows how to exchange data between Neo4j and BigQuery using Apache Spark
+
+BigQuery is a fully-managed, serverless data warehouse that enables scalable analysis over petabytes of data.
+
+== Prerequisites
+
+You need a Google BigQuery instance up-and-running. If you don't have one
+you can create it from link:https://cloud.google.com/bigquery[here, window=_blank].
+
+=== Dependencies
+
+If you're in the Databricks Runtime environment you don't need to add any external dependency, otherwise you may need:
+
+* `com.google.cloud.spark:spark-bigquery-with-dependencies_<scala_version>:<version>`
+
+== From BigQuery to Neo4j
+
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+[source,scala]
+----
+// Step (1)
+// Load a table into a Spark DataFrame
+val bigqueryDF: DataFrame = spark.read
+  .format("bigquery")
+  .option("table", "google.com:bigquery-public-data.stackoverflow.post_answers")
+  .load()
+
+// Step (2)
+// Save the `bigqueryDF` as nodes with labels `Person` and `Customer` into Neo4j
+bigqueryDF.write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.ErrorIfExists)
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Answer")
+  .load()
+----
+=====
+[.include-with-python]
+=====
+[source,python]
+----
+# Step (1)
+# Load a table into a Spark DataFrame
+bigqueryDF = (spark.read
+  .format("bigquery")
+  .option("table", "google.com:bigquery-public-data.stackoverflow.post_answers")
+  .load())
+
+# Step (2)
+# Save the `bigqueryDF` as nodes with labels `Person` and `Customer` into Neo4j
+(bigqueryDF.write
+  .format("org.neo4j.spark.DataSource")
+  .mode("ErrorIfExists")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Answer")
+  .load())
+----
+=====
+====
+
+== From Neo4j to BigQuery
+
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+[source,scala]
+----
+// Step (1)
+// Load `:Answer` nodes as DataFrame
+val neo4jDF: DataFrame = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Answer")
+  .load()
+
+// Step (2)
+// Save the `neo4jDF` as table CUSTOMER into BigQuery
+neo4jDF.write
+  .format("bigquery")
+  .mode("overwrite")
+  .option("temporaryGcsBucket", "<my-bigquery-temp>")
+  .option("table", "<my-project-id>:<my-private-database>.stackoverflow.answers")
+  .save()
+----
+=====
+[.include-with-python]
+=====
+[source,python]
+----
+# Step (1)
+# Load `:Answer` nodes as DataFrame
+neo4jDF = (spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://<host>:<port>")
+  .option("labels", ":Answer")
+  .load())
+
+# Step (2)
+# Save the `neo4jDF` as table CUSTOMER into BigQuery
+(neo4jDF.write
+  .format("bigquery")
+  .mode("overwrite")
+  .option("temporaryGcsBucket", "<my-bigquery-temp>")
+  .option("table", "<my-private-database>.stackoverflow.answers")
+  .save())
+----
+=====
+====

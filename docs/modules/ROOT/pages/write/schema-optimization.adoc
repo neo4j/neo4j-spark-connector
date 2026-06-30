@@ -1,0 +1,398 @@
+= Schema optimization
+
+include::partial$sparksession.adoc[]
+
+Although Neo4j does not enforce the use of a schema, adding indexes and constraints before writing data makes the writing process more efficient.
+When updating nodes or relationships, having constraints in place is also the best way to avoid duplicates.
+
+The connector options for schema optimization are summarized below.
+
+[CAUTION]
+====
+The schema optimization options described here cannot be used with the `query` option.
+If you are using a xref:write/query.adoc[custom Cypher query], you need to create indexes and constraints manually using the xref:write/query.adoc#script-option[`script` option].
+====
+
+.Schema optimization options
+[cols="4,3,2,1"]
+|===
+|Option|Description|Value|Default
+
+|`schema.optimization.type` label:deprecated[Deprecated in 5.3]
+|Creates <<indexes, indexes>> and <<node-constraints-unique, property uniqueness>> constraints on nodes using the properties defined by the `node.keys` option.
+
+(*Deprecated* in favor of `schema.optimization.node.keys`, `schema.optimization.relationship.keys`, `schema.optimization`)
+|One of `NONE`, `INDEX`, `NODE_CONSTRAINTS`
+|`NONE`
+
+|`schema.optimization.node.keys` label:new[New in 5.3]
+|Creates <<node-constraints-unique, property uniqueness>> and <<node-constraints-key, key>> constraints on nodes using the properties defined by the `node.keys` option.
+|One of `UNIQUE`, `KEY`, `NONE`
+|`NONE`
+
+|`schema.optimization.relationship.keys` label:new[New in 5.3]
+|Creates <<rel-constraints-unique, property uniqueness>> and <<rel-constraints-key, key>> constraints on relationships using the properties defined by the `relationship.keys` option.
+|One of `UNIQUE`, `KEY`, `NONE`
+|`NONE`
+
+|`schema.optimization` label:new[New in 5.3]
+|Creates <<constraints-type-existence, property type and property existence>> constraints on both nodes and relationships, enforcing the type and non-nullability from the DataFrame schema.
+|Comma-separated list of `TYPE`, `EXISTS`, `NONE`
+|`NONE`
+|===
+
+[#indexes]
+[role=label--deprecated]
+== Indexes on node properties
+
+link:https://neo4j.com/docs/cypher-manual/current/indexes/search-performance-indexes/overview/[Indexes] in Neo4j are often used to increase search performance.
+
+You can create an index by setting the `schema.optimization.type` option to `INDEX`.
+
+.Example
+[source, scala, role=nocollapse]
+----
+val df = List(
+  "Product 1",
+  "Product 2",
+).toDF("name")
+
+df.write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.Overwrite)
+  .option("labels", ":Product")
+  .option("node.keys", "name")
+  .option("schema.optimization.type", "INDEX")
+  .save()
+----
+
+[%collapsible]
+.Schema query
+====
+Before the writing process starts, the connector runs the following schema query:
+
+[source, cypher]
+----
+CREATE INDEX spark_INDEX_Product_name FOR (n:Product) ON (n.name)
+----
+
+The format of the index name is `spark_INDEX_<LABEL>_<NODE_KEYS>`, where `<LABEL>` is the first label from the `labels` option and `<NODE_KEYS>` is a dash-separated sequence of one or more properties as specified in the `node.keys` options.
+====
+
+Notes:
+
+* The index is not recreated if already present.
+* With multiple labels, only the first label is used to create the index.
+
+[#node-constraints-unique]
+== Node property uniqueness constraints
+
+link:{neo4j-docs-base-uri}/cypher-manual/current/constraints/#unique-node-property[Node property uniqueness constraints] ensure that property values are unique for all nodes with a specific label.
+For property uniqueness constraints on multiple properties, the combination of the property values is unique.
+
+You can create a constraint by setting the `schema.optimization.node.keys` option to `UNIQUE`.
+
+.Example
+[source, scala, role=nocollapse]
+----
+val df = List(
+  "Product 1",
+  "Product 2",
+).toDF("name")
+
+df.write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.Overwrite)
+  .option("labels", ":Product")
+  .option("node.keys", "name")
+  .option("schema.optimization.node.keys", "UNIQUE")
+  .save()
+----
+
+[%collapsible]
+.Schema query
+====
+Before the writing process starts, the connector runs the following schema query:
+
+[source, cypher]
+----
+CREATE CONSTRAINT `spark_NODE_UNIQUE-CONSTRAINT_Product_name` IF NOT EXISTS FOR (e:Product) REQUIRE (e.name) IS UNIQUE
+----
+====
+
+Notes:
+
+* The constraint is not recreated if already present.
+* With multiple labels, only the first label is used to create the index.
+* You cannot create a uniqueness constraint on a node property if a key constraint already exists on the same property.
+* This schema optimization only works with the `Overwrite` save mode.
+
+[IMPORTANT]
+====
+Before version *5.3.0*, node property uniqueness constraints could be added with the `schema.optimization.type` option set to `NODE_CONSTRAINTS`.
+====
+
+[#node-constraints-key]
+== Node key constraints
+
+link:{neo4j-docs-base-uri}/cypher-manual/current/constraints/#node-key[Node key constraints] ensure that, for a given node label and set of properties:
+
+* All the properties exist on all the nodes with that label.
+* The combination of the property values is unique.
+
+You can create a constraint by setting the `schema.optimization.node.keys` option to `KEY`.
+
+.Example
+[source, scala, role=nocollapse]
+----
+val df = List(
+  "Product 1",
+  "Product 2",
+).toDF("name")
+
+df.write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.Overwrite)
+  .option("labels", ":Product")
+  .option("node.keys", "name")
+  .option("schema.optimization.node.keys", "KEY")
+  .save()
+----
+
+[%collapsible]
+.Schema query
+====
+Before the writing process starts, the connector runs the following schema query:
+
+[source, cypher]
+----
+CREATE CONSTRAINT `spark_NODE_KEY-CONSTRAINT_Product_name` IF NOT EXISTS FOR (e:Product) REQUIRE (e.name) IS NODE KEY
+----
+====
+
+Notes:
+
+* The constraint is not recreated if already present.
+* You cannot create a key constraint on a node property if a uniqueness constraint already exists on the same property.
+* This schema optimization only works with the `Overwrite` save mode.
+
+[#rel-constraints-unique]
+== Relationship property uniqueness constraints
+
+link:{neo4j-docs-base-uri}/cypher-manual/current/constraints/#unique-relationship-property[Relationship property uniqueness constraints] ensure that property values are unique for all relationships with a specific type.
+For property uniqueness constraints on multiple properties, the combination of the property values is unique.
+
+You can create a constraint by setting the `schema.optimization.relationship.keys` option to `UNIQUE`.
+
+.Example
+[source, scala, role=nocollapse]
+----
+val df = Seq(
+  ("John", "Doe", 1, "Product 1", 200, "ABC100"),
+  ("Jane", "Doe", 2, "Product 2", 100, "ABC200")
+).toDF("name", "surname", "customerID", "product", "quantity", "order")
+
+df.write
+  .mode(SaveMode.Overwrite)
+  .format("org.neo4j.spark.DataSource")
+  .option("relationship", "BOUGHT")
+  .option("relationship.save.strategy", "keys")
+  .option("relationship.source.save.mode", "Overwrite")
+  .option("relationship.source.labels", ":Customer")
+  .option("relationship.source.node.properties", "name,surname,customerID:id")
+  .option("relationship.source.node.keys", "customerID:id")
+  .option("relationship.target.save.mode", "Overwrite")
+  .option("relationship.target.labels", ":Product")
+  .option("relationship.target.node.properties", "product:name")
+  .option("relationship.target.node.keys", "product:name")
+  .option("relationship.properties", "quantity,order")
+  .option("schema.optimization.relationship.keys", "UNIQUE")
+  .option("relationship.keys", "order")
+  .save()
+----
+
+[%collapsible]
+.Schema query
+====
+Before the writing process starts, the connector runs the following schema query:
+
+[source, cypher]
+----
+CREATE CONSTRAINT `spark_RELATIONSHIP_UNIQUE-CONSTRAINT_BOUGHT_order` IF NOT EXISTS FOR ()-[e:BOUGHT]->() REQUIRE (e.order) IS UNIQUE
+----
+====
+
+Notes:
+
+* The constraint is not recreated if already present.
+* You cannot create a uniqueness constraint on a relationship property if a key constraint already exists on the same property.
+* This schema optimization only works with the `Overwrite` save mode.
+
+[#rel-constraints-key]
+== Relationship key constraints
+
+link:{neo4j-docs-base-uri}/cypher-manual/current/constraints/#relationship-key[Relationship key constraints] ensure that, for a given relationship type and set of properties:
+
+* All the properties exist on all the relationships with that type.
+* The combination of the property values is unique.
+
+You can create a constraint by setting the `schema.optimization.relationship.keys` option to `KEY`.
+
+.Example
+[source, scala, role=nocollapse]
+----
+val df = Seq(
+  ("John", "Doe", 1, "Product 1", 200, "ABC100"),
+  ("Jane", "Doe", 2, "Product 2", 100, "ABC200")
+).toDF("name", "surname", "customerID", "product", "quantity", "order")
+
+df.write
+  .mode(SaveMode.Overwrite)
+  .format("org.neo4j.spark.DataSource")
+  .option("relationship", "BOUGHT")
+  .option("relationship.save.strategy", "keys")
+  .option("relationship.source.save.mode", "Overwrite")
+  .option("relationship.source.labels", ":Customer")
+  .option("relationship.source.node.properties", "name,surname,customerID:id")
+  .option("relationship.source.node.keys", "customerID:id")
+  .option("relationship.target.save.mode", "Overwrite")
+  .option("relationship.target.labels", ":Product")
+  .option("relationship.target.node.properties", "product:name")
+  .option("relationship.target.node.keys", "product:name")
+  .option("relationship.properties", "quantity,order")
+  .option("schema.optimization.relationship.keys", "KEY")
+  .option("relationship.keys", "order")
+  .save()
+----
+
+[%collapsible]
+.Schema query
+====
+Before the writing process starts, the connector runs the following schema query:
+
+[source, cypher]
+----
+CREATE CONSTRAINT `spark_RELATIONSHIP_KEY-CONSTRAINT_BOUGHT_order` IF NOT EXISTS FOR ()-[e:BOUGHT]->() REQUIRE (e.order) IS RELATIONSHIP KEY
+----
+====
+
+Notes:
+
+* The constraint is not recreated if already present.
+* You cannot create a key constraint on a relationship property if a uniqueness constraint already exists on the same property.
+* This schema optimization only works with the `Overwrite` save mode.
+
+[#constraints-type-existence]
+== Property type and property existence constraints
+
+Property type constraints ensure that a property have the required property type for all nodes with a specific label (link:{neo4j-docs-base-uri}/cypher-manual/current/constraints/#node-property-type[node property type constraints]) or for all relationships with a specific type (link:{neo4j-docs-base-uri}/cypher-manual/current/constraints/#relationship-property-type[relationship property type constraints]).
+
+Property existence constraints ensure that a property exists (`IS NOT NULL`) for all nodes with a specific label (link:{neo4j-docs-base-uri}/cypher-manual/current/constraints/#node-property-existence[node property existence constraints]) or for all relationships with a specific type (link:{neo4j-docs-base-uri}/cypher-manual/current/constraints/#relationship-property-existence[relationship property existence constraints]).
+
+The connector uses the DataFrame schema to enforce types (with the mapping described in the xref:types.adoc#constraints[Data type mapping]) and the `nullable` flags of each column to determine whether to enforce existence.
+
+You can create:
+
+* Property type constraints for both nodes and relationships by setting the `schema.optimization` option to `TYPE`.
+* Property existence constraints for both nodes and relationships by setting the `schema.optimization` option to `EXISTS`.
+* Both at the same time by setting the `schema.optimization` option to `TYPE,EXISTS`.
+
+Notes:
+
+* The constraints are not recreated if already present.
+
+=== On nodes
+
+.Example
+[source, scala, role=nocollapse]
+----
+df.write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.Overwrite)
+  .option("labels", ":Person")
+  .option("node.keys", "surname")
+  .option("schema.optimization", "TYPE,EXISTS")
+  .save()
+----
+
+[%collapsible]
+.Schema queries
+====
+Before the writing process starts, the connector runs the following schema queries (one query for each DataFrame column):
+
+[source, cypher]
+----
+CREATE CONSTRAINT `spark_NODE-TYPE-CONSTRAINT-Person-name` IF NOT EXISTS FOR (e:Person) REQUIRE e.name IS :: STRING
+
+CREATE CONSTRAINT `spark_NODE-TYPE-CONSTRAINT-Person-surname` IF NOT EXISTS FOR (e:Person) REQUIRE e.surname IS :: STRING
+
+CREATE CONSTRAINT `spark_NODE-TYPE-CONSTRAINT-Person-age` IF NOT EXISTS FOR (e:Person) REQUIRE e.age IS :: INTEGER
+----
+
+If a DataFrame column is not nullable, the connector runs additional schema queries.
+For example, if the `age` column is not nullable, the connector runs the following schema query:
+
+[source, cypher]
+----
+CREATE CONSTRAINT `spark_NODE-NOT_NULL-CONSTRAINT-Person-age` IF NOT EXISTS FOR (e:Person) REQUIRE e.age IS NOT NULL
+----
+====
+
+=== On relationships
+
+.Example
+[source, scala, role=nocollapse]
+----
+val df = Seq(
+  ("John", "Doe", 1, "Product 1", 200, "ABC100"),
+  ("Jane", "Doe", 2, "Product 2", 100, "ABC200")
+).toDF("name", "surname", "customerID", "product", "quantity", "order")
+
+df.write
+  .mode(SaveMode.Overwrite)
+  .format("org.neo4j.spark.DataSource")
+  .option("relationship", "BOUGHT")
+  .option("relationship.save.strategy", "keys")
+  .option("relationship.source.save.mode", "Overwrite")
+  .option("relationship.source.labels", ":Customer")
+  .option("relationship.source.node.properties", "name,surname,customerID:id")
+  .option("relationship.source.node.keys", "customerID:id")
+  .option("relationship.target.save.mode", "Overwrite")
+  .option("relationship.target.labels", ":Product")
+  .option("relationship.target.node.properties", "product:name")
+  .option("relationship.target.node.keys", "product:name")
+  .option("relationship.properties", "quantity,order")
+  .option("schema.optimization", "TYPE,EXISTS")
+  .save()
+----
+
+[%collapsible]
+.Schema queries
+====
+Before the writing process starts, the connector runs the following schema queries (property type constraint queries for source and target node properties, then one property type constraint query for each DataFrame column representing a relationship property):
+
+[source, cypher]
+----
+CREATE CONSTRAINT `spark_NODE-TYPE-CONSTRAINT-Customer-name` IF NOT EXISTS FOR (e:Customer) REQUIRE e.name IS :: STRING
+
+CREATE CONSTRAINT `spark_NODE-TYPE-CONSTRAINT-Customer-surname` IF NOT EXISTS FOR (e:Customer) REQUIRE e.surname IS :: STRING
+
+CREATE CONSTRAINT `spark_NODE-TYPE-CONSTRAINT-Customer-id` IF NOT EXISTS FOR (e:Customer) REQUIRE e.id IS :: INTEGER
+
+CREATE CONSTRAINT `spark_NODE-TYPE-CONSTRAINT-Product-name` IF NOT EXISTS FOR (e:Product) REQUIRE e.name IS :: STRING
+
+CREATE CONSTRAINT `spark_RELATIONSHIP-TYPE-CONSTRAINT-BOUGHT-quantity` IF NOT EXISTS FOR ()-[e:BOUGHT]->() REQUIRE e.quantity IS :: INTEGER
+
+CREATE CONSTRAINT `spark_RELATIONSHIP-TYPE-CONSTRAINT-BOUGHT-order` IF NOT EXISTS FOR ()-[e:BOUGHT]->() REQUIRE e.order IS :: STRING
+----
+
+If a DataFrame column is not nullable, the connector runs additional schema queries.
+For example, if the `experience` column is not nullable, the connector runs the following schema query:
+
+[source, cypher]
+----
+CREATE CONSTRAINT `spark_NODE-NOT_NULL-CONSTRAINT-Customer-id` IF NOT EXISTS FOR (e:Customer) REQUIRE e.id IS NOT NULL
+
+CREATE CONSTRAINT `spark_RELATIONSHIP-NOT_NULL-CONSTRAINT-BOUGHT-quantity` IF NOT EXISTS FOR ()-[e:BOUGHT]->() REQUIRE e.quantity IS NOT NULL
+----
+====

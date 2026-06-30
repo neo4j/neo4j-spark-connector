@@ -1,0 +1,212 @@
+= Databricks quickstart
+
+include::partial$third-party.adoc[]
+
+== Prerequisites
+
+* A Databricks workspace must be available on an URL like `\https://dbc-xxxxxxxx-yyyy.cloud.databricks.com`.
+
+== Set up a compute cluster
+
+. Create a compute cluster with `Single user` access mode, `Unrestricted` policy, and your preferred Scala runtime.
++
+[CAUTION]
+====
+Shared access modes are not currently supported.
+====
+. Once the cluster is available, open its page and select the *Libraries* tab.
+. Select *Install new* and choose *Maven* as the library source.
+. Select *Search Packages* and search for either `neo4j-spark-connector` from the `neo4j` organization (Spark Packages) or `neo4j-connector-apache-spark` (Maven Central) from the `org.neo4j` group ID, then *Select* the most recent release.
++
+[NOTE]
+====
+Make sure to select the correct version of the connector by matching the Scala version to the cluster's runtime.
+====
+
+. Select *Install*.
+
+=== Unity Catalog
+
+Neo4j supports the Unity Catalog in `Single user` access mode only.
+Refer to the link:https://docs.databricks.com/en/compute/access-mode-limitations.html[Databricks documentation] for further information.
+
+== Session configuration
+
+You can set the Spark configuration on the cluster you are running your notebooks on by doing the following:
+
+. Open the cluster configuration page.
+. Select the *Advanced Options* toggle under *Configuration*.
+. Select the *Spark* tab.
+
+For example, you can add Neo4j Bearer authentication configuration in the text area as follows:
+
+.Bearer authentication example
+[source]
+----
+neo4j.url neo4j://<host>:<port>
+neo4j.authentication.type bearer
+neo4j.authentication.bearer.token <token>
+----
+
+[CAUTION]
+====
+Databricks advises against storing secrets such as passwords and tokens in plain text.
+A secure alternative is to use <<secrets, secrets>> instead.
+====
+
+== Authentication methods
+
+All the authentication methods supported by the link:{neo4j-docs-base-uri}/java-manual/current/connect-advanced/#_authentication_methods[Neo4j Java Driver] (version 4.4 and higher) are supported.
+
+See the xref:configuration.adoc#_neo4j_driver_options[Neo4j driver options] for more details on authentication configuration.
+
+[#secrets]
+== Set up secrets
+
+You can link:https://docs.databricks.com/en/security/secrets/index.html[add secrets] to your environment using the Secrets API via the Databricks CLI.
+If you use a Databricks runtime version 15.0 or above, you can add secrets directly link:https://docs.databricks.com/en/dev-tools/cli/install.html#run-the-databricks-cli-from-within-a-databricks-workspace[from a notebook terminal].
+
+After setting secrets up, you can access them from a Databricks notebook using the link:https://docs.databricks.com/en/dev-tools/databricks-utils.html#dbutils-secrets[Databricks Utilities (`dbutils`)].
+For example, given a `neo4j` scope and the `username` and `password` secrets for basic authentication, you can do the following in a Python notebook:
+
+[source, python]
+----
+from pyspark.sql import SparkSession
+
+url = "neo4j+s://xxxxxxxx.databases.neo4j.io"
+username = dbutils.secrets.get(scope="neo4j", key="username")
+password = dbutils.secrets.get(scope="neo4j", key="password")
+dbname = "neo4j"
+
+spark = (
+    SparkSession.builder.config("neo4j.url", url)
+    .config("neo4j.authentication.basic.username", username)
+    .config("neo4j.authentication.basic.password", password)
+    .config("neo4j.database", dbname)
+    .getOrCreate()
+)
+----
+
+== Delta tables
+
+You can use the Spark connector to read from and write to Delta tables from a Databricks notebook.
+This does not require any additional setup.
+
+=== Basic roundtrip
+
+The following example shows how to read a Delta table, write it as nodes and node properties to Neo4j, read the corresponding nodes and node properties from Neo4j, and write them to a new Delta table.
+
+[%collapsible]
+.Content of the Delta table
+====
+The example assumes that a Delta table `users_example` exists and contains the following data:
+
+[%header]
+.`users_example` table
+|===
+|name|surname|age
+|John|    Doe|42
+|Jane|    Doe|40
+|===
+====
+
+[source, python, role=nocollapse]
+----
+# Read the Delta table
+tableDF = spark.read.table("users_example")
+
+# Write the DataFrame to Neo4j as nodes
+(
+    tableDF
+    .write.format("org.neo4j.spark.DataSource")
+    .mode("Append")
+    .option("labels", ":User")
+    .save()
+)
+
+# Read the nodes with `:User` label from Neo4j
+neoDF = (
+    spark.read.format("org.neo4j.spark.DataSource")
+    .option("labels", ":User")
+    .load()
+)
+
+# Write the DataFrame to another Delta table,
+# which will contain the additional columns
+# `<id>` and `<labels>`
+neoDF.write.saveAsTable("users_new_example")
+----
+
+=== Delta tables to Neo4j nodes and relationships
+
+include::partial$avoid-deadlocks.adoc[]
+
+The following example shows how to read a Delta table and write its data as both nodes and relationships to Neo4j.
+See the xref:writing.adoc[Writing] page for details on using the `Overwrite` mode and on writing nodes only.
+
+[%collapsible]
+.Content of the Delta table
+====
+The example assumes that a Delta table `customers_products_example` exists and contains the following data:
+
+[%header]
+.`customers_products_example` table
+|===
+|name|surname|customerID|  product|quantity| order
+|John|    Doe|         1|Product 1|     200|ABC100
+|Jane|    Doe|         2|Product 2|     100|ABC200
+|===
+====
+
+[source, python, role=nocollapse]
+----
+# Read the Delta table into a DataFrame
+relDF = spark.read.table("customers_products_example")
+
+# Write the table to Neo4j using the
+# `relationship` write option
+(
+    relDF
+    # Use a single partition
+    .coalesce(1)
+    .write
+    # Create new relationships
+    .mode("Append")
+    .format("org.neo4j.spark.DataSource")
+    # Assign a type to the relationships
+    .option("relationship", "BOUGHT")
+    # Use `keys` strategy
+    .option("relationship.save.strategy", "keys")
+    # Create source nodes and assign them a label
+    .option("relationship.source.save.mode", "Append")
+    .option("relationship.source.labels", ":Customer")
+    # Map DataFrame columns to source node properties
+    .option("relationship.source.node.properties", "name,surname,customerID:id")
+    # Create target nodes and assign them a label
+    .option("relationship.target.save.mode", "Append")
+    .option("relationship.target.labels", ":Product")
+    # Map DataFrame columns to target node properties
+    .option("relationship.target.node.properties", "product:name")
+    # Map DataFrame columns to relationship properties
+    .option("relationship.properties", "quantity,order")
+    .save()
+)
+----
+
+=== Neo4j nodes to Delta tables
+
+The following example shows how to read nodes from Neo4j and write them to a Delta table.
+See the xref:reading.adoc[Reading] page for details on reading relationships.
+
+[source, python, role=nocollapse]
+----
+# Read the nodes with `:Customer` label from Neo4j
+df = (
+    spark.read.format("org.neo4j.spark.DataSource")
+    .option("labels", ":Customer")
+    .load()
+)
+
+# Write the DataFrame to another Delta table
+df.write.saveAsTable("customers_status_example")
+----

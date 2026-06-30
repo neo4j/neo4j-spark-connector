@@ -1,0 +1,109 @@
+= Data modeling
+
+== Converting data from DataFrames to graphs
+
+When taking any complex set of DataFrames and preparing it for load into Neo4j, you have two options:
+
+* Normalized loading
+* Cypher destructuring
+
+This section describes both and provides information on the benefits and potential drawbacks from a performance and complexity perspective.
+
+[NOTE]
+**Where possible, use the normalized loading approach for best performance and maintainability.**
+
+=== Normalized loading
+
+Suppose you want to load a single DataFrame called `purchases` into Neo4j with the following content:
+
+```csv
+product_id,product,customer_id,customer,quantity
+1,Socks,10,David,2
+2,Pants,11,Andrea,1
+```
+
+This data represents as simple `(:Customer)-[:BOUGHT]->(:Product)` graph model.
+
+The normalized loading approach requires that you create a number of different DatafFrames: one for each node label and relationship type in your desired graph. For example, in this case, you might create three DataFrames:
+
+* `val products = spark.sql("SELECT product_id, product FROM purchases")`
+* `val customers = spark.sql("SELECT customer_id, customer FROM purchases")`
+* `val bought = spark.sql("SELECT product_id, customer_id, quantity FROM purchases")`
+
+Once these simple DataFrames represent a normalized view of 'tables for labels' (that is, one DataFrame/table per node label or relationship type) - then the existing utilities provided by the connector for writing nodes and relationships can be used with
+no additional Cypher needed.
+Additionally -- if these frames are made unique by identifier, then the data is already
+prepared for maximum parallelism. (See parallelism notes in sections below.)
+
+==== Advantages
+
+* Normalized loading approach shifts most of the data transform work to Spark itself (in terms of splitting, uniquing, partitioning the data).  Any data transform/cleanup work should be done in Spark if possible.
+* This approach makes for easy to follow code; eventually, the write of each DataFrame to Neo4j is quite simple and requires mostly just
+a label and a key.
+* This allows for parallelism (discussed in sections below).
+
+==== Disadvantages
+
+* You need to do more SQL work before data is loaded into Neo4j.
+* This approach requires identifying graph schema before beginning, as opposed to loading data into Neo4j and using Cypher to manipulate it
+afterwards.
+
+=== Cypher destructuring
+
+Cypher destructuring is the process of using a single Cypher statement to process a complex record into a finished graph
+pattern. Let's look again at the data example:
+
+```csv
+product_id,product,customer_id,customer,quantity
+1,Socks,10,David,2
+2,Pants,11,Andrea,1
+```
+
+To store this in Neo4j, you might use a Cypher query like this:
+
+```cypher
+MERGE (p:Product { id: event.product_id })
+  ON CREATE SET p.name = event.product
+WITH p
+MERGE (c:Customer { id: event.customer_id })
+  ON CREATE SET c.name = event.customer
+MERGE (c)-[:BOUGHT { quantity: event.quantity }]->(p);
+```
+
+In this case, the entire job can be done by a single Cypher statement. 
+As DataFrames get complex, the Cypher statements too can get quite complicated.
+
+==== Advantages
+
+* Extremely flexible: you can do anything that Cypher provides for.
+* If you are a Neo4j expert, it is easy for you to get started with.
+
+==== Disadvantages
+
+* Cypher destructuring approach tends to shift transform work to Neo4j, which is not a good idea as it does not have the same infrastructure to support that as Spark.
+* This approach tends to create heavy locking behavior, which violates parallelism and possibly performance.
+* It encourages you to embed schema information in a Cypher query rather than use Spark utilities.
+
+== Converting data from graphs back to DataFrames
+
+[NOTE]
+**In general, always have an explicit `RETURN` statement and destructure your results.**
+
+A common pattern is to write a complex Cypher statement, perhaps one that traverses many relationships, to return
+a dataset to Spark. Since Spark does not understand graph primitives, there are not many useful ways to represent a raw node,
+relationship, or a path in Spark. As a result, it is highly recommended not to return those types from Cypher to Spark, focusing instead on concrete property values and function results which you can represent as simple types
+in Spark.
+
+For example, the following Cypher query results in an awkward DataFrame that would be hard to manipulate:
+
+```cypher
+MATCH path=(p:Person { name: "Andrea" })-[r:KNOWS*]->(o:Person)
+RETURN path;
+```
+
+A better Cypher query which results in a cleaner DataFrame is as follows:
+
+```cypher
+MATCH path=(p:Person { name: "Andrea" })-[r:KNOWS*]->(o:Person)
+RETURN length(path) as pathLength, p.name as p1Name, o.name as p2Name
+```

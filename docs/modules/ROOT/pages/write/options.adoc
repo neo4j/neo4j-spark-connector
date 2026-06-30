@@ -1,0 +1,139 @@
+= Writer options
+
+The DataSource Writer has several options to connect and persist data into Neo4j.
+
+.List of available write options
+|===
+|Setting name |Description |Default value |Required
+
+|`labels`
+|Colon separated list of the labels to attach to the node
+|_(none)_
+|No
+
+|`batch.size`
+|The number of the rows sent to Neo4j as batch
+|5000
+|No
+
+|`transaction.codes.fail`
+|Comma-separated list of Neo4j codes that cause the transaction to fail
+|_(none)_
+|No
+
+|`transaction.retries`
+|Number of retries in case of failure
+|3
+|No
+
+|`transaction.retry.timeout`
+|The time in milliseconds that the connector should wait before retry
+|0
+|No
+
+|`index.await.timeout`
+|Adjust the maximum timeout to wait for index generation.
+Before writing, the `db.awaitIndexes` Cypher procedure will be called with the timeout specified in whole seconds.
+Set to `0` to disable.
+|300
+|No
+
+|`type.conversion` label:new[v5.4]
+|Data conversion logic. When set to `legacy`, timestamps, intervals and byte arrays are processed the same way as they were before 5.4.0. See xref:../types.adoc[] for more information.
+|`default`
+|No
+
+4+|*Node specific options*
+
+|`node.keys`
+|Comma-separated list of properties considered as node keys if you are using
+`SaveMode.Overwrite`
+|_(none)_
+|No
+
+|`node.keys.skip.nulls`
+label:new[New in 5.3.10]
+| Whether to skip rows which contain null values for any of the specified columns in `node.keys`.
+|`false`
+|No
+
+4+|*Relationship specific options*
+
+|`relationship.keys`
+label:new[New in 5.3]
+|Comma-separated list of properties considered as relationship keys
+|_(none)_
+|No
+
+|`relationship.keys.skip.nulls`
+label:new[New in 5.3.10]
+| Whether to skip rows which contain null values for any of the specified columns in `relationship.keys`.
+|`false`
+|No
+
+|`relationship.properties`
+|Used only if `relationship.save.strategy` is `keys`.
+Map used as keys for specifying the *relationship* properties.
+When set, only the relationships included in the map are set as relationship properties. footnote:[Before 5.4.0, relationship properties not included in the map were set too with their original names.]
+When the option is not set, all unmapped fields are set as relationship properties.
+|_(empty)_
+|No
+
+|`relationship.save.strategy`
+|xref:write/relationship.adoc#strategies[Save strategy] to be used
+|`native`
+|Yes
+
+|`relationship.source.labels`
+|Colon-separated list of labels that identify the *source* node
+|_(empty)_
+|Yes
+
+|`relationship.source.node.keys`
+|Map used as keys for matching the *source* node
+|_(empty)_
+|No
+
+|`relationship.source.node.keys.skip.nulls`
+label:new[New in 5.3.10]
+| Whether to skip rows which contain null values for any of the specified columns in `relationship.source.node.keys`.
+|`false`
+|No
+
+|`relationship.source.save.mode`
+|Source xref:write/relationship.adoc#node-save-modes[Node save mode]
+|`Match`
+|No
+
+|`relationship.source.node.properties`
+|Map used as keys for specifying the *source* properties. Only used if `relationship.save.strategy` is `keys`
+|_(empty)_
+|No
+
+|`relationship.target.labels`
+|Colon-separated list of labels that identify the *target* node
+|_(empty)_
+|Yes
+
+|`relationship.target.node.keys`
+|Map used as keys for matching the *target* node
+|_(empty)_
+|No
+
+|`relationship.target.node.keys.skip.nulls`
+label:new[New in 5.3.10]
+| Whether to skip rows which contain null values for any of the specified columns in `relationship.target.node.keys`.
+|`false`
+|No
+
+|`relationship.target.save.mode`
+|Target xref:write/relationship.adoc#node-save-modes[Node save mode]
+|`Match`
+|No
+
+|`relationship.target.node.properties`
+|Map used as keys for specifying the *target* properties. Only used if `relationship.save.strategy` is `keys`
+|_(empty)_
+|No
+
+|===

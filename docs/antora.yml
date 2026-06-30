@@ -1,0 +1,20 @@
+name: spark
+title: Neo4j Spark
+version: '5'
+start_page: ROOT:index.adoc
+nav:
+- modules/ROOT/nav.adoc
+
+asciidoc:
+  attributes:
+    theme: docs
+    connector-version: '5.4'
+    exact-connector-version: '5.4.3'
+    scala-version: '2.12'
+    exact-scala-version: '2.12.20'
+    spark-version: '3.5.8'
+    copyright: Neo4j Inc.
+    url-neo4j-product-gds-lib: https://neo4j.com/product/graph-data-science-library/
+    url-gh-spark-notebooks: https://github.com/utnaf/neo4j-connector-apache-spark-notebooks
+    url-neo4j-gds-manual: https://neo4j.com/docs/graph-data-science/current/
+    url-aura-kbase-databricks: https://aura.support.neo4j.com/hc/en-us/articles/1500003161121

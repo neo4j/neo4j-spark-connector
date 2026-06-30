@@ -1,0 +1,326 @@
+= Data type mapping
+:description: This chapter provides a reference to type compatibility issues between Neo4j and Spark.
+
+Neo4j and Cypher provide a link:https://neo4j.com/docs/java-reference/current/extending-neo4j/values-and-types/[type system]
+that describes how values are stored in the database, but these types do not always exactly match what Spark provides.
+
+In some cases, there are data types that Neo4j provides that Spark does not have an equivalent for, and vice versa.
+
+== Data type mappings
+
+.Spark to Neo4j type mapping reference
+|===
+|Neo4j type |Spark type | Notes
+
+|`String`
+|`string`
+|Example: `"Hello"`
+
+|`Integer`
+|`long`, `short`, `byte`
+|Example:  `12345`
+
+|`Float`
+|`double`
+|Example: `3.141592`
+
+|`String`
+|`decimal`
+|label:new[New in 5.4.0] Example: `"16725.77423461"`
+This mapping only applies when _writing_ to Neo4j.
+If you need to read a spark `decimal`, parse the string representation in an appropriate way for your use case.
+
+|`Boolean`
+|`boolean`
+|Example:  `true`
+
+|`Point`
+|`struct { type: string, srid: integer, x: double, y: double, z: double }`
+|For more information on spatial types in Neo4j, see link:https://neo4j.com/docs/cypher-manual/current/values-and-types/spatial/[Spatial values]
+
+|`Date`
+|`date`
+|Example: `2020-09-11`
+
+|`Time`
+|`struct { type: string, value: string }`
+|Example: `[offset-time, 12:14:08.209Z]`
+
+|`LocalTime`
+|`struct { type: string, value: string }`
+|Example: `[local-time, 12:18:11.628]`
+
+|`ZonedDateTime`
+|`timestamp`
+|label:new[New in 5.4.0] Example: `2020-09-11 12:17:39.192+02:00`
+Spark timestamps (`TIMESTAMP`) are written as `ZonedDateTime` in UTC.
+
+|`LocalDateTime`
+|`timestamp`
+|label:deprecated[Deprecated since 5.4.0] Set `data.conversion` to `legacy` to continue using it.
+
+|`LocalDateTime`
+|`timestamp_ntz`
+|label:new[New in 5.4.0] Example: `2020-09-11 12:14:49.081`
+Spark local timestamps (`TIMESTAMP_NTZ`) are written as `LocalDateTime`. 
+
+|`Integer`
+|`timestamp_ntz`
+|label:deprecated[Deprecated since 5.4.0] Set `data.conversion` to `legacy` to continue using it.
+
+|`Duration`
+|`struct { type: string, months: long, days: long, seconds: long, nanonseconds: integer, value: string }`
+|See link:https://neo4j.com/docs/cypher-manual/current/values-and-types/temporal/#cypher-temporal-durations[Temporal functions: duration].
+
+|`Duration`
+|`duration` or `period` objects
+|label:new[New in 5.4.0] Example: `java.time.Duration.ofDays(42)` or `java.time.Period.ofMonths(5)`.
+
+|`Long`
+|`duration` or `period` objects
+|label:deprecated[Deprecated since 5.4.0] Set `data.conversion` to `legacy` to continue using it.
+
+|`Duration`
+|Spark SQL `INTERVAL` types
+|label:new[New in 5.4.0] Example: `INTERVAL '10 05:30' DAY TO MINUTE`, `INTERVAL '4-5' YEAR TO MONTH` or `timestamp('2025-01-02 18:30:00.454') - timestamp('2024-01-01 00:00:00')`.
+
+|`Long`
+|Spark SQL `INTERVAL` types
+|label:deprecated[Deprecated since 5.4.0] Set `data.conversion` to `legacy` to continue using it.
+
+|`Node`
+|`struct { <id>: long, <labels>: array[string], (PROPERTIES) }`
+|Nodes in Neo4j are represented as property containers; that is they appear as structs with properties corresponding to whatever properties were in the node.  _For ease of use it is usually better to return individual properties than a node from a query._
+
+|`Relationship`
+|`struct { <rel.id>: long, <rel.type>: string, <source.id>: long, <target.id>: long, (PROPERTIES) }`
+|Relationships are returned as maps, identifying the source and target of the relationship, its type, along with properties (if any) of the relationship.  _For ease of use it is usually better to return individual properties than a relationship from a query._
+
+|`Path`
+|`string`
+|Example: `path[(322)<-[20280:AIRLINE]-(33510)]`.  _For ease of use it is recommended to use link:https://neo4j.com/docs/cypher-manual/current/values-and-types/lists/[path functions] to return individual properties/aspects of a path from a query._
+
+|`ByteArray`
+|`binary`, `array[byte]`
+|label:new[New in 5.4.0] Binary writes are treated specifically as Neo4j's `ByteArray` type.
+
+|`List<Integer>`
+|`binary`, `array[byte]`
+|label:deprecated[Deprecated since 5.4.0] Set `data.conversion` to `legacy` to continue using it.
+
+|`[Array of same type]`
+|`array[element]`
+|In Neo4j, arrays must be consistently typed (for example, an array must contain only `Float` values). The inner Spark type matches the type mapping above.
+
+|===
+
+== Complex data types
+
+Spark does not natively support all Neo4j data types (for example link:{neo4j-docs-base-uri}/cypher-manual/current/values-and-types/spatial/#spatial-values-point-type[`Point`], link:{neo4j-docs-base-uri}/cypher-manual/current/values-and-types/temporal/#cypher-temporal-instants[`Time`], link:{neo4j-docs-base-uri}/cypher-manual/current/values-and-types/temporal/#cypher-temporal-durations[`Duration`]).
+Such types are transformed into `Struct` types containing all the useful data.
+
+.Complex data type conversion
+|===
+|Neo4j type |Spark `Struct`
+
+|Duration
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("months", DataTypes.LongType, false),
+    ("days", DataTypes.LongType, false),
+    ("seconds", DataTypes.LongType, false),
+    ("nanoseconds", DataTypes.IntegerType, false),
+    ("value", DataTypes.StringType, false)
+  ))
+----
+
+|Point
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("srid", DataTypes.IntegerType, false),
+    ("x", DataTypes.DoubleType, false),
+    ("y", DataTypes.DoubleType, false),
+    ("z", DataTypes.DoubleType, true),
+  ))
+----
+
+|Time
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("value", DataTypes.StringType, false)
+  ))
+----
+|===
+
+== Map type
+
+When a column is a map, the connector tries to flatten it.
+For example, consider the following dataset:
+
+|===
+|id |name |lives_in
+
+|1
+|Andrea Santurbano
+|{address: 'Times Square, 1', city: 'NY', state: 'NY'}
+
+|2
+|Davide Fantuzzi
+|{address: 'Statue of Liberty, 10', city: 'NY', state: 'NY'}
+|===
+
+The connector flattens the `lives_in` column into three columns `lives_in.address`, `lives_in.city`, and `lives_in.state`:
+
+|===
+|id |name |lives_in.address |lives_in.city |lives_in.state
+
+|1
+|Andrea Santurbano
+|Times Square, 1
+|NY
+|NY
+
+|2
+|Davide Fantuzzi
+|Statue of Liberty, 10
+|NY
+|NY
+|===
+
+When a Dataframe column is a map, what we do internally is to flatten the map as Neo4j does not support this type for graph entity properties; so for a Spark job like this:
+
+[source,scala]
+----
+val data = Seq(
+  ("Foo", 1, Map("inner" -> Map("key" -> "innerValue"))),
+  ("Bar", 2, Map("inner" -> Map("key" -> "innerValue1"))),
+).toDF("id", "time", "table")
+
+data.write
+  .mode(SaveMode.Append)
+  .format(classOf[DataSource].getName)
+  .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+  .option("labels", ":MyNodeWithFlattenedMap")
+  .save()
+----
+
+In Neo4j for the nodes with label `MyNodeWithFlattenedMap` you'll find this information stored:
+
+----
+MyNodeWithFlattenedMap {
+    id: 'Foo',
+    time: 1,
+    `table.inner.key`: 'innerValue'
+}
+MyNodeWithFlattenedMap {
+    id: 'Bar',
+    time: 1,
+    `table.inner.key`: 'innerValue1'
+}
+----
+
+Now you could fall into problematic situations like the following one:
+
+[source,scala]
+----
+val data = Seq(
+  ("Foo", 1, Map("key.inner" -> Map("key" -> "innerValue"), "key" -> Map("inner.key" -> "value"))),
+  ("Bar", 1, Map("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1"))),
+).toDF("id", "time", "table")
+data.write
+  .mode(SaveMode.Append)
+  .format(classOf[DataSource].getName)
+  .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+  .option("labels", ":MyNodeWithFlattenedMap")
+  .save()
+----
+
+since the resulting flattened keys are duplicated, the Neo4j Spark will pick one of the associated value in a non-deterministic way.
+
+Because the information that we'll store into Neo4j will be this (consider that the order is not guaranteed):
+
+----
+MyNodeWithFlattenedMap {
+    id: 'Foo',
+    time: 1,
+    `table.key.inner.key`: 'innerValue' // but it could be `value` as the order is not guaranteed
+}
+MyNodeWithFlattenedMap {
+    id: 'Bar',
+    time: 1,
+    `table.key.inner.key`: 'innerValue1' // but it could be `value1` as the order is not guaranteed
+}
+----
+
+=== Group duplicated keys to array of values
+
+You can use the option `schema.map.group.duplicate.keys` to avoid this problem. The connector will group all the values with the same keys into an array. The default value for the option is `false`.
+In a scenario like this:
+
+[source,scala]
+----
+val data = Seq(
+  ("Foo", 1, Map("key.inner" -> Map("key" -> "innerValue"), "key" -> Map("inner.key" -> "value"))),
+  ("Bar", 1, Map("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1"))),
+).toDF("id", "time", "table")
+data.write
+  .mode(SaveMode.Append)
+  .format(classOf[DataSource].getName)
+  .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+  .option("labels", ":MyNodeWithFlattenedMap")
+  .option("schema.map.group.duplicate.keys", true)
+  .save()
+----
+
+the output would be:
+
+----
+MyNodeWithFlattenedMap {
+    id: 'Foo',
+    time: 1,
+    `table.key.inner.key`: ['innerValue', 'value'] // the order is not guaranteed
+}
+MyNodeWithFlattenedMap {
+    id: 'Bar',
+    time: 1,
+    `table.key.inner.key`: ['innerValue1', 'value1'] // the order is not guaranteed
+}
+----
+
+[#constraints]
+== Constraint type mapping
+
+.Spark to Cypher constraint type mapping
+|===
+|Spark type |Neo4j Type
+
+|BooleanType |BOOLEAN
+|StringType |STRING
+|IntegerType |INTEGER
+|LongType |INTEGER
+|FloatType |FLOAT
+|DoubleType |FLOAT
+|DateType |DATE
+|TimestampType |LOCAL DATETIME
+|Custom `pointType` as: Struct { type: string, srid: integer, x: double, y: double, z: double }| POINT
+|Custom `durationType` as: Struct { type: string, months: long, days: long, seconds: long, nanonseconds: integer, value: string }| DURATION
+|DataTypes.createArrayType(BooleanType, false) |LIST<BOOLEAN NOT NULL>
+|DataTypes.createArrayType(StringType, false) |LIST<STRING NOT NULL>
+|DataTypes.createArrayType(IntegerType, false) |LIST<INTEGER NOT NULL>
+|DataTypes.createArrayType(LongType, false) |LIST<INTEGER NOT NULL>
+|DataTypes.createArrayType(FloatType, false) |LIST<FLOAT NOT NULL>
+|DataTypes.createArrayType(DoubleType, false) |LIST<FLOAT NOT NULL>
+|DataTypes.createArrayType(DateType, false) |LIST<DATE NOT NULL>
+|DataTypes.createArrayType(TimestampType, false) |LIST<LOCAL DATETIME NOT NULL>
+|DataTypes.createArrayType(pointType, false) |LIST<POINT NOT NULL>
+|DataTypes.createArrayType(durationType, false) |LIST<DURATION NOT NULL>
+
+|===
+
+For the arrays in particular we use the version without null elements as Neo4j does not allow to have them in arrays.
