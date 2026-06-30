@@ -26,7 +26,7 @@ In some cases, there are data types that Neo4j provides that Spark does not have
 
 |`String`
 |`decimal`
-|label:new[New in 5.4.0] Example: `"16725.77423461"`
+|Example: `"16725.77423461"`
 This mapping only applies when _writing_ to Neo4j.
 If you need to read a spark `decimal`, parse the string representation in an appropriate way for your use case.
 
@@ -52,7 +52,7 @@ If you need to read a spark `decimal`, parse the string representation in an app
 
 |`ZonedDateTime`
 |`timestamp`
-|label:new[New in 5.4.0] Example: `2020-09-11 12:17:39.192+02:00`
+|Example: `2020-09-11 12:17:39.192+02:00`
 Spark timestamps (`TIMESTAMP`) are written as `ZonedDateTime` in UTC.
 
 |`LocalDateTime`
@@ -61,8 +61,8 @@ Spark timestamps (`TIMESTAMP`) are written as `ZonedDateTime` in UTC.
 
 |`LocalDateTime`
 |`timestamp_ntz`
-|label:new[New in 5.4.0] Example: `2020-09-11 12:14:49.081`
-Spark local timestamps (`TIMESTAMP_NTZ`) are written as `LocalDateTime`. 
+|Example: `2020-09-11 12:14:49.081`
+Spark local timestamps (`TIMESTAMP_NTZ`) are written as `LocalDateTime`.
 
 |`Integer`
 |`timestamp_ntz`
@@ -74,7 +74,7 @@ Spark local timestamps (`TIMESTAMP_NTZ`) are written as `LocalDateTime`.
 
 |`Duration`
 |`duration` or `period` objects
-|label:new[New in 5.4.0] Example: `java.time.Duration.ofDays(42)` or `java.time.Period.ofMonths(5)`.
+|Example: `java.time.Duration.ofDays(42)` or `java.time.Period.ofMonths(5)`.
 
 |`Long`
 |`duration` or `period` objects
@@ -82,7 +82,7 @@ Spark local timestamps (`TIMESTAMP_NTZ`) are written as `LocalDateTime`.
 
 |`Duration`
 |Spark SQL `INTERVAL` types
-|label:new[New in 5.4.0] Example: `INTERVAL '10 05:30' DAY TO MINUTE`, `INTERVAL '4-5' YEAR TO MONTH` or `timestamp('2025-01-02 18:30:00.454') - timestamp('2024-01-01 00:00:00')`.
+|Example: `INTERVAL '10 05:30' DAY TO MINUTE`, `INTERVAL '4-5' YEAR TO MONTH` or `timestamp('2025-01-02 18:30:00.454') - timestamp('2024-01-01 00:00:00')`.
 
 |`Long`
 |Spark SQL `INTERVAL` types
@@ -102,7 +102,7 @@ Spark local timestamps (`TIMESTAMP_NTZ`) are written as `LocalDateTime`.
 
 |`ByteArray`
 |`binary`, `array[byte]`
-|label:new[New in 5.4.0] Binary writes are treated specifically as Neo4j's `ByteArray` type.
+|Binary writes are treated specifically as Neo4j's `ByteArray` type.
 
 |`List<Integer>`
 |`binary`, `array[byte]`

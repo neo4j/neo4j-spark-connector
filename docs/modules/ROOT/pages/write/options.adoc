@@ -38,7 +38,7 @@ Set to `0` to disable.
 |300
 |No
 
-|`type.conversion` label:new[v5.4]
+|`type.conversion`
 |Data conversion logic. When set to `legacy`, timestamps, intervals and byte arrays are processed the same way as they were before 5.4.0. See xref:../types.adoc[] for more information.
 |`default`
 |No
@@ -52,7 +52,6 @@ Set to `0` to disable.
 |No
 
 |`node.keys.skip.nulls`
-label:new[New in 5.3.10]
 | Whether to skip rows which contain null values for any of the specified columns in `node.keys`.
 |`false`
 |No
@@ -60,13 +59,11 @@ label:new[New in 5.3.10]
 4+|*Relationship specific options*
 
 |`relationship.keys`
-label:new[New in 5.3]
 |Comma-separated list of properties considered as relationship keys
 |_(none)_
 |No
 
 |`relationship.keys.skip.nulls`
-label:new[New in 5.3.10]
 | Whether to skip rows which contain null values for any of the specified columns in `relationship.keys`.
 |`false`
 |No
@@ -95,7 +92,6 @@ When the option is not set, all unmapped fields are set as relationship properti
 |No
 
 |`relationship.source.node.keys.skip.nulls`
-label:new[New in 5.3.10]
 | Whether to skip rows which contain null values for any of the specified columns in `relationship.source.node.keys`.
 |`false`
 |No
@@ -121,7 +117,6 @@ label:new[New in 5.3.10]
 |No
 
 |`relationship.target.node.keys.skip.nulls`
-label:new[New in 5.3.10]
 | Whether to skip rows which contain null values for any of the specified columns in `relationship.target.node.keys`.
 |`false`
 |No

@@ -6,7 +6,7 @@
 === Is this software connected to Morpheus or Cypher for Apache Spark (CAPS)?
 
 No. There is no shared code or approach between the two, and they take very different approaches. Cypher for Apache Spark/Morpheus took the approach of providing an interpreter
-that could execute Cypher queries within the Spark environment, and provided a native graph representation for Spark.  
+that could execute Cypher queries within the Spark environment, and provided a native graph representation for Spark.
 By contrast, this connector does not provide that
 functionality and focuses on doing reads and writes back and forth between Neo4j and Spark. Via this connector, all Cypher code is executed strictly within Neo4j. The Spark
 environment operates in terms of DataFrames as it always did, and this connector does not provide graph API primitives for Spark.
@@ -46,7 +46,7 @@ In some cases, Neo4j rejects write transactions due to a deadlock exception that
 
 link:https://neo4j.com/developer/kb/explanation-of-error-deadlockdetectedexception-forseticlient-0-cant-acquire-exclusivelock/[This Neo4j Knowledge Base article] describes the issue.
 
-Typically this is caused by too much parallelism in writing to Neo4j. 
+Typically this is caused by too much parallelism in writing to Neo4j.
 For example, when you write a relationship `(:A)-[:REL]->(:B)`, this creates a 'lock' in the database on both nodes.
 If some simultaneous other thread is attempting to write to those nodes too often, deadlock
 exceptions can result and a transaction fails.
@@ -93,7 +93,7 @@ Caused by: java.lang.ClassNotFoundException: scala.collection.IterableOnce
 ----
 
 This means that your Spark version doesn't match the Spark version on the connector.
-Refer to xref:overview.adoc#_spark_and_scala_compatibility[this page] to know which version you need.
+Refer to xref:compatibility.adoc[] to choose the right version.
 
 [[graph-already-exists]]
 === I am getting an error _Failed to invoke procedure gds.graph.create.cypher: Caused by: java.lang.IllegalArgumentException: A graph with name [name] already exists_. What should I do?

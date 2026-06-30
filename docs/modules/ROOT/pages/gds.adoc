@@ -17,7 +17,6 @@ All of the link:{url-neo4j-gds-manual}[functionality of GDS^] is used by issuing
 accessible via Spark, because the Neo4j Connector for Apache Spark can issue Cypher queries and read their results back.  This combination means
 that you can use Neo4j and GDS as a graph co-processor in an existing ML workflow that you may implement in Apache Spark.
 
-[role=label--new-5.1]
 == GDS first-class support
 
 Neo4j Spark Connector provides first-class support to Graph Data Science library let's see how it works.
@@ -363,4 +362,3 @@ Spark, and you choose what's best for your use case.
 If you have an architecture where the GDS algorithm is being run on a Read Replica or a separate standalone instance, it may be convenient to stream
 the results back (as you cannot write them to a Read Replica), and then use the connector's write functionality to take that stream of results, and
 write them back to a _different Neo4j connection_, i.e., to a regular Causal Cluster.
-
