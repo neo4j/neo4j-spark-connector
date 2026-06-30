@@ -20,6 +20,7 @@ import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.AccessMode
 import org.neo4j.driver.net.ServerAddress
+import org.neo4j.spark.util.Neo4jOptions.GDS_TELEMETRY_ACTION
 
 import java.net.URI
 import java.time.Duration
@@ -267,6 +268,33 @@ class Neo4jOptionsTest {
 
     // Then it is not set
     assertNull(transactionConfig.timeout())
+  }
+
+  @Test
+  def testGdsTelemetry(): Unit = {
+    val expectedValue = "Any value really, as this is primarily a test for existence."
+    val rawOptions = new java.util.HashMap[String, String]()
+    rawOptions.put(Neo4jOptions.URL, "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783")
+    rawOptions.put("gds", expectedValue)
+
+    val neo4jOptions = new Neo4jOptions(rawOptions)
+
+    val transactionConfig = neo4jOptions.toNeo4jTransactionConfig
+
+    assertEquals(expectedValue, transactionConfig.metadata().get(GDS_TELEMETRY_ACTION).asString())
+  }
+
+  @Test
+  def testNoGdsTelemetryWhenNotGds(): Unit = {
+    val rawOptions = new java.util.HashMap[String, String]()
+    rawOptions.put(Neo4jOptions.URL, "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783")
+    rawOptions.put("query", "MATCH (t: Thing) RETURN t")
+
+    val neo4jOptions = new Neo4jOptions(rawOptions)
+
+    val transactionConfig = neo4jOptions.toNeo4jTransactionConfig
+
+    assertNull(transactionConfig.metadata().get(GDS_TELEMETRY_ACTION))
   }
 
   @Test
