@@ -17,8 +17,10 @@ At the Neo4j Cypher level, it's very common to use the Spark connector in a way 
 In Neo4j, this looks up a node by some 'key' and then creates it only if it does not already exist.
 
 [NOTE]
-**It is strongly recommended to assert indexes or constraints on any graph property that you use as part of
-`node.keys`, `relationship.source.node.keys`, `relationship.target.node.keys` or other similar key options.**
+====
+It is strongly recommended to assert indexes or constraints on any graph property that you use as part of
+`node.keys`, `relationship.source.node.keys`, `relationship.target.node.keys` or other similar key options.
+====
 
 A common source of poor performance is to write Spark code that generates `MERGE` Cypher, or otherwise tries
 to look data up in Neo4j without the appropriate database indexes. In this case, the Neo4j server ends up looking

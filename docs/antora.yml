@@ -13,6 +13,7 @@ asciidoc:
     scala-version: '2.12'
     exact-scala-version: '2.12.20'
     spark-version: '3.5.8'
+    connectors-commons-version: '1.0.0-rc2'
     copyright: Neo4j Inc.
     url-neo4j-product-gds-lib: https://neo4j.com/product/graph-data-science-library/
     url-gh-spark-notebooks: https://github.com/utnaf/neo4j-connector-apache-spark-notebooks
