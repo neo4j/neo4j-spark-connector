@@ -17,12 +17,15 @@
 package org.neo4j.spark.testsupport
 
 import org.junit.jupiter.api.extension.ExtensionContext
+import org.junit.jupiter.api.extension.ExtensionContext.Namespace
+import org.junit.jupiter.api.extension.ExtensionContext.StoreScope
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.ArgumentsProvider
 import org.junit.jupiter.params.support.ParameterDeclarations
 import org.testcontainers.neo4j.Neo4jContainer
 
 import java.util.TimeZone
+import java.util.function.Function
 import java.util.stream
 
 class Neo4jContainerProvider extends ArgumentsProvider {
@@ -30,23 +33,51 @@ class Neo4jContainerProvider extends ArgumentsProvider {
   override def provideArguments(
     parameters: ParameterDeclarations,
     context: ExtensionContext
-  ): stream.Stream[Arguments] = {
-    stream.Stream.of(
-      Arguments.argumentSet("with Vanilla Neo4j", baseContainer),
-      Arguments.argumentSet("with Neo4j+APOC core", baseContainer.withPlugins("apoc")),
-      Arguments.argumentSet("with Neo4j+GDS", baseContainer.withPlugins("graph-data-science")),
-      Arguments.argumentSet("with Neo4j+GDS+APOC core", baseContainer.withPlugins("graph-data-science", "apoc"))
-    )
-  }
-
-  private def baseContainer = {
-    new Neo4jContainer(TestUtil.neo4jImage())
-      .withAdminPassword(Neo4jContainerProvider.ADMIN_PASSWORD)
-      .withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
-      .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-  }
+  ): stream.Stream[Arguments] =
+    Neo4jContainerProvider.arguments(context)
 }
 
 object Neo4jContainerProvider {
   val ADMIN_PASSWORD = "letmein!"
+
+  private val NAMESPACE = Namespace.create(classOf[Neo4jContainerProvider])
+  private val CONTAINERS_KEY = "containers"
+
+  private def arguments(context: ExtensionContext): stream.Stream[Arguments] = {
+    val containers = context
+      .getStore(StoreScope.LAUNCHER_SESSION, NAMESPACE)
+      .computeIfAbsent(
+        CONTAINERS_KEY,
+        (_: String) => new SharedNeo4jContainers,
+        classOf[SharedNeo4jContainers]
+      )
+
+    stream.Stream.of(
+      Arguments.argumentSet("with Vanilla Neo4j", containers.vanilla),
+      Arguments.argumentSet("with Neo4j+APOC core", containers.apoc),
+      Arguments.argumentSet("with Neo4j+GDS", containers.gds),
+      Arguments.argumentSet("with Neo4j+GDS+APOC core", containers.gdsAndApoc)
+    )
+  }
+
+  private class SharedNeo4jContainers extends AutoCloseable {
+
+    val vanilla: Neo4jContainer = baseContainer()
+    val apoc: Neo4jContainer = baseContainer().withPlugins("apoc")
+    val gds: Neo4jContainer = baseContainer().withPlugins("graph-data-science")
+    val gdsAndApoc: Neo4jContainer = baseContainer().withPlugins("graph-data-science", "apoc")
+
+    override def close(): Unit = {
+      Neo4jExtensions.stopSparkSession()
+      Seq(vanilla, apoc, gds, gdsAndApoc).foreach(_.close())
+    }
+
+    private def baseContainer() = {
+      new Neo4jContainer(TestUtil.neo4jImage())
+        .withAdminPassword(ADMIN_PASSWORD)
+        .withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
+        .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
+        .withReuse(true)
+    }
+  }
 }

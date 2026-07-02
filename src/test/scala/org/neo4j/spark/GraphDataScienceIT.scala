@@ -46,9 +46,11 @@ import org.neo4j.spark.service.Neo4jQueryReadStrategy
 import org.neo4j.spark.service.Neo4jQueryService
 import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.testsupport.Closeables.use
+import org.neo4j.spark.testsupport.InjectNeo4jContainerParameter
 import org.neo4j.spark.testsupport.Neo4jContainerProvider
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
+import org.neo4j.spark.testsupport.Neo4jExtensions.releaseSparkSession
 import org.neo4j.spark.testsupport.TestUtil
 import org.neo4j.spark.testsupport.Versions
 import org.neo4j.spark.util.DummyNamedReference
@@ -57,9 +59,7 @@ import org.testcontainers.neo4j.Neo4jContainer
 
 import scala.math.Ordering.Implicits.infixOrderingOps
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ParameterizedClass(name = "{argumentSetName}")
-@ArgumentsSource(classOf[Neo4jContainerProvider])
+@InjectNeo4jContainerParameter
 @DisplayName("graph data science")
 class GraphDataScienceIT {
 
@@ -89,7 +89,7 @@ class GraphDataScienceIT {
     Option(driver).filter(_.serverSupportsGds()).foreach { d =>
       d.executableQuery("CALL gds.graph.drop('myGraph', false)").execute()
     }
-    Option(spark).foreach(_.close())
+    Option(spark).foreach(releaseSparkSession)
     Option(driver).foreach(_.close())
   }
 

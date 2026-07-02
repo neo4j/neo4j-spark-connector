@@ -33,6 +33,52 @@ import scala.util.Using
 
 object Neo4jExtensions {
 
+  private object SharedSparkSession {
+    private var root: SparkSession = _
+
+    def forContainer(container: Neo4jContainer): SparkSession = {
+      val session = this.synchronized {
+        if (root == null || root.sparkContext.isStopped) {
+          root = SparkSession.builder()
+            .config(new SparkConf()
+              .setAppName("neoTest")
+              .setMaster("local[*]")
+              .set("spark.driver.host", "127.0.0.1"))
+            .getOrCreate()
+        }
+        root.newSession()
+      }
+
+      session.conf.set("neo4j.url", container.getBoltUrl)
+      session.conf.set("neo4j.authentication.basic.username", "neo4j")
+      session.conf.set("neo4j.authentication.basic.password", container.getAdminPassword)
+      SparkSession.setActiveSession(session)
+      session
+    }
+
+    def release(session: SparkSession): Unit = {
+      if (session != null) {
+        session.catalog.clearCache()
+        SparkSession.clearActiveSession()
+      }
+    }
+
+    def stop(): Unit = this.synchronized {
+      if (root != null && !root.sparkContext.isStopped) {
+        root.stop()
+      }
+      root = null
+      SparkSession.clearActiveSession()
+      SparkSession.clearDefaultSession()
+    }
+  }
+
+  def releaseSparkSession(session: SparkSession): Unit =
+    SharedSparkSession.release(session)
+
+  def stopSparkSession(): Unit =
+    SharedSparkSession.stop()
+
   implicit class Neo4jContainerExtensions(container: Neo4jContainer) {
 
     def cypherRenderer(options: Neo4jOptions = defaultNeo4jSparkOptions): CypherRenderer = {
@@ -48,15 +94,7 @@ object Neo4jExtensions {
     }
 
     def spark(): SparkSession = {
-      SparkSession.builder()
-        .config(new SparkConf()
-          .setAppName("neoTest")
-          .setMaster("local[*]")
-          .set("spark.driver.host", "127.0.0.1")
-          .set("neo4j.url", container.getBoltUrl)
-          .set("neo4j.authentication.basic.username", "neo4j")
-          .set("neo4j.authentication.basic.password", container.getAdminPassword))
-        .getOrCreate()
+      SharedSparkSession.forContainer(container)
     }
 
     def authenticatedOptions(): Map[String, String] = {

@@ -35,9 +35,11 @@ import org.junit.jupiter.params.ParameterizedClass
 import org.junit.jupiter.params.provider.ArgumentsSource
 import org.neo4j.driver.Driver
 import org.neo4j.spark.testsupport.Assert
+import org.neo4j.spark.testsupport.InjectNeo4jContainerParameter
 import org.neo4j.spark.testsupport.Neo4jContainerProvider
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
+import org.neo4j.spark.testsupport.Neo4jExtensions.releaseSparkSession
 import org.testcontainers.neo4j.Neo4jContainer
 
 import java.nio.file.Files
@@ -49,9 +51,7 @@ import scala.collection.immutable
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ParameterizedClass(name = "{argumentSetName}")
-@ArgumentsSource(classOf[Neo4jContainerProvider])
+@InjectNeo4jContainerParameter
 @DisplayName("streaming")
 @SetSystemProperty(key = "strict.cypher", value = "true")
 class StreamingIT {
@@ -92,7 +92,7 @@ class StreamingIT {
     Option(spark).foreach { session =>
       createdTables.foreach(table => session.sql(s"DROP TABLE IF EXISTS $table"))
       createdTables.clear()
-      session.close()
+      releaseSparkSession(session)
     }
     Option(driver).foreach(_.close())
   }

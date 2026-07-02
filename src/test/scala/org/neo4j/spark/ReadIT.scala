@@ -42,9 +42,11 @@ import org.junit.jupiter.params.provider.ValueSource
 import org.neo4j.driver.Driver
 import org.neo4j.driver.QueryConfig
 import org.neo4j.driver.exceptions.ClientException
+import org.neo4j.spark.testsupport.InjectNeo4jContainerParameter
 import org.neo4j.spark.testsupport.Neo4jContainerProvider
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
+import org.neo4j.spark.testsupport.Neo4jExtensions.releaseSparkSession
 import org.neo4j.spark.util.Neo4jOptions
 import org.testcontainers.neo4j.Neo4jContainer
 
@@ -63,9 +65,7 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.IterableHasAsJava
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ParameterizedClass(name = "{argumentSetName}")
-@ArgumentsSource(classOf[Neo4jContainerProvider])
+@InjectNeo4jContainerParameter
 @DisplayName("reading")
 @SetSystemProperty(key = "strict.cypher", value = "true")
 class ReadIT {
@@ -90,7 +90,7 @@ class ReadIT {
   @AfterEach
   def cleanUp(): Unit = {
     if (spark != null) {
-      spark.close()
+      releaseSparkSession(spark)
     }
     if (driver != null) {
       driver.close()
