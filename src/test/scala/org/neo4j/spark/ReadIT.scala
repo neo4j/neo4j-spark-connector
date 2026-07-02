@@ -103,7 +103,6 @@ class ReadIT {
       .isThrownBy(() => {
         spark.read.format(classOf[DataSource].getName)
           .load()
-          .show() // show is needed to trigger the exception because of changes in Spark 3
       })
       .withMessage("No valid option found. One of `GDS`, `LABELS`, `QUERY`, `RELATIONSHIP` is required")
   }
@@ -116,7 +115,6 @@ class ReadIT {
           .option("labels", "Person")
           .option("relationship", "KNOWS")
           .load()
-          .show() // show is needed to trigger the exception because of changes in Spark 3
       })
       .withMessage("You need to specify just one of these options: 'gds', 'labels', 'query', 'relationship'")
   }
@@ -129,7 +127,6 @@ class ReadIT {
           .option("labels", "Person")
           .option(Neo4jOptions.CYPHER_VERSION, "2.3")
           .load()
-          .show()
       })
       .withMessage("The provided cypher version '2.3' is not valid.")
   }
@@ -1849,7 +1846,7 @@ class ReadIT {
             .option("query", s"MATCH (n:Label) RETURN elementId(n) as id $limitKeyword 100")
             // generated query would yield 42I63 because of misplaced LIMIT in strict mode
             .load()
-            .show() // show is needed to trigger the exception because of changes in Spark 3
+            .count()
         })
         .withMessage("SKIP/LIMIT are not allowed at the end of the query")
     }

@@ -40,12 +40,12 @@
         <cypherdsl.version>2025.3.0</cypherdsl.version>
         <driver.version>6.2.0</driver.version>
         <java.version>17</java.version>
-        <!-- 3.4.3.Final is the latest jboss-logging version compatible with java 8 -->
         <jboss-logging.version>3.6.3.Final</jboss-logging.version>
         <junit.version>6.1.0</junit.version>
         <license-maven-plugin.version>5.0.0</license-maven-plugin.version>
         <licensing-maven-plugin.version>1.7.12</licensing-maven-plugin.version>
         <licensing.prepend.text>/license/neo4j_apache_v2/notice.txt</licensing.prepend.text>
+        <log4j.version>2.24.3</log4j.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
@@ -70,7 +70,8 @@
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
         <spark.version>4.1.2</spark.version>
         <spotless-maven-plugin.version>3.7.0</spotless-maven-plugin.version>
-        <test.jvm.args>-XX:+IgnoreUnrecognizedVMOptions
+        <test.jvm.args>
+            -XX:+IgnoreUnrecognizedVMOptions
             --add-opens=java.base/java.lang=ALL-UNNAMED
             --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
             --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
@@ -85,7 +86,14 @@
             --add-opens=java.base/sun.security.action=ALL-UNNAMED
             --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
             --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED
-            -Djdk.reflect.useDirectMethodHandle=false</test.jvm.args>
+            -Djdk.reflect.useDirectMethodHandle=false
+            <!-- Avoid Netty 4.2 native transport which causes hangs in local tests. -->
+            -Dio.netty.transport.noNative=true
+            <!-- Manually register Mockito as an agent (dynamic agent loading is [going to be] prohibited -->
+            -javaagent:${org.mockito:mockito-core:jar}
+            <!-- Disable CDS because Mockito's Java agent appends to the bootstrap classpath. -->
+            -Xshare:off
+        </test.jvm.args>
         <testcontainers.version>2.0.5</testcontainers.version>
     </properties>
     <dependencyManagement>
@@ -219,6 +227,26 @@
             <artifactId>commons-authn-provided</artifactId>
             <version>${connectors-commons.version}</version>
             <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <!-- bridges Neo4j Java driver's Java Platform Logging API to SLF4J -->
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-jdk-platform-logging</artifactId>
+            <version>${slf4j-api.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- bridges SLF4J to Log4j (for tests) -->
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <version>${log4j.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
@@ -440,8 +468,7 @@
                         </includes>
                         <forkCount>1</forkCount>
                         <reuseForks>false</reuseForks>
-                        <!-- Avoid Netty 4.2 native transport which causes hangs in local tests. -->
-                        <argLine>${test.jvm.args} -Dio.netty.transport.noNative=true</argLine>
+                        <argLine>${test.jvm.args}</argLine>
                         <useModulePath>false</useModulePath>
                     </configuration>
                     <executions>
@@ -500,8 +527,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                     <configuration>
-                        <!-- Avoid Netty 4.2 native transport which causes hangs in local tests. -->
-                        <argLine>${test.jvm.args} -Dio.netty.transport.noNative=true</argLine>
+                        <argLine>${test.jvm.args}</argLine>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -548,7 +574,6 @@
                             <descriptorRef>jar-with-dependencies</descriptorRef>
                         </descriptorRefs>
                         <finalName>${project.build.finalName}</finalName>
-                        <appendAssemblyId>false</appendAssemblyId>
                     </configuration>
                     <executions>
                         <execution>
@@ -556,6 +581,24 @@
                                 <goal>single</goal>
                             </goals>
                             <phase>package</phase>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>com.coderplus.maven.plugins</groupId>
+                    <artifactId>copy-rename-maven-plugin</artifactId>
+                    <version>1.0</version>
+                    <executions>
+                        <execution>
+                            <id>copy-file</id>
+                            <goals>
+                                <goal>rename</goal>
+                            </goals>
+                            <phase>package</phase>
+                            <configuration>
+                                <sourceFile>${project.build.directory}/${project.build.finalName}-jar-with-dependencies.jar</sourceFile>
+                                <destinationFile>${project.build.directory}/${project.build.finalName}.jar</destinationFile>
+                            </configuration>
                         </execution>
                     </executions>
                 </plugin>
@@ -647,6 +690,10 @@
                 <artifactId>maven-assembly-plugin</artifactId>
             </plugin>
             <plugin>
+                <groupId>com.coderplus.maven.plugins</groupId>
+                <artifactId>copy-rename-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
             </plugin>
@@ -661,6 +708,17 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

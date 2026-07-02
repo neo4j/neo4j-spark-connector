@@ -144,7 +144,10 @@ class ReauthenticationIT extends SparkConnectorScalaSuiteIT {
 
     var driver: Driver = null
     try {
-      driver = GraphDatabase.driver(NEO4J.getBoltUrl, AuthTokens.basic("neo4j", NEO4J.getAdminPassword))
+      driver = GraphDatabase.driver(
+        NEO4J.getBoltUrl,
+        AuthTokens.basic("neo4j", NEO4J.getAdminPassword)
+      )
       driver.session().run(" CREATE (n:Test {field: 42}) CREATE (t:Test {field: 45})").consume()
     } finally {
       driver.close()

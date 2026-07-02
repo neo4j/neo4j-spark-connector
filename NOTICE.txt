@@ -48,6 +48,7 @@ Apache Software License, Version 2.0
 
 MIT License
   SLF4J API Module
+  SLF4J JDK Platform Logging Integration
 
 MIT No Attribution License
   reactive-streams
