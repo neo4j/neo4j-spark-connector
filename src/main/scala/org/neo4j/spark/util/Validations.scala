@@ -134,6 +134,7 @@ case class ValidateSparkMinVersion(supportedVersions: String*) extends Validatio
 
   override def validate(): Unit = {
     val sparkVersion = SparkSession.getActiveSession
+      .orElse(SparkSession.getDefaultSession)
       .map(_.version)
       .getOrElse("UNKNOWN")
 
