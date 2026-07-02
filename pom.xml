@@ -45,7 +45,7 @@
         <license-maven-plugin.version>5.0.0</license-maven-plugin.version>
         <licensing-maven-plugin.version>1.7.12</licensing-maven-plugin.version>
         <licensing.prepend.text>/license/neo4j_apache_v2/notice.txt</licensing.prepend.text>
-        <log4j.version>2.24.3</log4j.version>
+        <log4j.version>2.26.1</log4j.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
