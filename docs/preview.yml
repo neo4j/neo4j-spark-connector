@@ -5,9 +5,11 @@ site:
 
 content:
   sources:
-  - url: ./
+  - url: ../
     edit_url: https://github.com/neo4j/docs-spark/tree/{refname}/{path}
     branches: HEAD
+    start_path: docs
+    include: docs
     exclude:
     - '!**/_includes/*'
     - '!**/readme.adoc'
