@@ -21,16 +21,16 @@ urls:
 
 antora:
   extensions:
-  - "@neo4j-antora/aliases-redirects"
-  - "@neo4j-antora/roles-labels"
-  - "@neo4j-antora/table-footnotes"
-  - "@neo4j-antora/xref-hash-validator"
+    - "@neo4j-antora/aliases-redirects"
+    - "@neo4j-antora/roles-labels"
+    - "@neo4j-antora/table-footnotes"
+    - "@neo4j-antora/xref-hash-validator"
 
 asciidoc:
   extensions:
-  - "@neo4j-documentation/remote-include"
-  - "@neo4j-documentation/macros"
-  - "@neo4j-antora/mark-terms"
+    - "@neo4j-documentation/remote-include"
+    - "@neo4j-documentation/macros"
+    - "@neo4j-antora/mark-terms"
   attributes:
     page-theme: docs
     page-type: Docs
@@ -45,10 +45,10 @@ asciidoc:
     page-mixpanel: 4bfb2414ab973c741b6f067bf06d5575
     includePDF: false
     nonhtmloutput: ""
-    experimental: ''
+    experimental: ""
     copyright: 2026
     common-license-page-uri: https://neo4j.com/docs/license/
     check-mark: icon:check[]
     cross-mark: icon:times[]
-    neo4j-base-uri: ''
+    neo4j-base-uri: ""
     neo4j-docs-base-uri: /docs

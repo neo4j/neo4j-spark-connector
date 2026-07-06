@@ -13,28 +13,45 @@ This page mirrors the link:https://github.com/neo4j/neo4j-spark-connector/releas
 a|
 label:breaking[]
 
-First release supporting Spark 4.0 and 4.1.
-| Fully supports Neo4j 5.0, 2025 and 2026. Dropped support official support for older Neo4j.
+Removed deprecated 5.x features.
+| Such as option `schema.optimization.type`, usage of `$stream.offset` in partitioned reads etc.
 
 a|
 label:breaking[]
 
-Removed deprecated 5.x features
-| Such as option `schema.optimization.type`, usage of `$stream.offset` in partitioned reads etc.
+Introducing support for Spark 4.0 and 4.1.
+| With Scala version 2.13, minimum Java 17 and targets Neo4j 5.0, 2025 and/or 2026. Dropped support for Scala 2.12, older versions of Java or Neo4j.
 
 a|
 label:new[]
 label:feature[]
 
-Expose cypher query tuning parameters
-| With new spark options prefixed `cypher.tuning` you can apply `CYPHER` preambles for any connector action that interacts with Neo4j.
+Introducing support for CYPHER 25
+| Set Cpyher version to 25 with `.option("cypher.version", "25")`
 
 a|
 label:new[]
 label:feature[]
 
-Provide your own
-| With new spark options prefixed `cypher.tuning` you can apply `CYPHER` preambles for any connector action that interacts with Neo4j.
+Granular support of Cypher runtime
+| Using the new options-prefix `cypher.tuning` you can apply `CYPHER` preambles for any generated query from the connector.
+See link:https://neo4j.com/docs/cypher-manual/current/planning-and-tuning/query-tuning[cypher tuning^] and link:https://neo4j.com/docs/cypher-manual/current/planning-and-tuning/runtimes[cypher runtimes^].
+
+a| Enhanced `query` option
+| Custom queries passed with the `query` option is re-written.
+Custom queries are now supported by Data Source V2's predicate pushdown optimizations.
+
+a| Remove `;`-separated `script` options
+| It is no longer possible to run multiple queries by separating them with a semicolon inside a single `script` option.
+
+a|
+label:new[]
+
+Add indexed `script.N` options
+| Use the new `script.1`, `script.2`, ..., `script.N` options to run multiple scripts. They are executed in numbered order.
+
+a| Default `relationship.save.strategy` is now `KEYS`
+| Changed `relationship.save.strategy` default value from `NATIVE` to `KEYS`.
 
 |===
 
