@@ -27,7 +27,7 @@ label:new[]
 label:feature[]
 
 Introducing support for CYPHER 25
-| Set Cpyher version to 25 with `.option("cypher.version", "25")`
+| Set Cypher version to 25 with `.option("cypher.version", "25")`
 
 a|
 label:new[]
@@ -35,11 +35,11 @@ label:feature[]
 
 Granular support of Cypher runtime
 | Using the new options-prefix `cypher.tuning` you can apply `CYPHER` preambles for any generated query from the connector.
-See link:https://neo4j.com/docs/cypher-manual/current/planning-and-tuning/query-tuning[cypher tuning^] and link:https://neo4j.com/docs/cypher-manual/current/planning-and-tuning/runtimes[cypher runtimes^].
+See link:https://neo4j.com/docs/cypher-manual/current/planning-and-tuning/query-tuning[cypher tuning^] and link:https://neo4j.com/docs/cypher-manual/current/planning-and-tuning/runtimes[cypher runtime^].
 
 a| Enhanced `query` option
 | Custom queries passed with the `query` option is re-written.
-Custom queries are now supported by Data Source V2's predicate pushdown optimizations.
+Custom queries are now supported by Data Source V2's predicate push-down optimizations.
 
 a| Remove `;`-separated `script` options
 | It is no longer possible to run multiple queries by separating them with a semicolon inside a single `script` option.
