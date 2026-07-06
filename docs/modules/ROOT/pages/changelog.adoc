@@ -15,6 +15,7 @@ label:breaking[]
 
 Removed deprecated 5.x features.
 | Such as option `schema.optimization.type`, usage of `$stream.offset` in partitioned reads etc.
+Despite deprecation, setting `data.conversion` to `legacy` is still supported for now.
 
 a|
 label:breaking[]

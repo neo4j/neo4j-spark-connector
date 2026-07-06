@@ -77,11 +77,6 @@ Notes:
 * You cannot create a uniqueness constraint on a node property if a key constraint already exists on the same property.
 * This schema optimization only works with the `Overwrite` save mode.
 
-[IMPORTANT]
-====
-Before version *5.3.0*, node property uniqueness constraints could be added with the `schema.optimization.type` option set to `NODE_CONSTRAINTS`.
-====
-
 [#node-constraints-key]
 == Node key constraints
 

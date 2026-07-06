@@ -57,7 +57,7 @@ Spark timestamps (`TIMESTAMP`) are written as `ZonedDateTime` in UTC.
 
 |`LocalDateTime`
 |`timestamp`
-|label:deprecated[Deprecated since 5.4.0] Set `data.conversion` to `legacy` to continue using it.
+|label:deprecated[Deprecated (Legacy mode)] footnote:[Enable legacy mode by setting option `data.conversion` to `legacy`] Set `data.conversion` to `legacy` to continue using it.
 
 |`LocalDateTime`
 |`timestamp_ntz`
@@ -66,7 +66,7 @@ Spark local timestamps (`TIMESTAMP_NTZ`) are written as `LocalDateTime`.
 
 |`Integer`
 |`timestamp_ntz`
-|label:deprecated[Deprecated since 5.4.0] Set `data.conversion` to `legacy` to continue using it.
+|label:deprecated[Deprecated (Legacy mode)] Set `data.conversion` to `legacy` to continue using it.
 
 |`Duration`
 |`struct { type: string, months: long, days: long, seconds: long, nanonseconds: integer, value: string }`
@@ -78,7 +78,7 @@ Spark local timestamps (`TIMESTAMP_NTZ`) are written as `LocalDateTime`.
 
 |`Long`
 |`duration` or `period` objects
-|label:deprecated[Deprecated since 5.4.0] Set `data.conversion` to `legacy` to continue using it.
+|label:deprecated[Deprecated (Legacy mode)] Set `data.conversion` to `legacy` to continue using it.
 
 |`Duration`
 |Spark SQL `INTERVAL` types
@@ -86,7 +86,7 @@ Spark local timestamps (`TIMESTAMP_NTZ`) are written as `LocalDateTime`.
 
 |`Long`
 |Spark SQL `INTERVAL` types
-|label:deprecated[Deprecated since 5.4.0] Set `data.conversion` to `legacy` to continue using it.
+|label:deprecated[Deprecated (Legacy mode)] Set `data.conversion` to `legacy` to continue using it.
 
 |`Node`
 |`struct { <id>: long, <labels>: array[string], (PROPERTIES) }`
@@ -106,7 +106,7 @@ Spark local timestamps (`TIMESTAMP_NTZ`) are written as `LocalDateTime`.
 
 |`List<Integer>`
 |`binary`, `array[byte]`
-|label:deprecated[Deprecated since 5.4.0] Set `data.conversion` to `legacy` to continue using it.
+|label:deprecated[Deprecated (Legacy mode)] Set `data.conversion` to `legacy` to continue using it.
 
 |`[Array of same type]`
 |`array[element]`
