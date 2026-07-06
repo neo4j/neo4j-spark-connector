@@ -7,14 +7,8 @@ site:
 content:
   sources:
   - url: ../
-    edit_url: https://github.com/neo4j/docs-spark/tree/{refname}/{path}
-    branches: HEAD
+    branches: ['HEAD', '4.2', '4.1', '4.0']
     start_path: docs
-    include: docs
-      exclude:
-      - '!**/_includes/*'
-      - '!**/readme.adoc'
-      - '!**/README.adoc'
 
 ui:
   bundle:
