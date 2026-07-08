@@ -17,10 +17,12 @@
 package org.neo4j.spark.streaming
 
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.write.PhysicalWriteInfo
 import org.apache.spark.sql.connector.write.WriterCommitMessage
 import org.apache.spark.sql.connector.write.streaming.StreamingDataWriterFactory
 import org.apache.spark.sql.connector.write.streaming.StreamingWrite
+import org.apache.spark.sql.streaming.StreamingQueryListener
 import org.apache.spark.sql.types.StructType
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.spark.service.SchemaService
@@ -36,6 +38,22 @@ class Neo4jStreamingWriter(
   val neo4jOptions: Neo4jOptions
 ) extends StreamingWrite {
 
+  private val self = this
+
+  private val listener = new StreamingQueryListener {
+    override def onQueryStarted(event: StreamingQueryListener.QueryStartedEvent): Unit = ()
+
+    override def onQueryProgress(event: StreamingQueryListener.QueryProgressEvent): Unit = ()
+
+    override def onQueryTerminated(event: StreamingQueryListener.QueryTerminatedEvent): Unit = {
+      if (event.id.toString == queryId) {
+        self.close()
+        SparkSession.getDefaultSession.get.streams.removeListener(this)
+      }
+    }
+  }
+  SparkSession.getDefaultSession.get.streams.addListener(listener)
+
   private val driverCache = new DriverCache(neo4jOptions.connection)
 
   private lazy val scriptResult = {
@@ -47,18 +65,14 @@ class Neo4jStreamingWriter(
   }
 
   override def createStreamingWriterFactory(info: PhysicalWriteInfo): StreamingDataWriterFactory = {
-    try {
-      new Neo4jStreamingDataWriterFactory(
-        neo4j,
-        queryId,
-        schema,
-        saveMode,
-        neo4jOptions,
-        scriptResult
-      )
-    } finally {
-      close()
-    }
+    new Neo4jStreamingDataWriterFactory(
+      neo4j,
+      queryId,
+      schema,
+      saveMode,
+      neo4jOptions,
+      scriptResult
+    )
   }
 
   override def commit(epochId: Long, messages: Array[WriterCommitMessage]): Unit = {}
