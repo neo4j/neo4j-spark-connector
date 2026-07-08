@@ -342,7 +342,7 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
   }
 
   override def equals(other: Any): Boolean = other match {
-    case that: Neo4jOptions => options == that.toMap
+    case that: Neo4jOptions => options == that.options
     case _                  => false
   }
 
