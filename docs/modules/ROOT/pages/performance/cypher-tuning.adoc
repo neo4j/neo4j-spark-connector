@@ -1,17 +1,18 @@
 = Cypher query tuning
 label:new[New in 6.0]
+[role=label--new-6.0]
+= Cypher query tuning
 :description: This chapter covers how users can pass Cypher preambles to fine-tune performance in niche scenarios.
 
 Default Cypher parameters are optimized for the general use case.
-However if you need to access advanced tuning options, this is fully supported with our connector.
-For the most up to date guide on how to use these parameters, please refer to the official Cypher manual about https://neo4j.com/docs/cypher-manual/current/planning-and-tuning/query-tuning[query tuning].
+However, the Spark connector supports all the query tuning options described in the link:https://neo4j.com/docs/cypher-manual/current/planning-and-tuning/query-tuning[Cypher manual].
 
 include::partial$sparksession.adoc[]
 
 [role=label--new-6.0]
-== Specify Cypher version
+== Specify the Cypher version
 
-If you want to read/write with a specific Cypher version, it can be done by passing a `cypher.version` option.
+You can change the Cypher version using the `cypher.version` option.
 
 [.tabbed-example]
 ====
@@ -45,11 +46,10 @@ MATCH (o: Object) RETURN o
 ====
 
 [role=label--new-6.0]
-== Pass query tuning parameters
+== Add query tuning parameters
 
-We offer full flexibility on parameter passing to the Cypher runtime.
-Any tuning option that you can see from the Cypher manual you can pass simply by setting your Spark options using the `cypher.tuning` prefix.
-What you pass as these options are directly sent as CYPHER preambles.
+You can add any tuning option described in the Cypher manual using the `cypher.tuning` prefix in a Spark option.
+All the tuning options are added to the Cypher query as `CYPHER` preambles.
 
 [.tabbed-example]
 ====
