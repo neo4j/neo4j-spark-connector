@@ -86,7 +86,7 @@ class DataSource extends TableProvider
     }
     val neo4jOpts = getNeo4jOptions(caseInsensitiveStringMapNeo4jOptions)
     val neo4jInfo = getNeo4jInfo(neo4jOpts.connection)
-    new Neo4jTable(neo4jInfo, schema, neo4jOpts, jobId)
+    new Neo4jTable(neo4jInfo, schema, neo4jOpts, jobId, SparkSession.getActiveSession)
   }
 
   override def shortName(): String = "neo4j"

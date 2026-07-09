@@ -18,6 +18,7 @@ package org.neo4j.spark
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.catalog.SupportsRead
 import org.apache.spark.sql.connector.catalog.SupportsWrite
 import org.apache.spark.sql.connector.catalog.Table
@@ -36,8 +37,13 @@ import org.neo4j.spark.writer.Neo4jWriterBuilder
 
 import scala.jdk.CollectionConverters.SetHasAsJava
 
-class Neo4jTable(neo4j: Neo4j, schema: StructType, neo4jOptions: Neo4jOptions, jobId: String)
-    extends Table
+class Neo4jTable(
+  neo4j: Neo4j,
+  schema: StructType,
+  neo4jOptions: Neo4jOptions,
+  jobId: String,
+  sparkSession: Option[SparkSession]
+) extends Table
     with SupportsRead
     with SupportsWrite
     with Logging {
@@ -64,6 +70,6 @@ class Neo4jTable(neo4j: Neo4j, schema: StructType, neo4jOptions: Neo4jOptions, j
   override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {
     val accessModeWrite = Neo4jOptions.ACCESS_MODE -> AccessMode.WRITE.toString
     val neo4jWriterOptions = new Neo4jOptions(neo4jOptions.toMap + accessModeWrite)
-    new Neo4jWriterBuilder(neo4j, info.queryId(), info.schema(), SaveMode.Append, neo4jWriterOptions)
+    new Neo4jWriterBuilder(neo4j, info.queryId(), info.schema(), SaveMode.Append, neo4jWriterOptions, sparkSession)
   }
 }

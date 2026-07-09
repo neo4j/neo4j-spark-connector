@@ -35,10 +35,13 @@ class Neo4jStreamingWriter(
   val queryId: String,
   val schema: StructType,
   saveMode: SaveMode,
-  val neo4jOptions: Neo4jOptions
+  val neo4jOptions: Neo4jOptions,
+  sparkSession: Option[SparkSession]
 ) extends StreamingWrite {
 
-  private val self = this
+  private val driverCache = new DriverCache(neo4jOptions.connection)
+
+  private val queryManager = sparkSession.map(_.streams)
 
   private val listener = new StreamingQueryListener {
     override def onQueryStarted(event: StreamingQueryListener.QueryStartedEvent): Unit = ()
@@ -47,14 +50,12 @@ class Neo4jStreamingWriter(
 
     override def onQueryTerminated(event: StreamingQueryListener.QueryTerminatedEvent): Unit = {
       if (event.id.toString == queryId) {
-        self.close()
-        SparkSession.getDefaultSession.get.streams.removeListener(this)
+        close()
+        queryManager.foreach(_.removeListener(this))
       }
     }
   }
-  SparkSession.getDefaultSession.get.streams.addListener(listener)
-
-  private val driverCache = new DriverCache(neo4jOptions.connection)
+  queryManager.foreach(_.addListener(listener))
 
   private lazy val scriptResult = {
     val schemaService = new SchemaService(neo4j, neo4jOptions, driverCache)
