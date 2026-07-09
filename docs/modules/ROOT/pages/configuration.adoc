@@ -80,25 +80,29 @@ of the supplier. Additional parameters can be specified as configuration options
 This supplier is based on the Keycloak client, which requires Java 11 or later.
 ====
 
-An authentication supplier for link:https://www.keycloak.org/[Keycloak] is provided as part of the `org.neo4j.connectors:commons-authn-keycloak` library.
+An authentication supplier for link:https://www.keycloak.org/[Keycloak] is available as a ready-to-use, optional artifact: the `org.neo4j.connectors:commons-authn-keycloak` library.
+Instead of implementing the supplier yourself, add this library as a dependency to your application.
 
-It includes:
+[NOTE]
+====
+Check link:https://central.sonatype.com/artifact/org.neo4j.connectors/commons-authn-keycloak[Maven Central] for the latest available version.
+====
 
-* A factory class creating an instance of an authentication token supplier:
-+
-[source, java]
+[source, xml]
 ----
-include::example$java/KeycloakOIDCAuthenticationSupplierFactory.java[]
-----
-
-* A supplier that collects an access token from a Keycloak server and refreshes it on expiration:
-+
-[source, java]
-----
-include::example$java/KeycloakOIDCAuthenticationSupplier.java[]
+<dependency>
+  <groupId>org.neo4j.connectors</groupId>
+  <artifactId>commons-authn-keycloak</artifactId>
+  <version>{connectors-commons-version}</version>
+</dependency>
 ----
 
-You can configure Spark to use keycloak authentication as follows:
+The library provides:
+
+* A factory class that creates the authentication token supplier and registers it under the name `keycloak` through the service loader mechanism.
+* A supplier that obtains an access token from a Keycloak server and refreshes it on expiration.
+
+Once the library is on the classpath, you can configure Spark to use Keycloak authentication as follows:
 [source, scala]
 ----
 val df = spark.read

@@ -381,6 +381,10 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       builder.withTimeout(duration)
     }
 
+    if (query.queryType == QueryType.GDS) {
+      builder.withMetadata(new util.HashMap[String, AnyRef](Map(GDS_TELEMETRY_ACTION -> query.value).asJava))
+    }
+
     builder.build()
   }
 
@@ -656,6 +660,7 @@ object Neo4jOptions {
   val TRANSACTION_RETRIES = "transaction.retries"
   val TRANSACTION_RETRY_TIMEOUT = "transaction.retry.timeout"
   val TRANSACTION_CODES_FAIL = "transaction.codes.fail"
+  val GDS_TELEMETRY_ACTION = "gds.telemetry.action"
 
   // Streaming
   val STREAMING_PROPERTY_NAME = "streaming.property.name"

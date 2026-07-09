@@ -21,13 +21,35 @@ The connector supports writing DataFrames to Neo4j as well, and custom Cypher qu
 
 == Compatibility
 
-=== Neo4j compatibility
-The connector supports Neo4j 2025.x, 5.x, and 4.4, whether run as a managed service in link:{neo4j-docs-base-uri}/aura/[Neo4j Aura], as a single instance, or as a cluster.
-It supports both the Community and the Enterprise Edition.
+The following table summarizes the compatibility of each version of the connector with Neo4j, Apache Spark, and Databricks.
+For more details on compatibility, see xref:compatibility.adoc[].
 
-=== Spark and Scala compatibility
+.Connector version compatibility table
+|===
+|Connector |Neo4j |Spark |Databricks
 
-The connector currently supports Spark versions 3.3, 3.4 and 3.5 as well as Databricks 12.2, 13.3, 14.3 with Scala 2.12 and Scala 2.13.
+|5.4
+|4.4, 5.x, 2025.x, 2026.x
+|3.4, 3.5
+|14.3 LTS - 16.4 LTS
+
+|5.3
+|4.4, 5.x, 2025.x
+|3.4, 3.5
+|14.3 LTS - 16.4 LTS
+
+|5.2
+|4.4, 5.x
+|3.4, 3.5
+|14.3 LTS - 16.4 LTS
+
+|===
+
+Neo4j versions include both Community editions and Enterprise editions.
+
+All 5.x versions of the connector support Scala 2.12 and 2.13.
+
+The minimum required version of the Java runtime is 8.
 
 == Training
 

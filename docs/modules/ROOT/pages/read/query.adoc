@@ -91,29 +91,45 @@ When you rewrite a query, make sure the new query is equivalent to your original
 You can also use the `query.count` option instead of rewriting your query.
 See the xref:performance/spark.adoc#parallelize[Spark optimizations] page for more details.
 
-== The `script` option
+[[script-options]]
+== Script options
 
-The `script` option allows to run a sequence of Cypher queries _before_ executing the read operation.
+The `script` options allow running one or more Cypher queries ("scripts") _before_ executing the read operation.
+The result of a script can be used in a subsequent query, for example to inject query parameters.
+This is not possible if the script contains schema operations.
 
-The result of the `script` can be used in a subsequent `query`, for example to inject query parameters.
+Use the `script` option to run a *single* Cypher query.
+
+[role=label--new-5.5]
+To run *multiple* queries, use the indexed `script.N` options, where each query is passed in its own option.
+
+[IMPORTANT]
+====
+Passing multiple queries in a single `script` option, separated by semicolons (`;`), is deprecated.
+To run multiple queries, use the indexed `script.N` options instead, which keep each query separate and avoid any ambiguity.
+The `script` and `script.N` options cannot be used together.
+====
+
+The `script.N` options are executed in ascending order of their integer suffix `N`, regardless of the order in which they are declared.
+The suffix `N` must consist of digits only (for example, `script.0`, `script.1`, `script.10`); leading zeros are allowed.
+Only the relative order of the suffixes matters, so gaps are allowed (for example, `script.1`, `script.5`, `script.10`).
 
 [CAUTION]
 ====
-Do not use this option to inject large amounts of data in a Cypher query.
+Do not use script options to inject large amounts of data in a Cypher query.
 See the <<performance>> section below for the recommended alternative.
 ====
 
 .`script` and `query` example
 [source, scala]
 ----
-val script = "RETURN 'foo' AS val"
 val query = """
   UNWIND range(1, 2) as id
   RETURN id AS val, scriptResult[0].val AS script
 """
 
 spark.read.format("org.neo4j.spark.DataSource")
-  .option("script", script)
+  .option("script", "RETURN 'foo' AS val")
   .option("query", query)
   .load()
   .show()
@@ -130,7 +146,7 @@ spark.read.format("org.neo4j.spark.DataSource")
 [[performance]]
 === Performance considerations
 
-The `script` option is not meant to inject a massive volume of data.
+Script options are not meant to inject a massive volume of data.
 Doing so would result in inefficient queries.
 
 The recommended process is to create a dedicated dataframe containing the new data, then join it with another dataframe performing the actual reads against Neo4j.

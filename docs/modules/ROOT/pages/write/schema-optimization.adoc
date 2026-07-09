@@ -10,7 +10,7 @@ The connector options for schema optimization are summarized below.
 [CAUTION]
 ====
 The schema optimization options described here cannot be used with the `query` option.
-If you are using a xref:write/query.adoc[custom Cypher query], you need to create indexes and constraints manually using the xref:write/query.adoc#script-option[`script` option].
+If you are using a xref:write/query.adoc[custom Cypher query], you need to create indexes and constraints manually using the xref:write/query.adoc#script-option[script options].
 ====
 
 .Schema optimization options
