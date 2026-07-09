@@ -14,7 +14,7 @@ a|
 label:new[]
 
 Added new `script.N` option
-| Usee `scirpt.N` where `N` is an integer to run multiple successive pre-query scripts.
+| Use `script.N` where `N` is an integer to run multiple successive initial scripts.
 
 a|
 Deprecated semi-colon in `script`
