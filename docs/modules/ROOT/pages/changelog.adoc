@@ -3,6 +3,31 @@
 
 This page mirrors the link:https://github.com/neo4j/neo4j-spark-connector/releases[GitHub releases^] of the Neo4j Connector for Apache Spark, listing headline features, fixes, and breaking changes for every minor and patch release of the 5.x line.
 
+[#_5_5_0]
+== Version 5.5.0 (9 July 2026)
+
+[cols="1,2",options="header"]
+|===
+| Feature | Details
+
+a|
+label:new[]
+
+Added new `script.N` option
+| Usee `scirpt.N` where `N` is an integer to run multiple successive pre-query scripts.
+
+a|
+Deprecated semi-colon in `script`
+| Splitting multiple queries in `script` with a `;` is now deprecated.
+
+a|
+label:fixed[]
+
+Option validation fix
+| Fixed cases where neo4j spark options was sometimes not validated properly
+
+|===
+
 [#_5_4_3]
 == Version 5.4.3 (26 May 2026)
 
