@@ -1,0 +1,66 @@
+name: "Verify docs PR"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+on:
+  pull_request:
+    branches:
+      - '5.0'
+      - '4.[0-2]'
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs-*.yml"
+
+jobs:
+
+  #  Generate HTML
+  docs-build-pr:
+    uses: neo4j/docs-tools/.github/workflows/reusable-docs-build.yml@v2
+    with:
+      deploy-id: ${{ github.event.number }}
+      docs-dir: 'docs'
+      retain-artifacts: 14
+
+  # Parse the json log output from the HTML build, and output warnings and errors as annotations
+  # Optionally, fail the build if there are warnings or errors
+  # By default, the job fails if there are errors, passes if there are warnings only.
+  docs-verify-pr:
+    needs: docs-build-pr
+    uses: neo4j/docs-tools/.github/workflows/reusable-docs-verify.yml@v2
+    with:
+      failOnWarnings: true
+
+  # Get lists of changes in the PR
+  # - all updated asciidoc files
+  # - all updated asciidoc pages
+  # - all new asciidoc pages
+  docs-changes-pr:
+    runs-on: ubuntu-latest
+    outputs:
+      asciidoc-files: ${{ steps.get-file-changes.outputs.asciidoc_all_changed_files }}
+      pages-modified: ${{ steps.get-file-changes.outputs.pages_modified_files }}
+      pages-added: ${{ steps.get-file-changes.outputs.pages_added_files }}
+    steps:
+      - name: Get file changes
+        id: get-file-changes
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
+        with:
+          separator: ','
+          files_yaml: |
+            pages:
+            - 'docs/modules/**/pages/**/*.adoc'
+            asciidoc:
+            - 'docs/modules/**/*.adoc'
+
+  # Generate a PR comment if the docs are using the pageList extension
+  # The extension maps asciidoc source files to their HTML output paths
+  # The comment will contain links to new and changed pages in the deployed HTML docs
+  docs-updates-comment-pr:
+    if: needs.docs-build-pr.outputs.pages-listed == 'success'
+    needs: [docs-build-pr, docs-changes-pr]
+    uses: neo4j/docs-tools/.github/workflows/reusable-docs-pr-changes.yml@v2
+    with:
+      pages-modified: ${{ needs.docs-changes-pr.outputs.pages-modified }}
+      pages-added: ${{ needs.docs-changes-pr.outputs.pages-added }}
