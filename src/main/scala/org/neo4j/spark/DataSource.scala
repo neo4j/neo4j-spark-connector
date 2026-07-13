@@ -31,59 +31,45 @@ import org.neo4j.spark.util._
 import java.util.UUID
 
 import scala.jdk.CollectionConverters.MapHasAsScala
+import scala.util.Using
 
 class DataSource extends TableProvider
     with DataSourceRegister {
 
   Validations.validate(ValidateSparkMinVersion("4.0.0"))
 
-  private val jobId: String = UUID.randomUUID().toString
-
-  private var schema: StructType = _
-
-  private var neo4jOptions: Neo4jOptions = _
-
-  private var neo4j: Neo4j = _
-
   override def supportsExternalMetadata(): Boolean = true
 
   override def inferSchema(caseInsensitiveStringMap: CaseInsensitiveStringMap): StructType = {
-    if (schema == null) {
-      val neo4jOpts = getNeo4jOptions(caseInsensitiveStringMap)
-      Validations.validate(ValidateConnection(neo4jOpts, jobId))
-      val neo4j = getNeo4jInfo(neo4jOpts.connection)
-      schema =
-        Neo4jUtil.callSchemaService(
-          neo4j,
-          neo4jOpts,
-          jobId,
-          Array.empty[Filter],
-          { schemaService =>
-            schemaService.struct()
-          }
-        )
-    }
-
-    schema
+    inferSchema(caseInsensitiveStringMap, UUID.randomUUID().toString)
   }
 
-  private def getNeo4jInfo(options: Neo4jDriverOptions): Neo4j = {
-    if (neo4j == null) {
-      val driver = new DriverCache(options).getOrCreate()
-      neo4j = Neo4jDetector.INSTANCE.detect(driver)
-    }
-    neo4j
+  private def inferSchema(caseInsensitiveStringMap: CaseInsensitiveStringMap, jobId: String): StructType = {
+    val neo4jOpts = getNeo4jOptions(caseInsensitiveStringMap)
+    Validations.validate(ValidateConnection(neo4jOpts, jobId))
+    val neo4j = getNeo4jInfo(neo4jOpts.connection)
+    Neo4jUtil.callSchemaService(
+      neo4j,
+      neo4jOpts,
+      jobId,
+      Array.empty[Filter],
+      { schemaService =>
+        schemaService.struct()
+      }
+    )
   }
 
   private def getNeo4jOptions(caseInsensitiveStringMap: CaseInsensitiveStringMap) = {
-    if (neo4jOptions == null) {
-      val session = SparkSession.getActiveSession
-      val externalOptions = caseInsensitiveStringMap.asCaseSensitiveMap().asScala.toMap
-      neo4jOptions = Neo4jOptions.fromSession(session, externalOptions)
-    }
-
+    val session = SparkSession.getActiveSession
+    val externalOptions = caseInsensitiveStringMap.asCaseSensitiveMap().asScala.toMap
+    val neo4jOptions = Neo4jOptions.fromSession(session, externalOptions)
     ValidateNeo4jOptionsConsistency(getNeo4jInfo(neo4jOptions.connection), neo4jOptions).validate()
     neo4jOptions
+  }
+
+  private def getNeo4jInfo(options: Neo4jDriverOptions): Neo4j = {
+    val driverCache = new DriverCache(options)
+    Using.resource(driverCache)(cache => Neo4jDetector.INSTANCE.detect(cache.getOrCreate()))
   }
 
   override def getTable(
@@ -91,15 +77,16 @@ class DataSource extends TableProvider
     transforms: Array[Transform],
     map: java.util.Map[String, String]
   ): Table = {
+    val jobId = UUID.randomUUID().toString
     val caseInsensitiveStringMapNeo4jOptions = new CaseInsensitiveStringMap(map)
     val schema = if (structType != null) {
       structType
     } else {
-      inferSchema(caseInsensitiveStringMapNeo4jOptions)
+      inferSchema(caseInsensitiveStringMapNeo4jOptions, jobId)
     }
     val neo4jOpts = getNeo4jOptions(caseInsensitiveStringMapNeo4jOptions)
     val neo4jInfo = getNeo4jInfo(neo4jOpts.connection)
-    new Neo4jTable(neo4jInfo, schema, neo4jOpts, jobId)
+    new Neo4jTable(neo4jInfo, schema, neo4jOpts, jobId, SparkSession.getActiveSession)
   }
 
   override def shortName(): String = "neo4j"

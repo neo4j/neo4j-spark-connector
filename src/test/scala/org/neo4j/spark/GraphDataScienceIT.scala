@@ -25,20 +25,14 @@ import org.apache.spark.sql.types._
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.Parameter
-import org.junit.jupiter.params.ParameterizedClass
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ArgumentsSource
 import org.junit.jupiter.params.provider.MethodSource
 import org.neo4j.caniuse.Neo4j
-import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver.Driver
 import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.cypher.QueryEmbedder
@@ -46,7 +40,7 @@ import org.neo4j.spark.service.Neo4jQueryReadStrategy
 import org.neo4j.spark.service.Neo4jQueryService
 import org.neo4j.spark.service.PartitionPagination
 import org.neo4j.spark.testsupport.Closeables.use
-import org.neo4j.spark.testsupport.Neo4jContainerProvider
+import org.neo4j.spark.testsupport.InjectNeo4jContainerParameter
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
 import org.neo4j.spark.testsupport.TestUtil
@@ -55,51 +49,32 @@ import org.neo4j.spark.util.DummyNamedReference
 import org.neo4j.spark.util.Neo4jOptions
 import org.testcontainers.neo4j.Neo4jContainer
 
+import java.util.UUID
+
 import scala.math.Ordering.Implicits.infixOrderingOps
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ParameterizedClass(name = "{argumentSetName}")
-@ArgumentsSource(classOf[Neo4jContainerProvider])
+@InjectNeo4jContainerParameter
 @DisplayName("graph data science")
 class GraphDataScienceIT {
 
   @Parameter
   var neo4jContainer: Neo4jContainer = _
 
-  var driver: Driver = _
-
-  var spark: SparkSession = _
-
-  var neo4j: Neo4j = _
-
   @BeforeEach
-  def prepare(): Unit = {
-    if (!neo4jContainer.isRunning) {
-      neo4jContainer.start()
-    }
-    driver = neo4jContainer.driver()
-    Assumptions.assumeTrue(driver.serverSupportsGds())
-    driver.createOrReplaceDatabase("neo4j")
-    spark = neo4jContainer.spark()
-    neo4j = Neo4jDetector.INSTANCE.detect(driver)
-  }
-
-  @AfterEach
-  def cleanUp(): Unit = {
-    Option(driver).filter(_.serverSupportsGds()).foreach { d =>
-      d.executableQuery("CALL gds.graph.drop('myGraph', false)").execute()
-    }
-    Option(spark).foreach(_.close())
-    Option(driver).foreach(_.close())
+  def prepare(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+    assumeTrue(driver.serverSupportsGds())
   }
 
   @Test
-  def runs_page_rank(): Unit = {
-    initForPageRank()
+  def runs_page_rank(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+    val graphName = unique("pagerank")
+    val nodeLabel = unique("Page")
+    val relationshipType = unique("LINKS")
+    initForPageRank(driver, spark, graphName, nodeLabel, relationshipType)
 
     val df = spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.pageRank.stream")
-      .option("gds.graphName", "myGraph")
+      .option("gds.graphName", graphName)
       .option("gds.configuration.concurrency", "2")
       .load()
     assertThat(df.count()).isEqualTo(8)
@@ -109,7 +84,7 @@ class GraphDataScienceIT {
 
     val dfEstimate = spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.pageRank.stream.estimate")
-      .option("gds.graphNameOrConfiguration", "myGraph")
+      .option("gds.graphNameOrConfiguration", graphName)
       .option("gds.algoConfiguration.concurrency", "2")
       .load()
     assertThat(dfEstimate.count()).isEqualTo(1)
@@ -133,7 +108,12 @@ class GraphDataScienceIT {
 
   @ParameterizedTest
   @MethodSource(Array("unsupportedOptionCases"))
-  def fails_with_unsupported_options(testCase: UnsupportedOptionCase): Unit = {
+  def fails_with_unsupported_options(
+    testCase: UnsupportedOptionCase,
+    driver: Driver,
+    spark: SparkSession,
+    neo4j: Neo4j
+  ): Unit = {
     assertThatExceptionOfType(classOf[IllegalArgumentException])
       .isThrownBy(() => {
         spark.read.format(classOf[DataSource].getName)
@@ -145,13 +125,16 @@ class GraphDataScienceIT {
   }
 
   @Test
-  def hits_supports_map_results(): Unit = {
+  def hits_supports_map_results(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
     assumeTrue(use(driver.session())(s => TestUtil.neo4jVersion(s)) >= Versions.NEO4J_5)
-    initForHits()
+    val graphName = unique("hits")
+    val nodeLabel = unique("Website")
+    val relationshipType = unique("LINK")
+    initForHits(driver, spark, neo4j, graphName, nodeLabel, relationshipType)
 
     val df = spark.read.format(classOf[DataSource].getName)
-      .option("gds", hitsStreamProc)
-      .option("gds.graphName", "myGraph")
+      .option("gds", hitsStreamProc(driver))
+      .option("gds.graphName", graphName)
       .option("gds.configuration.hitsIterations", "20")
       .load()
     assertThat(df.count()).isEqualTo(9)
@@ -162,11 +145,14 @@ class GraphDataScienceIT {
   }
 
   @Test
-  def yens_shortest_path_supports_path_results(): Unit = {
-    initForYens()
+  def yens_shortest_path_supports_path_results(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+    val graphName = unique("yens")
+    val nodeLabel = unique("Location")
+    val relationshipType = unique("ROAD")
+    initForYens(driver, spark, neo4j, graphName, nodeLabel, relationshipType)
 
     val sourceTargetNodes = spark.read.format(classOf[DataSource].getName)
-      .option("labels", "Location")
+      .option("labels", nodeLabel)
       .load()
       .where("name IN ('A', 'F')")
       .orderBy("name")
@@ -182,7 +168,7 @@ class GraphDataScienceIT {
 
     val df = spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.shortestPath.yens.stream")
-      .option("gds.graphName", "myGraph")
+      .option("gds.graphName", graphName)
       .option("gds.configuration.sourceNode", sourceId)
       .option("gds.configuration.targetNode", targetId)
       .option("gds.configuration.k", 3)
@@ -210,7 +196,7 @@ class GraphDataScienceIT {
       else ("graphNameOrConfiguration", "algoConfiguration")
     val dfEstimate = spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.shortestPath.yens.stream.estimate")
-      .option(s"gds.$graphNameParam", "myGraph")
+      .option(s"gds.$graphNameParam", graphName)
       .option(s"gds.$algoConfigurationParam.sourceNode", sourceId)
       .option(s"gds.$algoConfigurationParam.targetNode", targetId)
       .option(s"gds.$algoConfigurationParam.k", 3)
@@ -236,28 +222,30 @@ class GraphDataScienceIT {
   }
 
   @Test
-  def runs_k_nearest(): Unit = {
+  def runs_k_nearest(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+    val graphName = unique("knn")
+    val nodeLabel = unique("Person")
     driver.executableQuery(
-      """
-        |CREATE (alice:Person {name: 'Alice', age: 24, lotteryNumbers: [1, 3], embedding: [1.0, 3.0]})
-        |CREATE (bob:Person {name: 'Bob', age: 73, lotteryNumbers: [1, 2, 3], embedding: [2.1, 1.6]})
-        |CREATE (carol:Person {name: 'Carol', age: 24, lotteryNumbers: [3], embedding: [1.5, 3.1]})
-        |CREATE (dave:Person {name: 'Dave', age: 48, lotteryNumbers: [2, 4], embedding: [0.6, 0.2]})
-        |CREATE (eve:Person {name: 'Eve', age: 67, lotteryNumbers: [1, 5], embedding: [1.8, 2.7]});
-        |""".stripMargin
+      s"""
+         |CREATE (alice:`$nodeLabel` {name: 'Alice', age: 24, lotteryNumbers: [1, 3], embedding: [1.0, 3.0]})
+         |CREATE (bob:`$nodeLabel` {name: 'Bob', age: 73, lotteryNumbers: [1, 2, 3], embedding: [2.1, 1.6]})
+         |CREATE (carol:`$nodeLabel` {name: 'Carol', age: 24, lotteryNumbers: [3], embedding: [1.5, 3.1]})
+         |CREATE (dave:`$nodeLabel` {name: 'Dave', age: 48, lotteryNumbers: [2, 4], embedding: [0.6, 0.2]})
+         |CREATE (eve:`$nodeLabel` {name: 'Eve', age: 67, lotteryNumbers: [1, 5], embedding: [1.8, 2.7]});
+         |""".stripMargin
     ).execute()
 
     spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.graph.project")
-      .option("gds.graphName", "myGraph")
-      .option("gds.nodeProjection.Person.properties", "['age','lotteryNumbers','embedding']")
+      .option("gds.graphName", graphName)
+      .option(s"gds.nodeProjection.$nodeLabel.properties", "['age','lotteryNumbers','embedding']")
       .option("gds.relationshipProjection", "*")
       .load()
       .count()
 
     val df = spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.knn.stream")
-      .option("gds.graphName", "myGraph")
+      .option("gds.graphName", graphName)
       .option("gds.configuration.topK", 1)
       .option("gds.configuration.nodeProperties", "['age']")
       .option("gds.configuration.randomSeed", 1337)
@@ -280,7 +268,7 @@ class GraphDataScienceIT {
 
     val dfEstimate = spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.knn.stream.estimate")
-      .option("gds.graphNameOrConfiguration", "myGraph")
+      .option("gds.graphNameOrConfiguration", graphName)
       .option("gds.algoConfiguration.topK", 1)
       .option("gds.algoConfiguration.nodeProperties", "['age']")
       .option("gds.algoConfiguration.randomSeed", 1337)
@@ -308,7 +296,7 @@ class GraphDataScienceIT {
   }
 
   @Test
-  def generates_read_query_that_aggregates(): Unit = {
+  def generates_read_query_that_aggregates(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
     val neo4jOptions = new Neo4jOptions(neo4jContainer.authenticatedOptions() ++ Map("gds" -> "gds.pageRank.stream"))
 
     val field = new DummyNamedReference("score")
@@ -351,7 +339,7 @@ class GraphDataScienceIT {
   }
 
   @Test
-  def refuses_read_query_with_cypher_preamble(): Unit = {
+  def refuses_read_query_with_cypher_preamble(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(
       neo4jContainer.authenticatedOptions() ++ Map(
         "gds" -> "gds.pageRank.stream",
@@ -395,117 +383,140 @@ class GraphDataScienceIT {
       .hasMessageContaining("Query tuning parameters are not supported for GDS queries")
   }
 
-  private def hitsStreamProc: String =
+  private def hitsStreamProc(driver: Driver): String =
     if (use(driver.session())(s => TestUtil.gdsVersion(s)) >= Versions.GDS_2_5) "gds.hits.stream"
     else "gds.alpha.hits.stream"
 
-  private def initForPageRank(): Unit = {
+  private def unique(prefix: String): String =
+    s"${prefix}_${UUID.randomUUID().toString.replace("-", "")}"
+
+  private def initForPageRank(
+    driver: Driver,
+    spark: SparkSession,
+    graphName: String,
+    nodeLabel: String,
+    relationshipType: String
+  ): Unit = {
     driver.executableQuery(
-      """
-        |CREATE
-        |  (home:Page {name:'Home'}),
-        |  (about:Page {name:'About'}),
-        |  (product:Page {name:'Product'}),
-        |  (links:Page {name:'Links'}),
-        |  (a:Page {name:'Site A'}),
-        |  (b:Page {name:'Site B'}),
-        |  (c:Page {name:'Site C'}),
-        |  (d:Page {name:'Site D'}),
-        |
-        |  (home)-[:LINKS {weight: 0.2}]->(about),
-        |  (home)-[:LINKS {weight: 0.2}]->(links),
-        |  (home)-[:LINKS {weight: 0.6}]->(product),
-        |  (about)-[:LINKS {weight: 1.0}]->(home),
-        |  (product)-[:LINKS {weight: 1.0}]->(home),
-        |  (a)-[:LINKS {weight: 1.0}]->(home),
-        |  (b)-[:LINKS {weight: 1.0}]->(home),
-        |  (c)-[:LINKS {weight: 1.0}]->(home),
-        |  (d)-[:LINKS {weight: 1.0}]->(home),
-        |  (links)-[:LINKS {weight: 0.8}]->(home),
-        |  (links)-[:LINKS {weight: 0.05}]->(a),
-        |  (links)-[:LINKS {weight: 0.05}]->(b),
-        |  (links)-[:LINKS {weight: 0.05}]->(c),
-        |  (links)-[:LINKS {weight: 0.05}]->(d);
-        |""".stripMargin
+      s"""
+         |CREATE
+         |  (home:`$nodeLabel` {name:'Home'}),
+         |  (about:`$nodeLabel` {name:'About'}),
+         |  (product:`$nodeLabel` {name:'Product'}),
+         |  (links:`$nodeLabel` {name:'Links'}),
+         |  (a:`$nodeLabel` {name:'Site A'}),
+         |  (b:`$nodeLabel` {name:'Site B'}),
+         |  (c:`$nodeLabel` {name:'Site C'}),
+         |  (d:`$nodeLabel` {name:'Site D'}),
+         |
+         |  (home)-[:`$relationshipType` {weight: 0.2}]->(about),
+         |  (home)-[:`$relationshipType` {weight: 0.2}]->(links),
+         |  (home)-[:`$relationshipType` {weight: 0.6}]->(product),
+         |  (about)-[:`$relationshipType` {weight: 1.0}]->(home),
+         |  (product)-[:`$relationshipType` {weight: 1.0}]->(home),
+         |  (a)-[:`$relationshipType` {weight: 1.0}]->(home),
+         |  (b)-[:`$relationshipType` {weight: 1.0}]->(home),
+         |  (c)-[:`$relationshipType` {weight: 1.0}]->(home),
+         |  (d)-[:`$relationshipType` {weight: 1.0}]->(home),
+         |  (links)-[:`$relationshipType` {weight: 0.8}]->(home),
+         |  (links)-[:`$relationshipType` {weight: 0.05}]->(a),
+         |  (links)-[:`$relationshipType` {weight: 0.05}]->(b),
+         |  (links)-[:`$relationshipType` {weight: 0.05}]->(c),
+         |  (links)-[:`$relationshipType` {weight: 0.05}]->(d);
+         |""".stripMargin
     ).execute()
     spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.graph.project")
-      .option("gds.graphName", "myGraph")
-      .option("gds.nodeProjection", "Page")
-      .option("gds.relationshipProjection", "LINKS")
+      .option("gds.graphName", graphName)
+      .option("gds.nodeProjection", nodeLabel)
+      .option("gds.relationshipProjection", relationshipType)
       .option("gds.configuration.relationshipProperties", "weight")
       .load()
       .count()
   }
 
-  private def initForHits(): Unit = {
+  private def initForHits(
+    driver: Driver,
+    spark: SparkSession,
+    neo4j: Neo4j,
+    graphName: String,
+    nodeLabel: String,
+    relationshipType: String
+  ): Unit = {
     driver.executableQuery(
-      """
-        |CREATE
-        |  (a:Website {name: 'A'}),
-        |  (b:Website {name: 'B'}),
-        |  (c:Website {name: 'C'}),
-        |  (d:Website {name: 'D'}),
-        |  (e:Website {name: 'E'}),
-        |  (f:Website {name: 'F'}),
-        |  (g:Website {name: 'G'}),
-        |  (h:Website {name: 'H'}),
-        |  (i:Website {name: 'I'}),
-        |
-        |  (a)-[:LINK]->(b),
-        |  (a)-[:LINK]->(c),
-        |  (a)-[:LINK]->(d),
-        |  (b)-[:LINK]->(c),
-        |  (b)-[:LINK]->(d),
-        |  (c)-[:LINK]->(d),
-        |
-        |  (e)-[:LINK]->(b),
-        |  (e)-[:LINK]->(d),
-        |  (e)-[:LINK]->(f),
-        |  (e)-[:LINK]->(h),
-        |
-        |  (f)-[:LINK]->(g),
-        |  (f)-[:LINK]->(i),
-        |  (f)-[:LINK]->(h),
-        |  (g)-[:LINK]->(h),
-        |  (g)-[:LINK]->(i),
-        |  (h)-[:LINK]->(i);
-        |""".stripMargin
+      s"""
+         |CREATE
+         |  (a:`$nodeLabel` {name: 'A'}),
+         |  (b:`$nodeLabel` {name: 'B'}),
+         |  (c:`$nodeLabel` {name: 'C'}),
+         |  (d:`$nodeLabel` {name: 'D'}),
+         |  (e:`$nodeLabel` {name: 'E'}),
+         |  (f:`$nodeLabel` {name: 'F'}),
+         |  (g:`$nodeLabel` {name: 'G'}),
+         |  (h:`$nodeLabel` {name: 'H'}),
+         |  (i:`$nodeLabel` {name: 'I'}),
+         |
+         |  (a)-[:`$relationshipType`]->(b),
+         |  (a)-[:`$relationshipType`]->(c),
+         |  (a)-[:`$relationshipType`]->(d),
+         |  (b)-[:`$relationshipType`]->(c),
+         |  (b)-[:`$relationshipType`]->(d),
+         |  (c)-[:`$relationshipType`]->(d),
+         |
+         |  (e)-[:`$relationshipType`]->(b),
+         |  (e)-[:`$relationshipType`]->(d),
+         |  (e)-[:`$relationshipType`]->(f),
+         |  (e)-[:`$relationshipType`]->(h),
+         |
+         |  (f)-[:`$relationshipType`]->(g),
+         |  (f)-[:`$relationshipType`]->(i),
+         |  (f)-[:`$relationshipType`]->(h),
+         |  (g)-[:`$relationshipType`]->(h),
+         |  (g)-[:`$relationshipType`]->(i),
+         |  (h)-[:`$relationshipType`]->(i);
+         |""".stripMargin
     ).execute()
     spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.graph.project")
-      .option("gds.graphName", "myGraph")
-      .option("gds.nodeProjection", "Website")
-      .option("gds.relationshipProjection.LINK.indexInverse", "true")
+      .option("gds.graphName", graphName)
+      .option("gds.nodeProjection", nodeLabel)
+      .option(s"gds.relationshipProjection.$relationshipType.indexInverse", "true")
       .load()
       .count()
   }
 
-  private def initForYens(): Unit = {
+  private def initForYens(
+    driver: Driver,
+    spark: SparkSession,
+    neo4j: Neo4j,
+    graphName: String,
+    nodeLabel: String,
+    relationshipType: String
+  ): Unit = {
     driver.executableQuery(
-      """
-        |CREATE (a:Location {name: 'A'}),
-        |       (b:Location {name: 'B'}),
-        |       (c:Location {name: 'C'}),
-        |       (d:Location {name: 'D'}),
-        |       (e:Location {name: 'E'}),
-        |       (f:Location {name: 'F'}),
-        |       (a)-[:ROAD {cost: 50}]->(b),
-        |       (a)-[:ROAD {cost: 50}]->(c),
-        |       (a)-[:ROAD {cost: 100}]->(d),
-        |       (b)-[:ROAD {cost: 40}]->(d),
-        |       (c)-[:ROAD {cost: 40}]->(d),
-        |       (c)-[:ROAD {cost: 80}]->(e),
-        |       (d)-[:ROAD {cost: 30}]->(e),
-        |       (d)-[:ROAD {cost: 80}]->(f),
-        |       (e)-[:ROAD {cost: 40}]->(f);
-        |""".stripMargin
+      s"""
+         |CREATE (a:`$nodeLabel` {name: 'A'}),
+         |       (b:`$nodeLabel` {name: 'B'}),
+         |       (c:`$nodeLabel` {name: 'C'}),
+         |       (d:`$nodeLabel` {name: 'D'}),
+         |       (e:`$nodeLabel` {name: 'E'}),
+         |       (f:`$nodeLabel` {name: 'F'}),
+         |       (a)-[:`$relationshipType` {cost: 50}]->(b),
+         |       (a)-[:`$relationshipType` {cost: 50}]->(c),
+         |       (a)-[:`$relationshipType` {cost: 100}]->(d),
+         |       (b)-[:`$relationshipType` {cost: 40}]->(d),
+         |       (c)-[:`$relationshipType` {cost: 40}]->(d),
+         |       (c)-[:`$relationshipType` {cost: 80}]->(e),
+         |       (d)-[:`$relationshipType` {cost: 30}]->(e),
+         |       (d)-[:`$relationshipType` {cost: 80}]->(f),
+         |       (e)-[:`$relationshipType` {cost: 40}]->(f);
+         |""".stripMargin
     ).execute()
     spark.read.format(classOf[DataSource].getName)
       .option("gds", "gds.graph.project")
-      .option("gds.graphName", "myGraph")
-      .option("gds.nodeProjection", "Location")
-      .option("gds.relationshipProjection", "ROAD")
+      .option("gds.graphName", graphName)
+      .option("gds.nodeProjection", nodeLabel)
+      .option("gds.relationshipProjection", relationshipType)
       .option("gds.configuration.relationshipProperties", "cost")
       .load()
       .count()

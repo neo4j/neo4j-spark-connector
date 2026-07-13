@@ -25,26 +25,23 @@ import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assumptions
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.parallel.Execution
+import org.junit.jupiter.api.parallel.ExecutionMode
 import org.junit.jupiter.api.util.ClearSystemProperty
-import org.junit.jupiter.api.util.SetSystemProperty
 import org.junit.jupiter.params.Parameter
-import org.junit.jupiter.params.ParameterizedClass
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ArgumentsSource
 import org.junit.jupiter.params.provider.ValueSource
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.Driver
 import org.neo4j.driver.QueryConfig
 import org.neo4j.driver.exceptions.ClientException
-import org.neo4j.spark.testsupport.Neo4jContainerProvider
+import org.neo4j.spark.testsupport.InjectNeo4jContainerParameter
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
-import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
 import org.neo4j.spark.util.Neo4jOptions
 import org.testcontainers.neo4j.Neo4jContainer
 
@@ -57,48 +54,25 @@ import java.time.OffsetDateTime
 import java.time.OffsetTime
 import java.time.ZoneOffset
 import java.util.TimeZone
+import java.util.UUID
 
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.IterableHasAsJava
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ParameterizedClass(name = "{argumentSetName}")
-@ArgumentsSource(classOf[Neo4jContainerProvider])
+@InjectNeo4jContainerParameter
 @DisplayName("reading")
-@SetSystemProperty(key = "strict.cypher", value = "true")
 class ReadIT {
 
   @Parameter
   var neo4jContainer: Neo4jContainer = _
 
-  var driver: Driver = _
-
-  var spark: SparkSession = _
-
-  @BeforeEach
-  def prepare(): Unit = {
-    if (!neo4jContainer.isRunning) {
-      neo4jContainer.start()
-    }
-    driver = neo4jContainer.driver()
-    driver.createOrReplaceDatabase("neo4j")
-    spark = neo4jContainer.spark()
-  }
-
-  @AfterEach
-  def cleanUp(): Unit = {
-    if (spark != null) {
-      spark.close()
-    }
-    if (driver != null) {
-      driver.close()
-    }
-  }
+  private def uniqueViewName(prefix: String): String =
+    s"${prefix}_${UUID.randomUUID().toString.replace("-", "")}"
 
   @Test
-  def throws_exception_if_no_valid_read_option_is_set(): Unit = {
+  def throws_exception_if_no_valid_read_option_is_set(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
     assertThatExceptionOfType(classOf[IllegalArgumentException])
       .isThrownBy(() => {
         spark.read.format(classOf[DataSource].getName)
@@ -108,7 +82,7 @@ class ReadIT {
   }
 
   @Test
-  def throws_exception_if_two_valid_read_options_are_set(): Unit = {
+  def throws_exception_if_two_valid_read_options_are_set(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
     assertThatExceptionOfType(classOf[IllegalArgumentException])
       .isThrownBy(() => {
         spark.read.format(classOf[DataSource].getName)
@@ -120,7 +94,7 @@ class ReadIT {
   }
 
   @Test
-  def throws_exception_when_cypher_version_invalid(): Unit = {
+  def throws_exception_when_cypher_version_invalid(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
     assertThatExceptionOfType(classOf[IllegalArgumentException])
       .isThrownBy(() => {
         spark.read.format(classOf[DataSource].getName)
@@ -133,10 +107,11 @@ class ReadIT {
 
   @Nested
   @DisplayName("by node labels")
+  @Execution(ExecutionMode.SAME_THREAD)
   class ByNodeLabels {
 
     @Test
-    def returns_element_id(): Unit = {
+    def returns_element_id(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {name: 'John'})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -148,7 +123,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_labels(): Unit = {
+    def returns_labels(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person:Customer {name: 'John'})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -161,7 +136,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_unconventional_labels(): Unit = {
+    def supports_unconventional_labels(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:`Foo Bar`:Person:`(╯°□°）╯︵ ┻━┻`  {name: 'John'})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -173,7 +148,8 @@ class ReadIT {
     }
 
     @Test
-    def supports_joins_from_two_different_databases(): Unit = {
+    @Disabled("Disabled while the shared test containers keep a low database cap")
+    def supports_joins_from_two_different_databases(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.createOrReplaceDatabase("db1")
       driver.executableQuery(
         """
@@ -204,7 +180,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_string_column(): Unit = {
+    def returns_selected_string_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {name: 'John'})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -215,7 +191,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_long_column(): Unit = {
+    def returns_selected_long_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {age: 42})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -226,7 +202,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_double_column(): Unit = {
+    def returns_selected_double_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {score: 3.14})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -237,7 +213,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_localtime_column(): Unit = {
+    def returns_selected_localtime_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"CREATE (:Person {aTime: localtime({hour:12, minute: 23, second: 0, millisecond: 294})})"
       ).execute()
@@ -252,7 +228,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_time_column(): Unit = {
+    def returns_selected_time_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       val timezone = TimeZone.getDefault
       driver.executableQuery(
         s"CREATE (:Person {aTime: time({hour:12, minute: 23, second: 0, millisecond: 294})})"
@@ -270,7 +246,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_localdatetime_column(): Unit = {
+    def returns_selected_localdatetime_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery("CREATE (:Person {aTime: localdatetime('2007-12-03T10:15:30')})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -282,7 +258,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_zoneddatetime_column(): Unit = {
+    def returns_selected_zoneddatetime_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery("CREATE (:Person {aTime: datetime('2015-06-24T12:50:35.556+01:00')})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -294,7 +270,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_date_column(): Unit = {
+    def returns_selected_date_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {born: date('2009-10-10')})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -307,7 +283,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_duration_column(): Unit = {
+    def returns_selected_duration_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {range: duration({days: 14, hours:16, minutes: 12})})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -325,7 +301,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_point_column(): Unit = {
+    def returns_selected_point_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {location: point({x: 12.12, y: 13.13})})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -340,7 +316,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_geospatial_point_column(): Unit = {
+    def returns_selected_geospatial_point_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {location: point({longitude: 12.12, latitude: 13.13})})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -355,7 +331,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_3d_point_column(): Unit = {
+    def returns_selected_3d_point_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {location: point({x: 12.12, y: 13.13, z: 1})})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -371,7 +347,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_string_array_column(): Unit = {
+    def returns_selected_string_array_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {names: ['John', 'Doe']})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -384,7 +360,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_long_array_column(): Unit = {
+    def returns_selected_long_array_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {ages: [22, 23]})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -397,7 +373,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_double_array_column(): Unit = {
+    def returns_selected_double_array_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {scores: [22.33, 44.55]})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -410,7 +386,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_datetime_array_column(): Unit = {
+    def returns_selected_datetime_array_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"CREATE (p:Person {someTimes: [datetime('2010-10-10T11:13:37+01:00'), datetime('2011-11-11T10:13:37Z')]})"
       ).execute()
@@ -425,7 +401,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_localtime_array_column(): Unit = {
+    def returns_selected_localtime_array_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"CREATE (:Person {someTimes: [localtime({hour:12}), localtime({hour:1, minute: 3})]})"
       ).execute()
@@ -444,7 +420,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_boolean_array_column(): Unit = {
+    def returns_selected_boolean_array_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {bools: [true, false]})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -457,7 +433,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_point_array_column(): Unit = {
+    def returns_selected_point_array_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"CREATE (:Person {locations: [point({x: 11, y: 33.111}), point({x: 22, y: 44.222})]})"
       ).execute()
@@ -480,7 +456,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_geospatial_array_column(): Unit = {
+    def returns_selected_geospatial_array_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"CREATE (:Person {locations: [point({longitude: 11, latitude: 33.111}), point({longitude: 22, latitude: 44.222})]})"
       ).execute()
@@ -503,7 +479,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_3d_array_column(): Unit = {
+    def returns_selected_3d_array_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"CREATE (:Person {locations: [point({x: 11, y: 33.111, z: 12}), point({x: 22, y: 44.222, z: 99.1})]})"
       ).execute()
@@ -528,7 +504,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_date_array_column(): Unit = {
+    def returns_selected_date_array_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"CREATE (:Person {dates: [date('2009-10-10'), date('2009-10-11')]})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -541,7 +517,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_zoneddatetime_array_column(): Unit = {
+    def returns_selected_zoneddatetime_array_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         """
        CREATE (:Person {aTime: [
@@ -561,7 +537,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_duration_array_column(): Unit = {
+    def returns_selected_duration_array_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"CREATE (:Person {durations: [duration({months: 0.75}), duration({weeks: 2.5})]})"
       ).execute()
@@ -588,7 +564,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_byte_array_column(): Unit = {
+    def returns_selected_byte_array_column(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       val bytes = "hello, world!".map(_.toByte).toArray
       val parameters = new java.util.HashMap[String, Object]()
       parameters.put("bytes", bytes)
@@ -608,7 +584,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_selected_field_with_unconventional_name(): Unit = {
+    def returns_selected_field_with_unconventional_name(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (:Product {id: id, `(╯°□°)╯︵ ┻━┻`: 'Product ' + id})
@@ -626,7 +602,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_string_value_equality(): Unit = {
+    def returns_results_filtered_with_string_value_equality(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (:Product {id: id, name: 'Product ' + id})
@@ -646,7 +622,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_date_value_equality(): Unit = {
+    def returns_results_filtered_with_date_value_equality(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"""
        CREATE (:Person {birth: date('1998-02-04')}),
         (:Person {birth: date('1988-01-05')})
@@ -665,7 +641,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_string_negated_equality(): Unit = {
+    def returns_results_filtered_with_string_negated_equality(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery("CREATE (:Person {name: 'John Doe'}), (:Person {name: 'Jane Doe'})")
         .execute()
 
@@ -682,7 +662,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_date_negated_equality(): Unit = {
+    def returns_results_filtered_with_date_negated_equality(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery("CREATE (:Person {birth: date('1998-02-04')}), (:Person {birth: date('1988-01-05')})")
         .execute()
 
@@ -699,7 +679,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_string_difference(): Unit = {
+    def returns_results_filtered_with_string_difference(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery("CREATE (:Person {name: 'John Doe'}), (:Person {name: 'Jane Doe'})")
         .execute()
 
@@ -716,7 +696,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_long_greater_comparison(): Unit = {
+    def returns_results_filtered_with_long_greater_comparison(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(s"""
        CREATE (:Person {age: 19}),
         (:Person {age: 20}),
@@ -736,7 +720,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_timestamp_greater_comparison(): Unit = {
+    def returns_results_filtered_with_timestamp_greater_comparison(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery("""
        CREATE (:Person {birth: localdatetime('2007-12-03T10:15:30')}),
         (:Person {birth: localdatetime('2007-12-03T10:15:30')})
@@ -753,7 +741,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_long_strict_greater_comparison(): Unit = {
+    def returns_results_filtered_with_long_strict_greater_comparison(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 19}),
@@ -775,7 +767,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_date_strict_greater_comparison(): Unit = {
+    def returns_results_filtered_with_date_strict_greater_comparison(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {birth: date('1998-02-04')}),
@@ -800,7 +796,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_geospatial_point_strict_greater_comparison(): Unit = {
+    def returns_results_filtered_with_geospatial_point_strict_greater_comparison(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {location: point({x: 12, y: 12})}),
@@ -825,7 +825,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_long_lesser_comparison(): Unit = {
+    def returns_results_filtered_with_long_lesser_comparison(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
@@ -846,7 +850,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_long_strict_lesser_comparison(): Unit = {
+    def returns_results_filtered_with_long_strict_lesser_comparison(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
@@ -867,7 +875,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_in_long_collection(): Unit = {
+    def returns_results_filtered_in_long_collection(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
@@ -888,7 +896,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_as_nullable(): Unit = {
+    def returns_results_filtered_as_nullable(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
@@ -909,7 +917,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_as_not_nullable(): Unit = {
+    def returns_results_filtered_as_not_nullable(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
@@ -931,7 +939,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_ORed_equalities(): Unit = {
+    def returns_results_filtered_with_ORed_equalities(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
@@ -953,7 +961,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_ANDed_comparisons(): Unit = {
+    def returns_results_filtered_with_ANDed_comparisons(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {age: 39}),
@@ -975,7 +983,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_string_prefix(): Unit = {
+    def returns_results_filtered_with_string_prefix(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {name: 'John Mayer'}),
@@ -997,7 +1005,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_string_suffix(): Unit = {
+    def returns_results_filtered_with_string_suffix(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {name: 'John Mayer'}),
@@ -1019,7 +1027,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_substring_suffix(): Unit = {
+    def returns_results_filtered_with_substring_suffix(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""
        CREATE (:Person {name: 'John Mayer'}),
@@ -1041,7 +1049,7 @@ class ReadIT {
     }
 
     @Test
-    def throws_exception_when_wrong_database_is_provided(): Unit = {
+    def throws_exception_when_wrong_database_is_provided(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       assertThatExceptionOfType(classOf[ClientException])
         .isThrownBy(() => {
           spark.read.format(classOf[DataSource].getName)
@@ -1053,7 +1061,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_heterogeneous_schemas_for_same_label_nodes(): Unit = {
+    def supports_heterogeneous_schemas_for_same_label_nodes(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery("CREATE (:Person {id: 1, field: [12,34]}), (:Person {id: 2, field: 123})").execute()
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -1067,7 +1075,11 @@ class ReadIT {
     }
 
     @Test
-    def supports_heterogeneous_schemas_for_nodes_with_multiple_labels(): Unit = {
+    def supports_heterogeneous_schemas_for_nodes_with_multiple_labels(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(s"""CREATE (:Person { prop: 25 }),
                                 |(:Person:Player { prop: "hello" }),
                                 |(:Person:Player:Weirdo { prop: true })
@@ -1082,7 +1094,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_same_properties_for_nodes_with_multiple_labels(): Unit = {
+    def returns_same_properties_for_nodes_with_multiple_labels(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(
         s"""CREATE (actor:Person:Actor {name: 'Keanu Reeves', born: 1964, actor: true})
            |CREATE (soccerPlayer:Person:SoccerPlayer {name: 'Zlatan Ibrahimović', born: 1981, soccerPlayer: true})
@@ -1100,7 +1116,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_repartitioning(): Unit = {
+    def supports_repartitioning(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery("""UNWIND range(1,100) as id
                                |CREATE (p:Person {id:id,ids:[id,id]}) WITH collect(p) as people
                                |UNWIND people as p1
@@ -1119,7 +1135,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_custom_partitions(): Unit = {
+    def supports_custom_partitions(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery("""UNWIND range(1,100) as id
                                |CREATE (:Person:Customer {id: id, name: 'Person ' + id})
       """.stripMargin).execute()
@@ -1143,7 +1159,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_limit(): Unit = {
+    def supports_limit(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (:Product {id: id, name: 'Product ' + id})""".stripMargin)
         .execute()
@@ -1160,10 +1176,11 @@ class ReadIT {
 
   @Nested
   @DisplayName("by relationship type")
+  @Execution(ExecutionMode.SAME_THREAD)
   class ByRelationshipType {
 
     @Test
-    def returns_only_selected_field(): Unit = {
+    def returns_only_selected_field(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
@@ -1185,7 +1202,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_selecting_relationship_builtin_field(): Unit = {
+    def supports_selecting_relationship_builtin_field(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
@@ -1207,7 +1224,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_only_selected_field_with_unconventional_name(): Unit = {
+    def returns_only_selected_field_with_unconventional_name(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (pr:Product {id: id * rand(), `(╯°□°)╯︵ ┻━┻`: 'Product ' + id})
@@ -1229,7 +1250,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_source_and_target_attributes(): Unit = {
+    def returns_results_filtered_with_source_and_target_attributes(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(
         """UNWIND range(1,100) as id
           |CREATE (p:Person {id:id,ids:[id,id]}) WITH collect(p) as people
@@ -1254,7 +1279,11 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_source_and_target_map_attributes(): Unit = {
+    def returns_results_filtered_with_source_and_target_map_attributes(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(
         """UNWIND range(1,100) as id
           |CREATE (p:Person {id:id,ids:[id,id]}) WITH collect(p) as people
@@ -1279,7 +1308,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_results_filtered_with_target_attributes(): Unit = {
+    def returns_results_filtered_with_target_attributes(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (pr:Product {id: id, name: 'Product ' + id})
@@ -1306,7 +1335,11 @@ class ReadIT {
     }
 
     @Test
-    def supports_heterogeneous_schemas_for_property_value_types(): Unit = {
+    def supports_heterogeneous_schemas_for_property_value_types(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(s"""CREATE (pr1:Product {id: '1'})
                                 |CREATE (pr2:Product {id: 2})
                                 |CREATE (pe1:Person {id: '3'})
@@ -1328,7 +1361,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_custom_partitions(): Unit = {
+    def supports_custom_partitions(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery("""UNWIND range(1,100) as id
                                |CREATE (:Person {id: id, name: 'Person ' + id})-[:BOUGHT{quantity: ceil(rand() * 100)}]->(:Product{id: id, name: 'Product ' + id})
     """.stripMargin).execute()
@@ -1348,7 +1381,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_flattening(): Unit = {
+    def supports_flattening(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
@@ -1380,7 +1413,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_nodes_as_map(): Unit = {
+    def supports_nodes_as_map(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
@@ -1410,7 +1443,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_limit(): Unit = {
+    def supports_limit(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
@@ -1429,7 +1462,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_limit_in_conjunction_with_ordering(): Unit = {
+    def supports_limit_in_conjunction_with_ordering(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
@@ -1452,7 +1485,8 @@ class ReadIT {
     }
 
     @Test
-    def supports_SQL_sum_aggregation(): Unit = {
+    def supports_SQL_sum_aggregation(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      val viewName = uniqueViewName("BOUGHT")
       driver.executableQuery(s"""CREATE (pe:Person {id: 1, fullName: 'Person'})-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr:Product {id: 0, name: 'Product ' + 0, price: 1})
                                 |WITH pe
                                 |UNWIND range(1, 10) as id
@@ -1467,12 +1501,12 @@ class ReadIT {
         .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
         .load()
-        .createTempView("BOUGHT")
-      val df = spark.sql("""SELECT `source.fullName`,
-                           |   SUM(DISTINCT(`target.price`)) AS distinctTotal,
-                           |   SUM(`target.price`) AS total
-                           |FROM BOUGHT
-                           |group by `source.fullName`""".stripMargin)
+        .createTempView(viewName)
+      val df = spark.sql(s"""SELECT `source.fullName`,
+                            |   SUM(DISTINCT(`target.price`)) AS distinctTotal,
+                            |   SUM(`target.price`) AS total
+                            |FROM $viewName
+                            |group by `source.fullName`""".stripMargin)
 
       val rows = df.collectAsList()
       assertThat(rows).hasSize(1)
@@ -1483,7 +1517,8 @@ class ReadIT {
     }
 
     @Test
-    def supports_SQL_min_max_aggregation(): Unit = {
+    def supports_SQL_min_max_aggregation(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      val viewName = uniqueViewName("BOUGHT")
       driver.executableQuery(s"""CREATE (pe:Person {id: 1, fullName: 'Person'})-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr:Product {id: 0, name: 'Product ' + 0, price: 1})
                                 |WITH pe
                                 |UNWIND range(1, 10) as id
@@ -1498,12 +1533,12 @@ class ReadIT {
         .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
         .load()
-        .createTempView("BOUGHT")
-      val df = spark.sql("""SELECT `source.fullName`,
-                           |    MAX(`target.price`) AS max,
-                           |    MIN(`target.price`) AS min
-                           |FROM BOUGHT
-                           |GROUP BY `source.fullName`""".stripMargin)
+        .createTempView(viewName)
+      val df = spark.sql(s"""SELECT `source.fullName`,
+                            |    MAX(`target.price`) AS max,
+                            |    MIN(`target.price`) AS min
+                            |FROM $viewName
+                            |GROUP BY `source.fullName`""".stripMargin)
 
       val rows = df.collectAsList()
       assertThat(rows).hasSize(1)
@@ -1514,7 +1549,8 @@ class ReadIT {
     }
 
     @Test
-    def supports_SQL_count_aggregation(): Unit = {
+    def supports_SQL_count_aggregation(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      val viewName = uniqueViewName("BOUGHT")
       driver.executableQuery(s"""CREATE (pe:Person {id: 1, fullName: 'Person'})-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr:Product {id: 1, name: 'Product ' + 0, price: 1})
                                 |WITH pe
                                 |UNWIND range(1, 10) as id
@@ -1529,12 +1565,12 @@ class ReadIT {
         .option("relationship", "BOUGHT")
         .option("relationship.target.labels", "Product")
         .load()
-        .createTempView("BOUGHT")
-      val df = spark.sql("""SELECT `source.fullName`,
-                           |    COUNT(DISTINCT(`target.id`)) AS distinctTotal,
-                           |    COUNT(`target.id`) AS total
-                           |FROM BOUGHT
-                           |group by `source.fullName`""".stripMargin)
+        .createTempView(viewName)
+      val df = spark.sql(s"""SELECT `source.fullName`,
+                            |    COUNT(DISTINCT(`target.id`)) AS distinctTotal,
+                            |    COUNT(`target.id`) AS total
+                            |FROM $viewName
+                            |group by `source.fullName`""".stripMargin)
 
       val rows = df.collectAsList()
       assertThat(rows).hasSize(1)
@@ -1548,10 +1584,11 @@ class ReadIT {
 
   @Nested
   @DisplayName("by query")
+  @Execution(ExecutionMode.SAME_THREAD)
   class ByQuery {
 
     @Test
-    def supports_returning_lists(): Unit = {
+    def supports_returning_lists(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       val df = spark.read.format(classOf[DataSource].getName)
         .option("query", "RETURN [1, 'foo'] AS list")
         .load()
@@ -1562,7 +1599,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_returning_maps(): Unit = {
+    def supports_returning_maps(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       val df = spark.read.format(classOf[DataSource].getName)
         .option("query", "RETURN {a: 1, b: '3'} AS map")
         .load()
@@ -1573,7 +1610,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_returning_list_of_maps(): Unit = {
+    def supports_returning_list_of_maps(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       val df = spark.read.format(classOf[DataSource].getName)
         .option("query", "RETURN [{a: 1, b: '3'}, {a: 'foo'}] AS listMap")
         .load()
@@ -1584,18 +1621,18 @@ class ReadIT {
     }
 
     @Test
-    def supports_calling_procedure(): Unit = {
+    def supports_calling_procedure(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       val df = spark.read.format(classOf[DataSource].getName)
         .option("query", "CALL db.info() YIELD name RETURN *")
         .load()
 
       val dbName = df.select("name").collectAsList().get(0).getString(0)
 
-      assertThat(dbName).isEqualTo("neo4j")
+      assertThat(dbName).startsWith("test-db")
     }
 
     @Test
-    def supports_calling_apoc_procedure(): Unit = {
+    def supports_calling_apoc_procedure(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       Assumptions.assumeTrue(driver.serverSupportsApoc())
 
       val df = spark.read.format(classOf[DataSource].getName)
@@ -1607,7 +1644,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_only_selected_field(): Unit = {
+    def returns_only_selected_field(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
@@ -1629,7 +1666,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_empty_dataset(): Unit = {
+    def returns_empty_dataset(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("query", "MATCH (e:NotAnExistingLabel) RETURN elementId(e) as f, 1 as g")
@@ -1640,7 +1677,7 @@ class ReadIT {
     }
 
     @Test
-    def returns_ordered_results(): Unit = {
+    def returns_ordered_results(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery("CREATE (:Instrument {name: 'Drums', id: 1}), (:Instrument {name: 'Guitar', id: 2})")
         .execute()
 
@@ -1657,7 +1694,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_complex_return_clauses(): Unit = {
+    def supports_complex_return_clauses(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         s"""UNWIND range(1, 100) as id
            |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
@@ -1686,7 +1723,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_complex_return_clauses_on_empty_data_set(): Unit = {
+    def supports_complex_return_clauses_on_empty_data_set(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option(
@@ -1706,7 +1743,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_custom_partitions(): Unit = {
+    def supports_custom_partitions(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         """CREATE (pr:Product{id: 1, name: 'Product 1'})
           |WITH pr
@@ -1740,7 +1777,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_filtering_on_nodes(): Unit = {
+    def supports_filtering_on_nodes(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
@@ -1763,7 +1800,11 @@ class ReadIT {
     }
 
     @Test
-    def supports_filtering_on_complex_results_encoded_as_strings(): Unit = {
+    def supports_filtering_on_complex_results_encoded_as_strings(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
@@ -1790,7 +1831,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_filtering_on_relationships(): Unit = {
+    def supports_filtering_on_relationships(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
                                 |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
@@ -1819,7 +1860,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_script_result_injection(): Unit = {
+    def supports_script_result_injection(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option("script", "RETURN 'foo' AS val")
@@ -1838,7 +1879,12 @@ class ReadIT {
     @ParameterizedTest
     @ValueSource(strings = Array("limit", "\nlimit", "LIMIT", "\nLIMIT", "lImIT", "\nlImIT"))
     @ClearSystemProperty(key = "strict.cypher")
-    def fails_if_limit_is_used_at_the_end_of_the_query(limitKeyword: String): Unit = {
+    def fails_if_limit_is_used_at_the_end_of_the_query(
+      limitKeyword: String,
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       assertThatExceptionOfType(classOf[IllegalArgumentException])
         .isThrownBy(() => {
           spark.read
@@ -1853,7 +1899,12 @@ class ReadIT {
 
     @ParameterizedTest
     @ValueSource(strings = Array("limit", "\nlimit", "LIMIT", "\nLIMIT", "lImIT", "\nlImIT"))
-    def supports_limit_keyword_when_not_at_the_end_of_the_query(limitKeyword: String): Unit = {
+    def supports_limit_keyword_when_not_at_the_end_of_the_query(
+      limitKeyword: String,
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       driver.executableQuery(s"""UNWIND range(1, 100) as id
                                 |CREATE (:Product {id: id, name: 'Product ' + id})""".stripMargin)
         .execute()
@@ -1867,7 +1918,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_user_defined_schema(): Unit = {
+    def supports_user_defined_schema(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery("CREATE (p:Person {name: 'Foo Bar', age: 8})")
         .execute()
 
@@ -1882,7 +1933,7 @@ class ReadIT {
     }
 
     @Test
-    def supports_query_ordering(): Unit = {
+    def supports_query_ordering(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery("CREATE (p:Person {name: 'Foo Bar', age: 8})")
         .execute()
 
@@ -1896,7 +1947,7 @@ class ReadIT {
     }
 
     @Test // https://github.com/neo4j/neo4j-spark-connector/issues/531
-    def supports_nullable_datetime_properties(): Unit = {
+    def supports_nullable_datetime_properties(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .option(
@@ -1923,7 +1974,7 @@ class ReadIT {
     }
 
     @Test // https://github.com/neo4j/neo4j-spark-connector/issues/531
-    def supports_nullable_datetime_properties_with_schema(): Unit = {
+    def supports_nullable_datetime_properties_with_schema(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       val df = spark.read
         .format(classOf[DataSource].getName)
         .schema(StructType(Array(

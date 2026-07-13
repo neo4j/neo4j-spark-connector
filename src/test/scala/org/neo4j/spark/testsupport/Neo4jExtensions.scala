@@ -16,7 +16,6 @@
  */
 package org.neo4j.spark.testsupport
 
-import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver.AuthTokens
@@ -28,12 +27,17 @@ import org.neo4j.spark.util.Neo4jOptions
 import org.testcontainers.neo4j.Neo4jContainer
 
 import scala.jdk.CollectionConverters.MapHasAsJava
-import scala.util.Try
 import scala.util.Using
 
 object Neo4jExtensions {
 
   implicit class Neo4jContainerExtensions(container: Neo4jContainer) {
+
+    def startLazily(): Unit = {
+      if (!container.isRunning) {
+        container.start()
+      }
+    }
 
     def cypherRenderer(options: Neo4jOptions = defaultNeo4jSparkOptions): CypherRenderer = {
       Using(driver()) { driver =>
@@ -47,16 +51,12 @@ object Neo4jExtensions {
       GraphDatabase.driver(container.getBoltUrl, auth)
     }
 
-    def spark(): SparkSession = {
-      SparkSession.builder()
-        .config(new SparkConf()
-          .setAppName("neoTest")
-          .setMaster("local[*]")
-          .set("spark.driver.host", "127.0.0.1")
-          .set("neo4j.url", container.getBoltUrl)
-          .set("neo4j.authentication.basic.username", "neo4j")
-          .set("neo4j.authentication.basic.password", container.getAdminPassword))
-        .getOrCreate()
+    def driver(username: String, password: String): Driver = {
+      GraphDatabase.driver(container.getBoltUrl, AuthTokens.basic(username, password))
+    }
+
+    def spark(user: String, password: String): SparkSession = {
+      SparkSessions.forContainer(container, user, password)
     }
 
     def authenticatedOptions(): Map[String, String] = {
@@ -80,9 +80,44 @@ object Neo4jExtensions {
 
   implicit class DriverExtensions(driver: Driver) {
 
+    def createOrReplaceUser(user: String, password: String, homeDb: String): Unit = {
+      driver.executableQuery("""
+                               |CREATE OR REPLACE USER $user
+                               |SET PASSWORD $password CHANGE NOT REQUIRED
+                               |SET HOME DATABASE $homeDb
+      """.stripMargin)
+        .withParameters(Map[String, AnyRef]("user" -> user, "password" -> password, "homeDb" -> homeDb).asJava)
+        .withConfig(QueryConfig.builder().withDatabase("system").build())
+        .execute()
+      driver.executableQuery(
+        """
+          |GRANT ROLE admin TO $user
+          |""".stripMargin
+      )
+        .withParameters(Map[String, AnyRef]("user" -> user).asJava)
+        .withConfig(QueryConfig.builder()
+          .withDatabase("system")
+          .build())
+        .execute()
+    }
+
     def createOrReplaceDatabase(database: String): Unit = {
       driver.executableQuery("CREATE OR REPLACE DATABASE $db WAIT 30 seconds")
         .withParameters(Map[String, AnyRef]("db" -> database).asJava)
+        .withConfig(QueryConfig.builder().withDatabase("system").build())
+        .execute()
+    }
+
+    def dropDatabase(database: String): Unit = {
+      driver.executableQuery("DROP DATABASE $db IF EXISTS WAIT 30 seconds")
+        .withParameters(Map[String, AnyRef]("db" -> database).asJava)
+        .withConfig(QueryConfig.builder().withDatabase("system").build())
+        .execute()
+    }
+
+    def dropUser(user: String): Unit = {
+      driver.executableQuery("DROP USER $user IF EXISTS")
+        .withParameters(Map[String, AnyRef]("user" -> user).asJava)
         .withConfig(QueryConfig.builder().withDatabase("system").build())
         .execute()
     }

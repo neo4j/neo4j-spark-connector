@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
 import org.neo4j.driver.AccessMode
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
@@ -325,22 +324,21 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
 
   @Test
   def testVersionThrowsExceptionSparkVersionIsNotSupported(): Unit = {
-    val sparkVersion = SparkSession.getActiveSession
-      .map { _.version }
-      .getOrElse("UNKNOWN")
+    val sparkVersion = SparkConnectorScalaSuiteIT.ss.version
+    SparkSession.setActiveSession(SparkConnectorScalaSuiteIT.ss)
     try {
-      Validations.validate(ValidateSparkMinVersion("4.10000"))
-      fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
-    } catch {
-      case e: IllegalArgumentException =>
-        assertEquals(
-          s"""Your current Spark version $sparkVersion is not supported by the current connector.
-             |Please visit https://neo4j.com/developer/spark/overview/#_spark_compatibility to know which connector version you need.
-             |""".stripMargin,
-          e.getMessage
-        )
-      case e: Throwable =>
-        fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, got ${e.getClass} instead")
+      val exception = assertThrows(
+        classOf[IllegalArgumentException],
+        () => Validations.validate(ValidateSparkMinVersion("4.10000"))
+      )
+      assertEquals(
+        s"""Your current Spark version $sparkVersion is not supported by the current connector.
+           |Please visit https://neo4j.com/developer/spark/overview/#_spark_compatibility to know which connector version you need.
+           |""".stripMargin,
+        exception.getMessage
+      )
+    } finally {
+      SparkSession.clearActiveSession()
     }
   }
 

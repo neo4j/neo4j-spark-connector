@@ -341,6 +341,13 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
     builder.build()
   }
 
+  override def equals(other: Any): Boolean = other match {
+    case that: Neo4jOptions => options == that.options
+    case _                  => false
+  }
+
+  override def hashCode(): Int = options.hashCode()
+
   private def extractNeo4jGdsMetadata(): Neo4jGdsMetadata = Neo4jGdsMetadata(
     options
       .view

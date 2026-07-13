@@ -40,9 +40,10 @@ object SparkConnectorScalaSuiteWithApocIT {
   var ss: SparkSession = _
   var driver: Driver = _
   var neo4j: Neo4j = _
+  private var shutdownHookRegistered = false
 
   @BeforeAll
-  def setUpContainer(): Unit = {
+  def setUpContainer(): Unit = this.synchronized {
     if (!server.isRunning) {
       try {
         server.start()
@@ -58,6 +59,7 @@ object SparkConnectorScalaSuiteWithApocIT {
       ss = SparkSession.builder().config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       neo4j = Neo4jDetector.INSTANCE.detect(driver)
+      registerShutdownHook()
     }
     assumeTrue(server.isRunning, "Neo4j container is not started")
     assumeTrue(TestUtil.hasApoc(session()), "Neo4j Preview versions doesn't have APOC")
@@ -65,10 +67,26 @@ object SparkConnectorScalaSuiteWithApocIT {
 
   @AfterAll
   def tearDownContainer(): Unit = {
+    ()
+  }
+
+  private def registerShutdownHook(): Unit = {
+    if (!shutdownHookRegistered) {
+      sys.addShutdownHook {
+        closeResources()
+      }
+      shutdownHookRegistered = true
+    }
+  }
+
+  private def closeResources(): Unit = this.synchronized {
     TestUtil.closeSafely(driver)
     driver = null
     TestUtil.closeSafely(server)
     TestUtil.closeSafely(ss)
+    ss = null
+    conf = null
+    neo4j = null
   }
 
   def session(database: String = ""): Session = {

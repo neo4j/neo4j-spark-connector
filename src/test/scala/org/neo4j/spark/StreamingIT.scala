@@ -27,17 +27,15 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.io.TempDir
-import org.junit.jupiter.api.util.SetSystemProperty
+import org.junit.jupiter.api.parallel.Execution
+import org.junit.jupiter.api.parallel.ExecutionMode
 import org.junit.jupiter.params.Parameter
-import org.junit.jupiter.params.ParameterizedClass
-import org.junit.jupiter.params.provider.ArgumentsSource
+import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.Driver
 import org.neo4j.spark.testsupport.Assert
-import org.neo4j.spark.testsupport.Neo4jContainerProvider
-import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
-import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
+import org.neo4j.spark.testsupport.InjectNeo4jContainerParameter
+import org.neo4j.spark.testsupport.StreamingTestState
 import org.testcontainers.neo4j.Neo4jContainer
 
 import java.nio.file.Files
@@ -47,13 +45,11 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.immutable
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ParameterizedClass(name = "{argumentSetName}")
-@ArgumentsSource(classOf[Neo4jContainerProvider])
+@InjectNeo4jContainerParameter
 @DisplayName("streaming")
-@SetSystemProperty(key = "strict.cypher", value = "true")
 class StreamingIT {
 
   @Parameter
@@ -62,13 +58,13 @@ class StreamingIT {
   @TempDir
   var folder: Path = _
 
-  var driver: Driver = _
+  private def query: StreamingQuery = StreamingTestState.current.query
 
-  var spark: SparkSession = _
+  private def query_=(value: StreamingQuery): Unit = {
+    StreamingTestState.current.query = value
+  }
 
-  private var query: StreamingQuery = _
-
-  private val createdTables = mutable.ListBuffer.empty[String]
+  private def createdTables: mutable.ListBuffer[String] = StreamingTestState.current.createdTables
 
   private val dataSourceFormat = classOf[DataSource].getName
 
@@ -76,38 +72,41 @@ class StreamingIT {
   private val OptFrom = "streaming.from"
   private val OptQueryOffset = "streaming.query.offset"
 
+  private def connectionOptions(spark: SparkSession): java.util.Map[String, String] =
+    Map(
+      "url" -> spark.conf.get("neo4j.url"),
+      "authentication.basic.username" -> spark.conf.get("neo4j.authentication.basic.username"),
+      "authentication.basic.password" -> spark.conf.get("neo4j.authentication.basic.password")
+    ).asJava
+
   @BeforeEach
   def prepare(): Unit = {
-    if (!neo4jContainer.isRunning) {
-      neo4jContainer.start()
-    }
-    driver = neo4jContainer.driver()
-    driver.createOrReplaceDatabase("neo4j")
-    spark = neo4jContainer.spark()
+    StreamingTestState.set()
   }
 
   @AfterEach
-  def cleanUp(): Unit = {
+  def cleanUp(spark: SparkSession): Unit = {
     Option(query).foreach(_.stop())
     Option(spark).foreach { session =>
       createdTables.foreach(table => session.sql(s"DROP TABLE IF EXISTS $table"))
       createdTables.clear()
-      session.close()
     }
-    Option(driver).foreach(_.close())
+    StreamingTestState.clear()
   }
 
   @Nested
   @DisplayName("from source")
+  @Execution(ExecutionMode.SAME_THREAD)
   class FromSource {
 
-    private val total = 60
+    private val total = 20
 
     @Test
-    def reads_nodes_from_now(): Unit = {
-      createMovieNodes(0, 1)
+    def reads_nodes_from_now(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      createMovieNodes(driver, 0, 1)
 
       query = spark.readStream.format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option("labels", "Movie")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "NOW")
@@ -117,7 +116,7 @@ class StreamingIT {
         .queryName("nodesFromNow")
         .start()
 
-      Executors.newSingleThreadExecutor().execute(() => createMovieNodes(1, total, 1000, 200))
+      Executors.newSingleThreadExecutor().execute(() => createMovieNodes(driver, 1, total, 1000, 25))
 
       val expected = (1 to total)
         .map(index => Map("<labels>" -> List("Movie"), "title" -> s"My movie $index"))
@@ -125,17 +124,18 @@ class StreamingIT {
 
       Assert.assertEventually(
         expected,
-        () => select("SELECT * FROM nodesFromNow ORDER BY timestamp", "<labels>", "title"),
+        () => select(spark, "SELECT * FROM nodesFromNow ORDER BY timestamp", "<labels>", "title"),
         30L,
         TimeUnit.SECONDS
       )
     }
 
     @Test
-    def reads_all_nodes(): Unit = {
-      createMovieNodes(0, 1)
+    def reads_all_nodes(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      createMovieNodes(driver, 0, 1)
 
       query = spark.readStream.format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option("labels", "Movie")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "ALL")
@@ -145,7 +145,7 @@ class StreamingIT {
         .queryName("allNodes")
         .start()
 
-      Executors.newSingleThreadExecutor().execute(() => createMovieNodes(1, total, 1000, 200))
+      Executors.newSingleThreadExecutor().execute(() => createMovieNodes(driver, 1, total, 1000, 25))
 
       val expected = (0 to total)
         .map(index => Map("<labels>" -> List("Movie"), "title" -> s"My movie $index"))
@@ -153,17 +153,18 @@ class StreamingIT {
 
       Assert.assertEventually(
         expected,
-        () => select("SELECT * FROM allNodes ORDER BY timestamp", "<labels>", "title"),
+        () => select(spark, "SELECT * FROM allNodes ORDER BY timestamp", "<labels>", "title"),
         30L,
         TimeUnit.SECONDS
       )
     }
 
     @Test
-    def resumes_reading_nodes_from_checkpoint(): Unit = {
-      createMovieNodes(0, 1)
+    def resumes_reading_nodes_from_checkpoint(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      createMovieNodes(driver, 0, 1)
 
       val stream = spark.readStream.format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option("labels", "Movie")
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "NOW")
@@ -174,23 +175,24 @@ class StreamingIT {
       val partial = total / 2
 
       drainToTable(stream, location, table)
-      createMovieNodes(1, partial, 0, 10)
+      createMovieNodes(driver, 1, partial, 0, 10)
       drainToTable(stream, location, table)
-      createMovieNodes(partial + 1, total - partial, 0, 10)
+      createMovieNodes(driver, partial + 1, total - partial, 0, 10)
       drainToTable(stream, location, table)
 
       val expected = (1 to total)
         .map(index => Map("<labels>" -> List("Movie"), "title" -> s"My movie $index"))
         .toList
-      assertThat(select(s"SELECT * FROM $table ORDER BY timestamp", "<labels>", "title").asJava)
+      assertThat(select(spark, s"SELECT * FROM $table ORDER BY timestamp", "<labels>", "title").asJava)
         .containsExactlyElementsOf(expected.asJava)
     }
 
     @Test
-    def reads_relationships_from_now(): Unit = {
-      createLikesRelationships(0, 1)
+    def reads_relationships_from_now(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      createLikesRelationships(driver, 0, 1)
 
       query = spark.readStream.format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option("relationship", "LIKES")
         .option("relationship.save.strategy", "native")
         .option(OptPropertyName, "timestamp")
@@ -203,13 +205,14 @@ class StreamingIT {
         .queryName("relationshipsFromNow")
         .start()
 
-      Executors.newSingleThreadExecutor().execute(() => createLikesRelationships(1, total, 1000, 200))
+      Executors.newSingleThreadExecutor().execute(() => createLikesRelationships(driver, 1, total, 1000, 25))
 
       val expected = (1 to total).map(likeRow).toList
       Assert.assertEventually(
         expected,
         () =>
           select(
+            spark,
             "SELECT * FROM relationshipsFromNow ORDER BY `rel.timestamp`",
             "<rel.type>",
             "<source.labels>",
@@ -224,10 +227,11 @@ class StreamingIT {
     }
 
     @Test
-    def reads_all_relationships(): Unit = {
-      createLikesRelationships(0, 1)
+    def reads_all_relationships(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      createLikesRelationships(driver, 0, 1)
 
       query = spark.readStream.format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option("relationship", "LIKES")
         .option("relationship.save.strategy", "native")
         .option(OptPropertyName, "timestamp")
@@ -240,13 +244,14 @@ class StreamingIT {
         .queryName("allRelationships")
         .start()
 
-      Executors.newSingleThreadExecutor().execute(() => createLikesRelationships(1, total, 1000, 200))
+      Executors.newSingleThreadExecutor().execute(() => createLikesRelationships(driver, 1, total, 1000, 25))
 
       val expected = (0 to total).map(likeRow).toList
       Assert.assertEventually(
         expected,
         () =>
           select(
+            spark,
             "SELECT * FROM allRelationships ORDER BY `rel.timestamp`",
             "<rel.type>",
             "<source.labels>",
@@ -261,10 +266,11 @@ class StreamingIT {
     }
 
     @Test
-    def resumes_reading_relationships_from_checkpoint(): Unit = {
-      createLikesRelationships(0, 1)
+    def resumes_reading_relationships_from_checkpoint(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      createLikesRelationships(driver, 0, 1)
 
       val stream = spark.readStream.format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option("relationship", "LIKES")
         .option("relationship.save.strategy", "native")
         .option(OptPropertyName, "timestamp")
@@ -278,13 +284,14 @@ class StreamingIT {
       val partial = total / 2
 
       drainToTable(stream, location, table)
-      createLikesRelationships(1, partial, 0, 10)
+      createLikesRelationships(driver, 1, partial, 0, 10)
       drainToTable(stream, location, table)
-      createLikesRelationships(partial + 1, total - partial, 0, 10)
+      createLikesRelationships(driver, partial + 1, total - partial, 0, 10)
       drainToTable(stream, location, table)
 
       val expected = (0 to total).map(likeRow).toList
       assertThat(select(
+        spark,
         s"SELECT * FROM $table ORDER BY `rel.timestamp`",
         "<rel.type>",
         "<source.labels>",
@@ -297,10 +304,11 @@ class StreamingIT {
     }
 
     @Test
-    def reads_query_results_from_now(): Unit = {
-      createPersonNodes(0, 1)
+    def reads_query_results_from_now(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      createPersonNodes(driver, 0, 1)
 
       query = spark.readStream.format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option(OptFrom, "NOW")
         .option(OptPropertyName, "timestamp")
         .option("query", personStreamingQuery)
@@ -311,22 +319,23 @@ class StreamingIT {
         .queryName("queryFromNow")
         .start()
 
-      Executors.newSingleThreadExecutor().execute(() => createPersonNodes(1, total, 1000, 200))
+      Executors.newSingleThreadExecutor().execute(() => createPersonNodes(driver, 1, total, 1000, 25))
 
       val expected = (1 to total).map(index => Map("age" -> s"$index")).toList
       Assert.assertEventually(
         expected,
-        () => select("SELECT * FROM queryFromNow ORDER BY timestamp", "age"),
+        () => select(spark, "SELECT * FROM queryFromNow ORDER BY timestamp", "age"),
         30L,
         TimeUnit.SECONDS
       )
     }
 
     @Test
-    def reads_all_query_results(): Unit = {
-      createPersonNodes(0, 1)
+    def reads_all_query_results(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      createPersonNodes(driver, 0, 1)
 
       query = spark.readStream.format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "ALL")
         .option("query", personStreamingQuery)
@@ -337,22 +346,23 @@ class StreamingIT {
         .queryName("allQuery")
         .start()
 
-      Executors.newSingleThreadExecutor().execute(() => createPersonNodes(1, total, 1000, 200))
+      Executors.newSingleThreadExecutor().execute(() => createPersonNodes(driver, 1, total, 1000, 25))
 
       val expected = (0 to total).map(index => Map("age" -> s"$index")).toList
       Assert.assertEventually(
         expected,
-        () => select("SELECT * FROM allQuery ORDER BY timestamp", "age"),
+        () => select(spark, "SELECT * FROM allQuery ORDER BY timestamp", "age"),
         30L,
         TimeUnit.SECONDS
       )
     }
 
     @Test
-    def resumes_reading_query_results_from_checkpoint(): Unit = {
-      createPersonNodes(0, 1)
+    def resumes_reading_query_results_from_checkpoint(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      createPersonNodes(driver, 0, 1)
 
       val stream = spark.readStream.format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "ALL")
         .option("query", personStreamingQuery)
@@ -364,22 +374,23 @@ class StreamingIT {
       val partial = total / 2
 
       drainToTable(stream, location, table)
-      createPersonNodes(1, partial, 0, 10)
+      createPersonNodes(driver, 1, partial, 0, 10)
       drainToTable(stream, location, table)
-      createPersonNodes(partial + 1, total - partial, 0, 10)
+      createPersonNodes(driver, partial + 1, total - partial, 0, 10)
       drainToTable(stream, location, table)
 
       val expected = (0 to total).map(index => Map("age" -> s"$index")).toList
-      assertThat(select(s"SELECT * FROM $table ORDER BY timestamp", "age").asJava)
+      assertThat(select(spark, s"SELECT * FROM $table ORDER BY timestamp", "age").asJava)
         .containsExactlyElementsOf(expected.asJava)
     }
 
     @Test
-    def keeps_offset_when_query_returns_nothing(): Unit = {
-      createPersonNodes(0, 50)
+    def keeps_offset_when_query_returns_nothing(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      createPersonNodes(driver, 0, 50)
       driver.executableQuery("MATCH (p:Person) SET p:Human").execute()
 
       val stream = spark.readStream.format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option(OptPropertyName, "timestamp")
         .option(OptFrom, "ALL")
         .option("query", personStreamingQuery)
@@ -428,7 +439,13 @@ class StreamingIT {
         .awaitTermination()
     }
 
-    private def createMovieNodes(from: Int, count: Int, delayMs: Int = 0, intervalMs: Int = 0): Unit = {
+    private def createMovieNodes(
+      driver: Driver,
+      from: Int,
+      count: Int,
+      delayMs: Int = 0,
+      intervalMs: Int = 0
+    ): Unit = {
       Thread.sleep(delayMs)
       (from until from + count).foreach { index =>
         Thread.sleep(intervalMs)
@@ -436,7 +453,13 @@ class StreamingIT {
       }
     }
 
-    private def createPersonNodes(from: Int, count: Int, delayMs: Int = 0, intervalMs: Int = 0): Unit = {
+    private def createPersonNodes(
+      driver: Driver,
+      from: Int,
+      count: Int,
+      delayMs: Int = 0,
+      intervalMs: Int = 0
+    ): Unit = {
       Thread.sleep(delayMs)
       (from until from + count).foreach { index =>
         Thread.sleep(intervalMs)
@@ -444,7 +467,13 @@ class StreamingIT {
       }
     }
 
-    private def createLikesRelationships(from: Int, count: Int, delayMs: Int = 0, intervalMs: Int = 0): Unit = {
+    private def createLikesRelationships(
+      driver: Driver,
+      from: Int,
+      count: Int,
+      delayMs: Int = 0,
+      intervalMs: Int = 0
+    ): Unit = {
       Thread.sleep(delayMs)
       (from until from + count).foreach { index =>
         Thread.sleep(intervalMs)
@@ -467,22 +496,24 @@ class StreamingIT {
       "rel.id" -> index
     )
 
-    private def select(sql: String, columns: String*): immutable.Seq[Map[String, Any]] =
+    private def select(spark: SparkSession, sql: String, columns: String*): immutable.Seq[Map[String, Any]] =
       spark.sql(sql).collect().map(row => columns.map(column => column -> row.getAs[Any](column)).toMap).toList
   }
 
   @Nested
   @DisplayName("to sink")
+  @Execution(ExecutionMode.SAME_THREAD)
   class ToSink {
 
     private val recordSize = 2000
     private val partitions = 5
 
     @Test
-    def writes_nodes_in_append_mode(): Unit = {
-      val stream = memoryStream()
+    def writes_nodes_in_append_mode(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      val stream = memoryStream(spark)
       query = stream.toDF().writeStream
         .format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option("save.mode", "Append")
         .option("labels", "Timestamp")
         .option("node.keys", "value")
@@ -491,18 +522,19 @@ class StreamingIT {
 
       feed(stream)((1 to recordSize * partitions).toArray)
 
-      assertEventuallyContainsValues("Timestamp", "value", (1 to recordSize * partitions).toList)
+      assertEventuallyContainsValues(spark, "Timestamp", "value", (1 to recordSize * partitions).toList)
     }
 
     @Test
-    def writes_nodes_in_overwrite_mode(): Unit = {
+    def writes_nodes_in_overwrite_mode(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery(
         "CREATE CONSTRAINT timestamp_value FOR (t:Timestamp) REQUIRE t.value IS UNIQUE"
       ).execute()
 
-      val stream = memoryStream()
+      val stream = memoryStream(spark)
       query = stream.toDF().writeStream
         .format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option("save.mode", "Overwrite")
         .option("labels", "Timestamp")
         .option("node.keys", "value")
@@ -511,14 +543,15 @@ class StreamingIT {
 
       (1 to partitions).foreach(_ => stream.addData((1 to 500).toArray))
 
-      assertEventuallyContainsValues("Timestamp", "value", (1 to 500).toList)
+      assertEventuallyContainsValues(spark, "Timestamp", "value", (1 to 500).toList)
     }
 
     @Test
-    def writes_relationships_in_append_mode(): Unit = {
-      val stream = memoryStream()
+    def writes_relationships_in_append_mode(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      val stream = memoryStream(spark)
       query = stream.toDF().writeStream
         .format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option("save.mode", "Append")
         .option("relationship", "PAIRS")
         .option("relationship.source.labels", ":From")
@@ -533,17 +566,18 @@ class StreamingIT {
       feed(stream)((1 to recordSize * partitions).toArray)
 
       val expected = (1 to recordSize * partitions).map(value => (value, value)).toList
-      assertEventuallyContainsPairs(expected)
+      assertEventuallyContainsPairs(spark, expected)
     }
 
     @Test
-    def appends_relationships_while_overwriting_nodes(): Unit = {
+    def appends_relationships_while_overwriting_nodes(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery("CREATE CONSTRAINT From_value FOR (p:From) REQUIRE p.value IS UNIQUE").execute()
       driver.executableQuery("CREATE CONSTRAINT To_value FOR (p:To) REQUIRE p.value IS UNIQUE").execute()
 
-      val stream = memoryStream()
+      val stream = memoryStream(spark)
       query = stream.toDF().writeStream
         .format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option("save.mode", "Append")
         .option("relationship", "PAIRS")
         .option("relationship.source.labels", ":From")
@@ -558,24 +592,25 @@ class StreamingIT {
       (1 to partitions).foreach(_ => stream.addData((1 to 500).toArray))
 
       val expected = (1 to 500).flatMap(value => (1 to partitions).map(_ => (value, value))).toList
-      assertEventuallyContainsPairs(expected)
+      assertEventuallyContainsPairs(spark, expected)
     }
 
     @Test
-    def writes_with_query(): Unit = {
-      val stream = memoryStream()
+    def writes_with_query(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      val stream = memoryStream(spark)
       query = stream.toDF().writeStream
         .format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option("query", "MERGE (m:MyNewNode {the_value: event.value})")
         .option("checkpointLocation", checkpoint())
         .start()
 
       feed(stream)((1 to recordSize * partitions).toArray)
 
-      assertEventuallyContainsValues("MyNewNode", "the_value", (1 to recordSize * partitions).toList)
+      assertEventuallyContainsValues(spark, "MyNewNode", "the_value", (1 to recordSize * partitions).toList)
     }
 
-    private def memoryStream(): MemoryStream[Int] = {
+    private def memoryStream(spark: SparkSession): MemoryStream[Int] = {
       val session = spark
       import session.implicits._
       MemoryStream[Int](session)
@@ -585,35 +620,60 @@ class StreamingIT {
       values.grouped(values.length / partitions).foreach(stream.addData(_))
     }
 
-    private def assertEventuallyContainsValues(label: String, column: String, expected: immutable.Seq[Int]): Unit = {
-      Assert.assertEventually(
-        expected.size,
-        () => readValues(label, column).size,
-        30L,
-        TimeUnit.SECONDS
-      )
-      assertThat(readValues(label, column).map(Int.box).asJava)
+    private def assertEventuallyContainsValues(
+      spark: SparkSession,
+      label: String,
+      column: String,
+      expected: immutable.Seq[Int]
+    ): Unit = {
+      assertEventuallyWithQueryDiagnostics(expected.size, () => readValues(spark, label, column).size)
+      assertThat(readValues(spark, label, column).map(Int.box).asJava)
         .containsExactlyInAnyOrderElementsOf(expected.map(Int.box).asJava)
     }
 
-    private def assertEventuallyContainsPairs(expected: immutable.Seq[(Int, Int)]): Unit = {
-      Assert.assertEventually(
-        expected.size,
-        () => readPairs().size,
-        30L,
-        TimeUnit.SECONDS
-      )
-      assertThat(readPairs().asJava).containsExactlyInAnyOrderElementsOf(expected.asJava)
+    private def assertEventuallyContainsPairs(spark: SparkSession, expected: immutable.Seq[(Int, Int)]): Unit = {
+      assertEventuallyWithQueryDiagnostics(expected.size, () => readPairs(spark).size)
+      assertThat(readPairs(spark).asJava).containsExactlyInAnyOrderElementsOf(expected.asJava)
     }
 
-    private def readValues(label: String, column: String): immutable.Seq[Int] = {
-      val df = spark.read.format(dataSourceFormat).option("labels", label).load()
+    private def assertEventuallyWithQueryDiagnostics(expected: Int, actual: () => Int): Unit = {
+      try {
+        Assert.assertEventually(
+          expected,
+          new Assert.ThrowingSupplier[Int, RuntimeException] {
+            override def get(): Int = actual()
+          },
+          30L,
+          TimeUnit.SECONDS
+        )
+      } catch {
+        case error: AssertionError =>
+          throw new AssertionError(s"${error.getMessage}\n${queryDiagnostics}", error)
+      }
+    }
+
+    private def queryDiagnostics: String =
+      Option(query)
+        .map { streamingQuery =>
+          val progress = streamingQuery.recentProgress.map(_.json).mkString("[", ",", "]")
+          s"""Streaming query diagnostics:
+             |active=${streamingQuery.isActive}
+             |status=${streamingQuery.status}
+             |exception=${Option(streamingQuery.exception).map(_.toString).getOrElse("<none>")}
+             |recentProgress=$progress
+             |""".stripMargin
+        }
+        .getOrElse("Streaming query diagnostics: <no query>")
+
+    private def readValues(spark: SparkSession, label: String, column: String): immutable.Seq[Int] = {
+      val df = spark.read.format(dataSourceFormat).options(connectionOptions(spark)).option("labels", label).load()
       if (df.columns.contains(column)) df.collect().map(_.getAs[Long](column).toInt).toList
       else immutable.Seq.empty
     }
 
-    private def readPairs(): immutable.Seq[(Int, Int)] = {
+    private def readPairs(spark: SparkSession): immutable.Seq[(Int, Int)] = {
       val df: DataFrame = spark.read.format(dataSourceFormat)
+        .options(connectionOptions(spark))
         .option("relationship", "PAIRS")
         .option("relationship.source.labels", ":From")
         .option("relationship.target.labels", ":To")

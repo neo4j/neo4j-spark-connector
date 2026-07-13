@@ -17,6 +17,7 @@
 package org.neo4j.spark.writer
 
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.metric.CustomMetric
 import org.apache.spark.sql.connector.write._
 import org.apache.spark.sql.connector.write.streaming.StreamingWrite
@@ -31,7 +32,8 @@ class Neo4jWriterBuilder(
   queryId: String,
   schema: StructType,
   saveMode: SaveMode,
-  neo4jOptions: Neo4jOptions
+  neo4jOptions: Neo4jOptions,
+  sparkSession: Option[SparkSession]
 ) extends WriteBuilder
     with SupportsOverwrite
     with SupportsTruncate {
@@ -86,7 +88,8 @@ class Neo4jWriterBuilder(
         queryId,
         schema,
         saveMode,
-        validOptions(saveMode)
+        validOptions(saveMode),
+        sparkSession
       )
     }
 
@@ -94,6 +97,6 @@ class Neo4jWriterBuilder(
   }
 
   override def overwrite(filters: Array[Filter]): WriteBuilder = {
-    new Neo4jWriterBuilder(neo4j, queryId, schema, SaveMode.Overwrite, neo4jOptions)
+    new Neo4jWriterBuilder(neo4j, queryId, schema, SaveMode.Overwrite, neo4jOptions, sparkSession)
   }
 }
