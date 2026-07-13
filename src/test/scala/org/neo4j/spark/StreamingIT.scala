@@ -22,9 +22,7 @@ import org.apache.spark.sql.execution.streaming.runtime.MemoryStream
 import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.streaming.Trigger
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -37,8 +35,6 @@ import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.Driver
 import org.neo4j.spark.testsupport.Assert
 import org.neo4j.spark.testsupport.InjectNeo4jContainerParameter
-import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
-import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
 import org.neo4j.spark.testsupport.StreamingTestState
 import org.testcontainers.neo4j.Neo4jContainer
 

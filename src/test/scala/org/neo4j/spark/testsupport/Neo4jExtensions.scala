@@ -16,7 +16,6 @@
  */
 package org.neo4j.spark.testsupport
 
-import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver.AuthTokens

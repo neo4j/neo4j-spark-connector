@@ -31,7 +31,6 @@ import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
 import org.testcontainers.neo4j.Neo4jContainer
 
-import java.lang.reflect.Field
 import java.util.Objects
 
 final case class Neo4jTestResources(

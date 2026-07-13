@@ -25,7 +25,6 @@ import org.junit.jupiter.params.support.ParameterDeclarations
 import org.testcontainers.neo4j.Neo4jContainer
 
 import java.util.TimeZone
-import java.util.function.Function
 import java.util.stream
 
 class Neo4jContainerProvider extends ArgumentsProvider {

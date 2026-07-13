@@ -25,9 +25,7 @@ import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
-import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assumptions
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -44,7 +42,6 @@ import org.neo4j.driver.QueryConfig
 import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.spark.testsupport.InjectNeo4jContainerParameter
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
-import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
 import org.neo4j.spark.util.Neo4jOptions
 import org.testcontainers.neo4j.Neo4jContainer
 
