@@ -81,7 +81,7 @@ class WriteIT {
     import spark.implicits._ // to import .toDF()
     val col = "node_property"
 
-    case class JvmTestCase[FromType, ToType](
+    case class JvmTestCase[ToType](
       name: String,
       df: DataFrame,
       expectedValue: ToType,
@@ -152,13 +152,13 @@ class WriteIT {
             .option("labels", label)
             .save()
 
-          val fetchQuery: String = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
+          val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
           val record = driver.session().run(fetchQuery).single()
           val actualValue = testCase.accessor(record.get("value"))
           val actualType = record.get("type").asString()
 
           assertThat(actualValue).isEqualTo(testCase.expectedValue)
-          assertThat(actualType).isEqualTo($"${testCase.expectedType} NOT NULL")
+          assertThat(actualType).isEqualTo(s"${testCase.expectedType} NOT NULL")
         }
       )
     }
@@ -176,7 +176,7 @@ class WriteIT {
         .toDF("_value")
         .select(array($"_value").as(col))
 
-    case class JvmArrayTestCase[FromType, ToType](
+    case class JvmArrayTestCase[ToType](
       name: String,
       df: DataFrame,
       expectedInnerValue: ToType,
@@ -247,13 +247,69 @@ class WriteIT {
             .option("labels", label)
             .save()
 
-          val fetchQuery: String = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
+          val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
           val record = driver.session().run(fetchQuery).single()
           val actualValue = testCase.accessor(record.get("value").get(0))
           val actualType = record.get("type").asString()
 
           assertThat(actualValue).isEqualTo(testCase.expectedInnerValue)
           assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedInnerType} NOT NULL> NOT NULL")
+        }
+      )
+    }
+      .asJava.stream()
+  }
+
+  @TestFactory
+  def should_write_sql_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
+    val col = "node_property"
+
+    case class SqlTestCase[ToType](
+      name: String,
+      df: DataFrame,
+      expectedValue: ToType,
+      expectedType: String,
+      accessor: Value => ToType
+    )
+
+    val cases = Seq(
+      SqlTestCase("STRING to String", spark.sql(s"SELECT 'sql' AS $col"), "sql", "STRING", _.asString()),
+      SqlTestCase(
+        "VARCHAR to String",
+        spark.sql(s"SELECT CAST('sql' AS VARCHAR(3)) AS $col"),
+        "sql",
+        "STRING",
+        _.asString()
+      ),
+      SqlTestCase("CHAR to String", spark.sql(s"SELECT CAST('sql' AS CHAR(3)) AS $col"), "sql", "STRING", _.asString()),
+      SqlTestCase("Long to Int", spark.sql(s"SELECT 1234567890L AS $col"), 1234567890, "INTEGER", _.asInt()),
+      SqlTestCase("BIGINT to Int", spark.sql(s"SELECT CAST (99 AS BIGINT) AS $col"), 99, "INTEGER", _.asInt()),
+      SqlTestCase("LONG to Int", spark.sql(s"SELECT CAST (42 AS LONG) AS $col"), 42, "INTEGER", _.asInt()),
+      SqlTestCase("Int to Int", spark.sql(s"SELECT 123456789 AS $col"), 123456789, "INTEGER", _.asInt()),
+      SqlTestCase("INTEGER to Int", spark.sql(s"SELECT CAST (55 AS INTEGER) AS $col"), 55, "INTEGER", _.asInt()),
+      SqlTestCase("INT to Int", spark.sql(s"SELECT CAST (3 AS INT) AS $col"), 3, "INTEGER", _.asInt()),
+      SqlTestCase("SMALLINT to Int", spark.sql(s"SELECT CAST (2345 AS SMALLINT) AS $col"), 2345, "INTEGER", _.asInt()),
+      SqlTestCase("SHORT to Int", spark.sql(s"SELECT CAST (12345 AS SHORT) AS $col"), 12345, "INTEGER", _.asInt()),
+      SqlTestCase("TINYINT to Int", spark.sql(s"SELECT CAST (123 AS TINYINT) AS $col"), 123, "INTEGER", _.asInt()),
+      SqlTestCase("BYTE to Int", spark.sql(s"SELECT CAST (25 AS BYTE) AS $col"), 25, "INTEGER", _.asInt())
+    )
+
+    cases.map { testCase =>
+      dynamicTest(
+        testCase.name,
+        () => {
+          val label = testCase.name.replace(" ", "_")
+          testCase.df.write.format(classOf[DataSource].getName).mode(SaveMode.Append)
+            .option("url", neo4jContainer.getBoltUrl)
+            .option("labels", label)
+            .save()
+
+          val fetchQuery: String = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
+          val record = driver.session().run(fetchQuery).single()
+          val actualValue = testCase.accessor(record.get("value"))
+          val actualType = record.get("type").asString()
+          assertThat(actualValue).isEqualTo(testCase.expectedValue)
+          assertThat(actualType).isEqualTo(s"${testCase.expectedType} NOT NULL")
         }
       )
     }
