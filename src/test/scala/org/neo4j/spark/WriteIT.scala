@@ -1,8 +1,26 @@
+/*
+ * Copyright (c) "Neo4j"
+ * Neo4j Sweden AB [https://neo4j.com]
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.neo4j.spark
 
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions.array
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.DisplayName
@@ -58,7 +76,7 @@ class WriteIT {
   }
 
   @TestFactory
-  def should_write_native_jvm_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
+  def should_write_jvm_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
 
     import spark.implicits._ // to import .toDF()
     val col = "node_property"
@@ -137,10 +155,105 @@ class WriteIT {
           val fetchQuery: String = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
           val record = driver.session().run(fetchQuery).single()
           val actualValue = testCase.accessor(record.get("value"))
-          val actualType = record.get("type").asString().replace(" NOT NULL", "")
+          val actualType = record.get("type").asString()
 
           assertThat(actualValue).isEqualTo(testCase.expectedValue)
-          assertThat(actualType).isEqualTo(testCase.expectedType)
+          assertThat(actualType).isEqualTo($"${testCase.expectedType} NOT NULL")
+        }
+      )
+    }
+      .asJava.stream()
+  }
+
+  @TestFactory
+  def should_write_jvm_array_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
+
+    import spark.implicits._ // to import .toDF()
+    val col = "node_property"
+
+    def arr[T: Encoder](value: T): DataFrame =
+      Seq(value)
+        .toDF("_value")
+        .select(array($"_value").as(col))
+
+    case class JvmArrayTestCase[FromType, ToType](
+      name: String,
+      df: DataFrame,
+      expectedInnerValue: ToType,
+      expectedInnerType: String,
+      accessor: Value => ToType
+    )
+
+    val cases = Seq(
+      JvmArrayTestCase("String[] to String[]", arr("test"), "test", "STRING", _.asString()),
+      JvmArrayTestCase("Long[] to Int[]", arr(1234567890L), 1234567890, "INTEGER", _.asInt()),
+      JvmArrayTestCase("Int[] to Int[]", arr(1234567890), 1234567890, "INTEGER", _.asInt()),
+      JvmArrayTestCase("Short[] to Int[]", arr(12345.toShort), 12345, "INTEGER", _.asInt()),
+      JvmArrayTestCase("Byte[] to Int[]", arr(123.toByte), 123, "INTEGER", _.asInt()),
+      JvmArrayTestCase("Double[] to Float[]", arr(123.45), 123.45, "FLOAT", _.asDouble()),
+      JvmArrayTestCase("Float[] to Float[]", arr(123.5f), 123.5, "FLOAT", _.asDouble()),
+      JvmArrayTestCase(
+        "Decimal[] to String[]",
+        arr(BigDecimal("5.42")),
+        "5.420000000000000000",
+        "STRING",
+        _.asString()
+      ),
+      JvmArrayTestCase("Boolean[] to Boolean[]", arr(true), true, "BOOLEAN", _.asBoolean()),
+      JvmArrayTestCase(
+        "Date[] to Date[]",
+        arr(LocalDate.of(2022, 1, 1)),
+        LocalDate.of(2022, 1, 1),
+        "DATE",
+        _.asLocalDate()
+      ),
+      JvmArrayTestCase(
+        "Instant[] to ZonedDateTime[]",
+        arr(Instant.ofEpochSecond(1337)),
+        ZonedDateTime.ofInstant(Instant.ofEpochSecond(1337), ZoneOffset.UTC),
+        "ZONED DATETIME",
+        _.asZonedDateTime()
+      ),
+      JvmArrayTestCase(
+        "LocalDateTime[] to LocalDateTime[]",
+        arr(LocalDateTime.of(2022, 1, 1, 12, 0)),
+        LocalDateTime.of(2022, 1, 1, 12, 0),
+        "LOCAL DATETIME",
+        _.asLocalDateTime()
+      ),
+      JvmArrayTestCase(
+        "Duration[] to Duration[]",
+        arr(Duration.ofDays(42)),
+        new InternalIsoDuration(0, 42, 0, 0),
+        "DURATION",
+        _.asIsoDuration()
+      ),
+      JvmArrayTestCase(
+        "Period[] to Duration[]",
+        arr(Period.ofMonths(5)),
+        new InternalIsoDuration(5, 0, 0, 0),
+        "DURATION",
+        _.asIsoDuration()
+      )
+    )
+
+    cases.map { testCase =>
+      dynamicTest(
+        testCase.name,
+        () => {
+          val label = testCase.name.replace(" ", "_")
+          testCase.df.write.format(classOf[DataSource].getName).mode(SaveMode.Append)
+            .option("url", neo4jContainer.getBoltUrl)
+            .option("labels", label)
+            .save()
+
+          val fetchQuery: String = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
+          val record = driver.session().run(fetchQuery).single()
+          val actualValue = testCase.accessor(record.get("value").get(0))
+          val actualType = record.get("type").asString()
+
+          assertThat(actualValue).isEqualTo(testCase.expectedInnerValue)
+          assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedInnerType} NOT NULL> NOT NULL")
         }
       )
     }
