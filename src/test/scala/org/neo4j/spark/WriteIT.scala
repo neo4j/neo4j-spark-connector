@@ -82,7 +82,7 @@ class WriteIT {
   @Test
   def throws_exception_if_no_valid_read_options_set(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
     assertThatExceptionOfType(classOf[IllegalArgumentException])
-      .isThrownBy(() => spark.read.format("neo4j").option("url", neo4jContainer.getBoltUrl).load()).withMessage(
+      .isThrownBy(() => spark.read.format("neo4j").load()).withMessage(
         "No valid option found. One of `GDS`, `LABELS`, `QUERY`, `RELATIONSHIP` is required"
       )
   }
@@ -90,12 +90,12 @@ class WriteIT {
   @Test
   def throws_exception_if_multiple_read_options_set(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
     assertThatExceptionOfType(classOf[IllegalArgumentException])
-      .isThrownBy(() =>
-        spark.read.format("neo4j").option(
-          "url",
-          neo4jContainer.getBoltUrl
-        ).option("labels", "Person").option("relationship", "KNOWS").load()
-      ).withMessage(
+      .isThrownBy(() => {
+        spark.read.format("neo4j")
+          .option("labels", "Person")
+          .option("relationship", "KNOWS")
+          .load()
+      }).withMessage(
         "You need to specify just one of these options: 'gds', 'labels', 'query', 'relationship'"
       )
   }
@@ -164,7 +164,6 @@ class WriteIT {
         () => {
           val label = testCase.name.replace(" ", "_")
           testCase.df.write.format(classOf[DataSource].getName).mode(SaveMode.Append)
-            .option("url", neo4jContainer.getBoltUrl)
             .option("labels", label)
             .save()
 
@@ -244,7 +243,6 @@ class WriteIT {
         () => {
           val label = testCase.name.replace(" ", "_")
           testCase.df.write.format(classOf[DataSource].getName).mode(SaveMode.Append)
-            .option("url", neo4jContainer.getBoltUrl)
             .option("labels", label)
             .save()
 
@@ -455,7 +453,6 @@ class WriteIT {
         () => {
           val label = testCase.name.replace(" ", "_")
           spark.sql(testCase.sql).write.format(classOf[DataSource].getName).mode(SaveMode.Append)
-            .option("url", neo4jContainer.getBoltUrl)
             .option("labels", label)
             .save()
 
@@ -490,7 +487,6 @@ class WriteIT {
         () => {
           val label = testCase.name.replace(" ", "_")
           arrayTransform(spark.sql(testCase.sql)).write.format(classOf[DataSource].getName).mode(SaveMode.Append)
-            .option("url", neo4jContainer.getBoltUrl)
             .option("labels", label)
             .save()
 
@@ -516,7 +512,6 @@ class WriteIT {
       .toDF("bin")
 
     df.write.format(classOf[DataSource].getName).mode(SaveMode.Append)
-      .option("url", neo4jContainer.getBoltUrl)
       .option("labels", "Binary")
       .save()
 
@@ -537,7 +532,6 @@ class WriteIT {
       .write
       .format(classOf[DataSource].getName)
       .mode(SaveMode.Append)
-      .option("url", neo4jContainer.getBoltUrl)
       .option("labels", "Binary")
       .save()
 
@@ -591,7 +585,6 @@ class WriteIT {
           ).toDF("duration_field")
 
           df.write.format(classOf[DataSource].getName).mode(SaveMode.Append)
-            .option("url", neo4jContainer.getBoltUrl)
             .option("labels", label)
             .save()
 
