@@ -18,6 +18,7 @@ package org.neo4j.spark
 
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Encoder
+import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.array
@@ -33,9 +34,11 @@ import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.Driver
 import org.neo4j.driver.Value
 import org.neo4j.driver.internal.InternalIsoDuration
+import org.neo4j.driver.types.IsoDuration
 import org.neo4j.spark.testsupport.InjectNeo4jContainerParameter
 import org.testcontainers.neo4j.Neo4jContainer
 
+import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -163,11 +166,11 @@ class WriteIT {
 
           val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
           val record = driver.session().run(fetchQuery).single()
-          val actualValue = testCase.accessor(record.get("value"))
           val actualType = record.get("type").asString()
+          val actualValue = testCase.accessor(record.get("value"))
 
-          assertThat(actualValue).isEqualTo(testCase.expectedValue)
           assertThat(actualType).isEqualTo(s"${testCase.expectedType} NOT NULL")
+          assertThat(actualValue).isEqualTo(testCase.expectedValue)
         }
       )
     }
@@ -189,7 +192,6 @@ class WriteIT {
       DfTestCase("Long[] to Int[]", arr(1234567890L), 1234567890L, "INTEGER", _.asLong()),
       DfTestCase("Int[] to Int[]", arr(1234567890), 1234567890, "INTEGER", _.asInt()),
       DfTestCase("Short[] to Int[]", arr(12345.toShort), 12345, "INTEGER", _.asInt()),
-      DfTestCase("Byte[] to Int[]", arr(123.toByte), 123, "INTEGER", _.asInt()),
       DfTestCase("Double[] to Float[]", arr(123.45), 123.45, "FLOAT", _.asDouble()),
       DfTestCase("Float[] to Float[]", arr(123.5f), 123.5, "FLOAT", _.asDouble()),
       DfTestCase("Decimal[] to String[]", arr(BigDecimal("5.42")), "5.420000000000000000", "STRING", _.asString()),
@@ -244,8 +246,8 @@ class WriteIT {
 
           val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
           val record = driver.session().run(fetchQuery).single()
-          val actualValue = testCase.accessor(record.get("value").get(0))
           val actualType = record.get("type").asString()
+          val actualValue = testCase.accessor(record.get("value").get(0))
 
           assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType} NOT NULL> NOT NULL")
           assertThat(actualValue).isEqualTo(testCase.expectedValue)
@@ -255,7 +257,7 @@ class WriteIT {
       .asJava.stream()
   }
 
-  val sqlCases = Seq(
+  private val sqlCases = Seq(
     SqlTestCase(
       "STRING/VARCHAR/CHAR to String",
       s"""
@@ -457,8 +459,8 @@ class WriteIT {
           val records = driver.session().run(fetchQuery).list()
 
           records.forEach(record => {
-            val actualValue = testCase.accessor(record.get("value"))
             val actualType = record.get("type").asString()
+            val actualValue = testCase.accessor(record.get("value"))
 
             assertThat(actualType).isEqualTo(s"${testCase.expectedType} NOT NULL")
             assertThat(actualValue).isEqualTo(testCase.expectedValue)
@@ -476,9 +478,11 @@ class WriteIT {
       df.select(collect_list(col).as(col))
     }
 
-    sqlCases.map { testCase =>
+    val cases = sqlCases.filter(!_.name.contains("BYTE")) // byte array special because it's binary type
+
+    cases.map { testCase =>
       dynamicTest(
-        testCase.name,
+        "Array " + testCase.name,
         () => {
           val label = testCase.name.replace(" ", "_")
           arrayTransform(spark.sql(testCase.sql)).write.format(classOf[DataSource].getName).mode(SaveMode.Append)
@@ -488,8 +492,8 @@ class WriteIT {
 
           val fetchQuery: String = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
           val record = driver.session().run(fetchQuery).single()
-          val actualValue = testCase.accessor(record.get("value").get(0))
           val actualType = record.get("type").asString()
+          val actualValue = testCase.accessor(record.get("value").get(0))
 
           assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType} NOT NULL> NOT NULL")
           assertThat(actualValue).isEqualTo(testCase.expectedValue)
@@ -497,5 +501,48 @@ class WriteIT {
       )
     }
       .asJava.stream()
+  }
+
+  @Test
+  def should_write_jvm_binary_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+    val binary = "message".getBytes(StandardCharsets.UTF_8)
+
+    val df = spark
+      .createDataset(Seq(binary))(Encoders.BINARY)
+      .toDF("bin")
+
+    df.write.format(classOf[DataSource].getName).mode(SaveMode.Append)
+      .option("url", neo4jContainer.getBoltUrl)
+      .option("labels", "Binary")
+      .save()
+
+    val fetchQuery: String = s"MATCH (n:Binary) RETURN n.bin AS binary, valueType(n.bin) AS type"
+    val record = driver.session().run(fetchQuery).single()
+    val actualType = record.get("type").asString()
+    val actualValue = record.get("binary").asByteArray()
+
+    assertThat(actualType).isEqualTo("LIST<INTEGER NOT NULL> NOT NULL")
+    assertThat(actualValue).isEqualTo(binary)
+  }
+
+  @Test
+  def should_write_sql_binary_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+    val expectedBinary = "message".getBytes(StandardCharsets.UTF_8)
+
+    spark.sql("SELECT CAST('message' AS BINARY) AS bin")
+      .write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", neo4jContainer.getBoltUrl)
+      .option("labels", "Binary")
+      .save()
+
+    val fetchQuery: String = s"MATCH (n:Binary) RETURN n.bin AS binary, valueType(n.bin) AS type"
+    val record = driver.session().run(fetchQuery).single()
+    val actualType = record.get("type").asString()
+    val actualValue = record.get("binary").asByteArray()
+
+    assertThat(actualType).isEqualTo("LIST<INTEGER NOT NULL> NOT NULL")
+    assertThat(actualValue).isEqualTo(expectedBinary)
   }
 }
