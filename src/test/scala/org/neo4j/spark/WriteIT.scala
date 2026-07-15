@@ -247,203 +247,203 @@ class WriteIT {
           val actualValue = testCase.accessor(record.get("value").get(0))
           val actualType = record.get("type").asString()
 
-          assertThat(actualValue).isEqualTo(testCase.expectedValue)
           assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType} NOT NULL> NOT NULL")
+          assertThat(actualValue).isEqualTo(testCase.expectedValue)
         }
       )
     }
       .asJava.stream()
   }
 
+  val sqlCases = Seq(
+    SqlTestCase(
+      "STRING/VARCHAR/CHAR to String",
+      s"""
+         |SELECT $col
+         |FROM VALUES
+         |  ('sql'),
+         |  (CAST('sql' AS VARCHAR(3))),
+         |  (CAST('sql' AS CHAR(3)))
+         |AS t($col)""".stripMargin,
+      "sql",
+      "STRING",
+      _.asString()
+    ),
+    SqlTestCase(
+      "VALUE/LONG/BIGINT to Integer",
+      s"""
+         |SELECT $col
+         |FROM VALUES
+         |  (1234567890L),
+         |  (CAST(1234567890L AS BIGINT)),
+         |  (CAST(1234567890L AS LONG))
+         |AS t($col)""".stripMargin,
+      1234567890L,
+      "INTEGER",
+      _.asLong()
+    ),
+    SqlTestCase(
+      "VALUE/INTEGER/INT to Integer",
+      s"""
+         |SELECT $col
+         |FROM VALUES
+         |  (123456789),
+         |  (CAST(123456789 AS INTEGER)),
+         |  (CAST(123456789 AS INT))
+         |AS t($col)""".stripMargin,
+      123456789,
+      "INTEGER",
+      _.asInt()
+    ),
+    SqlTestCase(
+      "SHORT/SMALLINT to Integer",
+      s"""
+         |SELECT $col
+         |FROM VALUES
+         |  (CAST(2345 AS SHORT)),
+         |  (CAST(2345 AS SMALLINT))
+         |AS t($col)""".stripMargin,
+      2345,
+      "INTEGER",
+      _.asInt()
+    ),
+    SqlTestCase(
+      "BYTE/TINYINT to Integer",
+      s"""
+         |SELECT $col
+         |FROM VALUES
+         |  (CAST(123 AS BYTE)),
+         |  (CAST(123 AS TINYINT))
+         |AS t($col)""".stripMargin,
+      123,
+      "INTEGER",
+      _.asInt()
+    ),
+    SqlTestCase(
+      "FLOAT/REAL to Float",
+      s"""
+         |SELECT $col
+         |FROM VALUES
+         |  (CAST(123.5 AS FLOAT)),
+         |  (CAST(123.5 AS REAL))
+         |AS t($col)""".stripMargin,
+      123.5f,
+      "FLOAT",
+      _.asFloat()
+    ),
+    SqlTestCase(
+      "DECIMAL/DEC/NUMERIC to String",
+      s"""
+         |SELECT $col
+         |FROM VALUES
+         |  (CAST (66.66667 AS DECIMAL(10, 2))),
+         |  (CAST (66.66667 AS DEC(10, 2))),
+         |  (CAST (66.66667 AS NUMERIC(10, 2)))
+         |AS t($col)""".stripMargin,
+      "66.67",
+      "STRING",
+      _.asString()
+    ),
+    SqlTestCase("BOOLEAN to Boolean", s"SELECT TRUE as $col", true, "BOOLEAN", _.asBoolean()),
+    SqlTestCase(
+      "DATE to Date",
+      s"SELECT DATE '2011-11-11' AS $col",
+      LocalDate.of(2011, 11, 11),
+      "DATE",
+      _.asLocalDate()
+    ),
+    SqlTestCase(
+      "TIMESTAMP/TIMESTAMP_LTZ to ZonedDateTime",
+      s"""
+         |SELECT $col
+         |FROM VALUES
+         |  (CAST('1988-10-04 13:33:00.000+04:30' AS TIMESTAMP)),
+         |  (CAST('1988-10-04 13:33:00.000+04:30' AS TIMESTAMP_LTZ))
+         |AS t($col)""".stripMargin,
+      ZonedDateTime.of(1988, 10, 4, 9, 3, 0, 0, ZoneOffset.UTC), // expect to normalize as UTC!
+      "ZONED DATETIME",
+      _.asZonedDateTime()
+    ),
+    SqlTestCase(
+      "TIMESTAMP_NTZ to LocalDateTime",
+      s"SELECT CAST('2022-01-01 12:00:00' AS TIMESTAMP_NTZ) AS $col",
+      LocalDateTime.of(2022, 1, 1, 12, 0),
+      "LOCAL DATETIME",
+      _.asLocalDateTime()
+    ),
+    SqlTestCase(
+      "INTERVAL DAY/TIME to Duration",
+      s"""
+         |SELECT $col
+         |FROM VALUES
+         |  (INTERVAL '1' DAY),
+         |  (INTERVAL '24' HOUR),
+         |  (INTERVAL '1440' MINUTE),
+         |  (INTERVAL '86400' SECOND)
+         |AS t($col)""".stripMargin,
+      new InternalIsoDuration(0, 1L, 0, 0),
+      "DURATION",
+      _.asIsoDuration()
+    ),
+    SqlTestCase(
+      "INTERVAL DAY to Duration",
+      s"""
+         |SELECT $col
+         |FROM VALUES
+         |  (INTERVAL '10 05' DAY TO HOUR),
+         |  (INTERVAL '10 05:00' DAY TO MINUTE),
+         |  (INTERVAL '10 05:00:00' DAY TO SECOND)
+         |AS t($col)""".stripMargin,
+      new InternalIsoDuration(0, 10L, 5L * 3600, 0),
+      "DURATION",
+      _.asIsoDuration()
+    ),
+    SqlTestCase(
+      "INTERVAL HOUR to Duration",
+      s"""
+         |SELECT $col
+         |FROM VALUES
+         |  (INTERVAL '3' HOUR),
+         |  (INTERVAL '3:00' HOUR TO MINUTE),
+         |  (INTERVAL '3:00:00' HOUR TO SECOND)
+         |AS t($col)""".stripMargin,
+      new InternalIsoDuration(0, 0, 3L * 3600, 0),
+      "DURATION",
+      _.asIsoDuration()
+    ),
+    SqlTestCase(
+      "INTERVAL MINUTE to Duration",
+      s"SELECT INTERVAL '13:37' MINUTE TO SECOND AS $col",
+      new InternalIsoDuration(0, 0, 13L * 60L + 37L, 0),
+      "DURATION",
+      _.asIsoDuration()
+    ),
+    SqlTestCase(
+      "INTERVAL YEAR to Duration",
+      s"SELECT INTERVAL '3' YEAR AS $col",
+      new InternalIsoDuration(3L * 12L, 0, 0, 0),
+      "DURATION",
+      _.asIsoDuration()
+    ),
+    SqlTestCase(
+      "INTERVAL MONTH to Duration",
+      s"SELECT INTERVAL '7' MONTH AS $col",
+      new InternalIsoDuration(7L, 0, 0, 0),
+      "DURATION",
+      _.asIsoDuration()
+    ),
+    SqlTestCase(
+      "INTERVAL YEAR TO MONTH to Duration",
+      s"SELECT INTERVAL '4-5' YEAR TO MONTH AS $col",
+      new InternalIsoDuration(4L * 12L + 5L, 0, 0, 0),
+      "DURATION",
+      _.asIsoDuration()
+    )
+  )
+
   @TestFactory
   def should_write_sql_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
-    val cases = Seq(
-      SqlTestCase(
-        "STRING/VARCHAR/CHAR to String",
-        s"""
-           |SELECT $col
-           |FROM VALUES
-           |  ('sql'),
-           |  (CAST('sql' AS VARCHAR(3))),
-           |  (CAST('sql' AS CHAR(3)))
-           |AS t($col)""".stripMargin,
-        "sql",
-        "STRING",
-        _.asString()
-      ),
-      SqlTestCase(
-        "VALUE/LONG/BIGINT to Integer",
-        s"""
-           |SELECT $col
-           |FROM VALUES
-           |  (1234567890L),
-           |  (CAST(1234567890L AS BIGINT)),
-           |  (CAST(1234567890L AS LONG))
-           |AS t($col)""".stripMargin,
-        1234567890L,
-        "INTEGER",
-        _.asLong()
-      ),
-      SqlTestCase(
-        "VALUE/INTEGER/INT to Integer",
-        s"""
-           |SELECT $col
-           |FROM VALUES
-           |  (123456789),
-           |  (CAST(123456789 AS INTEGER)),
-           |  (CAST(123456789 AS INT))
-           |AS t($col)""".stripMargin,
-        123456789,
-        "INTEGER",
-        _.asInt()
-      ),
-      SqlTestCase(
-        "SHORT/SMALLINT to Integer",
-        s"""
-           |SELECT $col
-           |FROM VALUES
-           |  (CAST(2345 AS SHORT)),
-           |  (CAST(2345 AS SMALLINT))
-           |AS t($col)""".stripMargin,
-        2345,
-        "INTEGER",
-        _.asInt()
-      ),
-      SqlTestCase(
-        "BYTE/TINYINT to Integer",
-        s"""
-           |SELECT $col
-           |FROM VALUES
-           |  (CAST(123 AS BYTE)),
-           |  (CAST(123 AS TINYINT))
-           |AS t($col)""".stripMargin,
-        123,
-        "INTEGER",
-        _.asInt()
-      ),
-      SqlTestCase(
-        "FLOAT/REAL to Float",
-        s"""
-           |SELECT $col
-           |FROM VALUES
-           |  (CAST(123.5 AS FLOAT)),
-           |  (CAST(123.5 AS REAL))
-           |AS t($col)""".stripMargin,
-        123.5f,
-        "FLOAT",
-        _.asFloat()
-      ),
-      SqlTestCase(
-        "DECIMAL/DEC/NUMERIC to String",
-        s"""
-           |SELECT $col
-           |FROM VALUES
-           |  (CAST (66.66667 AS DECIMAL(10, 2))),
-           |  (CAST (66.66667 AS DEC(10, 2))),
-           |  (CAST (66.66667 AS NUMERIC(10, 2)))
-           |AS t($col)""".stripMargin,
-        "66.67",
-        "STRING",
-        _.asString()
-      ),
-      SqlTestCase("BOOLEAN to Boolean", s"SELECT TRUE as $col", true, "BOOLEAN", _.asBoolean()),
-      SqlTestCase(
-        "DATE to Date",
-        s"SELECT DATE '2011-11-11' AS $col",
-        LocalDate.of(2011, 11, 11),
-        "DATE",
-        _.asLocalDate()
-      ),
-      SqlTestCase(
-        "TIMESTAMP/TIMESTAMP_LTZ to ZonedDateTime",
-        s"""
-           |SELECT $col
-           |FROM VALUES
-           |  (CAST('1988-10-04 13:33:00.000+04:30' AS TIMESTAMP)),
-           |  (CAST('1988-10-04 13:33:00.000+04:30' AS TIMESTAMP_LTZ))
-           |AS t($col)""".stripMargin,
-        ZonedDateTime.of(1988, 10, 4, 9, 3, 0, 0, ZoneOffset.UTC), // expect to normalize as UTC!
-        "ZONED DATETIME",
-        _.asZonedDateTime()
-      ),
-      SqlTestCase(
-        "TIMESTAMP_NTZ to LocalDateTime",
-        s"SELECT CAST('2022-01-01 12:00:00' AS TIMESTAMP_NTZ) AS $col",
-        LocalDateTime.of(2022, 1, 1, 12, 0),
-        "LOCAL DATETIME",
-        _.asLocalDateTime()
-      ),
-      SqlTestCase(
-        "INTERVAL DAY/TIME to Duration",
-        s"""
-           |SELECT $col
-           |FROM VALUES
-           |  (INTERVAL '1' DAY),
-           |  (INTERVAL '24' HOUR),
-           |  (INTERVAL '1440' MINUTE),
-           |  (INTERVAL '86400' SECOND)
-           |AS t($col)""".stripMargin,
-        new InternalIsoDuration(0, 1L, 0, 0),
-        "DURATION",
-        _.asIsoDuration()
-      ),
-      SqlTestCase(
-        "INTERVAL DAY to Duration",
-        s"""
-           |SELECT $col
-           |FROM VALUES
-           |  (INTERVAL '10 05' DAY TO HOUR),
-           |  (INTERVAL '10 05:00' DAY TO MINUTE),
-           |  (INTERVAL '10 05:00:00' DAY TO SECOND)
-           |AS t($col)""".stripMargin,
-        new InternalIsoDuration(0, 10L, 5L * 3600, 0),
-        "DURATION",
-        _.asIsoDuration()
-      ),
-      SqlTestCase(
-        "INTERVAL HOUR to Duration",
-        s"""
-           |SELECT $col
-           |FROM VALUES
-           |  (INTERVAL '3' HOUR),
-           |  (INTERVAL '3:00' HOUR TO MINUTE),
-           |  (INTERVAL '3:00:00' HOUR TO SECOND)
-           |AS t($col)""".stripMargin,
-        new InternalIsoDuration(0, 0, 3L * 3600, 0),
-        "DURATION",
-        _.asIsoDuration()
-      ),
-      SqlTestCase(
-        "INTERVAL MINUTE to Duration",
-        s"SELECT INTERVAL '13:37' MINUTE TO SECOND AS $col",
-        new InternalIsoDuration(0, 0, 13L * 60L + 37L, 0),
-        "DURATION",
-        _.asIsoDuration()
-      ),
-      SqlTestCase(
-        "INTERVAL YEAR to Duration",
-        s"SELECT INTERVAL '3' YEAR AS $col",
-        new InternalIsoDuration(3L * 12L, 0, 0, 0),
-        "DURATION",
-        _.asIsoDuration()
-      ),
-      SqlTestCase(
-        "INTERVAL MONTH to Duration",
-        s"SELECT INTERVAL '7' MONTH AS $col",
-        new InternalIsoDuration(7L, 0, 0, 0),
-        "DURATION",
-        _.asIsoDuration()
-      ),
-      SqlTestCase(
-        "INTERVAL YEAR TO MONTH to Duration",
-        s"SELECT INTERVAL '4-5' YEAR TO MONTH AS $col",
-        new InternalIsoDuration(4L * 12L + 5L, 0, 0, 0),
-        "DURATION",
-        _.asIsoDuration()
-      )
-    )
-
-    cases.map { testCase =>
+    sqlCases.map { testCase =>
       dynamicTest(
         testCase.name,
         () => {
@@ -463,6 +463,36 @@ class WriteIT {
             assertThat(actualType).isEqualTo(s"${testCase.expectedType} NOT NULL")
             assertThat(actualValue).isEqualTo(testCase.expectedValue)
           })
+        }
+      )
+    }
+      .asJava.stream()
+  }
+
+  @TestFactory
+  def should_write_sql_array_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
+    def arrayTransform(df: DataFrame): DataFrame = {
+      import org.apache.spark.sql.functions.collect_list
+      df.select(collect_list(col).as(col))
+    }
+
+    sqlCases.map { testCase =>
+      dynamicTest(
+        testCase.name,
+        () => {
+          val label = testCase.name.replace(" ", "_")
+          arrayTransform(spark.sql(testCase.sql)).write.format(classOf[DataSource].getName).mode(SaveMode.Append)
+            .option("url", neo4jContainer.getBoltUrl)
+            .option("labels", label)
+            .save()
+
+          val fetchQuery: String = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
+          val record = driver.session().run(fetchQuery).single()
+          val actualValue = testCase.accessor(record.get("value").get(0))
+          val actualType = record.get("type").asString()
+
+          assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType} NOT NULL> NOT NULL")
+          assertThat(actualValue).isEqualTo(testCase.expectedValue)
         }
       )
     }
