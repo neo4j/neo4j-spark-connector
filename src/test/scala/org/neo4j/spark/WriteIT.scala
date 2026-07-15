@@ -19,9 +19,13 @@ package org.neo4j.spark
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.Encoders
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.array
+import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.DisplayName
@@ -544,5 +548,65 @@ class WriteIT {
 
     assertThat(actualType).isEqualTo("LIST<INTEGER NOT NULL> NOT NULL")
     assertThat(actualValue).isEqualTo(expectedBinary)
+  }
+
+  @TestFactory
+  def should_write_custom_duration_struct_as_duration(
+    driver: Driver,
+    spark: SparkSession,
+    neo4j: Neo4j
+  ): Stream[DynamicTest] = {
+    type CustomDurationCase = (Long, Long, Long, Int)
+
+    val durationSchema = StructType(Array(
+      StructField("type", DataTypes.StringType, false),
+      StructField("months", DataTypes.LongType, false),
+      StructField("days", DataTypes.LongType, false),
+      StructField("seconds", DataTypes.LongType, false),
+      StructField("nanoseconds", DataTypes.IntegerType, false)
+    ))
+
+    def createDurationRow(struct: CustomDurationCase): Row = {
+      Row(Row("duration", struct._1, struct._2, struct._3, struct._4))
+    }
+
+    val cases: Map[CustomDurationCase, IsoDuration] = Map(
+      (1L, 0L, 8L, 0) -> new InternalIsoDuration(1L, 0L, 8L, 0),
+      (0L, 55L, 0L, 0) -> new InternalIsoDuration(0L, 55L, 0L, 0),
+      (1L, 55L, 23L, 666000) -> new InternalIsoDuration(1L, 55L, 23L, 666000),
+      (2L, 2L, 3600L, 87870000) -> new InternalIsoDuration(2L, 2L, 3600L, 87870000)
+    )
+
+    cases.toSeq.map { case (givenStruct, expectedDuration) =>
+      dynamicTest(
+        expectedDuration.toString,
+        () => {
+          val label = expectedDuration.toString
+          val row = createDurationRow(givenStruct)
+          val df = spark.createDataFrame(
+            spark.sparkContext.parallelize(Seq(row)),
+            StructType(Array(
+              StructField("duration_field", durationSchema, false)
+            ))
+          ).toDF("duration_field")
+
+          df.write.format(classOf[DataSource].getName).mode(SaveMode.Append)
+            .option("url", neo4jContainer.getBoltUrl)
+            .option("labels", label)
+            .save()
+
+          val fetchQuery =
+            s"MATCH (n:`$label`) RETURN n.duration_field AS duration, valueType(n.duration_field) AS type"
+          val record = driver.session().run(fetchQuery).single()
+          val actualType = record.get("type").asString()
+          val actualValue = record.get("duration").asIsoDuration()
+
+          assertThat(actualType).isEqualTo("DURATION NOT NULL")
+          assertThat(actualValue).isEqualTo(expectedDuration)
+
+        }
+      )
+    }
+      .asJava.stream()
   }
 }
