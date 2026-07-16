@@ -74,8 +74,8 @@ hooks:
         run: |
           mkdir artifacts || true
           ./maven-release.sh deploy {{matrix.scala}} default::file://{{basedir}}/target/{{matrix.scala}}/maven-artifacts
-          cp -r {{basedir}}/target/{{matrix.scala}}/maven-artifacts artifacts/
-          cp -r {{basedir}}/target/{{projectName}}*.jar artifacts/
+          cp -r {{basedir}}/spark-slim/target/{{matrix.scala}}/maven-artifacts artifacts/
+          cp -r {{basedir}}/spark-slim/target/{{projectName}}*.jar artifacts/
 
 signing:
   active: ALWAYS
