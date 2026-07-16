@@ -56,6 +56,35 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <!-- The fat jar has no source of its own; reuse spark-slim's sources/javadoc so the
+                     spark artifact meets Maven Central's per-artifact requirements. -->
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-slim-sources-javadoc</id>
+                        <goals>
+                            <goal>attach-artifact</goal>
+                        </goals>
+                        <phase>package</phase>
+                        <configuration>
+                            <artifacts>
+                                <artifact>
+                                    <file>${maven.multiModuleProjectDirectory}/spark-slim/target/${artifact.base.name}-${project.version}-slim-sources.jar</file>
+                                    <type>jar</type>
+                                    <classifier>sources</classifier>
+                                </artifact>
+                                <artifact>
+                                    <file>${maven.multiModuleProjectDirectory}/spark-slim/target/${artifact.base.name}-${project.version}-slim-javadoc.jar</file>
+                                    <type>jar</type>
+                                    <classifier>javadoc</classifier>
+                                </artifact>
+                            </artifacts>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

@@ -37,6 +37,7 @@
     </scm>
     <properties>
         <artifact.base.name>neo4j-spark-connector</artifact.base.name>
+        <build-helper-maven-plugin.version>3.6.1</build-helper-maven-plugin.version>
         <build-resources.version>2026.07.1</build-resources.version>
         <caniuse.version>1.4.0</caniuse.version>
         <commons-compress.version>1.28.0</commons-compress.version>
@@ -146,6 +147,11 @@
                     <configuration>
                         <generateBackupPoms>false</generateBackupPoms>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>build-helper-maven-plugin</artifactId>
+                    <version>${build-helper-maven-plugin.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
