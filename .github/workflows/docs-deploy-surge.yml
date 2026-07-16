@@ -86,13 +86,32 @@ jobs:
 
       - id: suspicious-path-check
         name: Suspicious paths check
+        shell: bash
         env:
           ARTIFACT_DIR: ${{ runner.temp }}/artifacts/docs
         run: |
+          set -euo pipefail
           cd "$ARTIFACT_DIR"
-          if unzip -l docs.zip | grep -q "\.\./"; then
+          
+          mapfile -t ZIP_ENTRIES < <(zipinfo -1 docs.zip)
+          if [ "${#ZIP_ENTRIES[@]}" -eq 0 ]; then
+            echo "docs.zip is empty"
             exit 1
           fi
+          for entry in "${ZIP_ENTRIES[@]}"; do
+            if [[ "$entry" =~ ^/ ]]; then
+              echo "Blocked absolute path in artifact: $entry"
+              exit 1
+            fi
+            if [[ "$entry" =~ (^|/)\.\.(/|$) ]]; then
+              echo "Blocked path traversal in artifact: $entry"
+              exit 1
+            fi
+            if [[ "$entry" == *\\* ]]; then
+              echo "Blocked Windows-style path separator in artifact: $entry"
+              exit 1
+            fi
+          done
 
       - id: hidden-files-check
         name: Hidden files check
