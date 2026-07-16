@@ -36,7 +36,10 @@ import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.Driver
 import org.neo4j.driver.Value
 import org.neo4j.driver.internal.InternalIsoDuration
+import org.neo4j.driver.internal.InternalPoint2D
+import org.neo4j.driver.internal.InternalPoint3D
 import org.neo4j.driver.types.IsoDuration
+import org.neo4j.driver.types.Point
 import org.neo4j.spark.testsupport.InjectNeo4jContainerParameter
 import org.testcontainers.neo4j.Neo4jContainer
 
@@ -45,9 +48,12 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.OffsetTime
 import java.time.Period
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
+import java.time.temporal.Temporal
 import java.util.stream.Stream
 
 import scala.jdk.CollectionConverters.SeqHasAsJava
@@ -281,7 +287,8 @@ class WriteIT {
           ).toDF("duration")
 
           SparkSession.setActiveSession(df.sparkSession)
-          df.write.format(classOf[DataSource].getName).mode(SaveMode.Append)
+          df.write.format("neo4j")
+            .mode(SaveMode.Append)
             .option("labels", label)
             .save()
 
@@ -292,6 +299,133 @@ class WriteIT {
 
           assertThat(actualType).isEqualTo("DURATION NOT NULL")
           assertThat(actualValue).isEqualTo(expectedDuration)
+
+        }
+      )
+    }
+      .asJava.stream()
+  }
+
+  @TestFactory
+  def should_write_custom_point_struct_as_point(
+    driver: Driver,
+    spark: SparkSession,
+    neo4j: Neo4j
+  ): Stream[DynamicTest] = {
+    val SRID_2D = 4326
+    val SRID_3D = 4979
+
+    case class CustomPointStruct(`type`: String, srid: Int, x: Double, y: Double, z: Option[Double] = None)
+
+    val pointSchema = StructType(Array(
+      StructField("type", DataTypes.StringType, nullable = false),
+      StructField("srid", DataTypes.IntegerType, nullable = false),
+      StructField("x", DataTypes.DoubleType, nullable = false),
+      StructField("y", DataTypes.DoubleType, nullable = false),
+      StructField("z", DataTypes.DoubleType, nullable = true)
+    ))
+
+    def createPointRow(struct: CustomPointStruct): Row = {
+      struct.z match {
+        case None    => Row(Row(struct.`type`, struct.srid, struct.x, struct.y, null))
+        case Some(z) => Row(Row(struct.`type`, struct.srid, struct.x, struct.y, z))
+      }
+    }
+
+    val cases: Map[CustomPointStruct, Point] = Map(
+      CustomPointStruct("point-2d", SRID_2D, 1, 3) -> new InternalPoint2D(SRID_2D, 1, 3),
+      CustomPointStruct("point-2d", SRID_2D, 2, 4) -> new InternalPoint2D(SRID_2D, 2, 4),
+      CustomPointStruct("point-3d", SRID_3D, 1, 3, Option(5d)) -> new InternalPoint3D(SRID_3D, 1, 3, 5),
+      CustomPointStruct("point-3d", SRID_3D, 2, 4, Option(6d)) -> new InternalPoint3D(SRID_3D, 2, 4, 6)
+    )
+
+    cases.toSeq.map { case (givenStruct, expectedPoint) =>
+      val label = "Point (" + givenStruct.`type` + "), x = " + givenStruct.x.toString
+      dynamicTest(
+        label,
+        () => {
+          val df = spark.createDataFrame(
+            spark.sparkContext.parallelize(Seq(createPointRow(givenStruct))),
+            StructType(Array(
+              StructField("point", pointSchema, nullable = false)
+            ))
+          ).toDF("point")
+
+          SparkSession.setActiveSession(df.sparkSession)
+          df.write.format("neo4j")
+            .mode(SaveMode.Append)
+            .option("labels", label)
+            .save()
+
+          val fetchQuery = s"MATCH (n:`$label`) RETURN n.point AS point, valueType(n.point) AS type"
+          val record = driver.session().run(fetchQuery).single()
+          val actualType = record.get("type").asString()
+          val actualValue = record.get("point").asPoint()
+
+          assertThat(actualType).isEqualTo("POINT NOT NULL")
+          assertThat(actualValue).isEqualTo(expectedPoint)
+
+        }
+      )
+    }
+      .asJava.stream()
+  }
+
+  @TestFactory
+  def should_write_custom_time_struct_as_time(
+    driver: Driver,
+    spark: SparkSession,
+    neo4j: Neo4j
+  ): Stream[DynamicTest] = {
+    case class CustomTimeStruct(`type`: String, value: String)
+
+    val timeSchema = StructType(Array(
+      StructField("type", DataTypes.StringType, nullable = false),
+      StructField("value", DataTypes.StringType, nullable = false)
+    ))
+
+    def createTimeRow(struct: CustomTimeStruct): Row = {
+      Row(Row(struct.`type`, struct.value))
+    }
+
+    val cases: Map[CustomTimeStruct, (Temporal, ExpectedNeo4jType[_ <: Temporal])] = Map(
+      CustomTimeStruct("offset-time", "12:50:35.556000000+01:00") -> (
+        OffsetTime.parse("12:50:35.556000000+01:00"),
+        Neo4jOffsetTime
+      ),
+      CustomTimeStruct("offset-time", "15:47:26.000+02:00") -> (
+        OffsetTime.parse("15:47:26.000+02:00"),
+        Neo4jOffsetTime
+      ),
+      CustomTimeStruct("local-time", "12:50:35.556000000") -> (LocalTime.parse("12:50:35.556000000"), Neo4jLocalTime),
+      CustomTimeStruct("local-time", "15:47:26.000") -> (LocalTime.parse("15:47:26.000"), Neo4jLocalTime)
+    )
+
+    cases.toSeq.map { case (givenStruct, (expectedTime, expectedNeo4jType)) =>
+      val label = "Time_" + givenStruct.value.replace(":", "_") // prevent ":" label separation
+      dynamicTest(
+        label,
+        () => {
+          val df = spark.createDataFrame(
+            spark.sparkContext.parallelize(Seq(createTimeRow(givenStruct))),
+            StructType(Array(
+              StructField("time", timeSchema, nullable = false)
+            ))
+          ).toDF("time")
+
+          SparkSession.setActiveSession(df.sparkSession)
+          df.write.format("neo4j")
+            .mode(SaveMode.Append)
+            .option("labels", label)
+            .save()
+
+          val fetchQuery = s"MATCH (n:`$label`) RETURN n.time AS time, valueType(n.time) AS type"
+          val record = driver.session().run(fetchQuery).single()
+          val actualType = record.get("type").asString()
+          val actualValue = expectedNeo4jType.accessor(record.get("time"))
+
+          assertThat(actualType).isEqualTo(s"${expectedNeo4jType.name} NOT NULL")
+          assertThat(actualValue).isEqualTo(expectedTime)
 
         }
       )
@@ -515,4 +649,6 @@ class WriteIT {
   private lazy val Neo4jZonedDateTime = ExpectedNeo4jType("ZONED DATETIME", _.asZonedDateTime())
   private lazy val Neo4jLocalDateTime = ExpectedNeo4jType("LOCAL DATETIME", _.asLocalDateTime())
   private lazy val Neo4jDuration = ExpectedNeo4jType("DURATION", _.asIsoDuration())
+  private lazy val Neo4jLocalTime = ExpectedNeo4jType("LOCAL TIME", _.asLocalTime())
+  private lazy val Neo4jOffsetTime = ExpectedNeo4jType("ZONED TIME", _.asOffsetTime())
 }
