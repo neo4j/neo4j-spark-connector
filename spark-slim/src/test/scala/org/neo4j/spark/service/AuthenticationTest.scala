@@ -21,12 +21,7 @@ import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
 import org.mockito.Mockito.times
-import org.neo4j.driver.AuthToken
-import org.neo4j.driver.AuthTokenManager
-import org.neo4j.driver.AuthTokens
-import org.neo4j.driver.Config
-import org.neo4j.driver.Driver
-import org.neo4j.driver.GraphDatabase
+import org.neo4j.driver._
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
 import org.testcontainers.shaded.com.google.common.io.BaseEncoding

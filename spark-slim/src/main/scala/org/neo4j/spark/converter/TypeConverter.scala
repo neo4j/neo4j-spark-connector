@@ -16,11 +16,7 @@
  */
 package org.neo4j.spark.converter
 
-import org.apache.spark.sql.types.DataType
-import org.apache.spark.sql.types.DataTypes
-import org.apache.spark.sql.types.DayTimeIntervalType
-import org.apache.spark.sql.types.DecimalType
-import org.apache.spark.sql.types.YearMonthIntervalType
+import org.apache.spark.sql.types._
 import org.neo4j.driver.types.Entity
 import org.neo4j.spark.converter.CypherToSparkTypeConverter.cleanTerms
 import org.neo4j.spark.converter.CypherToSparkTypeConverter.durationType

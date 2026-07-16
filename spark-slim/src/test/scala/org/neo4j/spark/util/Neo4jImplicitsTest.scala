@@ -33,9 +33,7 @@ import org.neo4j.spark.util.Neo4jImplicits._
 
 import scala.collection.immutable.ListMap
 import scala.jdk.CollectionConverters.IterableHasAsJava
-import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.jdk.CollectionConverters.MapHasAsJava
-import scala.jdk.CollectionConverters.MapHasAsScala
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
 class Neo4jImplicitsTest {

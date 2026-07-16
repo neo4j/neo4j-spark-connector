@@ -26,33 +26,17 @@ import org.apache.spark.sql.sources.And
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.Or
 import org.neo4j.caniuse.Neo4j
-import org.neo4j.cypherdsl.core.Cypher.callRawCypher
 import org.neo4j.cypherdsl.core._
-import org.neo4j.cypherdsl.core.renderer.Configuration
-import org.neo4j.cypherdsl.core.renderer.GeneralizedRenderer
-import org.neo4j.cypherdsl.core.renderer.Renderer
-import org.neo4j.cypherdsl.parser.CypherParser
-import org.neo4j.cypherdsl.parser.ExpressionCreatedEventType
-import org.neo4j.cypherdsl.parser.Options
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.cypher.QueryEmbedder
-import org.neo4j.spark.service.Neo4jQueryStrategy.VARIABLE_EVENT
-import org.neo4j.spark.service.Neo4jQueryStrategy.eventProperties
-import org.neo4j.spark.service.Neo4jQueryStrategy.relEventProperties
-import org.neo4j.spark.service.Neo4jQueryStrategy.scriptResultClause
-import org.neo4j.spark.service.Neo4jQueryStrategy.unwindEventsAsEvent
+import org.neo4j.spark.service.Neo4jQueryStrategy._
 import org.neo4j.spark.service.Neo4jWriteMappingStrategy.PROPERTIES
 import org.neo4j.spark.util.Neo4jImplicits._
-import org.neo4j.spark.util.Neo4jNodeMetadata
-import org.neo4j.spark.util.Neo4jOptions
-import org.neo4j.spark.util.Neo4jRelationshipMetadata
-import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.Neo4jUtil.RELATIONSHIP_ALIAS
 import org.neo4j.spark.util.Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS
 import org.neo4j.spark.util.Neo4jUtil.RELATIONSHIP_TARGET_ALIAS
-import org.neo4j.spark.util.NodeSaveMode
-import org.neo4j.spark.util.QueryType
+import org.neo4j.spark.util._
 
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
