@@ -130,7 +130,7 @@ class Neo4jTestResourcesExtension
 
   override def beforeEach(context: ExtensionContext): Unit = {
     val testResources = resources(context)
-    if (resetsDatabase(context)) {
+    if (shouldResetBeforeEach(context)) {
       resetDatabase(testResources)
     }
   }
@@ -201,8 +201,9 @@ class Neo4jTestResourcesExtension
     }
   }
 
-  private def resetsDatabase(context: ExtensionContext): Boolean =
-    context.getRequiredTestClass.getName != "org.neo4j.spark.GraphDataScienceIT"
+  private def shouldResetBeforeEach(context: ExtensionContext): Boolean =
+    !List("org.neo4j.spark.GraphDataScienceIT", "org.neo4j.spark.WriteIT")
+      .contains(context.getRequiredTestClass.getName)
 
   private def store(context: ExtensionContext) =
     owningContext(context).getStore(Namespace.create(namespace, context.getRequiredTestClass))
