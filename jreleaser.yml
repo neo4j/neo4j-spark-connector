@@ -43,7 +43,7 @@ release:
           - GitHub
 
 checksum:
-  name: 'neo4j-connector-apache-spark-{{projectVersion}}_checksums.txt'
+  name: 'neo4j-spark-connector-{{projectVersion}}_checksums.txt'
   algorithms:
     - SHA_256
   files: true
