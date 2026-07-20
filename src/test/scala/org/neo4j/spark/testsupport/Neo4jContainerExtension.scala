@@ -22,7 +22,8 @@ import org.neo4j.driver.GraphDatabase
 import org.neo4j.driver.SessionConfig
 import org.neo4j.spark.testsupport.Neo4jContainerExtension.log
 import org.rnorth.ducttape.unreliables.Unreliables
-import org.slf4j.{Logger, LoggerFactory}
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.testcontainers.containers.Neo4jContainer
 import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy
@@ -30,6 +31,7 @@ import org.testcontainers.containers.wait.strategy.WaitAllStrategy
 
 import java.time.Duration
 import java.util.concurrent.TimeUnit
+
 import scala.annotation.nowarn
 import scala.io.Source
 import scala.jdk.CollectionConverters.ListHasAsScala
