@@ -31,10 +31,10 @@ import org.testcontainers.containers.wait.strategy.WaitAllStrategy
 
 import java.time.Duration
 import java.util.concurrent.TimeUnit
-
 import scala.annotation.nowarn
 import scala.io.Source
 import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.runtime.Nothing$
 
 class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStrategy {
   private var databases = Seq.empty[String]
@@ -102,6 +102,8 @@ class Neo4jContainerExtension
 
   private var fixture: Set[(String, String)] = Set.empty
 
+  private var logPrefix: Option[String] = Option.empty
+
   def withDatabases(dbs: Seq[String]): Neo4jContainerExtension = {
     databases ++= dbs
     this
@@ -109,6 +111,11 @@ class Neo4jContainerExtension
 
   def withFixture(database: String, path: String): Neo4jContainerExtension = {
     fixture ++= Set((database, path))
+    this
+  }
+
+  def withLogPrefix(prefix: String): Neo4jContainerExtension = {
+    logPrefix = Some(prefix)
     this
   }
 
@@ -122,7 +129,11 @@ class Neo4jContainerExtension
         new DatabasesWaitStrategy(createAuth()).forDatabases(databases).withStartupTimeout(Duration.ofMinutes(2))
       )
     }
-    withLogConsumer(new Slf4jLogConsumer(log))
+    val logConsumer = new Slf4jLogConsumer(log)
+    for (value <- logPrefix) {
+      logConsumer.withPrefix(value)
+    }
+    withLogConsumer(logConsumer)
     addEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     super.start()
 

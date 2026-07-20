@@ -137,6 +137,7 @@ object TransactionTimeoutIT {
     .withEnv("NEO4J_db_temporal_timezone", TimeZone.getDefault.getID)
     .withNeo4jConfig("db.transaction.timeout", "10s")
     .withDatabases(Seq("db1", "db2"))
+    .withLogPrefix("TransactionTimeoutIT")
 
   @BeforeAll
   def setUp(): Unit = {

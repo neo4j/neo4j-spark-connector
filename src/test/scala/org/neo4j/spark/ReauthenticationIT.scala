@@ -82,7 +82,7 @@ object ReauthenticationIT {
         )
     )
     .withStartupAttempts(3)
-    .withLogConsumer(new Slf4jLogConsumer(log))
+    .withLogConsumer(new Slf4jLogConsumer(log).withPrefix("ReauthenticationIT"))
     .withCommand("start-dev --import-realm")
 
   private val NEO4J = new Neo4jContainerExtension()
@@ -111,6 +111,7 @@ object ReauthenticationIT {
     .withNeo4jConfig("dbms.security.oidc.keycloak.claims.username", "preferred_username")
     .withNeo4jConfig("dbms.security.oidc.keycloak.claims.groups", "groups")
     .withNeo4jConfig("dbms.security.auth_cache_ttl", "1s")
+    .withLogPrefix("ReauthenticationIT")
 
   @BeforeAll
   def setUp(): Unit = {
