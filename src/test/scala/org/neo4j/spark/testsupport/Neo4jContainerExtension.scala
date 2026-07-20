@@ -127,7 +127,7 @@ class Neo4jContainerExtension
     if (databases.nonEmpty) {
       val waitAllStrategy = waitStrategy.asInstanceOf[WaitAllStrategy]
       waitAllStrategy.withStrategy(
-        new DatabasesWaitStrategy(createAuth()).forDatabases(databases).withStartupTimeout(Duration.ofMinutes(2))
+        new DatabasesWaitStrategy(createAuth()).forDatabases(databases).withStartupTimeout(Duration.ofMinutes(3))
       )
     }
     val logConsumer = new Slf4jLogConsumer(log)
