@@ -31,6 +31,7 @@ import org.testcontainers.containers.wait.strategy.WaitAllStrategy
 
 import java.time.Duration
 import java.util.concurrent.TimeUnit
+
 import scala.annotation.nowarn
 import scala.io.Source
 import scala.jdk.CollectionConverters.ListHasAsScala
