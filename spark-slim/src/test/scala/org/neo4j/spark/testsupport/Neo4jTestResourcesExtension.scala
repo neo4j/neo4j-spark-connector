@@ -17,8 +17,13 @@
 package org.neo4j.spark.testsupport
 
 import org.apache.spark.sql.SparkSession
+import org.junit.jupiter.api.extension.AfterAllCallback
+import org.junit.jupiter.api.extension.BeforeEachCallback
+import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.ExtensionContext.Namespace
-import org.junit.jupiter.api.extension._
+import org.junit.jupiter.api.extension.ParameterContext
+import org.junit.jupiter.api.extension.ParameterResolutionException
+import org.junit.jupiter.api.extension.ParameterResolver
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver.Driver

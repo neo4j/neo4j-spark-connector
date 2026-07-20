@@ -25,11 +25,17 @@ import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.neo4j.spark.util.MapConverter.toScala
-import org.neo4j.spark.util.Neo4jImplicits._
+import org.neo4j.spark.util.Neo4jImplicits.AggregationImplicit
+import org.neo4j.spark.util.Neo4jImplicits.CypherImplicits
+import org.neo4j.spark.util.Neo4jImplicits.FilterImplicit
+import org.neo4j.spark.util.Neo4jImplicits.MapImplicit
+import org.neo4j.spark.util.Neo4jImplicits.StringMapImplicits
+import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
 
 import scala.collection.immutable.ListMap
 import scala.jdk.CollectionConverters.IterableHasAsJava

@@ -20,7 +20,11 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.DayTimeIntervalType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.YearMonthIntervalType
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -38,7 +42,11 @@ import org.neo4j.spark.util.SchemaConstraintsOptimizationType
 
 import java.sql.Date
 import java.sql.Timestamp
-import java.time._
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.util.TimeZone
 
 import scala.jdk.CollectionConverters.ListHasAsScala

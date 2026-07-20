@@ -16,7 +16,18 @@
  */
 package org.neo4j.spark.cypher
 
-import org.neo4j.cypherdsl.core._
+import org.neo4j.cypherdsl.core.AliasedExpression
+import org.neo4j.cypherdsl.core.Asterisk
+import org.neo4j.cypherdsl.core.Clauses
+import org.neo4j.cypherdsl.core.Expression
+import org.neo4j.cypherdsl.core.FunctionInvocation
+import org.neo4j.cypherdsl.core.ListExpression
+import org.neo4j.cypherdsl.core.ListOperator
+import org.neo4j.cypherdsl.core.Literal
+import org.neo4j.cypherdsl.core.MapExpression
+import org.neo4j.cypherdsl.core.Parameter
+import org.neo4j.cypherdsl.core.Property
+import org.neo4j.cypherdsl.core.SymbolicName
 import org.neo4j.cypherdsl.core.ast.Visitable
 import org.neo4j.cypherdsl.core.renderer.Configuration
 import org.neo4j.cypherdsl.core.renderer.GeneralizedRenderer
