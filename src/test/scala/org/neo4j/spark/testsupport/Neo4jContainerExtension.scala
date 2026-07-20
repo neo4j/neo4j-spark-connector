@@ -20,14 +20,16 @@ import org.neo4j.driver.AuthToken
 import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.GraphDatabase
 import org.neo4j.driver.SessionConfig
+import org.neo4j.spark.testsupport.Neo4jContainerExtension.log
 import org.rnorth.ducttape.unreliables.Unreliables
+import org.slf4j.{Logger, LoggerFactory}
 import org.testcontainers.containers.Neo4jContainer
+import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy
 import org.testcontainers.containers.wait.strategy.WaitAllStrategy
 
 import java.time.Duration
 import java.util.concurrent.TimeUnit
-
 import scala.annotation.nowarn
 import scala.io.Source
 import scala.jdk.CollectionConverters.ListHasAsScala
@@ -118,6 +120,7 @@ class Neo4jContainerExtension
         new DatabasesWaitStrategy(createAuth()).forDatabases(databases).withStartupTimeout(Duration.ofMinutes(2))
       )
     }
+    withLogConsumer(new Slf4jLogConsumer(log))
     addEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     super.start()
 
@@ -140,4 +143,8 @@ class Neo4jContainerExtension
       }
     }
   }
+}
+
+object Neo4jContainerExtension {
+  private val log: Logger = LoggerFactory.getLogger(Neo4jContainerExtension.getClass)
 }
