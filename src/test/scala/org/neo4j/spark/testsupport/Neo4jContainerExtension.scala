@@ -18,7 +18,7 @@ package org.neo4j.spark.testsupport
 
 import org.neo4j.driver.AuthToken
 import org.neo4j.driver.AuthTokens
-import org.neo4j.driver.Config.ConfigBuilder
+import org.neo4j.driver.Config
 import org.neo4j.driver.Driver
 import org.neo4j.driver.GraphDatabase
 import org.neo4j.driver.SessionConfig
@@ -30,7 +30,6 @@ import org.testcontainers.containers.Neo4jContainer
 import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy
 import org.testcontainers.containers.wait.strategy.WaitAllStrategy
-import org.testcontainers.containers.wait.strategy.WaitAllStrategy.Mode.WITH_INDIVIDUAL_TIMEOUTS_ONLY
 
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -53,7 +52,7 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
       startupTimeout.getSeconds.toInt,
       TimeUnit.SECONDS,
       () => {
-        val config = new ConfigBuilder()
+        val config = Config.builder()
           .withMaxTransactionRetryTime(startupTimeout.getSeconds.toInt, TimeUnit.SECONDS)
           .build()
         val driver = GraphDatabase.driver(boltUrl, auth, config)
