@@ -49,36 +49,12 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
 
   override def waitUntilReady(): Unit = {
     val boltUrl = s"bolt://${waitStrategyTarget.getHost}:${waitStrategyTarget.getMappedPort(7687)}"
-    log.info("Bolt url: {}", boltUrl)
-    val driver: Driver = Unreliables.retryUntilSuccess(
-      startupTimeout.getSeconds.toInt,
-      TimeUnit.SECONDS,
-      () => {
-        try {
-          val config = Config.builder()
-            .withMaxTransactionRetryTime(startupTimeout.getSeconds.toInt, TimeUnit.SECONDS)
-            .build()
-          val driver = GraphDatabase.driver(boltUrl, auth, config)
-          driver.verifyConnectivity()
-          driver
-        } catch {
-          case e: Exception => {
-            log.info("fail to create a driver")
-            throw e
-          }
-        }
-      }
-    )
+    val driver = GraphDatabase.driver(boltUrl, auth)
     val systemSession = driver.session(SessionConfig.forDatabase("system"))
     val tx = systemSession.beginTransaction()
     try {
       databases.foreach { db => tx.run(s"CREATE DATABASE $db IF NOT EXISTS") }
       tx.commit()
-    } catch {
-      case e: Exception => {
-        log.info("fail to create a databases")
-        throw e
-      }
     } finally {
       tx.close()
     }
@@ -97,11 +73,6 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
                   tx.run("SHOW DATABASES").list().asScala.map(db => {
                     (db.get("name").asString(), db.get("currentStatus").asString())
                   }).toMap
-                } catch {
-                  case e: Exception => {
-                    log.info("fail to see the database")
-                    throw e
-                  }
                 } finally {
                   tx.close()
                 }
@@ -158,7 +129,7 @@ class Neo4jContainerExtension
     if (databases.nonEmpty) {
       val waitAllStrategy = waitStrategy.asInstanceOf[WaitAllStrategy]
       waitAllStrategy.withStrategy(
-        new DatabasesWaitStrategy(createAuth()).forDatabases(databases).withStartupTimeout(Duration.ofMinutes(3))
+        new DatabasesWaitStrategy(createAuth()).forDatabases(databases).withStartupTimeout(Duration.ofMinutes(2))
       )
     }
     val logConsumer = new Slf4jLogConsumer(log)
@@ -191,5 +162,5 @@ class Neo4jContainerExtension
 }
 
 object Neo4jContainerExtension {
-  val log: Logger = LoggerFactory.getLogger(Neo4jContainerExtension.getClass)
+  private val log: Logger = LoggerFactory.getLogger(Neo4jContainerExtension.getClass)
 }
