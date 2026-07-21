@@ -18,6 +18,8 @@ package org.neo4j.spark.testsupport
 
 import org.neo4j.driver.AuthToken
 import org.neo4j.driver.AuthTokens
+import org.neo4j.driver.Config.ConfigBuilder
+import org.neo4j.driver.Driver
 import org.neo4j.driver.GraphDatabase
 import org.neo4j.driver.SessionConfig
 import org.neo4j.spark.testsupport.Neo4jContainerExtension.log
@@ -28,6 +30,7 @@ import org.testcontainers.containers.Neo4jContainer
 import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy
 import org.testcontainers.containers.wait.strategy.WaitAllStrategy
+import org.testcontainers.containers.wait.strategy.WaitAllStrategy.Mode.WITH_INDIVIDUAL_TIMEOUTS_ONLY
 
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -35,7 +38,6 @@ import java.util.concurrent.TimeUnit
 import scala.annotation.nowarn
 import scala.io.Source
 import scala.jdk.CollectionConverters.ListHasAsScala
-import scala.runtime.Nothing$
 
 class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStrategy {
   private var databases = Seq.empty[String]
@@ -47,7 +49,18 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
 
   override def waitUntilReady(): Unit = {
     val boltUrl = s"bolt://${waitStrategyTarget.getHost}:${waitStrategyTarget.getMappedPort(7687)}"
-    val driver = GraphDatabase.driver(boltUrl, auth)
+    val driver: Driver = Unreliables.retryUntilSuccess(
+      startupTimeout.getSeconds.toInt,
+      TimeUnit.SECONDS,
+      () => {
+        val config = new ConfigBuilder()
+          .withMaxTransactionRetryTime(startupTimeout.getSeconds.toInt, TimeUnit.SECONDS)
+          .build()
+        val driver = GraphDatabase.driver(boltUrl, auth, config)
+        driver.verifyConnectivity()
+        driver
+      }
+    )
     val systemSession = driver.session(SessionConfig.forDatabase("system"))
     val tx = systemSession.beginTransaction()
     try {
