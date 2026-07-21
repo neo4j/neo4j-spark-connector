@@ -202,7 +202,7 @@ class Neo4jTestResourcesExtension
   }
 
   private def shouldResetBeforeEach(context: ExtensionContext): Boolean =
-    !List("org.neo4j.spark.GraphDataScienceIT", "org.neo4j.spark.WriteIT")
+    !List("org.neo4j.spark.GraphDataScienceIT", "org.neo4j.spark.WriteIT$WriteTypeMappingIT")
       .contains(context.getRequiredTestClass.getName)
 
   private def store(context: ExtensionContext) =

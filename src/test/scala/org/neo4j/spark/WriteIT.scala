@@ -29,8 +29,11 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.parallel.Execution
+import org.junit.jupiter.api.parallel.ExecutionMode
 import org.junit.jupiter.params.Parameter
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.Driver
@@ -85,411 +88,429 @@ class WriteIT {
   @Parameter
   var neo4jContainer: Neo4jContainer = _
 
-  @TestFactory
-  def should_write_jvm_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
-    dfCases(spark).map { testCase =>
-      val label = testCase.name
-      dynamicTest(
-        label,
-        () => {
-          SparkSession.setActiveSession(testCase.df.sparkSession)
-
-          testCase.df.write.format("neo4j")
-            .mode(SaveMode.Append)
-            .option("labels", label)
-            .save()
-
-          val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
-          val record = driver.session().run(fetchQuery).single()
-          val actualType = record.get("type").asString()
-          val actualValue = testCase.expectedType.accessor(record.get("value"))
-
-          assertThat(actualType).isEqualTo(s"${testCase.expectedType.name} NOT NULL")
-          assertThat(actualValue).isEqualTo(testCase.expectedValue)
-        }
-      )
-    }
-      .asJava.stream()
+  @Nested
+  @DisplayName("error states")
+  @Execution(ExecutionMode.CONCURRENT)
+  class WriteErrorIT {
+    // refactor throw assertions here
   }
 
-  @TestFactory
-  def should_write_jvm_array_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
-    val cases = dfCases(spark)
-      .filter(!_.name.toLowerCase.contains("byte")) // byte array special because it's binary type
+  @Nested
+  @DisplayName("auto type mapping")
+  @Execution(ExecutionMode.CONCURRENT)
+  class WriteTypeMappingIT {
 
-    cases.map { testCase =>
-      val label = "[" + testCase.name + "]"
-      dynamicTest(
-        label,
-        () => {
-          val df = testCase.df.select(collect_list(col).as(col)) // wrap in array length 1
-          SparkSession.setActiveSession(df.sparkSession)
+    @TestFactory
+    def should_write_jvm_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
+      TypeTestCases.dfCases(spark).map { testCase =>
+        val label = testCase.name
+        dynamicTest(
+          label,
+          () => {
+            SparkSession.setActiveSession(testCase.df.sparkSession)
 
-          df.write.format("neo4j")
-            .mode(SaveMode.Append)
-            .option("labels", label)
-            .save()
+            testCase.df.write.format("neo4j")
+              .mode(SaveMode.Append)
+              .option("labels", label)
+              .save()
 
-          val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS array, valueType(n.$col) AS type"
-          val record = driver.session().run(fetchQuery).single()
-          val actualType = record.get("type").asString()
-          val actualValue = testCase.expectedType.accessor(record.get("array").get(0))
-
-          assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType.name} NOT NULL> NOT NULL")
-          assertThat(actualValue).isEqualTo(testCase.expectedValue)
-        }
-      )
-    }
-      .asJava.stream()
-  }
-
-  @TestFactory
-  def should_write_sql_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
-    sqlCases.map { testCase =>
-      val label = testCase.name
-      dynamicTest(
-        label,
-        () => {
-          val df = spark.sql(testCase.sql)
-          SparkSession.setActiveSession(df.sparkSession)
-
-          df.write.format("neo4j")
-            .mode(SaveMode.Append)
-            .option("labels", label)
-            .save()
-
-          val fetchQuery: String = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
-          val records = driver.session().run(fetchQuery).list()
-
-          records.forEach(record => {
+            val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
+            val record = driver.session().run(fetchQuery).single()
             val actualType = record.get("type").asString()
             val actualValue = testCase.expectedType.accessor(record.get("value"))
 
             assertThat(actualType).isEqualTo(s"${testCase.expectedType.name} NOT NULL")
             assertThat(actualValue).isEqualTo(testCase.expectedValue)
-          })
-        }
-      )
+          }
+        )
+      }
+        .asJava.stream()
     }
-      .asJava.stream()
-  }
 
-  @TestFactory
-  def should_write_sql_array_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
-    val cases = sqlCases.filter(!_.name.toLowerCase.contains("byte")) // byte array special because it's binary type
+    @TestFactory
+    def should_write_jvm_array_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
+      val cases = TypeTestCases.dfCases(spark)
+        .filter(!_.name.toLowerCase.contains("byte")) // byte array special because it's binary type
 
-    cases.map { testCase =>
-      val label = "[" + testCase.name + "]"
-      dynamicTest(
-        label,
-        () => {
-          val df = spark.sql(testCase.sql).select(collect_list(col).as(col)) // wrap in array length 1
-          SparkSession.setActiveSession(df.sparkSession)
+      cases.map { testCase =>
+        val label = "[" + testCase.name + "]"
+        dynamicTest(
+          label,
+          () => {
+            val df = testCase.df.select(collect_list(col).as(col)) // wrap in array length 1
+            SparkSession.setActiveSession(df.sparkSession)
 
-          df.write.format("neo4j")
-            .mode(SaveMode.Append)
-            .option("labels", label)
-            .save()
+            df.write.format("neo4j")
+              .mode(SaveMode.Append)
+              .option("labels", label)
+              .save()
 
-          val fetchQuery: String = s"MATCH (n:`$label`) RETURN n.$col AS array, valueType(n.$col) AS type"
-          val record = driver.session().run(fetchQuery).single()
-          val actualType = record.get("type").asString()
-          val actualValue = testCase.expectedType.accessor(record.get("array").get(0))
+            val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS array, valueType(n.$col) AS type"
+            val record = driver.session().run(fetchQuery).single()
+            val actualType = record.get("type").asString()
+            val actualValue = testCase.expectedType.accessor(record.get("array").get(0))
 
-          assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType.name} NOT NULL> NOT NULL")
-          assertThat(actualValue).isEqualTo(testCase.expectedValue)
-        }
-      )
+            assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType.name} NOT NULL> NOT NULL")
+            assertThat(actualValue).isEqualTo(testCase.expectedValue)
+          }
+        )
+      }
+        .asJava.stream()
     }
-      .asJava.stream()
-  }
 
-  @Test
-  def should_write_jvm_binary_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
-    SparkSession.setActiveSession(spark)
-    val binary = "message".getBytes(StandardCharsets.UTF_8)
-    val df = spark.createDataset(Seq(binary))(Encoders.BINARY).toDF(col)
-    df.write.format("neo4j").mode(SaveMode.Append).option("labels", "BinaryJvm").save()
+    @TestFactory
+    def should_write_sql_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
+      TypeTestCases.sqlCases.map { testCase =>
+        val label = testCase.name
+        dynamicTest(
+          label,
+          () => {
+            val df = spark.sql(testCase.sql)
+            SparkSession.setActiveSession(df.sparkSession)
 
-    val fetchQuery: String = s"MATCH (n:BinaryJvm) RETURN n.$col AS binary, valueType(n.$col) AS type"
-    val record = driver.session().run(fetchQuery).single()
-    val actualType = record.get("type").asString()
-    val actualValue = record.get("binary").asByteArray()
+            df.write.format("neo4j")
+              .mode(SaveMode.Append)
+              .option("labels", label)
+              .save()
 
-    assertThat(actualType).isEqualTo("LIST<INTEGER NOT NULL> NOT NULL")
-    assertThat(actualValue).isEqualTo(binary)
-  }
+            val fetchQuery: String = s"MATCH (n:`$label`) RETURN n.$col AS value, valueType(n.$col) AS type"
+            val records = driver.session().run(fetchQuery).list()
 
-  @Test
-  def should_write_sql_binary_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
-    SparkSession.setActiveSession(spark)
-    val expectedBinary = "message".getBytes(StandardCharsets.UTF_8)
+            records.forEach(record => {
+              val actualType = record.get("type").asString()
+              val actualValue = testCase.expectedType.accessor(record.get("value"))
 
-    spark.sql(s"SELECT CAST('message' AS BINARY) AS $col").write.format("neo4j")
-      .mode(SaveMode.Append)
-      .option("labels", "BinarySql")
-      .save()
-
-    val fetchQuery: String = s"MATCH (n:BinarySql) RETURN n.$col AS binary, valueType(n.$col) AS type"
-    val record = driver.session().run(fetchQuery).single()
-    val actualType = record.get("type").asString()
-    val actualValue = record.get("binary").asByteArray()
-
-    assertThat(actualType).isEqualTo("LIST<INTEGER NOT NULL> NOT NULL")
-    assertThat(actualValue).isEqualTo(expectedBinary)
-  }
-
-  @TestFactory
-  def should_write_duration_struct_as_duration(
-    driver: Driver,
-    spark: SparkSession,
-    neo4j: Neo4j
-  ): Stream[DynamicTest] = {
-    structDurationCases(spark).map { testCase =>
-      val label = testCase.expectedValue.toString
-      dynamicTest(
-        label,
-        () => {
-          SparkSession.setActiveSession(testCase.df.sparkSession)
-          testCase.df.write.format("neo4j")
-            .mode(SaveMode.Append)
-            .option("labels", label)
-            .save()
-
-          val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS duration, valueType(n.$col) AS type"
-          val record = driver.session().run(fetchQuery).single()
-          val actualType = record.get("type").asString()
-          val actualValue = testCase.expectedType.accessor(record.get("duration"))
-
-          assertThat(actualType).isEqualTo(s"${testCase.expectedType.name} NOT NULL")
-          assertThat(actualValue).isEqualTo(testCase.expectedValue)
-        }
-      )
+              assertThat(actualType).isEqualTo(s"${testCase.expectedType.name} NOT NULL")
+              assertThat(actualValue).isEqualTo(testCase.expectedValue)
+            })
+          }
+        )
+      }
+        .asJava.stream()
     }
-      .asJava.stream()
+
+    @TestFactory
+    def should_write_sql_array_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
+      val cases = TypeTestCases.sqlCases
+        .filter(!_.name.toLowerCase.contains("byte")) // byte array special because it's binary type
+
+      cases.map { testCase =>
+        val label = "[" + testCase.name + "]"
+        dynamicTest(
+          label,
+          () => {
+            val df = spark.sql(testCase.sql).select(collect_list(col).as(col)) // wrap in array length 1
+            SparkSession.setActiveSession(df.sparkSession)
+
+            df.write.format("neo4j")
+              .mode(SaveMode.Append)
+              .option("labels", label)
+              .save()
+
+            val fetchQuery: String = s"MATCH (n:`$label`) RETURN n.$col AS array, valueType(n.$col) AS type"
+            val record = driver.session().run(fetchQuery).single()
+            val actualType = record.get("type").asString()
+            val actualValue = testCase.expectedType.accessor(record.get("array").get(0))
+
+            assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType.name} NOT NULL> NOT NULL")
+            assertThat(actualValue).isEqualTo(testCase.expectedValue)
+          }
+        )
+      }
+        .asJava.stream()
+    }
+
+    @Test
+    def should_write_jvm_binary_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      SparkSession.setActiveSession(spark)
+      val binary = "message".getBytes(StandardCharsets.UTF_8)
+      val df = spark.createDataset(Seq(binary))(Encoders.BINARY).toDF(col)
+      df.write.format("neo4j").mode(SaveMode.Append).option("labels", "BinaryJvm").save()
+
+      val fetchQuery: String = s"MATCH (n:BinaryJvm) RETURN n.$col AS binary, valueType(n.$col) AS type"
+      val record = driver.session().run(fetchQuery).single()
+      val actualType = record.get("type").asString()
+      val actualValue = record.get("binary").asByteArray()
+
+      assertThat(actualType).isEqualTo("LIST<INTEGER NOT NULL> NOT NULL")
+      assertThat(actualValue).isEqualTo(binary)
+    }
+
+    @Test
+    def should_write_sql_binary_to_neo4j(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      SparkSession.setActiveSession(spark)
+      val expectedBinary = "message".getBytes(StandardCharsets.UTF_8)
+
+      spark.sql(s"SELECT CAST('message' AS BINARY) AS $col").write.format("neo4j")
+        .mode(SaveMode.Append)
+        .option("labels", "BinarySql")
+        .save()
+
+      val fetchQuery: String = s"MATCH (n:BinarySql) RETURN n.$col AS binary, valueType(n.$col) AS type"
+      val record = driver.session().run(fetchQuery).single()
+      val actualType = record.get("type").asString()
+      val actualValue = record.get("binary").asByteArray()
+
+      assertThat(actualType).isEqualTo("LIST<INTEGER NOT NULL> NOT NULL")
+      assertThat(actualValue).isEqualTo(expectedBinary)
+    }
+
+    @TestFactory
+    def should_write_duration_struct_as_duration(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Stream[DynamicTest] = {
+      TypeTestCases.structDurationCases(spark).map { testCase =>
+        val label = testCase.expectedValue.toString
+        dynamicTest(
+          label,
+          () => {
+            SparkSession.setActiveSession(testCase.df.sparkSession)
+            testCase.df.write.format("neo4j")
+              .mode(SaveMode.Append)
+              .option("labels", label)
+              .save()
+
+            val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS duration, valueType(n.$col) AS type"
+            val record = driver.session().run(fetchQuery).single()
+            val actualType = record.get("type").asString()
+            val actualValue = testCase.expectedType.accessor(record.get("duration"))
+
+            assertThat(actualType).isEqualTo(s"${testCase.expectedType.name} NOT NULL")
+            assertThat(actualValue).isEqualTo(testCase.expectedValue)
+          }
+        )
+      }
+        .asJava.stream()
+    }
+
+    @TestFactory
+    def should_write_point_struct_as_point(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Stream[DynamicTest] = {
+      TypeTestCases.structPointCases(spark).map { testCase =>
+        val label = testCase.name
+        dynamicTest(
+          label,
+          () => {
+            SparkSession.setActiveSession(testCase.df.sparkSession)
+            testCase.df.write.format("neo4j")
+              .mode(SaveMode.Append)
+              .option("labels", label)
+              .save()
+
+            val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS point, valueType(n.$col) AS type"
+            val record = driver.session().run(fetchQuery).single()
+            val actualType = record.get("type").asString()
+            val actualValue = testCase.expectedType.accessor(record.get("point"))
+
+            assertThat(actualType).isEqualTo(s"${testCase.expectedType.name} NOT NULL")
+            assertThat(actualValue).isEqualTo(testCase.expectedValue)
+
+          }
+        )
+      }
+        .asJava.stream()
+    }
+
+    @TestFactory
+    def should_write_local_time_struct_as_local_time(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Stream[DynamicTest] = {
+      TypeTestCases.structLocalTimeCases(spark).map { testCase =>
+        val label = testCase.name
+        dynamicTest(
+          label,
+          () => {
+            SparkSession.setActiveSession(testCase.df.sparkSession)
+            testCase.df.write.format("neo4j")
+              .mode(SaveMode.Append)
+              .option("labels", label)
+              .save()
+
+            val fetchQuery = s"MATCH (n: `$label`) RETURN n.$col AS time, valueType(n.$col) AS type"
+            val record = driver.session().run(fetchQuery).single()
+            val actualType = record.get("type").asString()
+            val actualValue = testCase.expectedType.accessor(record.get("time"))
+
+            assertThat(actualType).isEqualTo(s"${testCase.expectedType.name} NOT NULL")
+            assertThat(actualValue).isEqualTo(testCase.expectedValue)
+          }
+        )
+      }
+        .asJava.stream()
+    }
+
+    @TestFactory
+    def should_write_offset_time_struct_as_offset_time(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Stream[DynamicTest] = {
+      TypeTestCases.structOffsetTimeCases(spark).map { testCase =>
+        val label = testCase.name
+        dynamicTest(
+          label,
+          () => {
+            SparkSession.setActiveSession(testCase.df.sparkSession)
+            testCase.df.write.format("neo4j")
+              .mode(SaveMode.Append)
+              .option("labels", label)
+              .save()
+
+            val fetchQuery = s"MATCH (n: `$label`) RETURN n.$col AS time, valueType(n.$col) AS type"
+            val record = driver.session().run(fetchQuery).single()
+            val actualType = record.get("type").asString()
+            val actualValue = testCase.expectedType.accessor(record.get("time"))
+
+            assertThat(actualType).isEqualTo(s"${testCase.expectedType.name} NOT NULL")
+            assertThat(actualValue).isEqualTo(testCase.expectedValue)
+          }
+        )
+      }
+        .asJava.stream()
+    }
+
+    @TestFactory
+    def should_write_duration_struct_array_as_duration_array(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Stream[DynamicTest] = {
+      TypeTestCases.structDurationCases(spark).map { testCase =>
+        val label = "[" + testCase.expectedValue.toString + "]"
+        dynamicTest(
+          label,
+          () => {
+            val df = testCase.df.select(collect_list(col).as(col))
+            SparkSession.setActiveSession(df.sparkSession)
+            df.write.format("neo4j")
+              .mode(SaveMode.Append)
+              .option("labels", label)
+              .save()
+
+            val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS durationArray, valueType(n.$col) AS type"
+            val record = driver.session().run(fetchQuery).single()
+            val actualType = record.get("type").asString()
+            val actualValue = testCase.expectedType.accessor(record.get("durationArray").get(0))
+
+            assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType.name} NOT NULL> NOT NULL")
+            assertThat(actualValue).isEqualTo(testCase.expectedValue)
+          }
+        )
+      }
+        .asJava.stream()
+    }
+
+    @TestFactory
+    def should_write_point_struct_array_as_point_array(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Stream[DynamicTest] = {
+      TypeTestCases.structPointCases(spark).map { testCase =>
+        val label = "[" + testCase.name + "]"
+        dynamicTest(
+          label,
+          () => {
+            val df = testCase.df.select(collect_list(col).as(col))
+            SparkSession.setActiveSession(df.sparkSession)
+            df.write.format("neo4j")
+              .mode(SaveMode.Append)
+              .option("labels", label)
+              .save()
+
+            val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS pointArray, valueType(n.$col) AS type"
+            val record = driver.session().run(fetchQuery).single()
+            val actualType = record.get("type").asString()
+            val actualValue = testCase.expectedType.accessor(record.get("pointArray").get(0))
+
+            assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType.name} NOT NULL> NOT NULL")
+            assertThat(actualValue).isEqualTo(testCase.expectedValue)
+
+          }
+        )
+      }
+        .asJava.stream()
+    }
+
+    @TestFactory
+    def should_write_local_time_struct_array_as_local_time_array(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Stream[DynamicTest] = {
+      TypeTestCases.structLocalTimeCases(spark).map { testCase =>
+        val label = "[" + testCase.name + "]"
+        dynamicTest(
+          label,
+          () => {
+            val df = testCase.df.select(collect_list(col).as(col))
+            SparkSession.setActiveSession(df.sparkSession)
+            df.write.format("neo4j")
+              .mode(SaveMode.Append)
+              .option("labels", label)
+              .save()
+
+            val fetchQuery = s"MATCH (n: `$label`) RETURN n.$col AS timeArray, valueType(n.$col) AS type"
+            val record = driver.session().run(fetchQuery).single()
+            val actualType = record.get("type").asString()
+            val actualValue = testCase.expectedType.accessor(record.get("timeArray").get(0))
+
+            assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType.name} NOT NULL> NOT NULL")
+            assertThat(actualValue).isEqualTo(testCase.expectedValue)
+          }
+        )
+      }
+        .asJava.stream()
+    }
+
+    @TestFactory
+    def should_write_offset_time_struct_array_as_offset_time_array(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Stream[DynamicTest] = {
+      TypeTestCases.structOffsetTimeCases(spark).map { testCase =>
+        val label = "[" + testCase.name + "]"
+        dynamicTest(
+          label,
+          () => {
+            val df = testCase.df.select(collect_list(col).as(col))
+            SparkSession.setActiveSession(df.sparkSession)
+            df.write.format("neo4j")
+              .mode(SaveMode.Append)
+              .option("labels", label)
+              .save()
+
+            val fetchQuery = s"MATCH (n: `$label`) RETURN n.$col AS timeArray, valueType(n.$col) AS type"
+            val record = driver.session().run(fetchQuery).single()
+            val actualType = record.get("type").asString()
+            val actualValue = testCase.expectedType.accessor(record.get("timeArray").get(0))
+
+            assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType.name} NOT NULL> NOT NULL")
+            assertThat(actualValue).isEqualTo(testCase.expectedValue)
+          }
+        )
+      }
+        .asJava.stream()
+    }
   }
 
-  @TestFactory
-  def should_write_point_struct_as_point(
-    driver: Driver,
-    spark: SparkSession,
-    neo4j: Neo4j
-  ): Stream[DynamicTest] = {
-    structPointCases(spark).map { testCase =>
-      val label = testCase.name
-      dynamicTest(
-        label,
-        () => {
-          SparkSession.setActiveSession(testCase.df.sparkSession)
-          testCase.df.write.format("neo4j")
-            .mode(SaveMode.Append)
-            .option("labels", label)
-            .save()
-
-          val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS point, valueType(n.$col) AS type"
-          val record = driver.session().run(fetchQuery).single()
-          val actualType = record.get("type").asString()
-          val actualValue = testCase.expectedType.accessor(record.get("point"))
-
-          assertThat(actualType).isEqualTo(s"${testCase.expectedType.name} NOT NULL")
-          assertThat(actualValue).isEqualTo(testCase.expectedValue)
-
-        }
-      )
-    }
-      .asJava.stream()
-  }
-
-  @TestFactory
-  def should_write_local_time_struct_as_local_time(
-    driver: Driver,
-    spark: SparkSession,
-    neo4j: Neo4j
-  ): Stream[DynamicTest] = {
-    structLocalTimeCases(spark).map { testCase =>
-      val label = testCase.name
-      dynamicTest(
-        label,
-        () => {
-          SparkSession.setActiveSession(testCase.df.sparkSession)
-          testCase.df.write.format("neo4j")
-            .mode(SaveMode.Append)
-            .option("labels", label)
-            .save()
-
-          val fetchQuery = s"MATCH (n: `$label`) RETURN n.$col AS time, valueType(n.$col) AS type"
-          val record = driver.session().run(fetchQuery).single()
-          val actualType = record.get("type").asString()
-          val actualValue = testCase.expectedType.accessor(record.get("time"))
-
-          assertThat(actualType).isEqualTo(s"${testCase.expectedType.name} NOT NULL")
-          assertThat(actualValue).isEqualTo(testCase.expectedValue)
-        }
-      )
-    }
-      .asJava.stream()
-  }
-
-  @TestFactory
-  def should_write_offset_time_struct_as_offset_time(
-    driver: Driver,
-    spark: SparkSession,
-    neo4j: Neo4j
-  ): Stream[DynamicTest] = {
-    structOffsetTimeCases(spark).map { testCase =>
-      val label = testCase.name
-      dynamicTest(
-        label,
-        () => {
-          SparkSession.setActiveSession(testCase.df.sparkSession)
-          testCase.df.write.format("neo4j")
-            .mode(SaveMode.Append)
-            .option("labels", label)
-            .save()
-
-          val fetchQuery = s"MATCH (n: `$label`) RETURN n.$col AS time, valueType(n.$col) AS type"
-          val record = driver.session().run(fetchQuery).single()
-          val actualType = record.get("type").asString()
-          val actualValue = testCase.expectedType.accessor(record.get("time"))
-
-          assertThat(actualType).isEqualTo(s"${testCase.expectedType.name} NOT NULL")
-          assertThat(actualValue).isEqualTo(testCase.expectedValue)
-        }
-      )
-    }
-      .asJava.stream()
-  }
-
-  @TestFactory
-  def should_write_duration_struct_array_as_duration_array(
-    driver: Driver,
-    spark: SparkSession,
-    neo4j: Neo4j
-  ): Stream[DynamicTest] = {
-    structDurationCases(spark).map { testCase =>
-      val label = "[" + testCase.expectedValue.toString + "]"
-      dynamicTest(
-        label,
-        () => {
-          val df = testCase.df.select(collect_list(col).as(col))
-          SparkSession.setActiveSession(df.sparkSession)
-          df.write.format("neo4j")
-            .mode(SaveMode.Append)
-            .option("labels", label)
-            .save()
-
-          val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS durationArray, valueType(n.$col) AS type"
-          val record = driver.session().run(fetchQuery).single()
-          val actualType = record.get("type").asString()
-          val actualValue = testCase.expectedType.accessor(record.get("durationArray").get(0))
-
-          assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType.name} NOT NULL> NOT NULL")
-          assertThat(actualValue).isEqualTo(testCase.expectedValue)
-        }
-      )
-    }
-      .asJava.stream()
-  }
-
-  @TestFactory
-  def should_write_point_struct_array_as_point_array(
-    driver: Driver,
-    spark: SparkSession,
-    neo4j: Neo4j
-  ): Stream[DynamicTest] = {
-    structPointCases(spark).map { testCase =>
-      val label = "[" + testCase.name + "]"
-      dynamicTest(
-        label,
-        () => {
-          val df = testCase.df.select(collect_list(col).as(col))
-          SparkSession.setActiveSession(df.sparkSession)
-          df.write.format("neo4j")
-            .mode(SaveMode.Append)
-            .option("labels", label)
-            .save()
-
-          val fetchQuery = s"MATCH (n:`$label`) RETURN n.$col AS pointArray, valueType(n.$col) AS type"
-          val record = driver.session().run(fetchQuery).single()
-          val actualType = record.get("type").asString()
-          val actualValue = testCase.expectedType.accessor(record.get("pointArray").get(0))
-
-          assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType.name} NOT NULL> NOT NULL")
-          assertThat(actualValue).isEqualTo(testCase.expectedValue)
-
-        }
-      )
-    }
-      .asJava.stream()
-  }
-
-  @TestFactory
-  def should_write_local_time_struct_array_as_local_time_array(
-    driver: Driver,
-    spark: SparkSession,
-    neo4j: Neo4j
-  ): Stream[DynamicTest] = {
-    structLocalTimeCases(spark).map { testCase =>
-      val label = "[" + testCase.name + "]"
-      dynamicTest(
-        label,
-        () => {
-          val df = testCase.df.select(collect_list(col).as(col))
-          SparkSession.setActiveSession(df.sparkSession)
-          df.write.format("neo4j")
-            .mode(SaveMode.Append)
-            .option("labels", label)
-            .save()
-
-          val fetchQuery = s"MATCH (n: `$label`) RETURN n.$col AS timeArray, valueType(n.$col) AS type"
-          val record = driver.session().run(fetchQuery).single()
-          val actualType = record.get("type").asString()
-          val actualValue = testCase.expectedType.accessor(record.get("timeArray").get(0))
-
-          assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType.name} NOT NULL> NOT NULL")
-          assertThat(actualValue).isEqualTo(testCase.expectedValue)
-        }
-      )
-    }
-      .asJava.stream()
-  }
-
-  @TestFactory
-  def should_write_offset_time_struct_array_as_offset_time_array(
-    driver: Driver,
-    spark: SparkSession,
-    neo4j: Neo4j
-  ): Stream[DynamicTest] = {
-    structOffsetTimeCases(spark).map { testCase =>
-      val label = "[" + testCase.name + "]"
-      dynamicTest(
-        label,
-        () => {
-          val df = testCase.df.select(collect_list(col).as(col))
-          SparkSession.setActiveSession(df.sparkSession)
-          df.write.format("neo4j")
-            .mode(SaveMode.Append)
-            .option("labels", label)
-            .save()
-
-          val fetchQuery = s"MATCH (n: `$label`) RETURN n.$col AS timeArray, valueType(n.$col) AS type"
-          val record = driver.session().run(fetchQuery).single()
-          val actualType = record.get("type").asString()
-          val actualValue = testCase.expectedType.accessor(record.get("timeArray").get(0))
-
-          assertThat(actualType).isEqualTo(s"LIST<${testCase.expectedType.name} NOT NULL> NOT NULL")
-          assertThat(actualValue).isEqualTo(testCase.expectedValue)
-        }
-      )
-    }
-      .asJava.stream()
+  object WriteIT {
+    val col = "prop"
   }
 
   /**
    * This companion object contains re-usable test cases. Test procedures are in the actual test class above.
    * Re-using test cases allows us to test the same test construct outside an array and then also inside an array.
    */
-  object WriteIT {
+  object TypeTestCases {
 
     case class DurationStruct(months: Long, days: Long, seconds: Long, nanoseconds: Int) {
       val `type` = "duration"
@@ -533,8 +554,6 @@ class WriteIT {
         nullable = false
       )))
     }
-
-    val col = "prop"
 
     def dfCases(spark: SparkSession): Seq[DfTestCase[_]] = {
       import spark.implicits._ // to import .toDF()
