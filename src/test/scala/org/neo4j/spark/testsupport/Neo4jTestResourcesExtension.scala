@@ -201,9 +201,15 @@ class Neo4jTestResourcesExtension
     }
   }
 
-  private def shouldResetBeforeEach(context: ExtensionContext): Boolean =
-    !List("org.neo4j.spark.GraphDataScienceIT", "org.neo4j.spark.WriteIT$WriteTypeMappingIT")
-      .contains(context.getRequiredTestClass.getName)
+  private def shouldResetBeforeEach(context: ExtensionContext): Boolean = {
+    val blackList = List(
+      "org.neo4j.spark.GraphDataScienceIT",
+      "org.neo4j.spark.WriteIT",
+      "org.neo4j.spark.WriteIT$WriteTypeMappingIT"
+    )
+
+    !blackList.contains(context.getRequiredTestClass.getName)
+  }
 
   private def store(context: ExtensionContext) =
     owningContext(context).getStore(Namespace.create(namespace, context.getRequiredTestClass))

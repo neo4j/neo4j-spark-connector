@@ -16,6 +16,7 @@
  */
 package org.neo4j.spark
 
+import org.apache.spark.SparkException
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.Row
@@ -26,6 +27,8 @@ import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
@@ -58,7 +61,15 @@ import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.util.stream.Stream
 
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.CollectionConverters.SeqHasAsJava
+
+case class ExceptionTestCase(
+  name: String,
+  expectedException: Class[_ <: Throwable] = classOf[Exception],
+  expectedMessage: String,
+  block: ThrowingCallable
+)
 
 case class DfTestCase[ToType](
   name: String,
@@ -88,11 +99,149 @@ class WriteIT {
   @Parameter
   var neo4jContainer: Neo4jContainer = _
 
+  @TestFactory
+  def should_handle_write_error_states(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
+    import spark.implicits._
+
+    val exampleDf = Seq(
+      (12, "John Bonham", "Drums"),
+      (19, "John Mayer", "Guitar"),
+      (32, "John Scofield", "Guitar"),
+      (15, "John Butler", "Guitar")
+    ).toDF("experience", "name", "instrument")
+
+    val cases = Seq(
+      ExceptionTestCase(
+        "SaveMode.Overwrite require node.keys",
+        classOf[IllegalArgumentException],
+        "node.keys is required when Save Mode is Overwrite",
+        () => {
+          spark.sql("SELECT 42 AS element").write.format("neo4j")
+            .mode(SaveMode.Overwrite)
+            .option("labels", "A")
+            .save()
+        }
+      ),
+      ExceptionTestCase(
+        "custom query should not be read-only",
+        classOf[IllegalArgumentException],
+        "Invalid query `MATCH (o:Object) RETURN o` because the accepted types are [WRITE_ONLY, READ_WRITE], but the actual type is READ_ONLY",
+        () => {
+          spark.sql("SELECT 42 AS element").write.format("neo4j")
+            .mode(SaveMode.Append)
+            .option("query", "MATCH (o:Object) RETURN o")
+            .save()
+        }
+      ),
+      ExceptionTestCase(
+        "propagate validation error when 'ErrorIfExists' is used in rel save modes",
+        classOf[IllegalArgumentException],
+        "This connector does not support save mode 'ErrorIfExists'. Use save mode 'Append' instead.",
+        () => {
+          exampleDf.repartition(1).write
+            .format(classOf[DataSource].getName)
+            .mode(SaveMode.Overwrite)
+            .option("relationship", "PLAYS")
+            .option("relationship.source.save.mode", "ErrorIfExists")
+            .option("relationship.target.save.mode", "Overwrite")
+            .option("relationship.source.labels", ":Musician")
+            .option("relationship.source.node.keys", "name:name")
+            .option("relationship.target.labels", ":Instrument")
+            .option("relationship.target.node.keys", "instrument:name")
+            .save()
+        }
+      ),
+      ExceptionTestCase(
+        "should propagate client exceptions via spark exceptions",
+        classOf[SparkException],
+        "org.neo4j.driver.exceptions.ClientException",
+        () => {
+          driver.session().run("CREATE CONSTRAINT id FOR (o:Object) REQUIRE o.id IS UNIQUE").consume()
+          driver.session().run("CREATE (o:Object {id: 42, description: 'ball'})").consume()
+
+          Seq((42, "cube")).toDF("id", "description").write.format("neo4j")
+            .mode(SaveMode.Append)
+            .option("labels", "Object")
+            .save()
+        }
+      ),
+      ExceptionTestCase(
+        "must have valid native schema in native mode",
+        classOf[SparkException],
+        "NATIVE write strategy requires a schema like: rel.[props], source.[props], target.[props]. " +
+          "All of these columns are empty in the current schema.",
+        () => {
+          exampleDf.write.format("neo4j")
+            .mode(SaveMode.Append)
+            .option("relationship", "PLAYS")
+            .option("relationship.save.strategy", "native")
+            .option("relationship.source.labels", ":Person")
+            .option("relationship.source.save.mode", "Overwrite")
+            .option("relationship.target.labels", ":Instrument")
+            .option("relationship.target.save.mode", "Overwrite")
+            .save()
+        }
+      )
+    )
+
+    cases.map { testCase =>
+      dynamicTest(
+        testCase.name,
+        () => {
+          SparkSession.setActiveSession(spark)
+          val exceptionAssertion = assertThatThrownBy(testCase.block)
+          exceptionAssertion.isInstanceOf(testCase.expectedException)
+          exceptionAssertion.hasMessageContaining(testCase.expectedMessage)
+        }
+      )
+    }
+      .asJava.stream()
+  }
+
   @Nested
-  @DisplayName("error states")
+  @DisplayName("happy path tests")
   @Execution(ExecutionMode.CONCURRENT)
-  class WriteErrorIT {
-    // refactor throw assertions here
+  class WriteHappyPathIT {
+
+    @Test
+    def should_handle_write_with_partitions(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      SparkSession.setActiveSession(spark)
+      val df = spark.createDataFrame(
+        (0 to 99).map(i => (i, 99 - i))
+      ).toDF("a", "b").repartition(10)
+
+      df.write.format("neo4j")
+        .mode(SaveMode.Append)
+        .option("labels", "Node")
+        .option("batch.size", "11")
+        .save()
+
+      val record = driver.session().run("MATCH (n:Node) RETURN count(n) AS count, keys(n) AS keys").single()
+      val count = record.get("count").asInt()
+      val keys = record.get("keys").asList[String](_.asString()).asScala.toList
+
+      assertThat(count).isEqualTo(df.count())
+      assertThat(keys).isEqualTo(List("a", "b"))
+    }
+
+    @Test
+    def should_properly_overwrite_when_already_existing(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      import spark.implicits._
+
+      driver.session().run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE").consume()
+      driver.session().run("CREATE (p:Person {name: 'Alice', surname: 'Doe'})").consume()
+
+      Seq(("John", "Doe")).toDF("name", "surname").write.format("neo4j")
+        .mode(SaveMode.Overwrite)
+        .option("labels", "Person")
+        .option("node.keys", "surname")
+        .save()
+
+      val got = driver.session().run("MATCH (p:Person) RETURN p.name").list().asScala.map(_.get(0).asString()).toList
+
+      assertThat(got.size).isEqualTo(1)
+      assertThat(got).isEqualTo(List("John"))
+    }
   }
 
   @Nested

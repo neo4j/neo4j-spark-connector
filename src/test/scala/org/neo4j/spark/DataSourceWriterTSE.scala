@@ -16,8 +16,6 @@
  */
 package org.neo4j.spark
 
-import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.spark.SparkException
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
@@ -28,22 +26,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.function.Executable
 import org.neo4j.driver.TransactionContext
 import org.neo4j.driver.Value
-import org.neo4j.driver.exceptions.ClientException
-import org.neo4j.driver.internal.InternalPoint2D
-import org.neo4j.driver.internal.InternalPoint3D
-import org.neo4j.driver.internal.types.InternalTypeSystem
-import org.neo4j.driver.types.IsoDuration
-import org.neo4j.driver.types.Type
 import org.neo4j.spark.testsupport.RowUtil.getByName
 import org.neo4j.spark.testsupport.SparkConnectorScalaBaseTSE
 import org.neo4j.spark.testsupport.SparkConnectorScalaSuiteIT
 import org.neo4j.spark.testsupport.TestUtil
 import org.neo4j.spark.testsupport.Versions
-import org.neo4j.spark.util.Neo4jOptions
-
-import java.time.LocalTime
-import java.time.OffsetTime
-import java.time.ZoneOffset
 
 import scala.collection.immutable.ListMap
 import scala.jdk.CollectionConverters.ListHasAsScala
@@ -53,14 +40,8 @@ import scala.jdk.CollectionConverters.SeqHasAsJava
 import scala.jdk.CollectionConverters.SetHasAsJava
 import scala.language.postfixOps
 import scala.math.Ordering.Implicits.infixOrderingOps
-import scala.util.Random
 
 abstract class Neo4jType(`type`: String)
-
-case class Duration(months: Long, days: Long, seconds: Long, nanoseconds: Long, `type`: String = "duration")
-    extends Neo4jType(`type`)
-
-case class Point2d(`type`: String = "point-2d", srid: Int, x: Double, y: Double) extends Neo4jType(`type`)
 
 case class Point3d(`type`: String = "point-3d", srid: Int, x: Double, y: Double, z: Double) extends Neo4jType(`type`)
 
@@ -74,22 +55,6 @@ case class Person_TimeAndLocalTime(name: String, time: Time, localTime: LocalTim
 
 case class SimplePerson(name: String, surname: String)
 
-case class EmptyRow[T](data: T)
-
-case class DurationCase(
-  intervalExpression: String,
-  duration: Duration,
-  expectedDt: Class[_ <: DataType] = classOf[DayTimeIntervalType]
-) {
-  private val isArithmetic = intervalExpression.startsWith("timestamp")
-
-  val sql: String = if (isArithmetic) {
-    intervalExpression
-  } else {
-    s"INTERVAL $intervalExpression"
-  }
-}
-
 class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   val sparkSession = SparkSession.builder()
@@ -98,78 +63,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     .getOrCreate()
 
   import sparkSession.implicits._
-
-  @Test
-  def `should throw an error because the node already exists`(): Unit = {
-    SparkConnectorScalaSuiteIT.session()
-      .executeWrite(tx =>
-        tx.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE").consume()
-      )
-    SparkConnectorScalaSuiteIT.session()
-      .executeWrite(tx => tx.run("CREATE (p:Person{name: 'Andrea', surname: 'Santurbano'})").consume())
-
-    val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
-
-    try {
-      val thrown = assertThrows(
-        classOf[SparkException],
-        () => {
-          ds.write
-            .format(classOf[DataSource].getName)
-            .mode(SaveMode.Append)
-            .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-            .option("labels", "Person")
-            .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
-        }
-      )
-
-      assertTrue(thrown.getMessage.contains("org.neo4j.driver.exceptions.ClientException"))
-      val rootCause = ExceptionUtils.getRootCause(thrown)
-      // root cause is not always returned as a ClientException so we pass it through pattern matching to remove flakiness
-      rootCause match {
-        case c: ClientException =>
-          assertEquals("Neo.ClientError.Schema.ConstraintValidationFailed", c.code())
-        case _ =>
-      }
-    } finally {
-      SparkConnectorScalaSuiteIT.session()
-        .executeWrite(tx => tx.run("DROP CONSTRAINT person_surname").consume())
-    }
-  }
-
-  @Test
-  def `should update the node that already exists`(): Unit = {
-    SparkConnectorScalaSuiteIT.session()
-      .executeWrite(tx =>
-        tx.run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE").consume()
-      )
-    SparkConnectorScalaSuiteIT.session()
-      .executeWrite(tx => tx.run("CREATE (p:Person{name: 'Federico', surname: 'Santurbano'})").consume())
-
-    val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
-
-    ds.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Overwrite)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", "Person")
-      .option("node.keys", "surname")
-      .save()
-
-    val nodeList = SparkConnectorScalaSuiteIT.session()
-      .run(
-        """MATCH (n:Person{surname: 'Santurbano'})
-          |RETURN n
-          |""".stripMargin
-      )
-      .list()
-      .asScala
-    assertEquals(1, nodeList.size)
-    assertEquals("Andrea", nodeList.head.get("n").asNode().get("name").asString())
-
-    SparkConnectorScalaSuiteIT.session()
-      .executeWrite(tx => tx.run("DROP CONSTRAINT person_surname").consume())
-  }
 
   @Test
   def `should skip null properties`(): Unit = {
@@ -196,84 +89,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       node.asMap().containsKey("surname"),
       "surname should not exist"
     )
-  }
-
-  @Test
-  def `should throw an error because SaveMode.Overwrite need node.keys`(): Unit = {
-    val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
-    try {
-      ds.write
-        .format(classOf[DataSource].getName)
-        .mode(SaveMode.Overwrite)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("labels", "Person")
-        .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
-    } catch {
-      case illegalArgumentException: IllegalArgumentException => {
-        assertTrue(illegalArgumentException.getMessage.equals(
-          s"${Neo4jOptions.NODE_KEYS} is required when Save Mode is Overwrite"
-        ))
-      }
-      case e: Throwable =>
-        fail(s"should be thrown a ${classOf[IllegalArgumentException].getName} but is ${e.getClass.getSimpleName}")
-    }
-  }
-
-  @Test
-  def `should write within partitions`(): Unit = {
-    val ds = (1 to 100).map(i => Person("Andrea " + i, "Santurbano " + i, 36, null)).toDS()
-      .repartition(10)
-
-    ds.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Append)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", ":Person:Customer")
-      .option("batch.size", "11")
-      .save()
-
-    val count = SparkConnectorScalaSuiteIT.session().run(
-      """
-        |MATCH (p:Person:Customer)
-        |WHERE p.name STARTS WITH 'Andrea'
-        |AND p.surname STARTS WITH 'Santurbano'
-        |RETURN count(p) AS count
-        |""".stripMargin
-    ).single().get("count").asInt()
-    assertEquals(100, count)
-
-    val keys = SparkConnectorScalaSuiteIT.session().run(
-      """
-        |MATCH (p:Person:Customer)
-        |WHERE p.name STARTS WITH 'Andrea'
-        |AND p.surname STARTS WITH 'Santurbano'
-        |RETURN DISTINCT keys(p) AS keys
-        |""".stripMargin
-    ).single().get("keys").asList()
-    assertEquals(Set("name", "surname", "age"), keys.asScala.toSet)
-  }
-
-  @Test
-  def `should throw an exception for a read only query`(): Unit = {
-    val ds = (1 to 100).map(i => Person("Andrea " + i, "Santurbano " + i, 36, null)).toDS()
-
-    try {
-      ds.write
-        .mode(SaveMode.Overwrite)
-        .format(classOf[DataSource].getName)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("query", "MATCH (r:Read) RETURN r")
-        .option("batch.size", "11")
-        .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
-    } catch {
-      case illegalArgumentException: IllegalArgumentException =>
-        assertTrue(illegalArgumentException.getMessage.equals(
-          "Invalid query `MATCH (r:Read) RETURN r` because the accepted types are [WRITE_ONLY, READ_WRITE], but the actual type is READ_ONLY"
-        ))
-      case t: Throwable => fail(
-          s"should be thrown a ${classOf[IllegalArgumentException].getName}, but it's ${t.getClass.getSimpleName}: ${t.getMessage}"
-        )
-    }
   }
 
   @Test
@@ -362,45 +177,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should give error if native mode doesn't find a valid schema`(): Unit = {
-    assertThrows(
-      classOf[SparkException],
-      () => {
-        val musicDf = Seq(
-          (12, "John Bonham", "Drums"),
-          (19, "John Mayer", "Guitar"),
-          (32, "John Scofield", "Guitar"),
-          (15, "John Butler", "Guitar")
-        ).toDF("experience", "name", "instrument")
-
-        try {
-          musicDf.write
-            .format(classOf[DataSource].getName)
-            .mode(SaveMode.Append)
-            .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-            .option("relationship", "PLAYS")
-            .option("relationship.save.strategy", "native")
-            .option("relationship.source.labels", ":Person")
-            .option("relationship.source.save.mode", "Overwrite")
-            .option("relationship.target.labels", ":Instrument")
-            .option("relationship.target.save.mode", "Overwrite")
-            .save() // we need the action to be able to trigger the exception because of the changes in Spark 3
-        } catch {
-          case sparkException: SparkException => {
-            val clientException = ExceptionUtils.getRootCause(sparkException)
-            assertTrue(clientException.getMessage.equals(
-              "NATIVE write strategy requires a schema like: rel.[props], source.[props], target.[props]. " +
-                "All of these columns are empty in the current schema."
-            ))
-            throw sparkException
-          }
-          case _: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}")
-        }
-      }
-    )
-  }
-
-  @Test
   def `should write relations with KEYS mode`(): Unit = {
     val musicDf = Seq(
       (12, "John Bonham", "Drums"),
@@ -446,45 +222,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals("John Scofield", res.get(3).getString(4))
     assertEquals("Guitar", res.get(3).getString(7))
-  }
-
-  @Test
-  def `should fail validating options if ErrorIfExists is used`(): Unit = {
-    var didThrow = false
-
-    val musicDf = Seq(
-      (12, "John Bonham", "Drums"),
-      (19, "John Mayer", "Guitar"),
-      (32, "John Scofield", "Guitar"),
-      (15, "John Butler", "Guitar")
-    ).toDF("experience", "name", "instrument")
-
-    try {
-      musicDf.repartition(1).write
-        .format(classOf[DataSource].getName)
-        .mode(SaveMode.Overwrite)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("relationship", "PLAYS")
-        .option("relationship.source.save.mode", "ErrorIfExists")
-        .option("relationship.target.save.mode", "Overwrite")
-        .option("relationship.source.labels", ":Musician")
-        .option("relationship.source.node.keys", "name:name")
-        .option("relationship.target.labels", ":Instrument")
-        .option("relationship.target.node.keys", "instrument:name")
-        .save()
-    } catch {
-      case e: IllegalArgumentException =>
-        assertEquals(
-          "This connector does not support save mode 'ErrorIfExists'. Use save mode 'Append' instead.",
-          e.getMessage
-        )
-        didThrow = true
-      case e: Throwable =>
-        fail(s"should throw ${classOf[IllegalArgumentException].getName}, but ${e.getClass.getName} was thrown")
-    }
-
-    // TODO: When re-writing in assertj just use a should throw assertable
-    assertTrue(didThrow, s"should throw ${classOf[IllegalArgumentException].getName}, but nothing was thrown")
   }
 
   def writeKeyModeRelationshipWriteDataSet(
