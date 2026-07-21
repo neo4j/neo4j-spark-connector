@@ -100,7 +100,7 @@ class WriteIT {
   var neo4jContainer: Neo4jContainer = _
 
   @TestFactory
-  def should_handle_write_error_states(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
+  def should_handle_error_states(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
     import spark.implicits._
 
     val exampleDf = Seq(
@@ -200,8 +200,26 @@ class WriteIT {
 
   @Nested
   @DisplayName("happy path tests")
-  @Execution(ExecutionMode.CONCURRENT)
+  @Execution(ExecutionMode.SAME_THREAD)
   class WriteHappyPathIT {
+
+    @Test
+    def should_skip_null_properties(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+
+      import spark.implicits._
+
+      SparkSession.setActiveSession(spark)
+      val df = Seq(("Banana", null)).toDF("fruit", "color")
+      df.write.format("neo4j")
+        .mode(SaveMode.Append)
+        .option("labels", "Fruit")
+        .save()
+
+      val fetchQuery = "MATCH (n:Fruit) RETURN n"
+      val got = driver.session().run(fetchQuery).single().asMap()
+
+      assertThat(got).doesNotContainKey("color")
+    }
 
     @Test
     def should_handle_write_with_partitions(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
@@ -225,9 +243,28 @@ class WriteIT {
     }
 
     @Test
+    def should_insert_data_with_custom_query(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      SparkSession.setActiveSession(spark)
+      val df = spark.createDataFrame(
+        (0 to 99).map(i => (i, 99 - i))
+      ).toDF("a", "b")
+
+      df.write
+        .format(classOf[DataSource].getName)
+        .mode(SaveMode.Append)
+        .option("query", "CREATE (q:Query {first: event.a, second: event.b})")
+        .option("batch.size", "11")
+        .save()
+
+      val got = driver.session().run("MATCH (q:Query) RETURN count(q) AS count").single().get("count").asLong()
+      assertThat(got).isEqualTo(df.count())
+    }
+
+    @Test
     def should_properly_overwrite_when_already_existing(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       import spark.implicits._
 
+      SparkSession.setActiveSession(spark)
       driver.session().run("CREATE CONSTRAINT person_surname FOR (p:Person) REQUIRE p.surname IS UNIQUE").consume()
       driver.session().run("CREATE (p:Person {name: 'Alice', surname: 'Doe'})").consume()
 
@@ -242,6 +279,112 @@ class WriteIT {
       assertThat(got.size).isEqualTo(1)
       assertThat(got).isEqualTo(List("John"))
     }
+
+    @Test
+    def should_handle_unusual_column_names(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      val nameColumn = 4
+      val specialColumn = 5
+      val instrumentColumn = 8
+
+      import spark.implicits._
+
+      SparkSession.setActiveSession(spark)
+      val df = Seq(
+        (12, "John Bonham", "Drums", "f``````oo"),
+        (19, "John Mayer", "Guitar", "bar"),
+        (32, "John Scofield", "Guitar", "ba` z"),
+        (15, "John Butler", "Guitar", "qu   ux")
+      ).toDF("experience", "name", "instrument", "fi``(╯°□°)╯︵ ┻━┻eld")
+
+      df.write.format("neo4j")
+        .mode(SaveMode.Overwrite)
+        .option("relationship", "PLAYS")
+        .option("relationship.source.labels", ":Musician")
+        .option("relationship.source.save.mode", "Overwrite")
+        .option("relationship.source.node.keys", "name")
+        .option("relationship.source.node.properties", "fi``(╯°□°)╯︵ ┻━┻eld:field")
+        .option("relationship.target.labels", ":Instrument")
+        .option("relationship.target.node.keys", "instrument:name")
+        .option("relationship.target.save.mode", "Overwrite")
+        .save()
+
+      val got = spark.read.format("neo4j")
+        .option("relationship", "PLAYS")
+        .option("relationship.nodes.map", "false")
+        .option("relationship.source.labels", ":Musician")
+        .option("relationship.target.labels", ":Instrument")
+        .load()
+        .orderBy("`source.name`")
+        .collectAsList()
+
+      assertThat(got).hasSize(4)
+      assertThat(got.get(0).getString(nameColumn)).isEqualTo("John Bonham")
+      assertThat(got.get(0).getString(specialColumn)).isEqualTo("f``````oo")
+      assertThat(got.get(0).getString(instrumentColumn)).isEqualTo("Drums")
+
+      assertThat(got.get(1).getString(nameColumn)).isEqualTo("John Butler")
+      assertThat(got.get(1).getString(specialColumn)).isEqualTo("qu   ux")
+      assertThat(got.get(1).getString(instrumentColumn)).isEqualTo("Guitar")
+
+      assertThat(got.get(2).getString(nameColumn)).isEqualTo("John Mayer")
+      assertThat(got.get(2).getString(specialColumn)).isEqualTo("bar")
+      assertThat(got.get(2).getString(instrumentColumn)).isEqualTo("Guitar")
+
+      assertThat(got.get(3).getString(nameColumn)).isEqualTo("John Scofield")
+      assertThat(got.get(3).getString(specialColumn)).isEqualTo("ba` z")
+      assertThat(got.get(3).getString(instrumentColumn)).isEqualTo("Guitar")
+    }
+
+    @Test
+    def should_write_relationship_when_keys_mode(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      val nameColumn = 4
+      val instrumentColumn = 7
+
+      import spark.implicits._
+
+      SparkSession.setActiveSession(spark)
+      val df = Seq(
+        (12, "John Bonham", "Drums"),
+        (19, "John Mayer", "Guitar"),
+        (32, "John Scofield", "Guitar"),
+        (15, "John Butler", "Guitar")
+      ).toDF("experience", "name", "instrument")
+
+      df.repartition(1).write.format("neo4j")
+        .mode(SaveMode.Overwrite)
+        .option("relationship", "PLAYS")
+        .option("relationship.source.save.mode", "Overwrite")
+        .option("relationship.target.save.mode", "Overwrite")
+        .option("relationship.source.labels", ":Musician")
+        .option("relationship.source.node.keys", "name:name")
+        .option("relationship.target.labels", ":Instrument")
+        .option("relationship.target.node.keys", "instrument:name")
+        .save()
+
+      val got = spark.read.format("neo4j")
+        .option("relationship", "PLAYS")
+        .option("relationship.nodes.map", "false")
+        .option("relationship.source.labels", ":Musician")
+        .option("relationship.target.labels", ":Instrument")
+        .load()
+        .orderBy("`source.name`")
+        .collectAsList()
+
+      assertThat(got).hasSize(4)
+      assertThat(got.get(0).getString(nameColumn)).isEqualTo("John Bonham")
+      assertThat(got.get(0).getString(instrumentColumn)).isEqualTo("Drums")
+
+      assertThat(got.get(1).getString(nameColumn)).isEqualTo("John Butler")
+      assertThat(got.get(1).getString(instrumentColumn)).isEqualTo("Guitar")
+
+      assertThat(got.get(2).getString(nameColumn)).isEqualTo("John Mayer")
+      assertThat(got.get(2).getString(instrumentColumn)).isEqualTo("Guitar")
+
+      assertThat(got.get(3).getString(nameColumn)).isEqualTo("John Scofield")
+      assertThat(got.get(3).getString(instrumentColumn)).isEqualTo("Guitar")
+    }
+
+    // TODO: insert the relationship tests here
   }
 
   @Nested
