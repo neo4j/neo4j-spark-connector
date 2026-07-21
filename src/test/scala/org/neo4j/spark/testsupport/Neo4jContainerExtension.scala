@@ -22,6 +22,7 @@ import org.neo4j.driver.Config
 import org.neo4j.driver.Driver
 import org.neo4j.driver.GraphDatabase
 import org.neo4j.driver.SessionConfig
+import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.spark.testsupport.Neo4jContainerExtension.log
 import org.rnorth.ducttape.unreliables.Unreliables
 import org.slf4j.Logger
@@ -48,16 +49,24 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
 
   override def waitUntilReady(): Unit = {
     val boltUrl = s"bolt://${waitStrategyTarget.getHost}:${waitStrategyTarget.getMappedPort(7687)}"
+    log.info("Bolt url: {}", boltUrl)
     val driver: Driver = Unreliables.retryUntilSuccess(
       startupTimeout.getSeconds.toInt,
       TimeUnit.SECONDS,
       () => {
-        val config = Config.builder()
-          .withMaxTransactionRetryTime(startupTimeout.getSeconds.toInt, TimeUnit.SECONDS)
-          .build()
-        val driver = GraphDatabase.driver(boltUrl, auth, config)
-        driver.verifyConnectivity()
-        driver
+        try {
+          val config = Config.builder()
+            .withMaxTransactionRetryTime(startupTimeout.getSeconds.toInt, TimeUnit.SECONDS)
+            .build()
+          val driver = GraphDatabase.driver(boltUrl, auth, config)
+          driver.verifyConnectivity()
+          driver
+        } catch {
+          case e: Exception => {
+            log.info("fail to create a driver")
+            throw e
+          }
+        }
       }
     )
     val systemSession = driver.session(SessionConfig.forDatabase("system"))
@@ -65,6 +74,11 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
     try {
       databases.foreach { db => tx.run(s"CREATE DATABASE $db IF NOT EXISTS") }
       tx.commit()
+    } catch {
+      case e: Exception => {
+        log.info("fail to create a databases")
+        throw e
+      }
     } finally {
       tx.close()
     }
@@ -83,6 +97,11 @@ class DatabasesWaitStrategy(private val auth: AuthToken) extends AbstractWaitStr
                   tx.run("SHOW DATABASES").list().asScala.map(db => {
                     (db.get("name").asString(), db.get("currentStatus").asString())
                   }).toMap
+                } catch {
+                  case e: Exception => {
+                    log.info("fail to see the database")
+                    throw e
+                  }
                 } finally {
                   tx.close()
                 }
@@ -172,5 +191,5 @@ class Neo4jContainerExtension
 }
 
 object Neo4jContainerExtension {
-  private val log: Logger = LoggerFactory.getLogger(Neo4jContainerExtension.getClass)
+  val log: Logger = LoggerFactory.getLogger(Neo4jContainerExtension.getClass)
 }
