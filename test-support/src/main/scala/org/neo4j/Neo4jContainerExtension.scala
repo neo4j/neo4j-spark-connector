@@ -16,6 +16,7 @@
  */
 package org.neo4j
 
+import org.neo4j.Neo4jContainerExtension.log
 import org.neo4j.driver.AuthToken
 import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.GraphDatabase
