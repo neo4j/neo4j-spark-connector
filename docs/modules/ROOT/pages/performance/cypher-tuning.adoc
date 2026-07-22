@@ -1,0 +1,141 @@
+= Cypher query tuning
+label:new[New in 6.0]
+[role=label--new-6.0]
+= Cypher query tuning
+:description: This chapter covers how users can pass Cypher preambles to fine-tune performance in niche scenarios.
+
+Default Cypher parameters are optimized for the general use case.
+However, the Spark connector supports all the query tuning options described in the link:https://neo4j.com/docs/cypher-manual/current/planning-and-tuning/query-tuning[Cypher manual].
+
+include::partial$sparksession.adoc[]
+
+[role=label--new-6.0]
+== Specify the Cypher version
+
+You can change the Cypher version using the `cypher.version` option.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+include::example$scala/BasicCypherPreambles.scala[tags=code-cypher-version]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+include::example$python/basic_cypher_preambles.py[tags=code-cypher-version]
+----
+=====
+====
+
+.Equivalent Cypher query
+[%collapsible%]
+====
+[source, cypher]
+----
+CYPHER 25
+MATCH (o: Object) RETURN o
+----
+====
+
+[role=label--new-6.0]
+== Add query tuning parameters
+
+You can add any tuning option described in the Cypher manual using the `cypher.tuning` prefix in a Spark option.
+All the tuning options are added to the Cypher query as `CYPHER` preambles.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+include::example$scala/BasicCypherPreambles.scala[tags=code-runtime-parallel]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+include::example$python/basic_cypher_preambles.py[tags=code-runtime-parallel]
+----
+=====
+====
+
+.Equivalent Cypher query
+[%collapsible%]
+====
+[source, cypher]
+----
+CYPHER runtime=parallel
+MATCH (o: Object) RETURN o
+----
+====
+
+You are also free to add multiple parameters this way, simply add them separately like so.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+include::example$scala/BasicCypherPreambles.scala[tags=code-multiple-tuning]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+include::example$python/basic_cypher_preambles.py[tags=code-multiple-tuning]
+----
+=====
+====
+
+.Equivalent Cypher query
+[%collapsible%]
+====
+[source, cypher]
+----
+CYPHER runtime=parallel operatorEngine=interpreted
+MATCH (o: Object) RETURN o
+----
+====
+
+== Tuning feature compatibility
+
+In the above examples we illustrated using custom read query for the sake of simplicity.
+While the examples above show how to tune preambles and change the Cypher version for read queries, the same features can be used for writing as well as other operations.
+
+.Supported States
+|===
+| When using | `cypher.version` | `cypher.tuning`
+
+| `.option("labels")`
+| Reads & writes
+| Reads & writes
+
+| `.option("relationship")`
+| Reads & writes
+| Reads & writes
+
+| `.option("query")`
+| Reads & writes
+| Reads & writes
+
+| `.option("gds")`
+| Only for reads
+| No tuning allowed

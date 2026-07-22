@@ -9,6 +9,10 @@
 * Tune xref:performance/tuning.adoc[Spark and Neo4j] parameters according to your application.
 ** Size your Neo4j instance appropriately before using aggressive parallelism or large batch sizes.
 ** Experiment with larger batch sizes (ensuring that batches stay within Neo4j configured heap memory). In general, the larger the batches, the faster the overall throughput to Neo4j.
+* label:new[New in 6.0] Advanced use cases might need advanced xref:performance/cypher-tuning.adoc[query tuning], including:
+** Specifying the Cypher version as `CYPHER 25` or `CYPHER 5`.
+** Enabling parallel runtimes for reads.
+** Tuning any existing Cypher preamble parameters.
 
 [#indexes]
 == Use the correct indexes and constraints
