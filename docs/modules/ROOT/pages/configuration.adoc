@@ -1,11 +1,15 @@
 [#options]
 = Options and configuration
-
 :description: The chapter describes configuration options of Neo4j Connector for Apache Spark.
 
-When using the connector, any valid Neo4j driver option can be set using the `option` method in
-Spark, like so:
+Spark options are useful not only to control how the connector reads to and writes from a Neo4j database, but also to manage multiple connections and manage Neo4j driver options.
 
+== Multiple connections
+
+The connector allows you to use more than one connection within a single Spark Session.
+For example, you can read data from a database and write it to another database in the same session.
+
+.Reading from a database and writing to a different one
 [source,scala]
 ----
 import org.apache.spark.sql.{SaveMode, SparkSession}
@@ -13,38 +17,37 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 val spark = SparkSession.builder().getOrCreate()
 
 val df = spark.read.format("org.neo4j.spark.DataSource")
-        .option("url", "neo4j://localhost:7687")
-        .option("authentication.type", "basic")
-        .option("authentication.basic.username", "myuser")
-        .option("authentication.basic.password", "neo4jpassword")
-        .option("labels", "Person")
-        .load()
+  .option("url", "neo4j://first.host.com:7687")
+  .option("labels", "Person")
+  .load()
+
+df.write.format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.ErrorIfExists)
+  .option("url", "neo4j://second.host.com:7687")
+  .option("labels", "Person")
+  .save()
 ----
 
-Alternatively, you can specify a global configuration in the Spark Session to avoid retyping connection options every time.
-You can set any Neo4j Connector option, just prepend it with `neo4j.`.
+Another case to use multiple connections is when you want to merge two data sources.
 
-For example, if you want to set the option `authentication.type` in the session, you have to type `neo4j.authentication.type`.
-Here is a full example:
-
+.Merge data from two databases
 [source,scala]
 ----
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-val spark = SparkSession.builder()
-    .config("neo4j.url", "neo4j://localhost:7687")
-    .config("neo4j.authentication.type", "basic")
-    .config("neo4j.authentication.basic.username", "myuser")
-    .config("neo4j.authentication.basic.password", "neo4jpassword")
-    .getOrCreate()
+val spark = SparkSession.builder().getOrCreate()
 
-val dfPerson = spark.read.format("org.neo4j.spark.DataSource")
-        .option("labels", "Person")
-        .load()
+val dfOne = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://first.host.com:7687")
+  .option("labels", "Person")
+  .load()
 
-val dfProduct = spark.read.format("org.neo4j.spark.DataSource")
-        .option("labels", "Product")
-        .load()
+val dfTwo = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://second.host.com:7687")
+  .option("labels", "Person")
+  .load()
+
+val dfJoin = dfOne.join(dfTwo, dfOne("name") === dfTwo("name"))
 ----
 
 == Custom authentication supplier
@@ -119,9 +122,52 @@ val df = spark.read
   .load()
 ----
 
+
 == Neo4j driver options
 
-Under the covers, the Spark connector uses the link:https://neo4j.com/docs/java-manual/current/get-started/#java-driver-get-started-about[official Neo4j Java Driver].  In many situations, you want the control to set driver options to account for your production deployment of Neo4j and how to communicate with it. You can do this using the `options` example above.
+Under the covers, the Spark connector uses the link:https://neo4j.com/docs/java-manual/current/get-started/#java-driver-get-started-about[official Neo4j Java Driver].
+When using the connector, you can set any valid Neo4j driver option using the `option` method:
+
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+val df = spark.read.format("org.neo4j.spark.DataSource")
+        .option("url", "neo4j://localhost:7687")
+        .option("authentication.type", "basic")
+        .option("authentication.basic.username", "myuser")
+        .option("authentication.basic.password", "neo4jpassword")
+        .option("labels", "Person")
+        .load()
+----
+
+Alternatively, you can specify a global configuration in the Spark Session to avoid retyping connection options every time.
+You can set any Neo4j Connector option adding the `neo4j.` prefix.
+
+For example, if you want to set the `authentication.type` option for the session, you have to add `neo4j.authentication.type`.
+Here is a full example:
+
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder()
+    .config("neo4j.url", "neo4j://localhost:7687")
+    .config("neo4j.authentication.type", "basic")
+    .config("neo4j.authentication.basic.username", "myuser")
+    .config("neo4j.authentication.basic.password", "neo4jpassword")
+    .getOrCreate()
+
+val dfPerson = spark.read.format("org.neo4j.spark.DataSource")
+        .option("labels", "Person")
+        .load()
+
+val dfProduct = spark.read.format("org.neo4j.spark.DataSource")
+        .option("labels", "Product")
+        .load()
+----
 
 The following table captures the most common configuration settings to use with the Neo4j driver.  For full
 documentation on all possible configuration options for Neo4j Drivers, see the link:https://neo4j.com/docs/java-manual/current[Neo4j Java Driver manual].
@@ -258,48 +304,65 @@ routes the requests to the followers, otherwise to the leader.
 |No
 |===
 
-== Multiple connections
+[role=label--new-6.0]
+== Driver transaction metadata
 
-Neo4j Connector for Apache Spark allows you to use more than one connection in a single Spark Session.
-For example, you can read data from a database and write them in another database in the same session.
+You can use transaction metadata to label your transactions in the target Neo4j database query log, to help identifying them as Cypher queries generated by the Spark connector.
 
-.Reading from a database and writing to a different one
-[source,scala]
+Metadata is sent as a object/map in the driver, and you populate it using options prefix `db.transaction.metadata`.
+Keys are dot-separated and interpreted right after the prefix:
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse]
 ----
-import org.apache.spark.sql.{SaveMode, SparkSession}
-
-val spark = SparkSession.builder().getOrCreate()
-
-val df = spark.read.format("org.neo4j.spark.DataSource")
-  .option("url", "neo4j://first.host.com:7687")
-  .option("labels", "Person")
-  .load()
-
-df.write.format("org.neo4j.spark.DataSource")
-  .mode(SaveMode.ErrorIfExists)
-  .option("url", "neo4j://second.host.com:7687")
-  .option("labels", "Person")
-  .save()
+include::example$scala/TransactionMetadata.scala[tags=code-single-metadata]
 ----
+=====
 
-Another case to use multiple connections is when you want to merge two datasources.
-
-.Merge data from two databases
-[source,scala]
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
 ----
-import org.apache.spark.sql.{SaveMode, SparkSession}
-
-val spark = SparkSession.builder().getOrCreate()
-
-val dfOne = spark.read.format("org.neo4j.spark.DataSource")
-  .option("url", "neo4j://first.host.com:7687")
-  .option("labels", "Person")
-  .load()
-
-val dfTwo = spark.read.format("org.neo4j.spark.DataSource")
-  .option("url", "neo4j://second.host.com:7687")
-  .option("labels", "Person")
-  .load()
-
-val dfJoin = dfOne.join(dfTwo, dfOne("name") === dfTwo("name"))
+include::example$python/transaction_metadata.py[tags=code-single-metadata]
 ----
+=====
+====
+
+.Send the object to the driver via transaction metadata.
+
+[source, json, role=nocollapse]
+include::example$transaction-metadata-single.json[]
+
+You can create nested structures by assigning more options.
+Each dot represents one step deeper into the nested map/object.
+
+[.tabbed-example]
+====
+[.include-with-Scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+include::example$scala/TransactionMetadata.scala[tags=code-nested-metadata]
+----
+=====
+
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+include::example$python/transaction_metadata.py[tags=code-nested-metadata]
+----
+=====
+====
+
+.Send the object to the driver via transaction metadata.
+
+[source, json, role=nocollapse]
+include::example$transaction-metadata-nested.json[]
