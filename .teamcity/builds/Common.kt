@@ -192,7 +192,7 @@ fun BuildFeatures.enablePullRequests() = pullRequests {
   }
 }
 
-fun BuildFeatures.requireDiskSpace(size: String) = freeDiskSpace {
+fun BuildFeatures.requireDiskSpace(size: String = "3gb") = freeDiskSpace {
   requiredSpace = size
   failBuild = true
 }
