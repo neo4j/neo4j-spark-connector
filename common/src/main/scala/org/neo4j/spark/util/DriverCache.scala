@@ -17,32 +17,47 @@
 package org.neo4j.spark.util
 
 import org.neo4j.driver.Driver
-import org.neo4j.spark.util.DriverCache.cache
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 object DriverCache {
+  private case class DriverWithCounter(driver: Driver, atomicCounter: AtomicInteger)
 
-  private val cache: ConcurrentHashMap[Neo4jDriverOptions, (Driver, AtomicInteger)] =
-    new ConcurrentHashMap[Neo4jDriverOptions, (Driver, AtomicInteger)]
+  private val cache: ConcurrentHashMap[Neo4jDriverOptions, DriverWithCounter] =
+    new ConcurrentHashMap[Neo4jDriverOptions, DriverWithCounter]
 }
 
-class DriverCache(private val options: Neo4jDriverOptions) extends Serializable
-    with AutoCloseable {
+class DriverCache(private val options: Neo4jDriverOptions) extends Serializable with AutoCloseable {
+
+  import DriverCache._
 
   def getOrCreate(): Driver = {
-    val (driver, counter) =
-      cache.computeIfAbsent(options, (t: Neo4jDriverOptions) => (t.createDriver(), new AtomicInteger(0)))
-    counter.incrementAndGet()
-    driver
+    val driverWithCounter = cache.compute(
+      options,
+      (_, current) => {
+        if (current == null) {
+          DriverWithCounter(options.createDriver(), new AtomicInteger(1))
+        } else {
+          current.atomicCounter.incrementAndGet()
+          current
+        }
+      }
+    )
+    driverWithCounter.driver
   }
 
   def close(): Unit = {
-    val (driver, counter) = cache.get(options)
-    if (counter.decrementAndGet() == 0) {
-      cache.remove(options)
-      Neo4jUtil.closeSafely(driver)
-    }
+    cache.computeIfPresent(
+      options,
+      (_, current) => {
+        if (current.atomicCounter.decrementAndGet() == 0) {
+          Neo4jUtil.closeSafely(current.driver)
+          null // i.e. remove from cache
+        } else {
+          current // keep it in cache
+        }
+      }
+    )
   }
 }
