@@ -80,10 +80,11 @@ object ReauthenticationIT {
         )
     )
     .withStartupAttempts(3)
-    .withLogConsumer(new Slf4jLogConsumer(log))
+    .withLogConsumer(new Slf4jLogConsumer(log).withPrefix("ReauthenticationIT"))
     .withCommand("start-dev --import-realm")
 
   private val NEO4J = new Neo4jContainerExtension()
+    .withLogPrefix("ReauthenticationIT")
     .withNetwork(NETWORK)
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     .withCopyFileToContainer(MountableFile.forClasspathResource("/neo4j-keycloak.jks"), "/tmp/keycloak.jks")
