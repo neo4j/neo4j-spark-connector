@@ -118,7 +118,7 @@ MATCH (o: Object) RETURN o
 == Tuning feature compatibility
 
 In the above examples we illustrated using custom read query for the sake of simplicity.
-However, tuning preambles and cypher version can be used for writing as well as other operations.
+While the examples above show how to tune preambles and change the Cypher version for read queries, the same features can be used for writing as well as other operations.
 
 .Supported States
 |===
