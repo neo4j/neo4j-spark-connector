@@ -27,7 +27,7 @@ import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.Assertions.catchThrowable
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.DynamicTest
@@ -47,6 +47,7 @@ import org.neo4j.driver.internal.InternalPoint3D
 import org.neo4j.driver.types.IsoDuration
 import org.neo4j.driver.types.Point
 import org.neo4j.spark.testsupport.InjectNeo4jContainerParameter
+import org.neo4j.spark.testsupport.RowUtil.getByName
 import org.testcontainers.neo4j.Neo4jContainer
 
 import java.nio.charset.StandardCharsets
@@ -59,36 +60,11 @@ import java.time.OffsetTime
 import java.time.Period
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
+import java.util.UUID
 import java.util.stream.Stream
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.CollectionConverters.SeqHasAsJava
-
-case class ExceptionTestCase(
-  name: String,
-  expectedException: Class[_ <: Throwable] = classOf[Exception],
-  expectedMessage: String,
-  block: ThrowingCallable
-)
-
-case class DfTestCase[ToType](
-  name: String,
-  df: DataFrame,
-  expectedValue: ToType,
-  expectedType: ExpectedNeo4jType[ToType]
-)
-
-case class SqlTestCase[ToType](
-  name: String,
-  sql: String,
-  expectedValue: ToType,
-  expectedType: ExpectedNeo4jType[ToType]
-)
-
-case class ExpectedNeo4jType[T](
-  name: String,
-  accessor: Value => T
-)
 
 @InjectNeo4jContainerParameter
 @DisplayName("writing")
@@ -102,6 +78,13 @@ class WriteIT {
   @TestFactory
   def should_handle_error_states(driver: Driver, spark: SparkSession, neo4j: Neo4j): Stream[DynamicTest] = {
     import spark.implicits._
+
+    case class ExceptionTestCase(
+      name: String,
+      expectedException: Class[_ <: Throwable] = classOf[Exception],
+      expectedMessage: String,
+      block: ThrowingCallable
+    )
 
     val exampleDf = Seq(
       (12, "John Bonham", "Drums"),
@@ -189,9 +172,9 @@ class WriteIT {
         testCase.name,
         () => {
           SparkSession.setActiveSession(spark)
-          val exceptionAssertion = assertThatThrownBy(testCase.block)
-          exceptionAssertion.isInstanceOf(testCase.expectedException)
-          exceptionAssertion.hasMessageContaining(testCase.expectedMessage)
+          val thrown = catchThrowable(testCase.block)
+          assertThat(thrown).isInstanceOf(testCase.expectedException)
+          assertThat(thrown).hasMessageContaining(testCase.expectedMessage)
         }
       )
     }
@@ -199,7 +182,7 @@ class WriteIT {
   }
 
   @Nested
-  @DisplayName("happy path tests")
+  @DisplayName("node happy paths")
   @Execution(ExecutionMode.SAME_THREAD)
   class WriteHappyPathIT {
 
@@ -279,6 +262,13 @@ class WriteIT {
       assertThat(got.size).isEqualTo(1)
       assertThat(got).isEqualTo(List("John"))
     }
+
+  }
+
+  @Nested
+  @DisplayName("relationship happy paths")
+  @Execution(ExecutionMode.SAME_THREAD)
+  class RelationshipWriteIT {
 
     @Test
     def should_handle_unusual_column_names(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
@@ -384,7 +374,244 @@ class WriteIT {
       assertThat(got.get(3).getString(instrumentColumn)).isEqualTo("Guitar")
     }
 
-    // TODO: insert the relationship tests here
+    def relationshipPropertyTestDf(spark: SparkSession): DataFrame = {
+
+      import spark.implicits._
+
+      Seq(
+        (12L, "John Bonham", "Drums", 2L, true),
+        (19L, "John Mayer", "Guitar", 1L, false)
+      ).toDF("experience", "name", "instrument", "rating", "hasDiploma")
+    }
+
+    @TestFactory
+    def should_handle_relationship_options_properly(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Stream[DynamicTest] = {
+
+      import spark.implicits._
+
+      case class RelationshipPropertyTestCase(
+        name: String,
+        relationshipProperties: Option[String],
+        expectedInclusions: List[Map[String, Any]],
+        expectedExclusions: List[String]
+      ) {
+        val df: DataFrame = Seq(
+          (12L, "John Bonham", "Drums", 2L, true),
+          (19L, "John Mayer", "Guitar", 1L, false)
+        ).toDF("experience", "name", "instrument", "rating", "hasDiploma")
+
+        val relType: String = "PROPERTY_TEST_" + name.toUpperCase().replaceAll(" ", "_")
+
+        private val internalOptions = Map(
+          "relationship" -> relType,
+          "relationship.source.save.mode" -> "Overwrite",
+          "relationship.target.save.mode" -> "Overwrite",
+          "relationship.source.labels" -> ":Musician",
+          "relationship.source.node.keys" -> "name",
+          "relationship.target.labels" -> ":Instrument",
+          "relationship.target.node.keys" -> "instrument:name"
+        )
+
+        val options: Map[String, String] = if (relationshipProperties.isDefined) {
+          internalOptions ++ Map("relationship.properties" -> relationshipProperties.get)
+        } else {
+          internalOptions
+        }
+      }
+
+      val cases = Seq(
+        RelationshipPropertyTestCase(
+          "should read all properties when not passing any properties",
+          None,
+          List(
+            Map("experience" -> 12L, "rating" -> 2L, "hasDiploma" -> true),
+            Map("experience" -> 19L, "rating" -> 1L, "hasDiploma" -> false)
+          ),
+          List("name", "instrument")
+        ),
+        RelationshipPropertyTestCase(
+          "should do remapping of relationship properties",
+          Some("experience:exp, rating:skill, instrument:on"),
+          List(
+            Map("exp" -> 12L, "skill" -> 2L, "on" -> "Drums"),
+            Map("exp" -> 19L, "skill" -> 1L, "on" -> "Guitar")
+          ),
+          List("name", "instrument", "experience", "rating")
+        ),
+        RelationshipPropertyTestCase(
+          "should do remapping and selection of relationship properties",
+          Some("experience:exp, rating:skill, instrument"),
+          List(
+            Map("exp" -> 12L, "skill" -> 2L, "instrument" -> "Drums"),
+            Map("exp" -> 19L, "skill" -> 1L, "instrument" -> "Guitar")
+          ),
+          List("name", "experience", "rating", "hasDiploma")
+        ),
+        RelationshipPropertyTestCase(
+          "should pick nothing but source and target when passing empty options",
+          Some(""),
+          List(Map[String, AnyRef]()),
+          List("name", "experience", "instrument", "rating", "hasDiploma")
+        )
+      )
+
+      cases.map { testCase =>
+        dynamicTest(
+          testCase.name,
+          () => {
+            val session = testCase.df.sparkSession
+            SparkSession.setActiveSession(session)
+            testCase.df.repartition(1).write.format("neo4j")
+              .mode(SaveMode.Overwrite)
+              .options(testCase.options)
+              .save()
+
+            val res = session.read.format("neo4j")
+              .option("relationship", testCase.relType)
+              .option("relationship.nodes.map", "false")
+              .option("relationship.source.labels", ":Musician")
+              .option("relationship.target.labels", ":Instrument")
+              .load()
+              .orderBy("`source.name`")
+              .collectAsList()
+
+            assertThat(res.size).isEqualTo(2)
+
+            testCase.expectedInclusions.zipWithIndex.foreach {
+              case (expectedProperties, index) =>
+                expectedProperties.foreach {
+                  case (property, value) =>
+                    val relProp = "rel." + property
+                    assertThat(getByName[Any](res.get(index), relProp)).isEqualTo(value)
+                }
+            }
+
+            testCase.expectedExclusions.foreach { property =>
+              val expectMissingProp = "rel." + property
+              val assertion = assertThat(catchThrowable(() => res.get(0).fieldIndex(expectMissingProp)))
+              assertion.`as`(s"Expecting column $expectMissingProp to be excluded")
+              assertion.isInstanceOf(classOf[IllegalArgumentException])
+            }
+
+            // source.name and target.name always exist
+            assertThat(res.get(0).fieldIndex("source.name")).isNotNull
+            assertThat(res.get(0).fieldIndex("target.name")).isNotNull
+          }
+        )
+      }
+        .asJava.stream()
+    }
+
+    @Test
+    def should_overwrite_related_graph_entities_when_node_overwrite_mode(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
+      import spark.implicits._
+
+      SparkSession.setActiveSession(spark)
+      driver.session().run(
+        """CREATE (a:Person {id: 0, name:'Alice'})
+          |CREATE (b:Person {id: 1, name:'Bob'})
+          |CREATE (a)-[:KNOWS {nickname: "Bob"}]->(b)""".stripMargin
+      ).consume()
+
+      Seq((0, 1, "AliceNewName", "Bobby"))
+        .toDF("sourceId", "targetId", "name", "nickname")
+        .write.format("neo4j")
+        .mode(SaveMode.Overwrite)
+        .option("relationship.nodes.map", "false")
+        .option("relationship", "KNOWS")
+        .option("relationship.source.save.mode", "Overwrite")
+        .option("relationship.target.save.mode", "Overwrite")
+        .option("relationship.properties", "nickname")
+        .option("relationship.source.labels", ":Person")
+        .option("relationship.source.node.keys", "sourceId:id")
+        .option("relationship.source.node.properties", "name")
+        .option("relationship.target.labels", ":Person")
+        .option("relationship.target.node.keys", "targetId:id")
+        .save()
+
+      val fetchQuery = "MATCH (a)-[r:KNOWS]->(b) RETURN a.name AS source, r.nickname AS nick, b.name AS target"
+      val record = driver.session().run(fetchQuery).single()
+
+      assertThat(record.get("source").asString()).isEqualTo("AliceNewName")
+      assertThat(record.get("nick").asString()).isEqualTo("Bobby")
+      assertThat(record.get("target").asString()).isEqualTo("Bob")
+    }
+
+    @Test
+    def should_pass_script_data_to_the_executor(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      import spark.implicits._
+
+      Seq(("Andrea", "Santurbano"), ("Davide", "Fantuzzi")).toDF("name", "surname")
+        .write.format("neo4j")
+        .mode(SaveMode.Append)
+        .option(
+          "query",
+          "CREATE (n:Person {fullName: event.name + ' ' + event.surname, age: scriptResult[0].age[event.name]})"
+        )
+        .option("script.1", "CREATE INDEX person_surname FOR (p:Person) ON (p.surname);")
+        .option("script.2", "CREATE CONSTRAINT product_name_sku FOR (p:Product) REQUIRE (p.name, p.sku) IS NODE KEY;")
+        .option("script.3", "RETURN {Andrea: 36, Davide: 32} AS age;")
+        .save()
+
+      val gotSum = driver.session().run("MATCH (p:Person) RETURN sum(p.age) AS ageSum").single()
+      assertThat(gotSum.get("ageSum").asInt()).isEqualTo(36 + 32)
+
+      val fetchSchemaQuery =
+        s"""SHOW INDEXES YIELD labelsOrTypes, properties, owningConstraint
+           |WHERE (labelsOrTypes = ['Person'] AND properties = ['surname'] AND owningConstraint IS NULL)
+           |OR (labelsOrTypes = ['Product'] AND properties = ['name', 'sku'] AND owningConstraint IS NOT NULL)
+           |RETURN count(*) AS count
+           |""".stripMargin
+      val gotCount = driver.session().run(fetchSchemaQuery).single().get("count").asInt()
+      assertThat(gotCount).isEqualTo(2)
+    }
+
+    @Test
+    def `should_handle_relationship_match_source_even_when_odd_characters_present`(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
+      import spark.implicits._
+
+      SparkSession.setActiveSession(spark)
+      driver.session().run(
+        """CREATE (:Tool {name: 'hammer'})
+          |CREATE (:Tool {name: 'driver'})""".stripMargin
+      ).consume()
+
+      Seq(
+        ("hammer", "nail", true),
+        ("driver", "screw", true),
+        ("hammer", "screw", false),
+        ("driver", "nail", false)
+      ).toDF("tööl", "part:specification", "is_appropriate")
+        .repartition()
+        .write.format("neo4j")
+        .mode(SaveMode.Overwrite)
+        .option("relationship", "INTERACTS_WITH")
+        .option("relationship.source.save.mode", "match")
+        .option("relationship.source.labels", ":Tool")
+        .option("relationship.source.node.keys", "tööl:name")
+        .option("relationship.target.save.mode", "overwrite")
+        .option("relationship.target.labels", ":Part")
+        .option("relationship.target.node.keys", "`part:specification`")
+        .option("relationship.properties", "is_appropriate:suitable")
+        .save()
+
+      val fetchQuery = "MATCH (:Tool)-[r:INTERACTS_WITH]->(:Part) RETURN count(r) AS count"
+      val gotCount = driver.session().run(fetchQuery).single().get("count").asInt()
+
+      assertThat(gotCount).isEqualTo(4)
+    }
   }
 
   @Nested
@@ -803,6 +1030,25 @@ class WriteIT {
    * Re-using test cases allows us to test the same test construct outside an array and then also inside an array.
    */
   object TypeTestCases {
+
+    case class ExpectedNeo4jType[T](
+      name: String,
+      accessor: Value => T
+    )
+
+    case class DfTestCase[ToType](
+      name: String,
+      df: DataFrame,
+      expectedValue: ToType,
+      expectedType: ExpectedNeo4jType[ToType]
+    )
+
+    case class SqlTestCase[ToType](
+      name: String,
+      sql: String,
+      expectedValue: ToType,
+      expectedType: ExpectedNeo4jType[ToType]
+    )
 
     case class DurationStruct(months: Long, days: Long, seconds: Long, nanoseconds: Int) {
       val `type` = "duration"
