@@ -18,10 +18,17 @@ package org.neo4j.spark.testsupport
 
 import org.neo4j.driver.AuthToken
 import org.neo4j.driver.AuthTokens
+import org.neo4j.driver.Config
+import org.neo4j.driver.Driver
 import org.neo4j.driver.GraphDatabase
 import org.neo4j.driver.SessionConfig
+import org.neo4j.driver.exceptions.ClientException
+import org.neo4j.spark.testsupport.Neo4jContainerExtension.log
 import org.rnorth.ducttape.unreliables.Unreliables
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.testcontainers.containers.Neo4jContainer
+import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy
 import org.testcontainers.containers.wait.strategy.WaitAllStrategy
 
@@ -98,6 +105,8 @@ class Neo4jContainerExtension
 
   private var fixture: Set[(String, String)] = Set.empty
 
+  private var logPrefix: Option[String] = Option.empty
+
   def withDatabases(dbs: Seq[String]): Neo4jContainerExtension = {
     databases ++= dbs
     this
@@ -105,6 +114,11 @@ class Neo4jContainerExtension
 
   def withFixture(database: String, path: String): Neo4jContainerExtension = {
     fixture ++= Set((database, path))
+    this
+  }
+
+  def withLogPrefix(prefix: String): Neo4jContainerExtension = {
+    logPrefix = Some(prefix)
     this
   }
 
@@ -118,6 +132,11 @@ class Neo4jContainerExtension
         new DatabasesWaitStrategy(createAuth()).forDatabases(databases).withStartupTimeout(Duration.ofMinutes(2))
       )
     }
+    val logConsumer = new Slf4jLogConsumer(log)
+    for (value <- logPrefix) {
+      logConsumer.withPrefix(value)
+    }
+    withLogConsumer(logConsumer)
     addEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     super.start()
 
@@ -140,4 +159,8 @@ class Neo4jContainerExtension
       }
     }
   }
+}
+
+object Neo4jContainerExtension {
+  private val log: Logger = LoggerFactory.getLogger(Neo4jContainerExtension.getClass)
 }

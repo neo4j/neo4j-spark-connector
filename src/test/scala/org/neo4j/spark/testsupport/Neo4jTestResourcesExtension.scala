@@ -29,6 +29,10 @@ import org.neo4j.caniuse.Neo4jDetector
 import org.neo4j.driver.Driver
 import org.neo4j.spark.testsupport.Neo4jExtensions.DriverExtensions
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
+import org.neo4j.spark.testsupport.Neo4jTestResourcesExtension.log
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.neo4j.Neo4jContainer
 
 import java.util.Objects
@@ -151,6 +155,13 @@ class Neo4jTestResourcesExtension
   private def createResources(context: ExtensionContext): Neo4jTestResources = {
     val testInstance = context.getRequiredTestInstance
     val container = readField(testInstance, "neo4jContainer").asInstanceOf[Neo4jContainer]
+
+    val logConsumer = new Slf4jLogConsumer(log)
+    if (context.getTestClass.isPresent) {
+      logConsumer.withPrefix(context.getTestClass.get().getSimpleName)
+    }
+    container.withLogConsumer(logConsumer)
+
     container.startLazily()
 
     val suffix = Integer.toUnsignedString(Objects.hash(owningContext(context).getUniqueId, container.getBoltUrl), 36)
@@ -230,4 +241,8 @@ class Neo4jTestResourcesExtension
       case _: NoSuchFieldException => None
     }
   }
+}
+
+object Neo4jTestResourcesExtension {
+  private val log: Logger = LoggerFactory.getLogger(Neo4jTestResourcesExtension.getClass)
 }
