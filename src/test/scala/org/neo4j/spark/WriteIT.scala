@@ -60,10 +60,11 @@ import java.time.OffsetTime
 import java.time.Period
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
-import java.util.UUID
 import java.util.stream.Stream
 
-import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.collection.immutable.ListMap
+import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.jdk.CollectionConverters.MapHasAsScala
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
 @InjectNeo4jContainerParameter
@@ -182,7 +183,7 @@ class WriteIT {
   }
 
   @Nested
-  @DisplayName("node happy paths")
+  @DisplayName("nodes")
   @Execution(ExecutionMode.SAME_THREAD)
   class WriteHappyPathIT {
 
@@ -263,10 +264,99 @@ class WriteIT {
       assertThat(got).isEqualTo(List("John"))
     }
 
+    @Test
+    def should_handle_nested_maps_properly(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      import spark.implicits._
+
+      SparkSession.setActiveSession(spark)
+      Seq(
+        ("Foo", 100, Map("inner" -> Map("key" -> "innerValue"))),
+        ("Bar", 9, Map("hidden" -> Map("secret" -> "Baz")))
+      )
+        .toDF("id", "time", "table")
+        .write.format("neo4j")
+        .mode(SaveMode.Append)
+        .option("labels", ":FlatMap")
+        .save()
+
+      val fetchQuery =
+        """
+          |MATCH (n:FlatMap)
+          |WHERE (
+          |  properties(n) = {id: 'Foo', time: 100, `table.inner.key`: 'innerValue'}
+          |  OR properties(n) = {id: 'Bar', time: 9, `table.hidden.secret`: 'Baz'}
+          |)
+          |RETURN count(n) AS count
+          |""".stripMargin
+
+      val gotCount = driver.session().run(fetchQuery).single().get("count").asInt()
+      assertThat(gotCount).isEqualTo(2)
+    }
+
+    @Test
+    def should_handle_nested_maps_with_collisions(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      import spark.implicits._
+
+      SparkSession.setActiveSession(spark)
+      Seq(
+        ("Foo", 1, ListMap("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1"))),
+        ("Bar", 1, ListMap("key.inner" -> Map("key" -> "innerValue2"), "key" -> Map("inner.key" -> "value2")))
+      ).toDF("id", "time", "table")
+        .write.format("neo4j")
+        .mode(SaveMode.Append)
+        .option("labels", ":CollisionMap")
+        .save()
+
+      val fetchQuery =
+        """
+          |MATCH (n:CollisionMap)
+          |WHERE (
+          | properties(n) = {id: 'Foo', time: 1, `table.key.inner.key`: 'value1'}
+          | OR properties(n) = {id: 'Bar', time: 1, `table.key.inner.key`: 'value2'}
+          |)
+          |RETURN count(n) AS count
+          |""".stripMargin
+
+      val gotCount = driver.session().run(fetchQuery).single().get("count").asInt()
+      assertThat(gotCount).isEqualTo(2)
+    }
+
+    @Test
+    def should_handle_nested_maps_with_collisions_and_aggregations(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
+      import spark.implicits._
+
+      SparkSession.setActiveSession(spark)
+      Seq(
+        ("Foo", 0, ListMap("key.inner" -> Map("key" -> "innerValue0"), "key" -> Map("inner.key" -> "value0"))),
+        ("Bar", 0, ListMap("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1")))
+      ).toDF("id", "time", "table")
+        .write.format("neo4j")
+        .mode(SaveMode.Append)
+        .option("labels", ":AggregatedMap")
+        .option("schema.map.group.duplicate.keys", true)
+        .save()
+
+      val fetchQuery =
+        """
+          |MATCH (n:AggregatedMap)
+          |WHERE (
+          | properties(n) = {id: 'Foo', time: 0, `table.key.inner.key`: ['innerValue0', 'value0']}
+          | OR properties(n) = {id: 'Bar', time: 0, `table.key.inner.key`: ['innerValue1', 'value1']}
+          |)
+          |RETURN count(n) AS count
+          |""".stripMargin
+
+      val gotCount = driver.session().run(fetchQuery).single().get("count").asInt()
+      assertThat(gotCount).isEqualTo(2)
+    }
   }
 
   @Nested
-  @DisplayName("relationship happy paths")
+  @DisplayName("relationships")
   @Execution(ExecutionMode.SAME_THREAD)
   class RelationshipWriteIT {
 
@@ -612,10 +702,51 @@ class WriteIT {
 
       assertThat(gotCount).isEqualTo(4)
     }
+
+    @Test
+    def should_not_write_node_properties_to_relationships(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      import spark.implicits._
+
+      Seq(
+        ("john", "The Matrix", "today"),
+        ("jane", "Oppenheimer", "yesterday"),
+        ("şaban", "Hababam Sınıfı", "two days ago")
+      ).toDF("username", "movie_title", "watch_time")
+        .write.format("neo4j")
+        .mode(SaveMode.Append)
+        .option("relationship", "WATCHED")
+        .option("relationship.source.save.mode", "Overwrite")
+        .option("relationship.source.labels", ":User")
+        .option("relationship.source.node.keys", "username:name")
+        .option("relationship.target.save.mode", "Overwrite")
+        .option("relationship.target.labels", ":Movie")
+        .option("relationship.target.node.keys", "movie_title:title")
+        .save()
+
+      val fetchQuery =
+        """
+          |MATCH (:User)-[r:WATCHED]->(:Movie)
+          |WITH r
+          |ORDER BY r.watch_time ASC
+          |RETURN collect(r{.*})
+          |""".stripMargin
+
+      val rows = driver.session().run(fetchQuery)
+        .single()
+        .get(0)
+        .asList((value: Value) => value.asMap().asScala)
+        .asScala
+
+      assertThat(rows).isEqualTo(List(
+        Map("watch_time" -> "today"),
+        Map("watch_time" -> "two days ago"),
+        Map("watch_time" -> "yesterday")
+      ))
+    }
   }
 
   @Nested
-  @DisplayName("auto type mapping")
+  @DisplayName("type conversion")
   @Execution(ExecutionMode.CONCURRENT)
   class WriteTypeMappingIT {
 
