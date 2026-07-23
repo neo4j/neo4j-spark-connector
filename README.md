@@ -4,52 +4,51 @@ This repository contains the Neo4j Connector for Apache Spark.
 
 ## License
 
-This neo4j-connector-apache-spark is Apache 2 Licensed
+The Neo4j Connector for Apache Spark is licensed under the Apache License 2.0.
 
 ## Documentation
 
-The documentation for Neo4j Connector for Apache Spark lives at https://github.com/neo4j/docs-spark repository.
+The documentation for Neo4j Connector for Apache Spark lives in this repository, under the `docs` directory.
 
 ## Building for Spark 4
 
-You can build for Spark 4.x with Scala 2.13
+You can build for Spark 4.x with Scala 2.13. Starting with version 6.0.0, only Scala 2.13 is supported.
 
 ```
 ./maven-release.sh package 2.13
 ```
 
-These commands will generate the corresponding targets
-* `spark/target/neo4j-connector-apache-spark_2.13-<version>_for_spark_4.jar`
+This command generates the following artifact:
+* `target/neo4j-spark-connector-<version>-s_2.13.jar`
 
 
 ## Integration with Apache Spark Applications
 
 **spark-shell, pyspark, or spark-submit**
 
-`$SPARK_HOME/bin/spark-shell --jars neo4j-connector-apache-spark_2.12-<version>_for_spark_4.jar`
+`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector-<version>-s_2.13.jar`
 
-`$SPARK_HOME/bin/spark-shell --packages org.neo4j:neo4j-connector-apache-spark_2.13:<version>_for_spark_4`
+`$SPARK_HOME/bin/spark-shell --packages org.neo4j.connectors:spark:<version>-s_2.13`
 
 **sbt**
 
-If you use the [sbt-spark-package plugin](https://github.com/databricks/sbt-spark-package), in your sbt build file, add:
+In your `build.sbt` file, add:
 
 ```scala
-resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "org.neo4j" % "neo4j-connector-apache-spark_2.13" % "<version>_for_spark_4"
-```  
+libraryDependencies += "org.neo4j.connectors" % "spark" % "<version>-s_2.13"
+```
 
-**maven**  
+**maven**
 
-In your pom.xml, add:   
+In your pom.xml, add:
 
 ```xml
 <dependencies>
   <!-- list of dependencies -->
   <dependency>
-    <groupId>org.neo4j</groupId>
-    <artifactId>neo4j-connector-apache-spark_2.13</artifactId>
-    <version>[version]_for_spark_4</version>
+    <groupId>org.neo4j.connectors</groupId>
+    <artifactId>spark</artifactId>
+    <version>[version]-s_2.13</version>
   </dependency>
 </dependencies>
 ```
