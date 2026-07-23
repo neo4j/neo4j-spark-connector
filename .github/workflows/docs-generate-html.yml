@@ -9,6 +9,7 @@ permissions:
 on:
   push:
     branches:
+      - '6.0'
       - '5.0'
       - '4.[0-2]'
     paths:
@@ -20,8 +21,8 @@ on:
 # `main` is the branch you use to build and publish to neo4j.com/docs
 # in some cases, PROD_BRANCH and DEV_BRANCH may be the same branch
 env:
-  DEV_BRANCH: '5.0'
-  PROD_BRANCH: '5.0'
+  DEV_BRANCH: '6.0'
+  PROD_BRANCH: '6.0'
 
 jobs:
 
@@ -85,7 +86,7 @@ jobs:
 
     steps:
       - name: Publish to ${{ matrix.environments }}
-        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 #v4
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 #v4.0.1
         with:
           token: ${{ secrets.DOCS_DISPATCH_TOKEN }}
           repository: neo4j/docs-publish

@@ -7,6 +7,7 @@ permissions:
 on:
   pull_request:
     branches:
+      - '6.0'
       - '5.0'
       - '4.[0-2]'
     paths:
