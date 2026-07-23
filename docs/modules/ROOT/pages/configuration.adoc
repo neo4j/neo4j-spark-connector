@@ -50,6 +50,8 @@ val dfTwo = spark.read.format("org.neo4j.spark.DataSource")
 val dfJoin = dfOne.join(dfTwo, dfOne("name") === dfTwo("name"))
 ----
 
+
+[#custom-auth-supplier]
 == Custom authentication supplier
 Starting from version 5.3.9, the connector provides an option to use a custom authentication supplier in addition to
 already supported authentication types, such as `none`, `basic`, `kerberos`, `custom` and `bearer`.
