@@ -21,14 +21,15 @@ Supported Scala versions are now 2.13.
 
 *How to migrate*:
 
+. First, upgrade to the latest Neo4j Spark connector version 5.5.0 or later.
 . Upgrade your Spark cluster to *4.0 or later*.
 . Use the 6.0.0 artifact built for Spark 3:
 +
 [source, shell, subs="attributes+"]
 ----
-org.neo4j:neo4j-connector-apache-spark_{scala-version}:6.0.0_for_spark_3 UPDATE ME
+org.neo4j.connectors:spark:6.0.0-s_2.13
 ----
 +
-. If you cannot upgrade Spark, stay on the 5.x line.
+. If you cannot upgrade your Spark version, stay on the 5.x line.
 
 See the xref:changelog.adoc#_6_0_0[6.0.0 release notes] for the full list of changes.
