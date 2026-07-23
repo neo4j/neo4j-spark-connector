@@ -1,8 +1,6 @@
 = Cypher query tuning
-label:new[New in 6.0]
-[role=label--new-6.0]
-= Cypher query tuning
 :description: This chapter covers how users can pass Cypher preambles to fine-tune performance in niche scenarios.
+:page-role: new-6.0
 
 Default Cypher parameters are optimized for the general use case.
 However, the Spark connector supports all the query tuning options described in the link:https://neo4j.com/docs/cypher-manual/current/planning-and-tuning/query-tuning[Cypher manual].
@@ -36,7 +34,7 @@ include::example$python/basic_cypher_preambles.py[tags=code-cypher-version]
 ====
 
 .Equivalent Cypher query
-[%collapsible%]
+[%collapsible]
 ====
 [source, cypher]
 ----
@@ -73,7 +71,7 @@ include::example$python/basic_cypher_preambles.py[tags=code-runtime-parallel]
 ====
 
 .Equivalent Cypher query
-[%collapsible%]
+[%collapsible]
 ====
 [source, cypher]
 ----
@@ -106,7 +104,7 @@ include::example$python/basic_cypher_preambles.py[tags=code-multiple-tuning]
 ====
 
 .Equivalent Cypher query
-[%collapsible%]
+[%collapsible]
 ====
 [source, cypher]
 ----
@@ -139,3 +137,4 @@ While the examples above show how to tune preambles and change the Cypher versio
 | `.option("gds")`
 | Only for reads
 | No tuning allowed
+|===

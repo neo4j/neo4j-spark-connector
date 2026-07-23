@@ -1,0 +1,57 @@
+#  copy this workflow into your repo
+name: "Documentation Teardown"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  pull_request_target:
+    branches:
+      - '6.0'
+      - '5.0'
+      - '4.[0-2]'
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs-*.yml"
+    types:
+      - closed
+
+jobs:
+  teardown-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 #v7
+        with:
+          node-version: lts/*
+
+      - id: get-deploy-url
+        env:
+          ORG: ${{ github.event.repository.owner.login }}
+          REPO: ${{ github.event.repository.name }}
+          DEPLOYID: ${{ github.event.pull_request.number }}
+        run: |
+          deployurl=$ORG-$REPO-$DEPLOYID.surge.sh
+          echo "deploy-url=$deployurl" >> $GITHUB_OUTPUT
+
+      - name: Teardown documentation
+        shell: bash
+        env:
+          SURGE_TOKEN: "${{ secrets.DOCS_SURGE_TOKEN }}"
+          DEPLOY_URL: ${{ steps.get-deploy-url.outputs.deploy-url }}
+        run: |
+          npm install -g surge
+          surge teardown $DEPLOY_URL --token "$SURGE_TOKEN"
+
+      - name: Comment on PR
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 #v3.0.5
+        with:
+          number: ${{ github.event.pull_request.number }}
+          header: docs-pr-changes
+          message: |
+            Thanks for the documentation updates.
+
+            The preview documentation has now been torn down - reopening this PR will republish it.
+          GITHUB_TOKEN: ${{ secrets.DOCS_PR_COMMENT_TOKEN }}
+

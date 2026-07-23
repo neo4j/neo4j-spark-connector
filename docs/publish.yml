@@ -6,13 +6,10 @@ site:
 
 content:
   sources:
-    - url: ./
-      edit_url: https://github.com/neo4j/docs-spark/tree/{refname}/{path}
-      branches: ['HEAD', '4.2', '4.1', '4.0']
-      exclude:
-      - '!**/_includes/*'
-      - '!**/readme.adoc'
-      - '!**/README.adoc'
+  - url: ../
+    branches: HEAD
+    start_path: docs      
+    branches: ['HEAD', '5.0', '4.2', '4.1', '4.0']
 
 ui:
   bundle:
@@ -43,7 +40,7 @@ asciidoc:
     page-canonical-root: /docs
     page-terms-to-mark: Cypher
     page-pagination: true
-    page-no-canonical: true 
+    page-no-canonical: true
     page-origin-private: false
     page-hide-toc: false
     page-mixpanel: 4bfb2414ab973c741b6f067bf06d5575
