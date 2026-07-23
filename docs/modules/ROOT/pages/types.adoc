@@ -57,7 +57,7 @@ Spark timestamps (`TIMESTAMP`) are written as `ZonedDateTime` in UTC.
 
 |`LocalDateTime`
 |`timestamp`
-|label:deprecated[Deprecated (Legacy mode)] footnote:[Enable legacy mode by setting option `data.conversion` to `legacy`] Set `data.conversion` to `legacy` to continue using it.
+|label:deprecated[Deprecated since 5.4.0] footnote:[Enable legacy mode by setting option `data.conversion` to `legacy`] Set `data.conversion` to `legacy` to continue using it.
 
 |`LocalDateTime`
 |`timestamp_ntz`
