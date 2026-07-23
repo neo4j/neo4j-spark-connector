@@ -683,18 +683,18 @@ class WriteIT {
         ("driver", "screw", true),
         ("hammer", "screw", false),
         ("driver", "nail", false)
-      ).toDF("tööl", "part:specification", "is_appropriate")
+      ).toDF("töõl", "part:specification", "is_appropriate‽")
         .repartition()
         .write.format("neo4j")
         .mode(SaveMode.Overwrite)
         .option("relationship", "INTERACTS_WITH")
         .option("relationship.source.save.mode", "match")
         .option("relationship.source.labels", ":Tool")
-        .option("relationship.source.node.keys", "tööl:name")
+        .option("relationship.source.node.keys", "töõl:name")
         .option("relationship.target.save.mode", "overwrite")
         .option("relationship.target.labels", ":Part")
         .option("relationship.target.node.keys", "`part:specification`")
-        .option("relationship.properties", "is_appropriate:suitable")
+        .option("relationship.properties", "is_appropriate‽:suitable")
         .save()
 
       val fetchQuery = "MATCH (:Tool)-[r:INTERACTS_WITH]->(:Part) RETURN count(r) AS count"
