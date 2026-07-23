@@ -33,6 +33,21 @@ For more details on compatibility, see xref:compatibility.adoc[].
 |4.0, 4.1
 |17.3 LTS
 
+|5.4 / 5.5
+|4.4, 5.x, 2025.x, 2026.x
+|3.4, 3.5
+|14.3 LTS - 16.4 LTS
+
+|5.3
+|4.4, 5.x, 2025.x
+|3.4, 3.5
+|14.3 LTS - 16.4 LTS
+
+|5.2
+|4.4, 5.x
+|3.4, 3.5
+|14.3 LTS - 16.4 LTS
+
 |===
 
 Neo4j versions include both Community editions and Enterprise editions.
