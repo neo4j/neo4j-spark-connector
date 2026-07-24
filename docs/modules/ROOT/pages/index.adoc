@@ -28,7 +28,12 @@ For more details on compatibility, see xref:compatibility.adoc[].
 |===
 |Connector |Neo4j |Spark |Databricks
 
-|5.4
+|6.0
+|5.x, 2025.x, 2026.x
+|4.0, 4.1
+|17.3 LTS
+
+|5.4 / 5.5
 |4.4, 5.x, 2025.x, 2026.x
 |3.4, 3.5
 |14.3 LTS - 16.4 LTS
@@ -47,9 +52,9 @@ For more details on compatibility, see xref:compatibility.adoc[].
 
 Neo4j versions include both Community editions and Enterprise editions.
 
-All 5.x versions of the connector support Scala 2.12 and 2.13.
+All 6.x versions of the connector require Scala 2.13.
 
-The minimum required version of the Java runtime is 8.
+The minimum required version of the Java runtime is 17.
 
 == Training
 

@@ -1,1 +1,1 @@
-pyspark==3.5.1
+pyspark==4.1.2

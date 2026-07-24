@@ -163,7 +163,7 @@ $SPARK_HOME/bin/spark-submit \
 
 == Jupyter notebooks
 
-The code repository includes two https://github.com/neo4j/neo4j-spark-connector/tree/5.0/examples[Jupyter notebooks] that show how to use the connector in a data-driven workflow:
+The code repository includes two https://github.com/neo4j/neo4j-spark-connector/tree/6.0/examples[Jupyter notebooks] that show how to use the connector in a data-driven workflow:
 
 * `neo4j_data_engineering.ipynb` shows how to create Spark jobs to read data from and write data to Neo4j.
 * `neo4j_data_science.ipynb` shows how to combine Pandas (in PySpark) with the Neo4j Graph Data Science library to highlight frauds in a banking scenario.
