@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+           http://maven.apache.org/POM/4.0.0
+           https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.neo4j</groupId>
+  <artifactId>neo4j-connector-apache-spark_2.13</artifactId>
+  <version>6.0.0_for_spark_3</version>
+  <packaging>pom</packaging>
+
+  <name>Neo4j Connector for Apache Spark relocation</name>
+  <description>
+    Relocation POM for the Neo4j Connector for Apache Spark.
+  </description>
+  <url>https://github.com/neo4j/neo4j-spark-connector</url>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Neo4j</name>
+      <organization>Neo4j, Inc.</organization>
+      <organizationUrl>https://neo4j.com</organizationUrl>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>
+      scm:git:https://github.com/neo4j/neo4j-spark-connector.git
+    </connection>
+    <developerConnection>
+      scm:git:ssh://git@github.com/neo4j/neo4j-spark-connector.git
+    </developerConnection>
+    <url>https://github.com/neo4j/neo4j-spark-connector</url>
+  </scm>
+
+  <distributionManagement>
+    <relocation>
+      <groupId>org.neo4j.connectors</groupId>
+      <artifactId>spark</artifactId>
+      <version>6.0.0-s_2.13</version>
+      <message>
+        Neo4j Connector for Apache Spark 6 moved to org.neo4j.connectors:spark and requires Spark 4 with Scala 2.13.
+      </message>
+    </relocation>
+  </distributionManagement>
+
+</project>
