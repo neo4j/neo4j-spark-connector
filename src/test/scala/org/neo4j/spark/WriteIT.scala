@@ -378,21 +378,21 @@ class WriteIT {
 
       df.write.format("neo4j")
         .mode(SaveMode.Overwrite)
-        .option("relationship", "PLAYS")
-        .option("relationship.source.labels", ":Musician")
+        .option("relationship", "PLÄYS")
+        .option("relationship.source.labels", ":Müsician")
         .option("relationship.source.save.mode", "Overwrite")
         .option("relationship.source.node.keys", "name")
         .option("relationship.source.node.properties", "fi``(╯°□°)╯︵ ┻━┻eld:field")
-        .option("relationship.target.labels", ":Instrument")
+        .option("relationship.target.labels", ":Iñstrument")
         .option("relationship.target.node.keys", "instrument:name")
         .option("relationship.target.save.mode", "Overwrite")
         .save()
 
       val got = spark.read.format("neo4j")
-        .option("relationship", "PLAYS")
+        .option("relationship", "PLÄYS")
         .option("relationship.nodes.map", "false")
-        .option("relationship.source.labels", ":Musician")
-        .option("relationship.target.labels", ":Instrument")
+        .option("relationship.source.labels", ":Müsician")
+        .option("relationship.target.labels", ":Iñstrument")
         .load()
         .orderBy("`source.name`")
         .collectAsList()
@@ -464,16 +464,6 @@ class WriteIT {
       assertThat(got.get(3).getString(instrumentColumn)).isEqualTo("Guitar")
     }
 
-    def relationshipPropertyTestDf(spark: SparkSession): DataFrame = {
-
-      import spark.implicits._
-
-      Seq(
-        (12L, "John Bonham", "Drums", 2L, true),
-        (19L, "John Mayer", "Guitar", 1L, false)
-      ).toDF("experience", "name", "instrument", "rating", "hasDiploma")
-    }
-
     @TestFactory
     def should_handle_relationship_options_properly(
       driver: Driver,
@@ -494,15 +484,15 @@ class WriteIT {
           (19L, "John Mayer", "Guitar", 1L, false)
         ).toDF("experience", "name", "instrument", "rating", "hasDiploma")
 
-        val relType: String = "PROPERTY_TEST_" + name.toUpperCase().replaceAll(" ", "_")
+        val relType: String = "PROP_TEST_" + name.toUpperCase().replaceAll(" ", "_")
 
         private val internalOptions = Map(
           "relationship" -> relType,
           "relationship.source.save.mode" -> "Overwrite",
           "relationship.target.save.mode" -> "Overwrite",
-          "relationship.source.labels" -> ":Musician",
+          "relationship.source.labels" -> ":M",
           "relationship.source.node.keys" -> "name",
-          "relationship.target.labels" -> ":Instrument",
+          "relationship.target.labels" -> ":I",
           "relationship.target.node.keys" -> "instrument:name"
         )
 
@@ -563,8 +553,8 @@ class WriteIT {
             val res = session.read.format("neo4j")
               .option("relationship", testCase.relType)
               .option("relationship.nodes.map", "false")
-              .option("relationship.source.labels", ":Musician")
-              .option("relationship.target.labels", ":Instrument")
+              .option("relationship.source.labels", ":M")
+              .option("relationship.target.labels", ":I")
               .load()
               .orderBy("`source.name`")
               .collectAsList()
