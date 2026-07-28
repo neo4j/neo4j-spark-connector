@@ -41,10 +41,6 @@ For questions that are not about limitations, see xref:faq.adoc[].
 |All versions
 
 |Reading
-|<<column-order>>
-|Neo4j 3.x and 4.0
-
-|Reading
 |<<mixed-types>>
 |All versions
 
@@ -199,17 +195,6 @@ When you rewrite a query, make sure that the new query is equivalent to the orig
 ====
 
 See xref:read/query.adoc#limit-query[Limit the results] for details.
-
-[#column-order]
-=== Returned columns are not in the order specified in the query
-
-With Neo4j 3.x and Neo4j 4.0, the columns of the resulting DataFrame may not follow the order of the `RETURN` clause.
-
-*Applies to*: Neo4j 3.x and Neo4j 4.0 only.
-From Neo4j 4.1 onwards, the column order matches the `RETURN` statement.
-
-*Workaround*: select the columns explicitly on the resulting DataFrame, or upgrade to a supported Neo4j version.
-See xref:compatibility.adoc[] for the Neo4j versions supported by each connector version.
 
 [#mixed-types]
 === Cast errors when a property has different types across nodes

@@ -1,11 +1,6 @@
 [#faq]
 = FAQ and troubleshooting
 
-[TIP]
-====
-For the current limitations of the connector, see xref:known-issues.adoc[], which is the canonical list of known issues and workarounds.
-====
-
 == General questions
 
 === Is this software connected to Morpheus or Cypher for Apache Spark (CAPS)?
@@ -32,11 +27,6 @@ For best performance, make sure you are familiar with the material in the link:h
 
 It is important to keep in mind that Neo4j scales writes vertically and reads horizontally.  In
 the link:https://neo4j.com/docs/operations-manual/current/clustering/introduction/[Causal Cluster Model], only the cluster leader (1 machine) may accept writes. For this reason, focus on getting the best hardware and performance on your cluster leader to maximize write throughput.
-
-=== Why are the returned columns not in the same order as I specified in the query?
-
-This is a known issue with Neo4j 3.x and Neo4j 4.0.
-See xref:known-issues.adoc#column-order[Returned columns are not in the order specified in the query].
 
 === Where can I get help?
 
