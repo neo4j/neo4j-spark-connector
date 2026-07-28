@@ -29,10 +29,6 @@ For questions that are not about limitations, see xref:faq.adoc[].
 |All versions
 
 |Writing
-|<<deadlocks>>
-|All versions
-
-|Writing
 |<<schema-optimization-query>>
 |All versions
 
@@ -51,10 +47,6 @@ For questions that are not about limitations, see xref:faq.adoc[].
 |Reading
 |<<empty-sampling>>
 |All versions
-
-|Scripts
-|<<script-options>>
-|5.5 and later
 
 |Data types
 |<<map-flattening>>
@@ -128,29 +120,6 @@ This connector does not support save mode 'ErrorIfExists'. Use save mode 'Append
 
 *Workaround*: use `Append`, `Overwrite`, or `Match` for the source and target save modes.
 See xref:write/relationship.adoc#node-save-modes[Node save modes] for details.
-
-[#deadlocks]
-=== Concurrent relationship writes can cause deadlocks
-
-Writing a DataFrame with many partitions can make Neo4j reject transactions with a `DeadlockDetectedException`.
-Writing a relationship `(:A)-[:REL]->(:B)` locks both nodes, so parallel partitions that touch the same nodes compete for the same locks.
-
-*Workaround*: reduce write parallelism by repartitioning or coalescing the DataFrame before writing, so that partitions do not lock the same nodes and relationships.
-
-[source, python]
-----
-(
-    df.coalesce(1)
-    .write
-    .format("org.neo4j.spark.DataSource")
-    .mode("Append")
-    .option("relationship", "BOUGHT")
-    # ...
-    .save()
-)
-----
-
-See the link:https://neo4j.com/developer/kb/explanation-of-error-deadlockdetectedexception-forseticlient-0-cant-acquire-exclusivelock/[Neo4j Knowledge Base article] for background, and xref:performance/tuning.adoc#parallelism[Tune the parallelism] for tuning guidance.
 
 [#schema-optimization-query]
 === Schema optimization options do not work with the `query` option
@@ -234,22 +203,6 @@ If the query returns no rows, sampling is not possible and the connector builds 
 
 This is expected behavior and causes no issues, because the result set is empty.
 See xref:read/schema.adoc[] for details.
-
-[#scripts]
-== Script options
-
-[#script-options]
-=== `script` and `script.N` cannot be combined
-
-The single `script` option and the indexed `script.N` options are mutually exclusive; using both in the same job is rejected.
-Passing multiple queries in a single `script` option separated by semicolons (`;`) is deprecated.
-
-In addition, the result of a script can only be reused in a subsequent query if the script does not contain schema operations.
-
-*Applies to*: connector 5.5 and later, where `script.N` was introduced.
-
-*Workaround*: use only the indexed `script.N` options to run multiple queries.
-See xref:read/query.adoc#script-options[read script options] and xref:write/query.adoc#script-option[write script options].
 
 [#data-types]
 == Data types

@@ -49,8 +49,6 @@ exceptions can result and a transaction fails.
 In general, the solution is to repartition the DataFrame before writing it to Neo4j, to avoid
 multiple partitioned writes from locking the same nodes and relationships.
 
-See xref:known-issues.adoc#deadlocks[Concurrent relationship writes can cause deadlocks].
-
 === I am getting a cast error like _UTF8String cannot be cast to Long_. What is the solution?
 
 You might be getting an error like the following one or similar, with different types:
