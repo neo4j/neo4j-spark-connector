@@ -13,10 +13,10 @@ Understanding how the connector splits a write into many transactions explains w
 For every write, the connector builds one Cypher query and executes it once per batch of rows:
 
 * Spark runs one *task* per DataFrame partition, and each task opens its own session to Neo4j.
-* Each task accumulates rows until it has `batch.size` rows (5000 by default), then opens a transaction, runs the query with that batch bound to the `$events` parameter, and commits.
+* Each task accumulates rows until it has `batch.size` rows, then opens a transaction, runs the query with that batch bound to the `$events` parameter, and commits.
 * The task repeats this until the partition is exhausted. A final, possibly smaller, batch is committed when the task completes.
 
-So a job writing 1 million rows with the default `batch.size` and four partitions commits roughly 200 independent transactions, up to four of them concurrently.
+So a job writing 1 million rows with `batch.size` set to 5000 and four partitions commits roughly 200 independent transactions, up to four of them concurrently.
 
 [IMPORTANT]
 ====
@@ -44,7 +44,7 @@ Use `batch.size` instead. It is the connector's equivalent of `IN TRANSACTIONS O
 
 When a write job fails, the data already in the database stays there. Specifically:
 
-* Batches that were committed before the failure are *not* rolled back. There is nothing to roll them back with.
+* Batches that were committed before the failure are *not* rolled back.
 * The batch in flight when the error was raised is rolled back, so it applies fully or not at all.
 * Other partitions are unaffected and keep writing until they finish or fail on their own.
 
@@ -87,14 +87,10 @@ Each task retries a failed batch itself before giving up, controlled by three op
 |Milliseconds to wait before each retry.
 |`0`
 
-|`transaction.codes.fail`
-|Comma-separated Neo4j status codes that must always fail instead of being retried.
-|_(none)_
 |===
 
 The logic applied to an exception is, in order:
 
-. If the exception's status code is listed in `transaction.codes.fail`, the batch fails immediately. This check wins even for errors that would otherwise be retried.
 . If the exception is retryable and the task's retry budget is not exhausted, the task closes its transaction and session, waits `transaction.retry.timeout`, and re-runs *the current batch only*.
 . Otherwise the exception is rethrown and the task fails.
 
@@ -209,7 +205,6 @@ Putting the above together, a large import that tolerates failure and retry look
 . *Use `SaveMode.Overwrite` with keys* rather than `Append`, so a replayed batch or task updates instead of duplicating.
 . *Size `batch.size` to the server's heap*, and remember it also bounds how much work a single failure can lose.
 . *Raise `transaction.retries` and set a non-zero `transaction.retry.timeout`* for long partitions, so a leader switch or a burst of lock contention does not fail the job.
-. *Set `transaction.codes.fail`* for errors that must never be retried, typically constraint violations you would rather investigate than write twice.
 
 [source, scala]
 ----

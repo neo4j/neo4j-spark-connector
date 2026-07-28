@@ -126,7 +126,6 @@ every single node property as column prefixed by `source` or `target`
 
 Each partition runs its own query in its own transaction.
 If that query fails with a transient error, the partition retries it, up to `transaction.retries` times, waiting `transaction.retry.timeout` milliseconds between attempts.
-Status codes listed in `transaction.codes.fail` are never retried.
 
 An error is transient when the Neo4j driver marks it as retryable, which covers a lost connection (`ServiceUnavailableException`), a server that can no longer serve the request (`SessionExpiredException`), transient server errors such as deadlocks (`TransientException`), and expired authorization.
 
