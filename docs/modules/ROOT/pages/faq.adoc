@@ -1,6 +1,11 @@
 [#faq]
 = FAQ and troubleshooting
 
+[TIP]
+====
+For the current limitations of the connector, see xref:known-issues.adoc[], which is the canonical list of known issues and workarounds.
+====
+
 == General questions
 
 === Is this software connected to Morpheus or Cypher for Apache Spark (CAPS)?
@@ -30,8 +35,8 @@ the link:https://neo4j.com/docs/operations-manual/current/clustering/introductio
 
 === Why are the returned columns not in the same order as I specified in the query?
 
-Unfortunately, this is a known issue and is there for Neo4j 3.x and Neo4j 4.0.
-From Neo4j 4.1 onwards, you get the same order as it's specified in the return statement.
+This is a known issue with Neo4j 3.x and Neo4j 4.0.
+See xref:known-issues.adoc#column-order[Returned columns are not in the order specified in the query].
 
 === Where can I get help?
 
@@ -54,6 +59,8 @@ exceptions can result and a transaction fails.
 In general, the solution is to repartition the DataFrame before writing it to Neo4j, to avoid
 multiple partitioned writes from locking the same nodes and relationships.
 
+See xref:known-issues.adoc#deadlocks[Concurrent relationship writes can cause deadlocks].
+
 === I am getting a cast error like _UTF8String cannot be cast to Long_. What is the solution?
 
 You might be getting an error like the following one or similar, with different types:
@@ -67,16 +74,14 @@ You can solve it by installing APOC: this removes the error, but
 all the values for that field are cast to String. This happens because Spark is not schema-free
 and needs each column always to have its own type.
 
-You can read more xref:read/schema.adoc[here].
+You can read more xref:read/schema.adoc[here], or see xref:known-issues.adoc#mixed-types[Cast errors when a property has different types across nodes].
 
 === I am getting an error _TableProvider implementation org.neo4j.spark.DataSource cannot be written with ErrorIfExists mode, please use Append or Overwrite modes instead_. What should I do?
 
-If you are getting this error while trying to write to Neo4j, be aware that the current version of the connector
-doesn't support `*SaveMode.ErrorIfExists*` on Spark 3,
-and that is the default save mode.
-So please, change the save mode to one of `SaveMode.Append` or `SaveMode.Overwrite`.
+The connector does not support `SaveMode.ErrorIfExists`, which is the default save mode.
+Set the save mode explicitly to `SaveMode.Append` or `SaveMode.Overwrite`.
 
-We are working to fully support all the save modes on Spark 3.
+See xref:known-issues.adoc#error-if-exists[`ErrorIfExists` save mode is not supported].
 
 === I am getting errors _NoClassDefFoundError_ or _ClassNotFoundException_. What should I do?
 
@@ -93,15 +98,14 @@ Caused by: java.lang.ClassNotFoundException: scala.collection.IterableOnce
 ----
 
 This means that your Spark version doesn't match the Spark version on the connector.
-Refer to xref:compatibility.adoc[] to choose the right version.
+Refer to xref:compatibility.adoc[] to choose the right version, or see xref:known-issues.adoc#version-mismatch[`NoClassDefFoundError` or `ClassNotFoundException` on startup].
 
 [[graph-already-exists]]
 === I am getting an error _Failed to invoke procedure gds.graph.create.cypher: Caused by: java.lang.IllegalArgumentException: A graph with name [name] already exists_. What should I do?
 
-This might happen when creating a new graph using the GDS library.
-The issue here is that the query is run the first time to extract the DataFrame schema and then is run again to get the data.
+This might happen when creating a new graph using the GDS library, because the query is run twice: once to infer the DataFrame schema and once to get the data.
 
-To avoid this issue you can use the xref:read/define-schema.adoc#custom-schema[user defined schema] approach.
+See xref:known-issues.adoc#graph-already-exists[the known issues page] for the workaround.
 
 == Databricks setup
 
@@ -109,7 +113,7 @@ To avoid this issue you can use the xref:read/define-schema.adoc#custom-schema[u
 
 Aura customers connecting from Databricks may encounter SSL handshake errors due to Databricks' custom Java security settings removing support for some encryption ciphers.
 
-See the Aura support article link:https://support.neo4j.com/s/article/1500003161121-Connecting-to-Aura-with-Databricks[Connecting to Aura with Databricks] for more information.
+See xref:known-issues.adoc#aura-ssl[SSL handshake errors when connecting to Aura from Databricks].
 
 == Troubleshooting
 

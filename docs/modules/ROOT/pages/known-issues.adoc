@@ -1,0 +1,371 @@
+[#known-issues]
+= Known issues and limitations
+:description: This page is the canonical list of the current limitations and known issues of the Neo4j Connector for Apache Spark.
+
+This page is the canonical place to check for the current limitations of the Neo4j Connector for Apache Spark.
+Before opening a support ticket or a GitHub issue, check whether the behavior you are seeing is listed here.
+
+Each entry describes the limitation, the versions it applies to, and the recommended workaround, if any.
+
+[NOTE]
+====
+Unless stated otherwise, entries apply to all xref:compatibility.adoc#_active_versions[actively supported versions] of the connector.
+For questions that are not about limitations, see xref:faq.adoc[].
+====
+
+[#summary]
+== Summary
+
+[cols="2,3,1", options="header"]
+|===
+|Area |Known issue |Applies to
+
+|Writing
+|<<error-if-exists>>
+|All versions
+
+|Writing
+|<<relationship-save-mode>>
+|All versions
+
+|Writing
+|<<deadlocks>>
+|All versions
+
+|Writing
+|<<schema-optimization-query>>
+|All versions
+
+|Reading
+|<<skip-limit>>
+|All versions
+
+|Reading
+|<<column-order>>
+|Neo4j 3.x and 4.0
+
+|Reading
+|<<mixed-types>>
+|All versions
+
+|Reading
+|<<graph-already-exists>>
+|All versions
+
+|Reading
+|<<empty-sampling>>
+|All versions
+
+|Scripts
+|<<script-options>>
+|5.5 and later
+
+|Data types
+|<<map-flattening>>
+|All versions
+
+|GDS
+|<<gds-mutate-write>>
+|All versions
+
+|GDS
+|<<gds-partitions>>
+|All versions
+
+|Databricks
+|<<databricks-access-mode>>
+|All versions
+
+|Databricks
+|<<databricks-unity-catalog>>
+|All versions
+
+|Aura
+|<<aura-ssl>>
+|All versions
+
+|Environment
+|<<version-mismatch>>
+|All versions
+|===
+
+[#writing]
+== Writing
+
+[#error-if-exists]
+=== `ErrorIfExists` save mode is not supported
+
+The connector does not support `SaveMode.ErrorIfExists`, which is the default save mode of the Spark `DataFrameWriter`.
+Writing without an explicit mode fails with an error similar to the following:
+
+----
+TableProvider implementation org.neo4j.spark.DataSource cannot be written with ErrorIfExists mode,
+please use Append or Overwrite modes instead.
+----
+
+*Cause*: the connector is implemented as a Spark `TableProvider` that does not expose catalog options, so Spark cannot check whether the target "table" already exists.
+
+*Workaround*: always set the save mode explicitly to either `Append` or `Overwrite`.
+
+[source, python]
+----
+(
+    df.write
+    .format("org.neo4j.spark.DataSource")
+    .mode("Append")  # or "Overwrite"
+    .option("labels", ":Person")
+    .save()
+)
+----
+
+See xref:writing.adoc[] for the semantics of each mode.
+
+[#relationship-save-mode]
+=== `ErrorIfExists` is not supported for relationship source and target nodes
+
+The `relationship.source.save.mode` and `relationship.target.save.mode` options do not accept `ErrorIfExists`.
+The write fails during validation with the following message:
+
+----
+This connector does not support save mode 'ErrorIfExists'. Use save mode 'Append' instead.
+----
+
+*Workaround*: use `Append`, `Overwrite`, or `Match` for the source and target save modes.
+See xref:write/relationship.adoc#node-save-modes[Node save modes] for details.
+
+[#deadlocks]
+=== Concurrent relationship writes can cause deadlocks
+
+Writing a DataFrame with many partitions can make Neo4j reject transactions with a `DeadlockDetectedException`.
+Writing a relationship `(:A)-[:REL]->(:B)` locks both nodes, so parallel partitions that touch the same nodes compete for the same locks.
+
+*Workaround*: reduce write parallelism by repartitioning or coalescing the DataFrame before writing, so that partitions do not lock the same nodes and relationships.
+
+[source, python]
+----
+(
+    df.coalesce(1)
+    .write
+    .format("org.neo4j.spark.DataSource")
+    .mode("Append")
+    .option("relationship", "BOUGHT")
+    # ...
+    .save()
+)
+----
+
+See the link:https://neo4j.com/developer/kb/explanation-of-error-deadlockdetectedexception-forseticlient-0-cant-acquire-exclusivelock/[Neo4j Knowledge Base article] for background, and xref:performance/tuning.adoc#parallelism[Tune the parallelism] for tuning guidance.
+
+[#schema-optimization-query]
+=== Schema optimization options do not work with the `query` option
+
+The `schema.optimization.*` options are ignored when writing with a custom Cypher query.
+
+*Workaround*: create indexes and constraints manually with the xref:write/query.adoc#script-option[script options].
+See xref:write/schema-optimization.adoc[] for details.
+
+[#reading]
+== Reading
+
+[#skip-limit]
+=== `SKIP` and `LIMIT` are not allowed in a custom read query
+
+The connector appends `SKIP` and `LIMIT` internally to support partitioned reads, so a custom `query` that ends with either clause fails at execution time.
+
+*Workaround*: move `SKIP` and `LIMIT` _before_ the `RETURN` clause, or use the `query.count` option.
+
+[source, cypher]
+----
+// Fails
+MATCH (p:Person)
+RETURN p.name AS name
+ORDER BY name
+LIMIT 10
+----
+
+[source, cypher]
+----
+// Works
+MATCH (p:Person)
+WITH p.name AS name
+ORDER BY name
+LIMIT 10
+RETURN name
+----
+
+[CAUTION]
+====
+When you rewrite a query, make sure that the new query is equivalent to the original one, so that the result is the same.
+====
+
+See xref:read/query.adoc#limit-query[Limit the results] for details.
+
+[#column-order]
+=== Returned columns are not in the order specified in the query
+
+With Neo4j 3.x and Neo4j 4.0, the columns of the resulting DataFrame may not follow the order of the `RETURN` clause.
+
+*Applies to*: Neo4j 3.x and Neo4j 4.0 only.
+From Neo4j 4.1 onwards, the column order matches the `RETURN` statement.
+
+*Workaround*: select the columns explicitly on the resulting DataFrame, or upgrade to a supported Neo4j version.
+See xref:compatibility.adoc[] for the Neo4j versions supported by each connector version.
+
+[#mixed-types]
+=== Cast errors when a property has different types across nodes
+
+Reading nodes whose property has different types (for example, a `String` on some nodes and a `Long` on others) can fail with an error such as the following:
+
+----
+java.lang.ClassCastException: org.apache.spark.unsafe.types.UTF8String cannot be cast to java.lang.Long
+----
+
+*Cause*: Spark is not schema-free and requires each column to have a single type, while Neo4j allows the same property to hold different types on different nodes.
+
+*Workaround*: install APOC on the Neo4j instance.
+This removes the error, but all values of that property are cast to `String`.
+Alternatively, define the schema explicitly.
+See xref:read/schema.adoc[] and xref:read/define-schema.adoc#custom-schema[Define a schema].
+
+[#graph-already-exists]
+=== `A graph with name [name] already exists` when creating a GDS projection
+
+Creating a GDS graph projection through the connector can fail with the following error:
+
+----
+Failed to invoke procedure gds.graph.create.cypher:
+Caused by: java.lang.IllegalArgumentException: A graph with name [name] already exists
+----
+
+*Cause*: the connector runs the query twice — once to infer the DataFrame schema and once to fetch the data — so the projection is created twice.
+
+*Workaround*: provide a xref:read/define-schema.adoc#custom-schema[user-defined schema], which skips the schema inference run.
+
+[#empty-sampling]
+=== Schema inference falls back to `String` columns on empty results
+
+Schema inference samples the data to determine column types.
+If the query returns no rows, sampling is not possible and the connector builds the schema from the `RETURN` statement with every column typed as `String`.
+
+This is expected behavior and causes no issues, because the result set is empty.
+See xref:read/schema.adoc[] for details.
+
+[#scripts]
+== Script options
+
+[#script-options]
+=== `script` and `script.N` cannot be combined
+
+The single `script` option and the indexed `script.N` options are mutually exclusive; using both in the same job is rejected.
+Passing multiple queries in a single `script` option separated by semicolons (`;`) is deprecated.
+
+In addition, the result of a script can only be reused in a subsequent query if the script does not contain schema operations.
+
+*Applies to*: connector 5.5 and later, where `script.N` was introduced.
+
+*Workaround*: use only the indexed `script.N` options to run multiple queries.
+See xref:read/query.adoc#script-options[read script options] and xref:write/query.adoc#script-option[write script options].
+
+[#data-types]
+== Data types
+
+[#map-flattening]
+=== Map columns are flattened on write
+
+Neo4j does not support maps as node or relationship property types.
+When a DataFrame column is a map, the connector flattens it into multiple properties, one per (nested) key.
+
+This is expected behavior rather than a bug, but it changes the shape of the data in the graph.
+See xref:types.adoc[] for the full mapping between Spark and Neo4j types and for a flattening example.
+
+[#gds]
+== Graph Data Science
+
+[#gds-mutate-write]
+=== `mutate` and `write` procedure modes are not supported
+
+GDS procedures in `mutate` or `write` mode are rejected with the following message:
+
+----
+You cannot execute GDS mutate or write procedure in a read query
+----
+
+*Cause*: these modes do not return data that can be mapped to a DataFrame.
+
+*Workaround*: use the `stream` mode, join the resulting DataFrames in Spark, and write the results back to Neo4j with the connector.
+See xref:gds.adoc[] for examples.
+
+[#gds-partitions]
+=== GDS queries support a single partition only
+
+GDS reads cannot be partitioned.
+Setting `partitions` to a value greater than `1` fails with the following message:
+
+----
+For GDS queries we support only one partition
+----
+
+*Workaround*: leave `partitions` at its default value of `1` for GDS queries.
+
+[#databricks]
+== Databricks
+
+include::partial$third-party.adoc[]
+
+[#databricks-access-mode]
+=== Shared access modes are not supported
+
+The connector only works on Databricks compute clusters created with the `Single user` access mode and the `Unrestricted` policy.
+Shared and no-isolation-shared access modes are not supported.
+
+*Workaround*: create a dedicated `Single user` cluster for jobs that use the connector.
+See xref:databricks.adoc#_set_up_a_compute_cluster[Set up a compute cluster].
+
+[#databricks-unity-catalog]
+=== Unity Catalog is supported in `Single user` access mode only
+
+Unity Catalog support follows the same restriction as the cluster access mode: Neo4j supports the Unity Catalog in `Single user` access mode only.
+
+Refer to the link:https://docs.databricks.com/en/compute/access-mode-limitations.html[Databricks access mode limitations] for further information.
+
+[#aura]
+== Aura
+
+[#aura-ssl]
+=== SSL handshake errors when connecting to Aura from Databricks
+
+Aura customers connecting from Databricks may encounter SSL handshake failures.
+
+*Cause*: the custom Java security settings of the Databricks runtime remove support for some encryption ciphers required by Aura.
+
+*Workaround*: re-enable the required ciphers on the cluster as described in the Aura support article link:https://support.neo4j.com/s/article/1500003161121-Connecting-to-Aura-with-Databricks[Connecting to Aura with Databricks].
+
+[#environment]
+== Environment and versions
+
+[#version-mismatch]
+=== `NoClassDefFoundError` or `ClassNotFoundException` on startup
+
+Errors such as the following mean that the connector artifact does not match the Spark or Scala version of the runtime:
+
+----
+NoClassDefFoundError: org/apache/spark/sql/sources/v2/ReadSupport
+Caused by: ClassNotFoundException: org.apache.spark.sql.sources.v2.ReadSupport
+----
+
+----
+java.lang.NoClassDefFoundError: scala/collection/IterableOnce
+Caused by: java.lang.ClassNotFoundException: scala.collection.IterableOnce
+----
+
+*Workaround*: pick the connector artifact that matches your Spark and Scala versions.
+See xref:compatibility.adoc[] and xref:installation.adoc[].
+
+[#report]
+== Report a new issue
+
+If you hit a limitation that is not listed on this page:
+
+* Ask on link:https://community.neo4j.com/[the Neo4j Community site] or in the https://discord.com/invite/neo4j[Neo4j Discord channel].
+* Open an issue in the link:https://github.com/neo4j/neo4j-spark-connector/issues[connector GitHub repository].
+* Neo4j Enterprise and Neo4j AuraDB customers can also open a support ticket, as described in xref:index.adoc#_support[Support].

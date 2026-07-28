@@ -13,6 +13,7 @@ include::partial$third-party.adoc[]
 [CAUTION]
 ====
 Shared access modes are not currently supported.
+See xref:known-issues.adoc#databricks[Known issues and limitations] for the full list of Databricks and Aura limitations.
 ====
 . Once the cluster is available, open its page and select the *Libraries* tab.
 . Select *Install new* and choose *Maven* as the library source.
