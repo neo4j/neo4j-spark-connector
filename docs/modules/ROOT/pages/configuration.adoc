@@ -199,7 +199,7 @@ The authentication methods to be used:
 * `bearer`
 * any <<custom-auth-supplier, custom authentication supplier>>
 
-See link:https://neo4j.com/docs/java-manual/4.4/client-applications/#java-driver-authentication[Authentication] for more information.
+See link:https://neo4j.com/docs/java-manual/6/connect-advanced[Authentication] for more information.
 |`basic`
 |No
 
