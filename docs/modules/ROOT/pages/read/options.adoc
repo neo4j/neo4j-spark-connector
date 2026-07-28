@@ -71,6 +71,17 @@ your Neo4j installation.
 |`default`
 |No
 
+|`transaction.retries`
+|Number of times a partition may retry its read query after a transient failure.
+See <<read-retries>>.
+|`3`
+|No
+
+|`transaction.retry.timeout`
+|The time in milliseconds to wait before each retry.
+|`0`
+|No
+
 4+|*Query specific options*
 
 |`query.count`
@@ -109,3 +120,26 @@ every single node property as column prefixed by `source` or `target`
 |===
 
 ^*^ Just one of the options can be specified at the time.
+
+[#read-retries]
+== Read retries
+
+Each partition runs its own query in its own transaction.
+If that query fails with a transient error, the partition retries it, up to `transaction.retries` times, waiting `transaction.retry.timeout` milliseconds between attempts.
+Status codes listed in `transaction.codes.fail` are never retried.
+
+An error is transient when the Neo4j driver marks it as retryable, which covers a lost connection (`ServiceUnavailableException`), a server that can no longer serve the request (`SessionExpiredException`), transient server errors such as deadlocks (`TransientException`), and expired authorization.
+
+[IMPORTANT]
+====
+A retry re-runs the query from the beginning.
+The connector does not track how far the partition had already read, so rows the failed attempt had already produced are read and emitted again.
+If a read fails partway through and is retried, the partition can therefore contain duplicate rows.
+
+Set `transaction.retries` to `0` if you would rather have the read fail and be retried as a whole Spark task, which does not have this problem.
+====
+
+Retries also interact with partitioned reads.
+With `partitions` greater than `1`, each partition reads a different `SKIP`/`LIMIT` window in a separate transaction, so the partitions do not share a consistent snapshot of the graph.
+If the data changes while the read is in progress, a retried partition sees the newer state, and rows can be missed or read twice.
+Read from a quiescent database when you need a consistent result.

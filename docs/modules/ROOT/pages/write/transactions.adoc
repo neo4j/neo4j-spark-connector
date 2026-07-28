@@ -1,0 +1,268 @@
+= Transactions, retries, and partial failures
+
+:description: How the connector splits writes into transactions, what happens when a write fails halfway through, and how to write safely with MERGE under parallelism.
+
+include::partial$sparksession.adoc[]
+
+A write from Spark to Neo4j is not a single transaction.
+Understanding how the connector splits a write into many transactions explains what you are left with when a write job fails halfway through, and why `MERGE` needs extra care when more than one partition is writing at the same time.
+
+[#transaction-model]
+== How a write is split into transactions
+
+For every write, the connector builds one Cypher query and executes it once per batch of rows:
+
+* Spark runs one *task* per DataFrame partition, and each task opens its own session to Neo4j.
+* Each task accumulates rows until it has `batch.size` rows (5000 by default), then opens a transaction, runs the query with that batch bound to the `$events` parameter, and commits.
+* The task repeats this until the partition is exhausted. A final, possibly smaller, batch is committed when the task completes.
+
+So a job writing 1 million rows with the default `batch.size` and four partitions commits roughly 200 independent transactions, up to four of them concurrently.
+
+[IMPORTANT]
+====
+There is no enclosing transaction around a write, and no coordination between partitions.
+Each batch is committed on its own and becomes visible to other clients immediately.
+====
+
+This has a direct consequence: *the connector cannot offer all-or-nothing writes*. Sizing `batch.size` is therefore both a performance decision (see xref:performance/tuning.adoc#batch-size[]) and a decision about how much work can be lost or duplicated if a write fails.
+
+[#call-in-transactions]
+== `CALL { … } IN TRANSACTIONS` is not supported
+
+Because the connector runs your query inside an explicit transaction, you cannot use Cypher's link:{neo4j-docs-base-uri}/cypher-manual/current/subqueries/subqueries-in-transactions/[`CALL { … } IN TRANSACTIONS`^] to do your own batching, in either the `query` option or the `script` options.
+Neo4j rejects that clause inside an explicit transaction, so the write fails with an error.
+
+Two further reasons it cannot work with the `query` option:
+
+* Your query is not executed standalone. It is appended to an `UNWIND $events AS event` clause, so it is a query fragment and not a place where a top-level `CALL { … } IN TRANSACTIONS` clause could appear.
+* Your query never sees the whole DataFrame, only the current batch, so there would be nothing left for it to subdivide.
+
+Use `batch.size` instead. It is the connector's equivalent of `IN TRANSACTIONS OF N ROWS`, and it applies to every write option, not just `query`.
+
+[#partial-failures]
+== Partial failures
+
+When a write job fails, the data already in the database stays there. Specifically:
+
+* Batches that were committed before the failure are *not* rolled back. There is nothing to roll them back with.
+* The batch in flight when the error was raised is rolled back, so it applies fully or not at all.
+* Other partitions are unaffected and keep writing until they finish or fail on their own.
+
+The result is a database holding an arbitrary prefix of each partition's rows, with no marker recording where each one stopped.
+Rerunning the job replays the rows that did succeed.
+
+[WARNING]
+====
+Never treat a failed write as a no-op.
+Before rerunning a failed job, either make the write idempotent (see <<merge-safety>>) or clean up what the previous attempt committed, otherwise the retry duplicates the rows that had already landed.
+====
+
+=== Spark task retries
+
+Spark's own fault tolerance assumes tasks can be replayed safely, which does not hold for a non-transactional sink.
+If a task throws, Spark may retry the whole task, which re-runs the *entire partition* from its first row, including every batch the failed attempt had already committed.
+With `SaveMode.Append`, which generates `CREATE`, every replayed row becomes a duplicate.
+
+To make a task retry harmless, use `SaveMode.Overwrite` with keys and a supporting constraint, so replaying a row updates it instead of creating a second copy.
+
+=== Streaming writes
+
+Structured Streaming writes use the same per-batch commit model and the connector's epoch commit is a no-op, so streaming gives you the same at-least-once behavior described above. A failed and restarted epoch can rewrite rows it had already committed.
+
+[#retries]
+== Retry behavior
+
+Each task retries a failed batch itself before giving up, controlled by three options:
+
+.Retry options
+[cols="1,3,1"]
+|===
+|Option |Description |Default
+
+|`transaction.retries`
+|How many times the task may retry a failed batch.
+|`3`
+
+|`transaction.retry.timeout`
+|Milliseconds to wait before each retry.
+|`0`
+
+|`transaction.codes.fail`
+|Comma-separated Neo4j status codes that must always fail instead of being retried.
+|_(none)_
+|===
+
+The logic applied to an exception is, in order:
+
+. If the exception's status code is listed in `transaction.codes.fail`, the batch fails immediately. This check wins even for errors that would otherwise be retried.
+. If the exception is retryable and the task's retry budget is not exhausted, the task closes its transaction and session, waits `transaction.retry.timeout`, and re-runs *the current batch only*.
+. Otherwise the exception is rethrown and the task fails.
+
+An exception is retryable when it, or anything in its cause chain, is one the Neo4j driver marks as retryable. In practice these are:
+
+* `ServiceUnavailableException` — the connection to the server was lost.
+* `SessionExpiredException` — the server is no longer able to serve writes, for example after a cluster leader switch.
+* `TransientException` — including deadlocks (`Neo.TransientError.Transaction.DeadlockDetected`) and lock acquisition failures, which are the errors that too much write parallelism produces.
+* `AuthorizationExpiredException` and `SecurityRetryableException` — the authorization or token needs refreshing.
+
+[NOTE]
+====
+`transaction.retries` is a budget *per task for its whole lifetime*, not per batch.
+A task set to 3 retries that spends all three on its first batch has no retries left for the remaining batches of that partition.
+Increase the value for large partitions on a busy cluster.
+====
+
+=== Retries can duplicate data
+
+A retry re-runs the batch, which is only safe if the batch had not already been applied. That is not always knowable.
+
+If a connection is lost while a commit is in flight, the outcome is *indeterminate*: the server may have committed the transaction and been unable to tell the client.
+The driver raises `ServiceUnavailableException`, the connector classifies it as retryable, and the batch is written again.
+This is the mechanism behind duplicates that appear after `ExclusiveLock` and connection errors in the logs, even though the job reports the batch as failed and retried.
+
+Which outcomes are possible depends on how the write is expressed:
+
+[cols="1,2"]
+|===
+|Write |Effect of a retry after an indeterminate commit
+
+|`SaveMode.Append` (`CREATE`)
+|Duplicate nodes or relationships, always. `CREATE` has no notion of an existing row.
+
+|`SaveMode.Overwrite` (`MERGE`) with a uniqueness or key constraint on the keys
+|Safe. The retry matches what the first attempt wrote and updates it.
+
+|`SaveMode.Overwrite` (`MERGE`) without a constraint on the keys
+|Duplicates are possible, because `MERGE` may not see a concurrently written node. See <<merge-safety>>.
+
+|`query` option
+|Depends entirely on your query. Only an idempotent query survives a retry.
+|===
+
+[#merge-safety]
+== MERGE safety under parallelism
+
+`MERGE` looks idempotent, and is, in a single-threaded write against a constrained property.
+Neither condition holds by default in Spark.
+
+=== Without a constraint, MERGE creates duplicates
+
+`MERGE` performs a match and, if it finds nothing, a create. Nothing makes that pair atomic across concurrent transactions unless a uniqueness or key constraint exists on the merged properties.
+Two partitions merging the same key at the same time can both fail to match and both create, leaving two nodes and no error.
+
+This is the most common cause of silent duplication in connector writes: the job succeeds, the counters look right, and the graph has duplicate nodes.
+
+[IMPORTANT]
+====
+Always create a uniqueness or key constraint on the properties you merge on, *before* writing.
+The constraint is what makes `MERGE` atomic; it also turns a would-be duplicate into a retryable error rather than a silent second node.
+====
+
+Use xref:write/schema-optimization.adoc[schema optimization options] to have the connector create constraints for you, or the xref:write/query.adoc#script-option[`script` options] if you write with a custom query:
+
+[source, scala]
+----
+df.write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.Overwrite)
+  .option("labels", ":Person")
+  .option("node.keys", "id")
+  .option("schema.optimization.node.keys", "UNIQUE")
+  .save()
+----
+
+=== With a constraint, MERGE contends for locks
+
+A constraint makes `MERGE` correct, not contention-free. To keep the constraint, Neo4j takes a lock on the merged key, so concurrent partitions merging the same or related keys serialize against each other and, past a certain amount of parallelism, fail with deadlock or lock acquisition errors instead.
+
+Those errors are retryable, so a moderate amount of contention is absorbed by `transaction.retries` at the cost of throughput. Heavy contention exhausts the retry budget and fails the job.
+
+=== Partition your data to avoid contention
+
+The fix is not less parallelism as such, it is making sure two partitions never touch the same nodes:
+
+* *Repartition by the merge key* so that all rows for a given key are handled by one task. This removes contention on that key entirely and lets you keep multiple partitions:
++
+[source, scala]
+----
+df.repartition(col("id"))
+  .write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.Overwrite)
+  .option("labels", ":Person")
+  .option("node.keys", "id")
+  .save()
+----
+
+* *Write nodes before relationships*, in separate jobs. Node writes partition cleanly by key; relationship writes lock both endpoints and are far harder to partition safely.
+
+* *Use a single partition for relationship writes*, unless you can guarantee that no two partitions share an endpoint node. See xref:performance/tuning.adoc#parallelism[].
+
+[#large-imports]
+== Recommended pattern for large imports
+
+Putting the above together, a large import that tolerates failure and retry looks like this:
+
+. *Create constraints first*, in their own step, using the schema optimization options or a `script` option. This is what makes each row's write idempotent.
+. *Write nodes, then relationships*, as separate jobs, so relationship writes can always find their endpoints and node writes stay partitionable.
+. *Repartition by key* for node writes; use one partition for relationship writes unless the data is partitioned to avoid shared endpoints.
+. *Use `SaveMode.Overwrite` with keys* rather than `Append`, so a replayed batch or task updates instead of duplicating.
+. *Size `batch.size` to the server's heap*, and remember it also bounds how much work a single failure can lose.
+. *Raise `transaction.retries` and set a non-zero `transaction.retry.timeout`* for long partitions, so a leader switch or a burst of lock contention does not fail the job.
+. *Set `transaction.codes.fail`* for errors that must never be retried, typically constraint violations you would rather investigate than write twice.
+
+[source, scala]
+----
+// 1. and 3. and 4. and 5. and 6. — write the nodes
+df.repartition(col("id"))
+  .write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.Overwrite)
+  .option("labels", ":Person")
+  .option("node.keys", "id")
+  .option("schema.optimization.node.keys", "UNIQUE")
+  .option("batch.size", "20000")
+  .option("transaction.retries", "10")
+  .option("transaction.retry.timeout", "500")
+  .save()
+
+// 2. — write the relationships in a separate job, single partition.
+// The nodes already exist, so both endpoints use the `Match` node save mode.
+rels.coalesce(1)
+  .write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.Overwrite)
+  .option("relationship", "KNOWS")
+  .option("relationship.save.strategy", "keys")
+  .option("relationship.source.save.mode", "Match")
+  .option("relationship.source.labels", ":Person")
+  .option("relationship.source.node.keys", "source_id:id")
+  .option("relationship.target.save.mode", "Match")
+  .option("relationship.target.labels", ":Person")
+  .option("relationship.target.node.keys", "target_id:id")
+  // Merge on the relationship keys so a replayed batch updates
+  // the relationship instead of creating a second one
+  .option("relationship.keys", "since")
+  .option("transaction.retries", "10")
+  .save()
+----
+
+[#memory]
+== Keep per-row work bounded
+
+A batch is one transaction, and its whole working set must fit in the server's heap.
+Queries that expand the amount of work per row can make a nominally reasonable `batch.size` unaffordable, which shows up as out-of-memory errors or, on Aura, a quarantined instance rather than a clean failure.
+
+Patterns that expand per-row work include:
+
+* Setting an entire map of unknown size, as in `SET n += event.properties`. The transaction has to hold every property of every row in the batch, and the property count is data-dependent rather than schema-bounded.
+* Merging or matching on unconstrained or unindexed properties, which turns each row into a scan.
+* Creating relationships whose endpoints are matched by a non-key property.
+
+If a write runs out of memory, lower `batch.size` first, then constrain what each row does: project only the columns you need before writing, and prefer explicit properties over whole-map assignment so that the per-row cost is bounded by your schema.
+
+== See also
+
+* xref:write/options.adoc[] for the full list of write options.
+* xref:write/schema-optimization.adoc[] for creating indexes and constraints as part of a write.
+* xref:performance/tuning.adoc[] for sizing batches and parallelism.

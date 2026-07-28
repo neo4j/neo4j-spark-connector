@@ -27,6 +27,9 @@ memory errors on the server and cause failures.
 **Best write throughput comes when you use the largest batch size you can, while staying in the range of memory
 available on the server.**
 
+The batch size also determines the granularity of a failure: each batch is committed on its own, so it is the unit that a failed write can leave behind or that a retry can duplicate.
+See xref:write/transactions.adoc[].
+
 It's impossible to pick a single batch size that works for everyone, because how much memory your transactions
 take up depends on the number of properties & relationships, and other factors.  A good general aggressive value
 to try is around 20,000 - but you can increase this number if your data is small, or if you have a lot of memory
@@ -86,6 +89,22 @@ extreme cases with too much parallelism, Neo4j may reject the writes with lock c
 
 There is an exception to the "one partition" rule above: if your data writes are partitioned ahead of time to avoid locks, you
 can generally do as many write threads to Neo4j as there are cores in the server. Suppose we want to write a long list of `:Person` nodes, and we know they are distinct by the person `id`. We might stream those into Neo4j in four different partitions, as there will not be any lock contention.
+
+The reliable way to get that guarantee is to repartition by the key you write on, so that all rows for a given key are handled by a single task:
+
+[source, scala]
+----
+df.repartition(col("id"))
+  .write
+  // ...
+----
+
+[NOTE]
+====
+Partitioning affects correctness as well as performance.
+`MERGE` from multiple partitions is only safe when a uniqueness or key constraint exists on the merged properties.
+See xref:write/transactions.adoc#merge-safety[].
+====
 
 [#sampling]
 == Tune the schema sampling
