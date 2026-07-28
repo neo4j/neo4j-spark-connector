@@ -127,7 +127,7 @@ val df = spark.read
 
 == Neo4j driver options
 
-Under the covers, the Spark connector uses the link:https://neo4j.com/docs/java-manual/current/get-started/#java-driver-get-started-about[official Neo4j Java Driver].
+Under the covers, the Spark connector uses the link:https://neo4j.com/docs/java-manual/6[official Neo4j Java Driver].
 When using the connector, you can set any valid Neo4j driver option using the `option` method:
 
 [source,scala]
@@ -172,7 +172,7 @@ val dfProduct = spark.read.format("org.neo4j.spark.DataSource")
 ----
 
 The following table captures the most common configuration settings to use with the Neo4j driver.  For full
-documentation on all possible configuration options for Neo4j Drivers, see the link:https://neo4j.com/docs/java-manual/current[Neo4j Java Driver manual].
+documentation on all possible configuration options for Neo4j Drivers, see the link:https://neo4j.com/docs/java-manual/6[Neo4j Java Driver manual].
 
 .List of available configuration settings
 |===
@@ -183,7 +183,7 @@ documentation on all possible configuration options for Neo4j Drivers, see the l
 |`url`
 a|The url of the Neo4j instance to connect to.
 
-When provided with a comma-separated list of URIs, the link:https://neo4j.com/docs/java-manual/current/client-applications/#java-driver-resolver-function[resolver function] feature of the driver will be activated.
+When provided with a comma-separated list of URIs, the link:https://neo4j.com/docs/java-manual/6/connect/#cluster[resolver function] feature of the driver will be activated.
 The first URI will be used as original host while the rest are treated as resolver function outputs.
 |_(none)_
 |Yes

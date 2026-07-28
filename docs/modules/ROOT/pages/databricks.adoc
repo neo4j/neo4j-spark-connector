@@ -56,7 +56,7 @@ A secure alternative is to use <<secrets, secrets>> instead.
 
 == Authentication methods
 
-All the authentication methods supported by the link:{neo4j-docs-base-uri}/java-manual/current/connect-advanced/#_authentication_methods[Neo4j Java Driver] (version 4.4 and higher) are supported.
+All the authentication methods supported by the link:{neo4j-docs-base-uri}/java-manual/6/connect-advanced/#authentication-methods[Neo4j Java Driver] (version 6 and higher) are supported.
 
 See the xref:configuration.adoc#_neo4j_driver_options[Neo4j driver options] for more details on authentication configuration.
 
