@@ -41,7 +41,7 @@ val snowflakeDF: DataFrame = spark.read
 // Save the `snowflakeDF` as nodes with labels `Person` and `Customer` into Neo4j
 snowflakeDF.write
   .format("org.neo4j.spark.DataSource")
-  .mode(SaveMode.ErrorIfExists)
+  .mode(SaveMode.Append)
   .option("url", "neo4j://<host>:<port>")
   .option("labels", ":Person:Customer")
   .save()
@@ -67,7 +67,7 @@ snowflakeDF = (spark.read
 # Save the `snowflakeDF` as nodes with labels `Person` and `Customer` into Neo4j
 (snowflakeDF.write
   .format("org.neo4j.spark.DataSource")
-  .mode(SaveMode.ErrorIfExists)
+  .mode("Append")
   .option("url", "neo4j://<host>:<port>")
   .option("labels", ":Person:Customer")
   .save())

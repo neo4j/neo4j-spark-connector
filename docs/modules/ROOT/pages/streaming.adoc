@@ -79,7 +79,7 @@ df = spark.readStream \
 query = df.writeStream \
     .format("org.neo4j.spark.DataSource") \
     .option("url", "neo4j://localhost:7687") \
-    .option("save.mode", "ErrorIfExists") \
+    .option("save.mode", "Overwrite") \
     .option("checkpointLocation", "/tmp/checkpoint/myCheckPoint") \
     .option("labels", "Person") \
     .option("node.keys", "value") \
