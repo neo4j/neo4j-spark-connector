@@ -44,6 +44,8 @@ class QueryEmbedder {
   /**
    * This embeds the write query as a CALL subquery
    * @param originalQuery the original query
+   * @param allEventsVariable variable name for the event batch (e.g. "xs" in "UNWIND xs AS x")
+   * @param eventVariable variable name for one event (e.g. "x" in "UNWIND xs AS x")
    * @param scriptResult the script result, if any
    * @return
    */
