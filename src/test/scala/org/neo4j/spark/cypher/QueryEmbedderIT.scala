@@ -195,10 +195,10 @@ class QueryEmbedderIT {
       ),
       argumentSet(
         "embeds write query with nested call",
-        "CREATE (n:EmbeddedWriteNested {name: event.name}) CALL (n) { SET n.nested = true } SET n.after = true",
+        "CREATE (n:EmbeddedWriteNested {name: event.name}) WITH n CALL (n) { SET n.nested = true } SET n.after = true",
         "",
         queryParams(Seq(Map[String, AnyRef]("name" -> "Ada"))),
-        "UNWIND $events AS event CALL (event) {CREATE (n:`EmbeddedWriteNested` {name: event.name}) CALL (*) {SET n.nested = true} SET n.after = true}",
+        "UNWIND $events AS event CALL (event) {CREATE (n:`EmbeddedWriteNested` {name: event.name}) WITH n CALL (*) {SET n.nested = true} SET n.after = true}",
         "EmbeddedWriteNested",
         1
       ),
