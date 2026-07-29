@@ -265,26 +265,43 @@ class WriteIT {
     }
 
     @Test
-    def should_handle_nested_maps_properly(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+    def should_unpack_maps(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       import spark.implicits._
 
       SparkSession.setActiveSession(spark)
       Seq(
-        ("Foo", 100, Map("inner" -> Map("key" -> "innerValue"))),
-        ("Bar", 9, Map("hidden" -> Map("secret" -> "Baz")))
+        ("Foo", 1, Map("key" -> "value1"))
+      ).toDF("id", "time", "table").write.format("neo4j")
+        .mode(SaveMode.Append)
+        .option("labels", ":Map")
+        .save()
+
+      val fetchQuery = "MATCH (n:Map) RETURN n.`table.key` AS value"
+      val got = driver.session().run(fetchQuery).single().get("value").asString()
+      assertThat(got).isEqualTo("value1")
+    }
+
+    @Test
+    def should_unpack_nested_maps_when_no_collisions(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      import spark.implicits._
+
+      SparkSession.setActiveSession(spark)
+      Seq(
+        ("Foo", 1, Map("inner" -> Map("key" -> "innerValue1"))),
+        ("Bar", 1, Map("inner" -> Map("key" -> "innerValue2")))
       )
         .toDF("id", "time", "table")
         .write.format("neo4j")
         .mode(SaveMode.Append)
-        .option("labels", ":FlatMap")
+        .option("labels", ":NestedMap")
         .save()
 
       val fetchQuery =
         """
-          |MATCH (n:FlatMap)
+          |MATCH (n:NestedMap)
           |WHERE (
-          |  properties(n) = {id: 'Foo', time: 100, `table.inner.key`: 'innerValue'}
-          |  OR properties(n) = {id: 'Bar', time: 9, `table.hidden.secret`: 'Baz'}
+          |  properties(n) = {id: 'Foo', time: 1, `table.inner.key`: 'innerValue1'}
+          |  OR properties(n) = {id: 'Bar', time: 1, `table.inner.key`: 'innerValue2'}
           |)
           |RETURN count(n) AS count
           |""".stripMargin
@@ -294,7 +311,7 @@ class WriteIT {
     }
 
     @Test
-    def should_handle_nested_maps_with_collisions(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+    def should_unpack_nested_maps_with_collisions(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       import spark.implicits._
 
       SparkSession.setActiveSession(spark)
@@ -312,7 +329,9 @@ class WriteIT {
           |MATCH (n:CollisionMap)
           |WHERE (
           | properties(n) = {id: 'Foo', time: 1, `table.key.inner.key`: 'value1'}
+          | OR properties(n) = {id: 'Foo', time: 1, `table.key.inner.key`: 'innerValue1'}
           | OR properties(n) = {id: 'Bar', time: 1, `table.key.inner.key`: 'value2'}
+          | OR properties(n) = {id: 'Bar', time: 1, `table.key.inner.key`: 'innerValue2'}
           |)
           |RETURN count(n) AS count
           |""".stripMargin
@@ -322,7 +341,7 @@ class WriteIT {
     }
 
     @Test
-    def should_handle_nested_maps_with_collisions_and_aggregations(
+    def should_unpack_nested_maps_with_collisions_and_aggregations(
       driver: Driver,
       spark: SparkSession,
       neo4j: Neo4j
@@ -376,7 +395,7 @@ class WriteIT {
         (15, "John Butler", "Guitar", "qu   ux")
       ).toDF("experience", "name", "instrument", "fi``(╯°□°)╯︵ ┻━┻eld")
 
-      df.write.format("neo4j")
+      df.repartition(1).write.format("neo4j")
         .mode(SaveMode.Overwrite)
         .option("relationship", "PLÄYS")
         .option("relationship.source.labels", ":Müsician")
