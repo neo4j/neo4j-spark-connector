@@ -64,10 +64,6 @@ and needs each column always to have its own type.
 
 You can read more xref:read/schema.adoc[here], or see xref:known-issues.adoc#mixed-types[Cast errors when a property has different types across nodes].
 
-=== I am getting an error _TableProvider implementation org.neo4j.spark.DataSource cannot be written with ErrorIfExists mode, please use Append or Overwrite modes instead_. What should I do?
-
-The connector does not support `SaveMode.ErrorIfExists`, which is the default save mode.
-Set the save mode explicitly to `SaveMode.Append` or `SaveMode.Overwrite`.
 
 === I am getting errors _NoClassDefFoundError_ or _ClassNotFoundException_. What should I do?
 
