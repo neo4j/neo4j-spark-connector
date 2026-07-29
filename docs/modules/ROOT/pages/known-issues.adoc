@@ -21,19 +21,11 @@ For questions that are not about limitations, see xref:faq.adoc[].
 |Area |Known issue |Applies to
 
 |Writing
-|<<error-if-exists>>
-|All versions
-
-|Writing
 |<<relationship-save-mode>>
 |All versions
 
 |Writing
 |<<schema-optimization-query>>
-|All versions
-
-|Reading
-|<<skip-limit>>
 |All versions
 
 |Reading
@@ -67,46 +59,10 @@ For questions that are not about limitations, see xref:faq.adoc[].
 |Databricks
 |<<databricks-unity-catalog>>
 |All versions
-
-|Aura
-|<<aura-ssl>>
-|All versions
-
-|Environment
-|<<version-mismatch>>
-|All versions
 |===
 
 [#writing]
 == Writing
-
-[#error-if-exists]
-=== `ErrorIfExists` save mode is not supported
-
-The connector does not support `SaveMode.ErrorIfExists`, which is the default save mode of the Spark `DataFrameWriter`.
-Writing without an explicit mode fails with an error similar to the following:
-
-----
-TableProvider implementation org.neo4j.spark.DataSource cannot be written with ErrorIfExists mode,
-please use Append or Overwrite modes instead.
-----
-
-*Cause*: the connector is implemented as a Spark `TableProvider` that does not expose catalog options, so Spark cannot check whether the target "table" already exists.
-
-*Workaround*: always set the save mode explicitly to either `Append` or `Overwrite`.
-
-[source, python]
-----
-(
-    df.write
-    .format("org.neo4j.spark.DataSource")
-    .mode("Append")  # or "Overwrite"
-    .option("labels", ":Person")
-    .save()
-)
-----
-
-See xref:writing.adoc[] for the semantics of each mode.
 
 [#relationship-save-mode]
 === `ErrorIfExists` is not supported for relationship source and target nodes
@@ -131,39 +87,6 @@ See xref:write/schema-optimization.adoc[] for details.
 
 [#reading]
 == Reading
-
-[#skip-limit]
-=== `SKIP` and `LIMIT` are not allowed in a custom read query
-
-The connector appends `SKIP` and `LIMIT` internally to support partitioned reads, so a custom `query` that ends with either clause fails at execution time.
-
-*Workaround*: move `SKIP` and `LIMIT` _before_ the `RETURN` clause, or use the `query.count` option.
-
-[source, cypher]
-----
-// Fails
-MATCH (p:Person)
-RETURN p.name AS name
-ORDER BY name
-LIMIT 10
-----
-
-[source, cypher]
-----
-// Works
-MATCH (p:Person)
-WITH p.name AS name
-ORDER BY name
-LIMIT 10
-RETURN name
-----
-
-[CAUTION]
-====
-When you rewrite a query, make sure that the new query is equivalent to the original one, so that the result is the same.
-====
-
-See xref:read/query.adoc#limit-query[Limit the results] for details.
 
 [#mixed-types]
 === Cast errors when a property has different types across nodes
@@ -265,39 +188,6 @@ See xref:databricks.adoc#_set_up_a_compute_cluster[Set up a compute cluster].
 Unity Catalog support follows the same restriction as the cluster access mode: Neo4j supports the Unity Catalog in `Single user` access mode only.
 
 Refer to the link:https://docs.databricks.com/en/compute/access-mode-limitations.html[Databricks access mode limitations] for further information.
-
-[#aura]
-== Aura
-
-[#aura-ssl]
-=== SSL handshake errors when connecting to Aura from Databricks
-
-Aura customers connecting from Databricks may encounter SSL handshake failures.
-
-*Cause*: the custom Java security settings of the Databricks runtime remove support for some encryption ciphers required by Aura.
-
-*Workaround*: re-enable the required ciphers on the cluster as described in the Aura support article link:https://support.neo4j.com/s/article/1500003161121-Connecting-to-Aura-with-Databricks[Connecting to Aura with Databricks].
-
-[#environment]
-== Environment and versions
-
-[#version-mismatch]
-=== `NoClassDefFoundError` or `ClassNotFoundException` on startup
-
-Errors such as the following mean that the connector artifact does not match the Spark or Scala version of the runtime:
-
-----
-NoClassDefFoundError: org/apache/spark/sql/sources/v2/ReadSupport
-Caused by: ClassNotFoundException: org.apache.spark.sql.sources.v2.ReadSupport
-----
-
-----
-java.lang.NoClassDefFoundError: scala/collection/IterableOnce
-Caused by: java.lang.ClassNotFoundException: scala.collection.IterableOnce
-----
-
-*Workaround*: pick the connector artifact that matches your Spark and Scala versions.
-See xref:compatibility.adoc[] and xref:installation.adoc[].
 
 [#report]
 == Report a new issue

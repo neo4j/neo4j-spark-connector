@@ -69,8 +69,6 @@ You can read more xref:read/schema.adoc[here], or see xref:known-issues.adoc#mix
 The connector does not support `SaveMode.ErrorIfExists`, which is the default save mode.
 Set the save mode explicitly to `SaveMode.Append` or `SaveMode.Overwrite`.
 
-See xref:known-issues.adoc#error-if-exists[`ErrorIfExists` save mode is not supported].
-
 === I am getting errors _NoClassDefFoundError_ or _ClassNotFoundException_. What should I do?
 
 You may get one of the following types of error:
@@ -86,7 +84,7 @@ Caused by: java.lang.ClassNotFoundException: scala.collection.IterableOnce
 ----
 
 This means that your Spark version doesn't match the Spark version on the connector.
-Refer to xref:compatibility.adoc[] to choose the right version, or see xref:known-issues.adoc#version-mismatch[`NoClassDefFoundError` or `ClassNotFoundException` on startup].
+Refer to xref:compatibility.adoc[] to choose the right version.
 
 [[graph-already-exists]]
 === I am getting an error _Failed to invoke procedure gds.graph.create.cypher: Caused by: java.lang.IllegalArgumentException: A graph with name [name] already exists_. What should I do?
@@ -101,7 +99,7 @@ See xref:known-issues.adoc#graph-already-exists[the known issues page] for the w
 
 Aura customers connecting from Databricks may encounter SSL handshake errors due to Databricks' custom Java security settings removing support for some encryption ciphers.
 
-See xref:known-issues.adoc#aura-ssl[SSL handshake errors when connecting to Aura from Databricks].
+See the Aura support article link:https://support.neo4j.com/s/article/1500003161121-Connecting-to-Aura-with-Databricks[Connecting to Aura with Databricks] for more information.
 
 == Troubleshooting
 
