@@ -2006,5 +2006,18 @@ class ReadIT {
           )
         )
     }
+
+    @Test
+    def supports_query_with_skip_limit(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      val df = spark.read
+        .format(classOf[DataSource].getName)
+        .option("query", "UNWIND [1,2,3,4,5] AS x RETURN x SKIP 2 LIMIT 2")
+        .load()
+
+      assertThat(df.collect()).containsExactly(
+        Row(3L),
+        Row(4L)
+      )
+    }
   }
 }
