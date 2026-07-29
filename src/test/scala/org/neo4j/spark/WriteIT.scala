@@ -245,16 +245,23 @@ class WriteIT {
     }
 
     @Test
-    def should_insert_data_with_custom_query_with_skip_limit(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+    def should_insert_data_with_custom_query_with_skip_limit(
+      driver: Driver,
+      spark: SparkSession,
+      neo4j: Neo4j
+    ): Unit = {
       SparkSession.setActiveSession(spark)
       val df = spark.createDataFrame(
-          (0 to 99).map(i => (i, 99 - i))
-        ).toDF("a", "b")
+        (0 to 99).map(i => (i, 99 - i))
+      ).toDF("a", "b")
 
       df.write
         .format(classOf[DataSource].getName)
         .mode(SaveMode.Append)
-        .option("query", "CALL () { UNWIND [1,2] AS x RETURN x SKIP 1 LIMIT 1 } CREATE (q:Query {first: event.a, second: event.b})")
+        .option(
+          "query",
+          "UNWIND [1,2] AS x WITH x, event SKIP 1 LIMIT 1 CREATE (q:Query {first: event.a, second: event.b})"
+        )
         .save()
 
       val got = driver.session().run("MATCH (q:Query) RETURN count(q) AS count").single().get("count").asLong()

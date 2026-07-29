@@ -20,7 +20,10 @@ import org.neo4j.cypherdsl.core.Cypher
 import org.neo4j.cypherdsl.core.Cypher.callRawCypher
 import org.neo4j.cypherdsl.core.Expression
 import org.neo4j.cypherdsl.core.ResultStatement
+import org.neo4j.cypherdsl.core.Statement
 import org.neo4j.cypherdsl.core.StatementBuilder
+import org.neo4j.cypherdsl.parser.CypherParser
+import org.neo4j.spark.service.Neo4jQueryStrategy.VARIABLE_EVENT
 
 class QueryEmbedder {
 
@@ -32,10 +35,33 @@ class QueryEmbedder {
    * @param scriptResult the script result, if any
    * @return
    */
-  def embed(originalQuery: String, scriptResult: String): StatementBuilder.BuildableStatement[ResultStatement] = {
+  def embedRead(originalQuery: String, scriptResult: String): StatementBuilder.BuildableStatement[ResultStatement] = {
     val query = aliaser.aliasResults(originalQuery) // unaliased results are not allowed in subqueries
     callRawCypher(s"$scriptResult${query.query}")
       .returning(returnItems(query): _*)
+  }
+
+  /**
+   * This embeds the write query as a CALL subquery
+   * @param originalQuery the original query
+   * @param scriptResult the script result, if any
+   * @return
+   */
+  def embedWrite(
+    originalQuery: String,
+    allEventsVariable: String,
+    eventVariable: String,
+    scriptResult: String
+  ): StatementBuilder.BuildableStatement[Statement] = {
+    val event = Cypher.name(eventVariable)
+    val subquery =
+      CypherParser.parseStatement(
+        scriptResult + originalQuery
+      )
+    Cypher
+      .unwind(Cypher.parameter(allEventsVariable))
+      .as(event)
+      .call(subquery, event)
   }
 
   private def returnItems(query: AliasedQuery): Seq[Expression] =
