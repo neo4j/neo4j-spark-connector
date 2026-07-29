@@ -52,8 +52,6 @@ For more details on compatibility, see xref:compatibility.adoc[].
 
 Neo4j versions include both Community editions and Enterprise editions.
 
-For the current limitations of the connector, see xref:known-issues.adoc[].
-
 All 6.x versions of the connector require Scala 2.13.
 
 The minimum required version of the Java runtime is 17.
