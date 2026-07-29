@@ -86,6 +86,11 @@ and needs each column always to have its own type.
 
 You can read more xref:read/schema.adoc[here].
 
+=== I am getting an error _TableProvider implementation org.neo4j.spark.DataSource cannot be written with ErrorIfExists mode, please use Append or Overwrite modes instead_. What should I do?
+
+If you are getting this error while trying to write to Neo4j, be aware that the current version of the connector doesn't support `*SaveMode.ErrorIfExists*`, and that is the default save mode.
+Change the save mode to one of `SaveMode.Append` or `SaveMode.Overwrite`.
+
 === I am getting errors _NoClassDefFoundError_ or _ClassNotFoundException_. What should I do?
 
 You may get one of the following types of error:
