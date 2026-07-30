@@ -282,3 +282,73 @@ fun BuildSteps.pullImage(version: Neo4jVersion): DockerCommandStep =
         commandArgs = "pull ${version.dockerImage}"
       }
     }
+
+/** Build parameter holding the outcome of [docsOnlyDetection], as `"true"` or `"false"`. */
+const val DOCS_ONLY_CHANGE = "docs-only-change"
+
+/**
+ * Paths that cannot influence the build output. Anything not matching this is treated as a code
+ * change, so adding a path here is the only way to make the build skip it.
+ */
+private const val DOCS_PATHS = "^(docs/|\\.github/workflows/docs-)"
+
+/**
+ * Sets [DOCS_ONLY_CHANGE] to `true` when every file changed in this build is documentation.
+ *
+ * Fails safe on the contents of the change list: if it is empty or absent, the change is treated as
+ * touching code so that the build runs in full. The path of the list itself is always echoed, so
+ * that a build reporting no changes can be told apart from one where TeamCity stopped providing the
+ * list. Note that this runs on the agent rather than in a Docker image, so that it works the same
+ * way for every build type.
+ */
+private fun docsOnlyDetection(): ScriptBuildStep = ScriptBuildStep {
+  name = "detect docs-only change"
+  scriptContent =
+      """
+        #!/bin/bash -eu
+
+        changed_files="%system.teamcity.build.changedFiles.file%"
+        echo "list of changed files: ${'$'}{changed_files}"
+
+        docs_only=false
+        if [ -s "${'$'}{changed_files}" ]; then
+          # each line is <path>:<change type>:<revision>
+          changed_paths=${'$'}(cut -d: -f1 "${'$'}{changed_files}")
+
+          echo "files changed in this build:"
+          echo "${'$'}{changed_paths}"
+
+          if ! echo "${'$'}{changed_paths}" | grep -qvE '$DOCS_PATHS'; then
+            docs_only=true
+          fi
+        else
+          echo "no list of changed files available, assuming code has changed"
+        fi
+
+        echo "docs-only change: ${'$'}{docs_only}"
+        echo "##teamcity[setParameter name='$DOCS_ONLY_CHANGE' value='${'$'}{docs_only}']"
+      """
+          .trimIndent()
+}
+
+/**
+ * Makes [buildType] a no-op for changes that only touch documentation, by prepending
+ * [docsOnlyDetection] and running every other step only when it reports a code change.
+ *
+ * The build itself still runs and still reports its commit status to GitHub, which is what keeps
+ * the required status checks on a docs-only pull request from hanging forever.
+ *
+ * Take care when applying this to a build type whose artifacts another build consumes: artifact
+ * dependencies are resolved before any step condition is evaluated, so the consumer still tries to
+ * download artifacts that were never published.
+ */
+fun skipWhenDocsOnly(buildType: BuildType): BuildType {
+  buildType.params { text(DOCS_ONLY_CHANGE, "false") }
+
+  buildType.steps {
+    items.forEach { it.conditions { doesNotEqual(DOCS_ONLY_CHANGE, "true") } }
+    items.add(0, docsOnlyDetection())
+  }
+
+  return buildType
+}
