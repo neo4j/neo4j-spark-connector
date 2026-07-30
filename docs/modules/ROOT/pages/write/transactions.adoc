@@ -138,7 +138,7 @@ Which outcomes are possible depends on how the write is expressed:
 [#merge-safety]
 == MERGE safety under parallelism
 
-`MERGE` looks idempotent, and is, in a single-threaded write against a constrained property.
+`MERGE` looks idempotent, and is, in a single-threaded single-writer write against a constrained property.
 Neither condition holds by default in Spark.
 
 === Without a constraint, MERGE creates duplicates

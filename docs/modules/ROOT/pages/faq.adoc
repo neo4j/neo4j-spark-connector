@@ -56,7 +56,7 @@ See xref:write/transactions.adoc#partial-failures[].
 
 === My write used MERGE and succeeded, but the graph has duplicate nodes. Why?
 
-Almost always because there is no uniqueness or key constraint on the properties being merged on.
+This happens almost always because there is no uniqueness or key constraint on the properties being merged on.
 
 `MERGE` matches and then creates, and that pair is only atomic if a constraint exists on the merged properties.
 When several Spark partitions merge the same key at the same time, they can all fail to match and all create, which produces duplicates and no error.
