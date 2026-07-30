@@ -117,7 +117,7 @@ class Build(
                                         artifacts(packaging) {
                                           artifactRules =
                                               """
-                                    +:packages/*.jar => ./scripts/python
+                                    ?:packages/*.jar => ./scripts/python
                                     """
                                                   .trimIndent()
                                         }
