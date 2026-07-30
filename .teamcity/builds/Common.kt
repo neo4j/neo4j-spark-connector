@@ -307,7 +307,7 @@ private fun docsOnlyDetection(): ScriptBuildStep = ScriptBuildStep {
       """
         #!/bin/bash -eu
 
-        changed_files="%teamcity.build.changedFiles.file%"
+        changed_files="%system.teamcity.build.changedFiles.file%"
         echo "list of changed files: ${'$'}{changed_files}"
 
         docs_only=false
