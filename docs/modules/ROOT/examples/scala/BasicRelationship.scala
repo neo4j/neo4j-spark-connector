@@ -27,8 +27,6 @@ relDF.write
     .format("org.neo4j.spark.DataSource")
     // Assign a type to the relationships
     .option("relationship", "BOUGHT")
-    // Use `keys` strategy
-    .option("relationship.save.strategy", "keys")
     // Create source nodes and assign them a label
     .option("relationship.source.save.mode", "Append")
     .option("relationship.source.labels", ":Customer")
