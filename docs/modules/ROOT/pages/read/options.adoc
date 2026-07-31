@@ -117,6 +117,36 @@ every single node property as column prefixed by `source` or `target`
 |_(empty)_
 |Yes
 
+4+|*Cypher options* [role=label--new-6.0]
+
+|`cypher.version`
+|Set a custom Cypher language version to a custom value.
+Expected value is the version number itself, e.g. `5` or `25`
+|5
+|No
+
+|`cypher.tuning.*`
+|Set any cypher query tuning parameter with this prefix.
+See details on how to properly use this feature link:{neo4j-docs-base-uri}/spark/current/performance/cypher-tuning[here]
+|_(emtpy)_
+|No
+
+4+|*Optimization options*
+
+|`script`
+|Apply a custom Cypher query which will run once before any write operations.
+Use this capability to apply custom optimizations e.g. custom index/contstraint queries.
+Can not be used with `script.N`, use either or.
+|_(empty)_
+|No
+
+|`script.N`
+|Similar to `script`, replace `N` with any positive integer, put as many as you like.
+The scripts are executed in succession and in numbered order.
+Can not be used with plain `script`, use either or.
+|_(empty)_
+|No
+
 |===
 
 ^*^ Just one of the options can be specified at the time.
