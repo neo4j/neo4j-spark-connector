@@ -40,10 +40,6 @@ For questions that are not about limitations, see xref:faq.adoc[].
 |<<empty-sampling>>
 |All versions
 
-|Data types
-|<<map-flattening>>
-|All versions
-
 |GDS
 |<<gds-mutate-write>>
 |All versions
@@ -126,18 +122,6 @@ If the query returns no rows, sampling is not possible and the connector builds 
 
 This is expected behavior and causes no issues, because the result set is empty.
 See xref:read/schema.adoc[] for details.
-
-[#data-types]
-== Data types
-
-[#map-flattening]
-=== Map columns are flattened on write
-
-Neo4j does not support maps as node or relationship property types.
-When a DataFrame column is a map, the connector flattens it into multiple properties, one per (nested) key.
-
-This is expected behavior rather than a bug, but it changes the shape of the data in the graph.
-See xref:types.adoc[] for the full mapping between Spark and Neo4j types and for a flattening example.
 
 [#gds]
 == Graph Data Science
