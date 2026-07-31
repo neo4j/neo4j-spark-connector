@@ -88,7 +88,7 @@ extreme cases with too much parallelism, Neo4j may reject the writes with lock c
 **You can use as many partitions as there are cores in the Neo4j server, if you have properly partitioned your data to avoid Neo4j locks.**
 
 There is an exception to the "one partition" rule above: if your data writes are partitioned ahead of time to avoid locks, you can generally do as many write threads to Neo4j as there are cores in the server.
-Suppose we want to write a long list of `:Person` nodes, and we know they are distinct by the person `id`. We might stream those into Neo4j in four different partitions, as there will not be any lock contention.
+For example, if you want to write a long list of `:Person` nodes which are distinct by the person `id`, you can stream those into Neo4j in four different partitions and avoid any lock contention.
 
 The reliable way to get as little lock contention as possible is to repartition by the key you write on, so that all rows for a given key are handled by a single task:
 

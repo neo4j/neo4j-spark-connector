@@ -8,11 +8,11 @@ A write from Spark to Neo4j is not a single transaction.
 Understanding how the connector splits a write into many transactions explains what you are left with when a write job fails halfway through, and why `MERGE` needs extra care when more than one partition is writing at the same time.
 
 [#transaction-model]
-== How a write is split into transactions
+== Transaction model
 
 For every write, the connector builds one Cypher query and executes it once per batch of rows:
 
-* Spark runs one *task* per DataFrame partition, and each task opens its own session to Neo4j.
+* Spark runs one task per DataFrame partition, and each task opens its own session to Neo4j.
 * Each task accumulates rows until it has `batch.size` rows, then opens a transaction, runs the query with that batch bound to the `$events` parameter, and commits.
 * The task repeats this until the partition is exhausted. A final, possibly smaller, batch is committed when the task completes.
 
@@ -27,7 +27,7 @@ Each batch is committed on its own and becomes visible to other clients immediat
 This has a direct consequence: *the connector cannot offer all-or-nothing writes*. Sizing `batch.size` is therefore both a performance decision (see xref:performance/tuning.adoc#batch-size[]) and a decision about how much work can be lost or duplicated if a write fails.
 
 [#call-in-transactions]
-== `CALL { … } IN TRANSACTIONS` is not supported
+== `CALL` subqueries in transactions
 
 Because the connector runs your query inside an explicit transaction, you cannot use Cypher's link:{neo4j-docs-base-uri}/cypher-manual/current/subqueries/subqueries-in-transactions/[`CALL { … } IN TRANSACTIONS`^] to do your own batching, in either the `query` option or the `script` options.
 Neo4j rejects that clause inside an explicit transaction, so the write fails with an error.
@@ -60,7 +60,7 @@ Before rerunning a failed job, either make the write idempotent (see <<merge-saf
 === Spark task retries
 
 Spark's own fault tolerance assumes tasks can be replayed safely, which does not hold for a non-transactional sink.
-If a task throws, Spark may retry the whole task, which re-runs the *entire partition* from its first row, including every batch the failed attempt had already committed.
+If a task fails with an exception, Spark may retry the whole task, which re-runs the *entire partition* from its first row, including every batch the failed attempt had already committed.
 With `SaveMode.Append`, which generates `CREATE`, every replayed row becomes a duplicate.
 
 To make a task retry harmless, use `SaveMode.Overwrite` with keys and a supporting constraint, so replaying a row updates it instead of creating a second copy.
@@ -72,7 +72,7 @@ Structured Streaming writes use the same per-batch commit model and the connecto
 [#retries]
 == Retry behavior
 
-Each task retries a failed batch itself before giving up, controlled by three options:
+Each task retries a failed batch itself before giving up, controlled by two of the xref:write/options.adoc[write options]:
 
 .Retry options
 [cols="1,3,1"]
@@ -199,12 +199,12 @@ df.repartition(col("id"))
 
 Putting the above together, a large import that tolerates failure and retry looks like this:
 
-. *Create constraints first*, in their own step, using the schema optimization options or a `script` option. This is what makes each row's write idempotent.
-. *Write nodes, then relationships*, as separate jobs, so relationship writes can always find their endpoints and node writes stay partitionable.
-. *Repartition by key* for node writes; use one partition for relationship writes unless the data is partitioned to avoid shared endpoints.
-. *Use `SaveMode.Overwrite` with keys* rather than `Append`, so a replayed batch or task updates instead of duplicating.
-. *Size `batch.size` to the server's heap*, and remember it also bounds how much work a single failure can lose.
-. *Raise `transaction.retries` and set a non-zero `transaction.retry.timeout`* for long partitions, so a leader switch or a burst of lock contention does not fail the job.
+. Create constraints first, in their own step, using the schema optimization options or a `script` option. This is what makes each row's write idempotent.
+. Write nodes, then relationships, as separate jobs, so relationship writes can always find their endpoints and node writes stay partitionable.
+. Repartition by key for node writes; use one partition for relationship writes unless the data is partitioned to avoid shared endpoints.
+. Use `SaveMode.Overwrite` with keys rather than `Append`, so a replayed batch or task updates instead of duplicating.
+. Size `batch.size` to the server's heap, and remember it also bounds how much work a single failure can lose.
+. Raise `transaction.retries` and set a non-zero `transaction.retry.timeout` for long partitions, so a leader switch or a burst of lock contention does not fail the job.
 
 [source, scala]
 ----
@@ -255,9 +255,3 @@ Patterns that expand per-row work include:
 * Creating relationships whose endpoints are matched by a non-key property.
 
 If a write runs out of memory, lower `batch.size` first, then constrain what each row does: project only the columns you need before writing, and prefer explicit properties over whole-map assignment so that the per-row cost is bounded by your schema.
-
-== See also
-
-* xref:write/options.adoc[] for the full list of write options.
-* xref:write/schema-optimization.adoc[] for creating indexes and constraints as part of a write.
-* xref:performance/tuning.adoc[] for sizing batches and parallelism.

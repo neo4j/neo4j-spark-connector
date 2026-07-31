@@ -141,4 +141,4 @@ Set `transaction.retries` to `0` if you would rather have the read fail and be r
 Retries also interact with partitioned reads.
 With `partitions` greater than `1`, each partition reads a different `SKIP`/`LIMIT` window in a separate transaction, so the partitions do not share a consistent snapshot of the graph.
 If the data changes while the read is in progress, a retried partition sees the newer state, and rows can be missed or read twice.
-Read from a quiescent database when you need a consistent result.
+When you need a consistent result, read from a database that is not being written to for the duration of the read.

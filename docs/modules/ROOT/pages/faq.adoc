@@ -51,7 +51,7 @@ It holds everything that was committed before the failure.
 The connector commits one transaction per batch of `batch.size` rows per partition, with no enclosing transaction, so a failed job leaves an arbitrary prefix of each partition's rows in the database.
 Only the batch that was in flight is rolled back.
 
-Do not rerun a failed write as if nothing had happened, unless the write is idempotent.
+Do *not* rerun a failed write unless the write is idempotent.
 See xref:write/transactions.adoc#partial-failures[].
 
 === My write used MERGE and succeeded, but the graph has duplicate nodes. Why?
@@ -66,7 +66,8 @@ See xref:write/transactions.adoc#merge-safety[].
 
 === Can I use `CALL { … } IN TRANSACTIONS` in the `query` option to batch my own writes?
 
-No. The connector runs your query inside an explicit transaction, and Neo4j does not permit that clause in an explicit transaction, so the write fails.
+No.
+The connector runs the query inside an explicit transaction, and Neo4j does not allow that clause in an explicit transaction, so the write fails.
 
 Use the `batch.size` option, which is the connector's equivalent, and applies to every write option.
 See xref:write/transactions.adoc#call-in-transactions[].
