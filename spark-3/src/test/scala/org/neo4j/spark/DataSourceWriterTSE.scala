@@ -1268,7 +1268,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         fail(s"should throw ${classOf[IllegalArgumentException].getName}, but ${e.getClass.getName} was thrown")
     }
 
-    assertTrue(didThrow, s"should throw ${classOf[IllegalArgumentException].getName}, but nothing was thrown")
+    assertTrue(s"should throw ${classOf[IllegalArgumentException].getName}, but nothing was thrown", didThrow)
   }
 
   @Test
