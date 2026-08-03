@@ -55,41 +55,6 @@ RETURN p
 If you need to return a graph entity, use the xref:read/labels.adoc[`labels`] or xref:read/relationship.adoc[`relationship`] read options instead.
 ====
 
-[[limit-query]]
-== Limit the results
-
-The connector uses `SKIP` and `LIMIT` internally to support partitioned reads; as a result, `SKIP` and `LIMIT` clauses are not allowed in a custom Cypher query.
-Attempts to do this will cause execution errors.
-
-A possible workaround is to use `SKIP` and `LIMIT` _before_ the `RETURN` clause.
-For example, the following query fails:
-
-[source,cypher]
-----
-MATCH (p:Person)
-RETURN p.name AS name
-ORDER BY name
-LIMIT 10
-----
-
-The query can be rewritten with `LIMIT` before the `RETURN` to complete successfully:
-
-[source,cypher]
-----
-MATCH (p:Person)
-WITH p.name AS name
-ORDER BY name
-LIMIT 10
-RETURN p.name
-----
-
-[CAUTION]
-====
-When you rewrite a query, make sure the new query is equivalent to your original query so that the result is the same.
-====
-
-You can also use the `query.count` option instead of rewriting your query.
-See the xref:performance/spark.adoc#parallelize[Spark optimizations] page for more details.
 
 [[script-options]]
 == Script options

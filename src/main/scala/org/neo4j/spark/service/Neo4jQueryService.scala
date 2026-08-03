@@ -38,6 +38,7 @@ import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.cypher.QueryEmbedder
 import org.neo4j.spark.service.Neo4jQueryStrategy.VARIABLE_EVENT
+import org.neo4j.spark.service.Neo4jQueryStrategy.VARIABLE_EVENTS
 import org.neo4j.spark.service.Neo4jQueryStrategy.eventProperties
 import org.neo4j.spark.service.Neo4jQueryStrategy.relEventProperties
 import org.neo4j.spark.service.Neo4jQueryStrategy.scriptResultClause
@@ -59,6 +60,7 @@ import scala.jdk.CollectionConverters.SeqHasAsJava
 class Neo4jQueryWriteStrategy(
   private val neo4j: Neo4j,
   private val renderer: CypherRenderer,
+  private val embedder: QueryEmbedder,
   private val saveMode: SaveMode,
   private val withPreamble: Boolean = true
 ) extends Neo4jQueryStrategy {
@@ -67,7 +69,8 @@ class Neo4jQueryWriteStrategy(
     val preamble = if (withPreamble) fullPreamble(neo4j, options) else ""
     val scriptResult = scriptResultClause(options)
 
-    preamble + scriptResult + unwindEventsAsEvent + options.query.value
+    val statement = embedder.embedWrite(options.query.value, VARIABLE_EVENTS, VARIABLE_EVENT, scriptResult)
+    s"$preamble${renderer.render(statement.build())}"
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
@@ -213,7 +216,7 @@ class Neo4jQueryReadStrategy(
   override def createStatementForQuery(options: Neo4jOptions): String = {
     val scriptResult = scriptResultClause(options)
     var statement: StatementBuilder.BuildableStatement[ResultStatement] =
-      queryEmbedder.embed(options.query.value, scriptResult)
+      queryEmbedder.embedRead(options.query.value, scriptResult)
     if (partitionPagination.topN.orders.nonEmpty) {
       statement = statement
         .asInstanceOf[StatementBuilder.TerminalExposesOrderBy]

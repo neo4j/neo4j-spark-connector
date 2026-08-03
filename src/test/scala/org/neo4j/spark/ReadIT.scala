@@ -1876,47 +1876,6 @@ class ReadIT {
         .containsOnlyOnce(("foo", 1), ("foo", 2))
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = Array("limit", "\nlimit", "LIMIT", "\nLIMIT", "lImIT", "\nlImIT"))
-    @ClearSystemProperty(key = "strict.cypher")
-    def fails_if_limit_is_used_at_the_end_of_the_query(
-      limitKeyword: String,
-      driver: Driver,
-      spark: SparkSession,
-      neo4j: Neo4j
-    ): Unit = {
-      assertThatExceptionOfType(classOf[IllegalArgumentException])
-        .isThrownBy(() => {
-          spark.read
-            .format(classOf[DataSource].getName)
-            .option("query", s"MATCH (n:Label) RETURN elementId(n) as id $limitKeyword 100")
-            // generated query would yield 42I63 because of misplaced LIMIT in strict mode
-            .load()
-            .count()
-        })
-        .withMessage("SKIP/LIMIT are not allowed at the end of the query")
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = Array("limit", "\nlimit", "LIMIT", "\nLIMIT", "lImIT", "\nlImIT"))
-    def supports_limit_keyword_when_not_at_the_end_of_the_query(
-      limitKeyword: String,
-      driver: Driver,
-      spark: SparkSession,
-      neo4j: Neo4j
-    ): Unit = {
-      driver.executableQuery(s"""UNWIND range(1, 100) as id
-                                |CREATE (:Product {id: id, name: 'Product ' + id})""".stripMargin)
-        .execute()
-
-      val df = spark.read
-        .format(classOf[DataSource].getName)
-        .option("query", s"MATCH (p:Product) WITH p $limitKeyword 10\nRETURN p")
-        .load()
-
-      assertThat(df.count()).isEqualTo(10)
-    }
-
     @Test
     def supports_user_defined_schema(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
       driver.executableQuery("CREATE (p:Person {name: 'Foo Bar', age: 8})")
@@ -2005,6 +1964,19 @@ class ReadIT {
             Timestamp.from(OffsetDateTime.parse("2022-06-16T10:02:28.192Z").toInstant)
           )
         )
+    }
+
+    @Test
+    def supports_query_with_skip_limit(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      val df = spark.read
+        .format(classOf[DataSource].getName)
+        .option("query", "UNWIND [1,2,3,4,5] AS x RETURN x SKIP 2 LIMIT 2")
+        .load()
+
+      assertThat(df.collect()).containsExactly(
+        Row(3L),
+        Row(4L)
+      )
     }
   }
 }
