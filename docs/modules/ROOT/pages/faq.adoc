@@ -3,14 +3,6 @@
 
 == General questions
 
-=== Is this software connected to Morpheus or Cypher for Apache Spark (CAPS)?
-
-No. There is no shared code or approach between the two, and they take very different approaches. Cypher for Apache Spark/Morpheus took the approach of providing an interpreter
-that could execute Cypher queries within the Spark environment, and provided a native graph representation for Spark.
-By contrast, this connector does not provide that
-functionality and focuses on doing reads and writes back and forth between Neo4j and Spark. Via this connector, all Cypher code is executed strictly within Neo4j. The Spark
-environment operates in terms of DataFrames as it always did, and this connector does not provide graph API primitives for Spark.
-
 === How can I speed up writes to Neo4j?
 
 The Spark connector fundamentally writes data to Neo4j in batches. Neo4j is a transactional
@@ -27,11 +19,6 @@ For best performance, make sure you are familiar with the material in the link:h
 
 It is important to keep in mind that Neo4j scales writes vertically and reads horizontally.  In
 the link:https://neo4j.com/docs/operations-manual/current/clustering/introduction/[Causal Cluster Model], only the cluster leader (1 machine) may accept writes. For this reason, focus on getting the best hardware and performance on your cluster leader to maximize write throughput.
-
-=== Why are the returned columns not in the same order as I specified in the query?
-
-Unfortunately, this is a known issue and is there for Neo4j 3.x and Neo4j 4.0.
-From Neo4j 4.1 onwards, you get the same order as it's specified in the return statement.
 
 === Where can I get help?
 
@@ -54,6 +41,37 @@ exceptions can result and a transaction fails.
 In general, the solution is to repartition the DataFrame before writing it to Neo4j, to avoid
 multiple partitioned writes from locking the same nodes and relationships.
 
+Deadlocks are retryable, so raising `transaction.retries` and setting a non-zero `transaction.retry.timeout` absorbs occasional contention at the cost of throughput.
+See xref:write/transactions.adoc#merge-safety[] for how to partition your data so the contention does not arise in the first place.
+
+=== My write job failed halfway through. What state is the database in?
+
+It holds everything that was committed before the failure.
+
+The connector commits one transaction per batch of `batch.size` rows per partition, with no enclosing transaction, so a failed job leaves an arbitrary prefix of each partition's rows in the database.
+Only the batch that was in flight is rolled back.
+
+Do *not* rerun a failed write unless the write is idempotent.
+See xref:write/transactions.adoc#partial-failures[].
+
+=== My write used MERGE and succeeded, but the graph has duplicate nodes. Why?
+
+This happens almost always because there is no uniqueness or key constraint on the properties being merged on.
+
+`MERGE` matches and then creates, and that pair is only atomic if a constraint exists on the merged properties.
+When several Spark partitions merge the same key at the same time, they can all fail to match and all create, which produces duplicates and no error.
+
+Create the constraint before writing, with the xref:write/schema-optimization.adoc[schema optimization options] or a xref:write/query.adoc#script-option[`script` option].
+See xref:write/transactions.adoc#merge-safety[].
+
+=== Can I use `CALL { … } IN TRANSACTIONS` in the `query` option to batch my own writes?
+
+No.
+The connector runs the query inside an explicit transaction, and Neo4j does not allow that clause in an explicit transaction, so the write fails.
+
+Use the `batch.size` option, which is the connector's equivalent, and applies to every write option.
+See xref:write/transactions.adoc#call-in-transactions[].
+
 === I am getting a cast error like _UTF8String cannot be cast to Long_. What is the solution?
 
 You might be getting an error like the following one or similar, with different types:
@@ -71,12 +89,8 @@ You can read more xref:read/schema.adoc[here].
 
 === I am getting an error _TableProvider implementation org.neo4j.spark.DataSource cannot be written with ErrorIfExists mode, please use Append or Overwrite modes instead_. What should I do?
 
-If you are getting this error while trying to write to Neo4j, be aware that the current version of the connector
-doesn't support `*SaveMode.ErrorIfExists*` on Spark 3,
-and that is the default save mode.
-So please, change the save mode to one of `SaveMode.Append` or `SaveMode.Overwrite`.
-
-We are working to fully support all the save modes on Spark 3.
+If you are getting this error while trying to write to Neo4j, be aware that the current version of the connector doesn't support `*SaveMode.ErrorIfExists*`, and that is the default save mode.
+Change the save mode to one of `SaveMode.Append` or `SaveMode.Overwrite`.
 
 === I am getting errors _NoClassDefFoundError_ or _ClassNotFoundException_. What should I do?
 

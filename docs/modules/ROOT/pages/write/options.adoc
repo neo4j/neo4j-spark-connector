@@ -12,17 +12,15 @@ The DataSource Writer has several options to connect and persist data into Neo4j
 |No
 
 |`batch.size`
-|The number of the rows sent to Neo4j as batch
+|The number of the rows sent to Neo4j as a batch.
+Each batch is committed in its own transaction, so this also bounds what a single failure can leave behind.
+See xref:write/transactions.adoc[].
 |5000
 |No
 
-|`transaction.codes.fail`
-|Comma-separated list of Neo4j codes that cause the transaction to fail
-|_(none)_
-|No
-
 |`transaction.retries`
-|Number of retries in case of failure
+|Number of retries in case of failure. The budget applies per task for its whole lifetime, not per batch.
+See xref:write/transactions.adoc#retries[].
 |3
 |No
 
