@@ -163,7 +163,8 @@ The `limit` value will be pushed down to Neo4j.
 
 == Partitioning
 
-When the connector fetches data from Neo4j during read operations we offer the possibility to partition the query in smaller chunks to parallelize the workload.
+When the connector fetches data from Neo4j during read operations we offer the possibility to partition the query in smaller partitions.
+Each individual partition will then run as separate Spark tasks, which in turn run in parallel.
 
 Consider the following job:
 
@@ -241,3 +242,11 @@ RETURN count(p) AS count
 
 Failing to provide such a query or count will fall back to approach (3) which has no guarantee to be an optimized query.
 It is therefore strongly recommended to use indexes and custom count queries in favor of falling back to (3).
+
+=== Deterministic ordering of partitions
+
+In order to guarantee that there is no data overlap between the partitions, you will have to provide a deterministic ordering in your query.
+Simplest way to do this is to be explicit with the ordering using `ORDER BY` in your query.
+Failing to do so can lead to incomplete extractions, where some data is never included in *any* of the partitions.
+
+This is a documented Cypher behavior, please see link:https://neo4j.com/docs/cypher-manual/current/clauses/skip[SKIP] in the Cypher manual for more details.
