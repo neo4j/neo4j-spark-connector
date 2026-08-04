@@ -163,14 +163,14 @@ The `limit` value will be pushed down to Neo4j.
 
 == Partitioning
 
-While we're trying to pull off the data we offer the possibility to partition the extraction in order
-to parallelize it.
+When the connector fetches data from Neo4j during read operations we offer the possibility to partition the query in smaller chunks to parallelize the workload.
 
-Please consider the following job:
+Consider the following job:
 
 [source,scala]
 ----
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSession
 
 val spark = SparkSession.builder().getOrCreate()
 
@@ -186,21 +186,21 @@ val df = (spark.read.format("org.neo4j.spark.DataSource")
 This means that if the total count of the nodes with label `Person` into Neo4j is 100 we are creating 5
 partitions and each one manages 20 records (we use `SKIP / LIMIT` queries).
 
-Partitioning the dataset makes sense only if you're dealing with a big dataset (>= 10M of records).
+Partitioning the dataset makes sense only if you're dealing with a big dataset (rule of thumb approximately >= 10M of records).
 
 [#parallelize]
 === How to parallelize query execution
 
-Three options are available:
+Partitions option is supported by three of our modes.
+GDS is not supported by this option.
+You can therefore partition these modes:
 
 1. Node extraction.
 2. Relationship extraction.
 3. Query extraction.
 
-A general count on what you're trying to pull off is being provided and
-a query with `SKIP / LIMIT` approach over each partition is being built.
-
-Therefore, for a dataset of 100 nodes (`Person`) with a partition size of 5 the following queries are generated (one for partition):
+A dynamic count on what you are trying to fetch is being provided and a query with `SKIP / LIMIT` approach over each partition is being built.
+A dataset of 100 nodes (`Person`) with a partition size of 5 the following queries are generated (one for partition):
 
 [source,cypher]
 ----
@@ -211,18 +211,26 @@ MATCH (p:Person) RETURN p SKIP 60 LIMIT 20
 MATCH (p:Person) RETURN p SKIP 80 LIMIT 20
 ----
 
-While for node and relationship extraction, you leverage the https://neo4j.com/developer/kb/fast-counts-using-the-count-store/:[Neo4j count store] in order to retrieve the total count
-about the nodes/relationships you're trying pulling off, for the (3) you have two possible approaches:
+For node and relationship extractions, the connector will automatically leverage the link:https://neo4j.com/developer/kb/fast-counts-using-the-count-store/[Neo4j count store] in order to retrieve the total count of the nodes and/or relationships you are trying to fetch.
+However, for custom query extractions, you will have to provide an additional optimized count query, or a static number if you already know the count beforehand.
 
-* Compute a count over the query that you're using.
-* Compute a global count over a second *optimized* query that leverages indexes. In this case, you can pass
-it via the `.option("query.count", "<your cypher query>")`.
+[NOTE]
+====
+The count query is executed once and should be considered as additional overhead for when partitions is enabled.
+It is just as important to optimize your count query as it is to optimize the actual query.
+By providing a custom count query, you gain the flexibility to optimize it against your domain.
+====
 
-The option can be set in two ways:
+The connector will opt for one of three possible approaches to determine a global partition count.
+By setting option `query.count` you influence what approach is being used:
 
-* as an integer: `.option("query.count", 100)`
-* as a query, that must always return only
-one field named `count` which is the result of the count:
+1) Compute the global count using a second *optimized* query that leverages indexes.
+Do this by setting `.option("query.count", "<your cypher count query>")`.
+2) Provide a static integer value as count in case you know it beforehand.
+Simply set option `query.count` to an integer, e.g. `.option("query.count", 125000000)`
+3) If you do not set any value to `query.count` we will fall back and generate `CALL { <your query> } RETURN count(*) AS count` for you.
+
+A count query must return a single integer as `count`, consider this example:
 
 [source,cypher]
 ----
@@ -230,3 +238,6 @@ MATCH (p:Person)-[r:BOUGHT]->(pr:Product)
 WHERE pr.name = 'An Awesome Product'
 RETURN count(p) AS count
 ----
+
+Failing to provide such a query or count will fall back to approach (3) which has no guarantee to be an optimized query.
+It is therefore strongly recommended to use indexes and custom count queries in favor of falling back to (3).
