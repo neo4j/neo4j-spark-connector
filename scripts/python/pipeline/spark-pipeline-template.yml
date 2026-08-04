@@ -1,0 +1,7 @@
+name: neo4j_spark_declarative_relationship_integration_test
+storage: "%%%__PIPELINE_STORAGE__%%%"
+libraries:
+  - glob:
+      include: transformations/**
+configuration:
+  spark.sql.shuffle.partitions: "2"
