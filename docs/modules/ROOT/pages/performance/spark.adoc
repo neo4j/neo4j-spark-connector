@@ -228,7 +228,7 @@ By setting option `query.count` you influence what approach is being used:
 1. Compute the global count using a second *optimized* query that leverages indexes.
   * Do this by setting `.option("query.count", "<your cypher count query>")`.
 2. Provide a static integer value as count in case you know it beforehand.
-  * Do this by setting option `query.count` to an integer, e.g. `.option("query.count", 125000000)`
+  * Do this by setting option `query.count` to an integer, e.g. `.option("query.count", 100)`
 3. If you do not set any value to `query.count` we will fall back and automatically generate one.
   * Generated on the form of `CALL { <your query> } RETURN count(*) AS count` for you.
 
