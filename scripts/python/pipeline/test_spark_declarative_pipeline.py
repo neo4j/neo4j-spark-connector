@@ -21,7 +21,7 @@ class IntegrationTestError(RuntimeError):
 
 
 def log(stage: str, message: str) -> None:
-    print(f"[{stage}] {message}", flush=True)
+    print(f"[pipeline-integration-test # {stage}] {message}", flush=True)
 
 
 def require_connector_jar(raw_path: str) -> Path:
@@ -66,6 +66,10 @@ def find_spark_pipelines_executable() -> Path:
         candidates.append(
             Path(pyspark_file).resolve().parent / "bin" / "spark-pipelines"
         )
+
+    log("setup", "available spark pipeline runtime candidates:")
+    for candidate in candidates:
+        log("setup", "    " + str(candidate))
 
     for candidate in candidates:
         resolved = candidate.expanduser().resolve()

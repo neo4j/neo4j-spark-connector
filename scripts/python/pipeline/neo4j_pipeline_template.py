@@ -82,7 +82,6 @@ def pipeline_verification() -> DataFrame:
         """
     )
 
-    # comparing both directions
     differences = actual.exceptAll(expected).unionByName(expected.exceptAll(actual))
     check = differences.agg(F.count(F.lit(1)).alias("difference_count"))
 
