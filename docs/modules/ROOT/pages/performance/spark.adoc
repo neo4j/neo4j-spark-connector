@@ -257,8 +257,8 @@ This is a documented Cypher behavior, please see link:https://neo4j.com/docs/cyp
 The partition optimization feature assumes that it is safe to run each individual partition of work in their own driver transactions.
 Which is not the case if your instance is under heavy write-load.
 When your database is under heavy write-load it sees frequent state changes.
+
 The count query runs in one transaction before creating the partitions, whom will all run under induvidual transactions.
 Any data written after partitions are determined and before actual reading operation manage to start execution will not be read.
-
 To mitigate this risk, be mindful of your database state before a read operation.
 
