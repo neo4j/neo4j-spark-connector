@@ -225,11 +225,12 @@ By providing a custom count query, you gain the flexibility to optimize it again
 The connector will opt for one of three possible approaches to determine a global partition count.
 By setting option `query.count` you influence what approach is being used:
 
-1) Compute the global count using a second *optimized* query that leverages indexes.
-Do this by setting `.option("query.count", "<your cypher count query>")`.
-2) Provide a static integer value as count in case you know it beforehand.
-Simply set option `query.count` to an integer, e.g. `.option("query.count", 125000000)`
-3) If you do not set any value to `query.count` we will fall back and generate `CALL { <your query> } RETURN count(*) AS count` for you.
+1. Compute the global count using a second *optimized* query that leverages indexes.
+  * Do this by setting `.option("query.count", "<your cypher count query>")`.
+2. Provide a static integer value as count in case you know it beforehand.
+  * Do this by setting option `query.count` to an integer, e.g. `.option("query.count", 125000000)`
+3. If you do not set any value to `query.count` we will fall back and automatically generate one.
+  * Generated on the form of `CALL { <your query> } RETURN count(*) AS count` for you.
 
 A count query must return a single integer as `count`, consider this example:
 
