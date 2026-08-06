@@ -20,7 +20,7 @@ The rest of the query is built depending on a number of data source options.
 |
 * `native` requires the DataFrame to use a specific schema.
 * `keys` is more flexible.
-|`native`
+|`keys`
 
 |`relationship.source.save.mode`
 
@@ -61,14 +61,14 @@ If `key` and `value` have the same value (for example `"name:name"`), you can om
 and
 
 `relationship.target.node.properties`
-|When the <<strategies, save strategy>> is `keys`, define which DataFrame columns to write as source/target node properties.
+|When the <<strategies, save strategy>> is `keys` (default), define which DataFrame columns to write as source/target node properties.
 |Comma-separated list of `key:value` pairs.
 
 If `key` and `value` have the same value (for example `"name:name"`), you can omit one.
 |_(empty)_
 
 |`relationship.properties`
-|When the <<strategies, save strategy>> is `keys`, defines which DataFrame columns to write as relationship properties.
+|When the <<strategies, save strategy>> is `keys` (default), defines which DataFrame columns to write as relationship properties.
 |Comma-separated list of `key:value` pairs.
 
 If `key` and `value` have the same value (for example `"name:name"`), you can omit one.

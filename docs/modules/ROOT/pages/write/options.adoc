@@ -67,7 +67,7 @@ Set to `0` to disable.
 |No
 
 |`relationship.properties`
-|Used only if `relationship.save.strategy` is `keys`.
+|Used only if `relationship.save.strategy` is `keys` (default).
 Map used as keys for specifying the *relationship* properties.
 When set, only the relationships included in the map are set as relationship properties.
 When the option is not set, all unmapped fields are set as relationship properties.
@@ -76,7 +76,7 @@ When the option is not set, all unmapped fields are set as relationship properti
 
 |`relationship.save.strategy`
 |xref:write/relationship.adoc#strategies[Save strategy] to be used
-|`native`
+|`keys`
 |Yes
 
 |`relationship.source.labels`
@@ -100,7 +100,7 @@ When the option is not set, all unmapped fields are set as relationship properti
 |No
 
 |`relationship.source.node.properties`
-|Map used as keys for specifying the *source* properties. Only used if `relationship.save.strategy` is `keys`
+|Map used as keys for specifying the *source* properties. Only used if `relationship.save.strategy` is `keys` (default)
 |_(empty)_
 |No
 
@@ -125,7 +125,7 @@ When the option is not set, all unmapped fields are set as relationship properti
 |No
 
 |`relationship.target.node.properties`
-|Map used as keys for specifying the *target* properties. Only used if `relationship.save.strategy` is `keys`
+|Map used as keys for specifying the *target* properties. Only used if `relationship.save.strategy` is `keys` (default)
 |_(empty)_
 |No
 
