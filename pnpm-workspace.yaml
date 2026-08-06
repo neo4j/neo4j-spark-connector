@@ -11,4 +11,4 @@ allowBuilds:
   core-js: false
 
 overrides:
-  "danger>undici": "^6.27.0"
+  "danger>undici": "^6.28.0"
