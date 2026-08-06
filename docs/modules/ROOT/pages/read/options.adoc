@@ -127,7 +127,7 @@ The expected value is the version number itself, for example `5` or `25`.
 
 |`cypher.tuning.*`
 |Set any cypher query tuning parameter with this prefix.
-See details on how to properly use this feature link:{neo4j-docs-base-uri}/spark/current/performance/cypher-tuning[here]
+See more details on how to properly use this feature on link:{neo4j-docs-base-uri}/spark/current/performance/cypher-tuning[].
 |_(emtpy)_
 |No
 
