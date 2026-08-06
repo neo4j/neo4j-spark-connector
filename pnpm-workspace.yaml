@@ -1,0 +1,14 @@
+blockExoticSubdeps: true
+minimumReleaseAge: 4320 # 3 days
+
+# danger contains a transitive dep 'octokit' with unsecure relase chain, it does not mean danger is malware.
+# but it means that 'octokit' version 9.0.6 has a weaker release-verification than previous versions.
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  - '@octokit/endpoint@9.0.6'
+
+allowBuilds:
+  core-js: false
+
+overrides:
+  "danger>undici": "^6.27.0"
