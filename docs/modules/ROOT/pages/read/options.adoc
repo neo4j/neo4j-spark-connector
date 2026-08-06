@@ -135,15 +135,15 @@ See more details on how to properly use this feature on link:{neo4j-docs-base-ur
 
 |`script`
 |Apply a custom Cypher query which will run once before any write operations.
-Use this capability to apply custom optimizations e.g. custom index/contstraint queries.
-Can not be used with `script.N`, use either or.
+Use this option to apply optimizations such as the use of a  custom index and constraint queries.
+Can not be used together with the numbered `script.N` option.
 |_(empty)_
 |No
 
 |`script.N`
 |Similar to `script`, replace `N` with any positive integer, put as many as you like.
 The scripts are executed in succession and in numbered order.
-Can not be used with plain `script`, use either or.
+Can not be used together with the unnumbered `script` option.
 |_(empty)_
 |No
 
