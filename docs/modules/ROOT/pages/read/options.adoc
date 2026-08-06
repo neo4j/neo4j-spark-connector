@@ -121,7 +121,7 @@ every single node property as column prefixed by `source` or `target`
 
 |`cypher.version`
 |Set a custom Cypher language version to a custom value.
-Expected value is the version number itself, e.g. `5` or `25`
+The expected value is the version number itself, for example `5` or `25`.
 |5
 |No
 
