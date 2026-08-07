@@ -54,6 +54,13 @@ Add indexed `script.N` options
 a| Default `relationship.save.strategy` is now `KEYS`
 | Changed `relationship.save.strategy` default value from `NATIVE` to `KEYS`.
 
+a|
+label:new[]
+label:feature[]
+
+Add custom transaction metadata
+| It is now possible for spark clients to set custom Neo4j Driver transaction metadata using option `db.transaction.metadata`.
+
 |===
 
 [NOTE]

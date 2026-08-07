@@ -284,6 +284,11 @@ Available values are:
 |_(Neo4j Driver default)_
 |No
 
+|`db.transaction.metadata`
+|Tag custom transaction metadata to the driver, works on read and write, details below
+|_(empty)_
+|No
+
 4+|*Session options*
 
 |`database`
