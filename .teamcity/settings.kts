@@ -49,8 +49,6 @@ project {
                 """
               -:comment=^build.*release version.*:**
               -:comment=^build.*update version.*:**
-              -:docs/**
-              -:.github/workflows/docs-*.yml
               """
                     .trimIndent()
           }
@@ -73,13 +71,6 @@ project {
               appendLine("+:pull/*")
               appendLine("+:refs/heads/pull/*")
             }
-
-            this.triggerRules =
-                """
-              -:docs/**
-              -:.github/workflows/docs-*.yml
-              """
-                    .trimIndent()
           }
         }
 

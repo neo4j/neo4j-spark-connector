@@ -32,14 +32,22 @@ class QueryEmbedderTest {
   private val embedder = new QueryEmbedder()
 
   @ParameterizedTest
-  @MethodSource(Array("embed_cases"))
+  @MethodSource(Array("embed_read_cases"))
   def embeds_user_defined_query(query: String, scriptResult: String, expected: String): Unit = {
-    val result = embedder.embed(query, scriptResult).build().getCypher
+    val result = embedder.embedRead(query, scriptResult).build().getCypher
 
     assertThat(result).isEqualTo(expected)
   }
 
-  private def embed_cases(): Stream[Arguments] =
+  @ParameterizedTest
+  @MethodSource(Array("embed_write_cases"))
+  def embeds_user_defined_write_query(query: String, scriptResult: String, expected: String): Unit = {
+    val result = embedder.embedWrite(query, "events", "event", scriptResult).build().getCypher
+
+    assertThat(result).isEqualTo(expected)
+  }
+
+  private def embed_read_cases(): Stream[Arguments] =
     Stream.of(
       argumentSet(
         "returns automatically aliased fields",
@@ -76,6 +84,34 @@ class QueryEmbedderTest {
         "WITH 42 as y RETURN *, y AS x",
         "",
         "CALL () {WITH 42 AS y RETURN *, y AS x} RETURN *, x"
+      )
+    )
+
+  private def embed_write_cases(): Stream[Arguments] =
+    Stream.of(
+      argumentSet(
+        "embeds write query",
+        "CREATE (:EmbeddedWriteBasic {name: event.name})",
+        "",
+        "UNWIND $events AS event CALL (event) {CREATE (:`EmbeddedWriteBasic` {name: event.name})}"
+      ),
+      argumentSet(
+        "embeds script result prelude",
+        "CREATE (:EmbeddedWriteScript {name: event.name, suffix: scriptResult[0].suffix})",
+        "WITH $scriptResult AS scriptResult ",
+        "UNWIND $events AS event CALL (event) {WITH $scriptResult AS scriptResult CREATE (:`EmbeddedWriteScript` {name: event.name, suffix: scriptResult[0].suffix})}"
+      ),
+      argumentSet(
+        "embeds nested call",
+        "CREATE (n:EmbeddedWriteNested {name: event.name}) CALL (n) { SET n.nested = true } SET n.after = true",
+        "",
+        "UNWIND $events AS event CALL (event) {CREATE (n:`EmbeddedWriteNested` {name: event.name}) CALL (*) {SET n.nested = true} SET n.after = true}"
+      ),
+      argumentSet(
+        "embeds skip and limit",
+        "UNWIND event.values AS value WITH value ORDER BY value SKIP 1 LIMIT 1 CREATE (:EmbeddedWriteSkipLimit {value: value})",
+        "",
+        "UNWIND $events AS event CALL (event) {UNWIND event.values AS value WITH value ORDER BY value ASC SKIP 1 LIMIT 1 CREATE (:`EmbeddedWriteSkipLimit` {value: value})}"
       )
     )
 }

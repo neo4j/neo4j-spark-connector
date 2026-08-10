@@ -305,10 +305,6 @@ case class ValidateRead(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId: String)
           )
         }
         case QueryType.QUERY => {
-          ValidationUtil.isFalse(
-            neo4jOptions.query.value.matches("(?si).*(LIMIT \\d+|SKIP ?\\d+)\\s*\\z"),
-            "SKIP/LIMIT are not allowed at the end of the query"
-          )
           val params = Map[String, AnyRef](
             Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT -> "",
             Neo4jQueryStrategy.VARIABLE_STREAM -> Collections.emptyMap()

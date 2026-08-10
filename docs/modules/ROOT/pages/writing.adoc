@@ -129,6 +129,21 @@ Regardless of the write option, the connector supports two save modes for the da
 ** Requires the `node.keys` option when used with the `labels` option.
 ** Requires the `relationship.source.node.keys` and `relationship.target.node.keys` when used with the `relationship` option.
 
+[IMPORTANT]
+====
+`MERGE` is only atomic if a uniqueness or key constraint exists on the properties it merges on.
+Without one, concurrent partitions can create duplicates without reporting an error.
+See xref:write/transactions.adoc#merge-safety[] before writing with `Overwrite` from more than one partition.
+====
+
+[#transactions]
+== Transactions and failures
+
+A write is not a single transaction.
+The connector commits one transaction per batch of `batch.size` rows per partition, which means a failed write leaves the batches that were already committed in the database.
+
+See xref:write/transactions.adoc[] for the full model, the retry options, and the recommended pattern for large imports.
+
 == Type mapping
 
 See xref:types.adoc[] for the full type mapping between Spark DataFrames and Neo4j.

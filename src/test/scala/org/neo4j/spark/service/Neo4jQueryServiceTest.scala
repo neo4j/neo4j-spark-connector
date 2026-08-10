@@ -1551,7 +1551,12 @@ class Neo4jQueryServiceTest {
 
       val writeService = new Neo4jQueryService(
         neo4jOptions,
-        new Neo4jQueryWriteStrategy(neo4jInfo, new CypherRenderer(neo4jInfo, neo4jOptions), SaveMode.Overwrite)
+        new Neo4jQueryWriteStrategy(
+          neo4jInfo,
+          new CypherRenderer(neo4jInfo, neo4jOptions),
+          new QueryEmbedder(),
+          SaveMode.Overwrite
+        )
       )
 
       val wantQuery = "UNWIND $events AS event MERGE (node:`Person`) SET node += event.properties"
@@ -1577,7 +1582,12 @@ class Neo4jQueryServiceTest {
 
       val writeService = new Neo4jQueryService(
         neo4jOptions,
-        new Neo4jQueryWriteStrategy(neo4jInfo, new CypherRenderer(neo4jInfo, neo4jOptions), SaveMode.Overwrite)
+        new Neo4jQueryWriteStrategy(
+          neo4jInfo,
+          new CypherRenderer(neo4jInfo, neo4jOptions),
+          new QueryEmbedder(),
+          SaveMode.Overwrite
+        )
       )
       val wantQuery =
         """UNWIND $events AS event
@@ -1606,10 +1616,16 @@ class Neo4jQueryServiceTest {
       val noPreambleWriteService =
         new Neo4jQueryService(
           neo4jOptions,
-          new Neo4jQueryWriteStrategy(neo4jInfo, new CypherRenderer(neo4jInfo, neo4jOptions), SaveMode.Overwrite, false)
+          new Neo4jQueryWriteStrategy(
+            neo4jInfo,
+            new CypherRenderer(neo4jInfo, neo4jOptions),
+            new QueryEmbedder(),
+            SaveMode.Overwrite,
+            false
+          )
         )
 
-      val wantQuery = "UNWIND $events AS event MATCH (o:Object) RETURN o"
+      val wantQuery = "UNWIND $events AS event CALL {WITH event MATCH (o:`Object`) RETURN o}"
       assertThat(noPreambleWriteService.createQuery().trim).isEqualTo(wantQuery)
     }
 
@@ -1633,7 +1649,11 @@ class Neo4jQueryServiceTest {
       val writeService =
         new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions))
 
-      val wantQuery = s"$tuningPrefix\n${cypherVersionPreamble}UNWIND $$events AS event MATCH (o:Object) RETURN o"
+      val callWithEvent =
+        if (CanIUse.canIUse(Cypher.callSubqueryWithVariableScopeClause()).withNeo4j(neo4j)) "CALL (event) {"
+        else "CALL {WITH event "
+      val wantQuery =
+        s"$tuningPrefix\n${cypherVersionPreamble}UNWIND $$events AS event ${callWithEvent}MATCH (o:`Object`) RETURN o}"
       assertThat(writeService.createQuery().trim).isEqualTo(wantQuery.trim)
     }
 
@@ -1658,8 +1678,11 @@ class Neo4jQueryServiceTest {
       val versionedWriteService =
         new Neo4jQueryService(neo4jOptions, plainWriteStrategy(neo4j, neo4jOptions))
 
+      val callWithEvent =
+        if (CanIUse.canIUse(Cypher.callSubqueryWithVariableScopeClause()).withNeo4j(neo4j)) "CALL (event) {"
+        else "CALL {WITH event "
       val wantQuery =
-        s"$tuningPrefix\n${cypherVersionPreamble}WITH $$scriptResult AS scriptResult UNWIND $$events AS event MATCH (o:Object) RETURN o"
+        s"$tuningPrefix\n${cypherVersionPreamble}UNWIND $$events AS event ${callWithEvent}WITH $$scriptResult AS scriptResult MATCH (o:`Object`) RETURN o}"
 
       assertThat(versionedWriteService.createQuery().trim).isEqualTo(wantQuery.trim)
     }
@@ -1669,7 +1692,7 @@ class Neo4jQueryServiceTest {
       neo4jOptions: Neo4jOptions,
       saveMode: SaveMode = SaveMode.Overwrite
     ): Neo4jQueryWriteStrategy =
-      new Neo4jQueryWriteStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), saveMode)
+      new Neo4jQueryWriteStrategy(neo4j, new CypherRenderer(neo4j, neo4jOptions), new QueryEmbedder(), saveMode)
   }
 }
 

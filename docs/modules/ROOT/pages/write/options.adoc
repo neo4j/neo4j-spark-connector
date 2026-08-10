@@ -12,30 +12,21 @@ The DataSource Writer has several options to connect and persist data into Neo4j
 |No
 
 |`batch.size`
-|The number of the rows sent to Neo4j as batch
+|The number of the rows sent to Neo4j as a batch.
+Each batch is committed in its own transaction, so this also bounds what a single failure can leave behind.
+See xref:write/transactions.adoc[].
 |5000
 |No
 
-|`transaction.codes.fail`
-|Comma-separated list of Neo4j codes that cause the transaction to fail
-|_(none)_
-|No
-
 |`transaction.retries`
-|Number of retries in case of failure
+|Number of retries in case of failure. The budget applies per task for its whole lifetime, not per batch.
+See xref:write/transactions.adoc#retries[].
 |3
 |No
 
 |`transaction.retry.timeout`
 |The time in milliseconds that the connector should wait before retry
 |0
-|No
-
-|`index.await.timeout`
-|Adjust the maximum timeout to wait for index generation.
-Before writing, the `db.awaitIndexes` Cypher procedure will be called with the timeout specified in whole seconds.
-Set to `0` to disable.
-|300
 |No
 
 |`type.conversion`
@@ -69,7 +60,7 @@ Set to `0` to disable.
 |No
 
 |`relationship.properties`
-|Used only if `relationship.save.strategy` is `keys`.
+|Used only if `relationship.save.strategy` is `keys` (default).
 Map used as keys for specifying the *relationship* properties.
 When set, only the relationships included in the map are set as relationship properties.
 When the option is not set, all unmapped fields are set as relationship properties.
@@ -78,7 +69,7 @@ When the option is not set, all unmapped fields are set as relationship properti
 
 |`relationship.save.strategy`
 |xref:write/relationship.adoc#strategies[Save strategy] to be used
-|`native`
+|`keys`
 |Yes
 
 |`relationship.source.labels`
@@ -102,7 +93,7 @@ When the option is not set, all unmapped fields are set as relationship properti
 |No
 
 |`relationship.source.node.properties`
-|Map used as keys for specifying the *source* properties. Only used if `relationship.save.strategy` is `keys`
+|Map used as keys for specifying the *source* properties. Only used if `relationship.save.strategy` is `keys` (default)
 |_(empty)_
 |No
 
@@ -127,8 +118,46 @@ When the option is not set, all unmapped fields are set as relationship properti
 |No
 
 |`relationship.target.node.properties`
-|Map used as keys for specifying the *target* properties. Only used if `relationship.save.strategy` is `keys`
+|Map used as keys for specifying the *target* properties. Only used if `relationship.save.strategy` is `keys` (default)
 |_(empty)_
+|No
+
+4+|*Cypher options* [role=label--new-6.0]
+
+|`cypher.version`
+|Set a custom Cypher language version to a custom value.
+Expected value is the version number itself, e.g. `5` or `25`
+|5
+|No
+
+|`cypher.tuning.*`
+|Set any cypher query tuning parameter with this prefix.
+See details on how to properly use this feature link:{neo4j-docs-base-uri}/spark/current/performance/cypher-tuning[here]
+|_(emtpy)_
+|No
+
+4+|*Optimization options*
+
+|`script`
+|Apply a custom Cypher query which will run once before any write operations.
+Use this capability to apply custom optimizations e.g. custom index/contstraint queries.
+Can not be used with `script.N`, use either or.
+|_(empty)_
+|No
+
+|`script.N`
+|Similar to `script`, replace `N` with any positive integer, put as many as you like.
+The scripts are executed in succession and in numbered order.
+Can not be used with plain `script`, use either or.
+|_(empty)_
+|No
+
+|`index.await.timeout`
+|Adjust the maximum timeout to wait for index generation
+Before writing, the `db.awaitIndexes` Cypher procedure will be called with the timeout specified in whole seconds.
+Set to `0` to disable.
+The await happens after any `script` query and before any write operations
+|300
 |No
 
 |===

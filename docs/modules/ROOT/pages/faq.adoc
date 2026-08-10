@@ -3,14 +3,6 @@
 
 == General questions
 
-=== Is this software connected to Morpheus or Cypher for Apache Spark (CAPS)?
-
-No. There is no shared code or approach between the two, and they take very different approaches. Cypher for Apache Spark/Morpheus took the approach of providing an interpreter
-that could execute Cypher queries within the Spark environment, and provided a native graph representation for Spark.
-By contrast, this connector does not provide that
-functionality and focuses on doing reads and writes back and forth between Neo4j and Spark. Via this connector, all Cypher code is executed strictly within Neo4j. The Spark
-environment operates in terms of DataFrames as it always did, and this connector does not provide graph API primitives for Spark.
-
 === How can I speed up writes to Neo4j?
 
 The Spark connector fundamentally writes data to Neo4j in batches. Neo4j is a transactional
@@ -49,6 +41,37 @@ exceptions can result and a transaction fails.
 In general, the solution is to repartition the DataFrame before writing it to Neo4j, to avoid
 multiple partitioned writes from locking the same nodes and relationships.
 
+Deadlocks are retryable, so raising `transaction.retries` and setting a non-zero `transaction.retry.timeout` absorbs occasional contention at the cost of throughput.
+See xref:write/transactions.adoc#merge-safety[] for how to partition your data so the contention does not arise in the first place.
+
+=== My write job failed halfway through. What state is the database in?
+
+It holds everything that was committed before the failure.
+
+The connector commits one transaction per batch of `batch.size` rows per partition, with no enclosing transaction, so a failed job leaves an arbitrary prefix of each partition's rows in the database.
+Only the batch that was in flight is rolled back.
+
+Do *not* rerun a failed write unless the write is idempotent.
+See xref:write/transactions.adoc#partial-failures[].
+
+=== My write used MERGE and succeeded, but the graph has duplicate nodes. Why?
+
+This happens almost always because there is no uniqueness or key constraint on the properties being merged on.
+
+`MERGE` matches and then creates, and that pair is only atomic if a constraint exists on the merged properties.
+When several Spark partitions merge the same key at the same time, they can all fail to match and all create, which produces duplicates and no error.
+
+Create the constraint before writing, with the xref:write/schema-optimization.adoc[schema optimization options] or a xref:write/query.adoc#script-option[`script` option].
+See xref:write/transactions.adoc#merge-safety[].
+
+=== Can I use `CALL { … } IN TRANSACTIONS` in the `query` option to batch my own writes?
+
+No.
+The connector runs the query inside an explicit transaction, and Neo4j does not allow that clause in an explicit transaction, so the write fails.
+
+Use the `batch.size` option, which is the connector's equivalent, and applies to every write option.
+See xref:write/transactions.adoc#call-in-transactions[].
+
 === I am getting a cast error like _UTF8String cannot be cast to Long_. What is the solution?
 
 You might be getting an error like the following one or similar, with different types:
@@ -64,6 +87,8 @@ and needs each column always to have its own type.
 
 You can read more xref:read/schema.adoc[here], or see xref:known-issues.adoc#mixed-types[Cast errors when a property has different types across nodes].
 
+If you are getting this error while trying to write to Neo4j, be aware that the current version of the connector doesn't support `*SaveMode.ErrorIfExists*`, and that is the default save mode.
+Change the save mode to one of `SaveMode.Append` or `SaveMode.Overwrite`.
 
 === I am getting errors _NoClassDefFoundError_ or _ClassNotFoundException_. What should I do?
 
@@ -85,9 +110,10 @@ Refer to xref:compatibility.adoc[] to choose the right version.
 [[graph-already-exists]]
 === I am getting an error _Failed to invoke procedure gds.graph.create.cypher: Caused by: java.lang.IllegalArgumentException: A graph with name [name] already exists_. What should I do?
 
-This might happen when creating a new graph using the GDS library, because the query is run twice: once to infer the DataFrame schema and once to get the data.
+This might happen when creating a new graph using the GDS library.
+The issue here is that the query is run the first time to extract the DataFrame schema and then is run again to get the data.
 
-See xref:known-issues.adoc#graph-already-exists[the known issues page] for the workaround.
+To avoid this issue you can use the xref:read/define-schema.adoc#custom-schema[user defined schema] approach.
 
 == Databricks setup
 

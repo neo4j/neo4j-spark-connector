@@ -28,6 +28,7 @@ import org.neo4j.driver.Transaction
 import org.neo4j.driver.Values
 import org.neo4j.driver.exceptions.ServiceUnavailableException
 import org.neo4j.spark.cypher.CypherRenderer
+import org.neo4j.spark.cypher.QueryEmbedder
 import org.neo4j.spark.service._
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
@@ -70,7 +71,7 @@ abstract class BaseDataWriter(
   private val query: String =
     new Neo4jQueryService(
       options,
-      new Neo4jQueryWriteStrategy(neo4j, new CypherRenderer(neo4j, options), saveMode)
+      new Neo4jQueryWriteStrategy(neo4j, new CypherRenderer(neo4j, options), new QueryEmbedder(), saveMode)
     ).createQuery()
 
   private val metrics = DataWriterMetrics()

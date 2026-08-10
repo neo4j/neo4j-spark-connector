@@ -77,6 +77,15 @@ CREATE (n:Person {fullName: fullName})
 
 * Although a `RETURN` clause is not forbidden, adding one does not have any effect on the query result.
 
+* `CALL { … } IN TRANSACTIONS` is *not* supported, in either the `query` option or the `script` options.
+The connector runs the query inside an explicit transaction, and Neo4j does not allow that clause in an explicit transaction.
+Use the `batch.size` option to control transaction size instead.
+See xref:write/transactions.adoc#call-in-transactions[] for details.
+
+* The query is executed once per batch, and receives only the rows of that batch in `events`.
+Each batch is committed separately, so a query that is not idempotent can duplicate data if a batch is retried.
+See xref:write/transactions.adoc[].
+
 [#script-option]
 == Script options
 

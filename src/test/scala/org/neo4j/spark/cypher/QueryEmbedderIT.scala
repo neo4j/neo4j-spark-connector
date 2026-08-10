@@ -44,6 +44,7 @@ import org.testcontainers.neo4j.Neo4jContainer
 import java.util.stream.Stream
 
 import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.jdk.CollectionConverters.SeqHasAsJava
 
 @Testcontainers
 @TestInstance(PER_CLASS)
@@ -78,7 +79,7 @@ class QueryEmbedderIT {
     val unaliasedQueryStatement = callRawCypher(query).returning(asterisk()).build()
     verifyQueryFailsWithAliasingError(renderer.render(unaliasedQueryStatement))
 
-    val embeddedQuery = embedder.embed(query, "").build()
+    val embeddedQuery = embedder.embedRead(query, "").build()
 
     assertThat(embeddedQuery.getCypher).isEqualTo(
       "CALL () {MATCH (o:Object) RETURN 42 AS `42`, false AS false, o.name AS `o.name`, o.brother AS `o.brother`} RETURN `42`, false, `o.name`, `o.brother`"
@@ -88,7 +89,7 @@ class QueryEmbedderIT {
   }
 
   @ParameterizedTest
-  @MethodSource(Array("embed_cases"))
+  @MethodSource(Array("embed_read_cases"))
   def embeds_query_as_call_subquery(
     query: String,
     scriptResult: String,
@@ -97,7 +98,7 @@ class QueryEmbedderIT {
   ): Unit = {
     assertThat(driver.isDefined).isTrue
 
-    val embeddedQuery = embedder.embed(query, scriptResult).build()
+    val embeddedQuery = embedder.embedRead(query, scriptResult).build()
 
     val renderer = container.cypherRenderer()
     assertThat(embeddedQuery.getCypher).isEqualTo(expectedEmbeddedQuery)
@@ -109,7 +110,7 @@ class QueryEmbedderIT {
       .doesNotThrowAnyException()
   }
 
-  private def embed_cases(): Stream[Arguments] =
+  private def embed_read_cases(): Stream[Arguments] =
     Stream.of(
       argumentSet(
         "preserves return all",
@@ -140,6 +141,96 @@ class QueryEmbedderIT {
         "CALL () {WITH 42 AS y RETURN *, y AS x} RETURN *, x"
       )
     )
+
+  @ParameterizedTest
+  @MethodSource(Array("embed_write_cases"))
+  def embeds_write_query_as_call_subquery(
+    query: String,
+    scriptResult: String,
+    params: Map[String, AnyRef],
+    expectedEmbeddedQuery: String,
+    resultLabel: String,
+    expectedCreatedNodes: Long
+  ): Unit = {
+    assertThat(driver.isDefined).isTrue
+
+    val embeddedQuery = embedder.embedWrite(query, "events", "event", scriptResult).build()
+
+    val renderer = container.cypherRenderer()
+    assertThat(embeddedQuery.getCypher).isEqualTo(expectedEmbeddedQuery)
+    assertThatCode(() =>
+      driver.get.executableQuery(renderer.render(embeddedQuery))
+        .withParameters(params.asJava)
+        .execute()
+    )
+      .doesNotThrowAnyException()
+    assertThat(countNodesWithLabel(resultLabel)).isEqualTo(expectedCreatedNodes)
+  }
+
+  private def embed_write_cases(): Stream[Arguments] =
+    Stream.of(
+      argumentSet(
+        "embeds write query",
+        "CREATE (:EmbeddedWriteBasic {name: event.name})",
+        "",
+        queryParams(Seq(
+          Map[String, AnyRef]("name" -> "Ada"),
+          Map[String, AnyRef]("name" -> "Bob")
+        )),
+        "UNWIND $events AS event CALL (event) {CREATE (:`EmbeddedWriteBasic` {name: event.name})}",
+        "EmbeddedWriteBasic",
+        2
+      ),
+      argumentSet(
+        "embeds write query with script result",
+        "CREATE (:EmbeddedWriteScript {name: event.name, suffix: scriptResult[0].suffix})",
+        "WITH $scriptResult AS scriptResult ",
+        queryParams(
+          Seq(Map[String, AnyRef]("name" -> "Ada")),
+          Some(Seq(Map[String, AnyRef]("suffix" -> "from-script")).map(_.asJava).asJava)
+        ),
+        "UNWIND $events AS event CALL (event) {WITH $scriptResult AS scriptResult CREATE (:`EmbeddedWriteScript` {name: event.name, suffix: scriptResult[0].suffix})}",
+        "EmbeddedWriteScript",
+        1
+      ),
+      argumentSet(
+        "embeds write query with nested call",
+        "CREATE (n:EmbeddedWriteNested {name: event.name}) WITH n CALL (n) { SET n.nested = true } SET n.after = true",
+        "",
+        queryParams(Seq(Map[String, AnyRef]("name" -> "Ada"))),
+        "UNWIND $events AS event CALL (event) {CREATE (n:`EmbeddedWriteNested` {name: event.name}) WITH n CALL (*) {SET n.nested = true} SET n.after = true}",
+        "EmbeddedWriteNested",
+        1
+      ),
+      argumentSet(
+        "embeds write query with skip and limit",
+        "UNWIND event.values AS value WITH value ORDER BY value SKIP 1 LIMIT 1 CREATE (:EmbeddedWriteSkipLimit {value: value})",
+        "",
+        queryParams(Seq(
+          Map[String, AnyRef]("values" -> Seq(1, 2, 3).map(_.asInstanceOf[AnyRef]).asJava)
+        )),
+        "UNWIND $events AS event CALL (event) {UNWIND event.values AS value WITH value ORDER BY value ASC SKIP 1 LIMIT 1 CREATE (:`EmbeddedWriteSkipLimit` {value: value})}",
+        "EmbeddedWriteSkipLimit",
+        1
+      )
+    )
+
+  private def queryParams(
+    events: Seq[Map[String, AnyRef]],
+    scriptResult: Option[AnyRef] = None
+  ): Map[String, AnyRef] = {
+    val params = Map[String, AnyRef]("events" -> events.map(_.asJava).asJava)
+    scriptResult.fold(params)(value => params + ("scriptResult" -> value))
+  }
+
+  private def countNodesWithLabel(label: String): Long = {
+    driver.get.executableQuery(s"MATCH (n:`$label`) RETURN count(n) AS count")
+      .execute()
+      .records()
+      .get(0)
+      .get("count")
+      .asLong()
+  }
 
   private def verifyQueryFailsWithAliasingError(query: String): Unit = {
     assertThatThrownBy(() => driver.get.executableQuery(query).execute())

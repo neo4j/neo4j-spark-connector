@@ -22,7 +22,7 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
   .load()
 
 df.write.format("org.neo4j.spark.DataSource")
-  .mode(SaveMode.ErrorIfExists)
+  .mode(SaveMode.Append)
   .option("url", "neo4j://second.host.com:7687")
   .option("labels", "Person")
   .save()
@@ -282,6 +282,11 @@ Available values are:
 |`db.transaction.timeout`
 |Transaction timeout in milliseconds
 |_(Neo4j Driver default)_
+|No
+
+|`db.transaction.metadata`
+|Tag custom transaction metadata to the driver, works on read and write, details below
+|_(empty)_
 |No
 
 4+|*Session options*
