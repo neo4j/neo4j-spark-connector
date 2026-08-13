@@ -163,8 +163,8 @@ The `limit` value will be pushed down to Neo4j.
 
 == Partitioning
 
-When the connector fetches data from Neo4j during read operations we offer the possibility to partition the query in smaller partitions.
-Each individual partition will then run as separate Spark tasks, which in turn run in parallel.
+When the connector fetches data from Neo4j during read operations  you can partition the query.
+The partitions run in parallel as separate Spark tasks.
 
 Consider the following job:
 
@@ -187,7 +187,7 @@ val df = (spark.read.format("org.neo4j.spark.DataSource")
 This means that if the total count of the nodes with label `Person` into Neo4j is 100 we are creating 5
 partitions and each one manages 20 records (we use `SKIP / LIMIT` queries).
 
-Partitioning the dataset makes sense only if you're dealing with a big dataset (rule of thumb approximately >= 10M of records).
+Partitioning the dataset makes sense when  you are working with a large dataset, for example where you have more than 10 million records.
 
 [#parallelize]
 === How to parallelize query execution
@@ -200,8 +200,8 @@ You can therefore partition these modes:
 2. Relationship extraction.
 3. Query extraction.
 
-A dynamic count on what you are trying to fetch is being provided and a query with `SKIP / LIMIT` approach over each partition is being built.
-A dataset of 100 nodes (`Person`) with a partition size of 5 the following queries are generated (one for partition):
+A dynamic count on what you are trying to fetch is provided and a query with `SKIP / LIMIT` approach over each partition is built.
+For a dataset of 100 nodes (`Person`) with a partition size of 5 the following queries are generated (one for each partition):
 
 [source,cypher]
 ----
@@ -212,8 +212,8 @@ MATCH (p:Person) RETURN p SKIP 60 LIMIT 20
 MATCH (p:Person) RETURN p SKIP 80 LIMIT 20
 ----
 
-For node and relationship extractions, the connector will automatically leverage the link:https://neo4j.com/developer/kb/fast-counts-using-the-count-store/[Neo4j count store] in order to retrieve the total count of the nodes and/or relationships you are trying to fetch.
-However, for custom query extractions, you will have to provide an additional optimized count query, or a static number if you already know the count beforehand.
+For node and relationship extractions, the connector automatically leverages the link:https://neo4j.com/developer/kb/fast-counts-using-the-count-store/[Neo4j count store] in order to retrieve the total count of the nodes and/or relationships you are trying to fetch.
+However, for custom query extractions, you need to provide an additional optimized count query, or a static number if you already know the count.
 
 [NOTE]
 ====
@@ -223,13 +223,13 @@ By providing a custom count query, you gain the flexibility to optimize it again
 ====
 
 The connector will opt for one of three possible approaches to determine a global partition count.
-By setting option `query.count` you influence what approach is being used:
+By setting option `query.count` you influence the approach that is used:
 
 1. Compute the global count using a second *optimized* query that leverages indexes.
   * Do this by setting `.option("query.count", "<your cypher count query>")`.
-2. Provide a static integer value as count in case you know it beforehand.
+2. Provide a static integer value as count if you know the value.
   * Do this by setting option `query.count` to an integer, e.g. `.option("query.count", 100)`
-3. If you do not set any value to `query.count` we will fall back and automatically generate one.
+3. If you do not set a value for `query.count` a value is automatically generated.
   * Generated on the form of `CALL { <your query> } RETURN count(*) AS count` for you.
 
 A count query must return a single integer as `count`, consider this example:
@@ -246,19 +246,19 @@ It is therefore strongly recommended to use indexes and custom count queries in 
 
 === Deterministic ordering of partitions
 
-In order to guarantee that there is no data overlap between the partitions, you will have to provide a deterministic ordering in your query.
-Simplest way to do this is to be explicit with the ordering using `ORDER BY` in your query.
-Failing to do so can lead to incomplete extractions, where some data is never included in *any* of the partitions.
+To guarantee that there is no data overlap between the partitions, you must provide a deterministic ordering in your query.
+To do this,  use `ORDER BY` in your query to  provide explicit ordering.
+If you do not provide an explicit order, it can lead to incomplete extractions, where some data is never included in *any* of the partitions.
 
 This is a documented Cypher behavior, please see link:https://neo4j.com/docs/cypher-manual/current/clauses/skip[SKIP] in the Cypher manual for more details.
 
 === Reading partitions when under heavy write-load
 
 The partition optimization feature assumes that it is safe to run each individual partition of work in their own driver transactions.
-Which is not the case if your instance is under heavy write-load.
+This is not the case if your instance is under heavy write-load.
 When your database is under heavy write-load it sees frequent state changes.
 
-The count query runs in one transaction before creating the partitions, whom will all run under induvidual transactions.
+The count query runs in one transaction before creating the partitions, which then all run under individual transactions.
 Any data written after partitions are determined and before actual reading operation manage to start execution may not be read.
 To mitigate this risk, be mindful of your database state before a read operation.
 
