@@ -232,7 +232,7 @@ By setting option `query.count` you influence the approach that is used:
 3. If you do not set a value for `query.count` a value is automatically generated.
   * Generated on the form of `CALL { <your query> } RETURN count(*) AS count` for you.
 
-A count query must return a single integer as `count`, consider this example:
+A count query specified by `query.count` option must return a single integer as `count`, consider this example:
 
 [source,cypher]
 ----
@@ -241,8 +241,11 @@ WHERE pr.name = 'An Awesome Product'
 RETURN count(p) AS count
 ----
 
+[TIP]
+====
 Failing to provide such a query or count will fall back to approach (3) which has no guarantee to be an optimized query.
 It is therefore strongly recommended to use indexes and custom count queries in favor of falling back to (3).
+====
 
 === Deterministic ordering of partitions
 
