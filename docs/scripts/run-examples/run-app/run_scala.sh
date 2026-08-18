@@ -19,6 +19,6 @@ cp $EXAMPLES_ROOT/scala/SparkApp.scala src/main/scala/
 sbt package
 
 $SPARK_HOME/bin/spark-submit \
-  --packages org.neo4j:neo4j-connector-apache-spark_${SCALA_VERSION}:${CONNECTOR_VERSION}_for_spark_3 \
+  --packages org.neo4j.connectors:spark:${CONNECTOR_VERSION}-s_${SCALA_VERSION} \
   --class SparkApp \
   target/scala-${SCALA_VERSION}/spark-app_${SCALA_VERSION}-1.0.jar

@@ -9,5 +9,5 @@ cp $EXAMPLES_ROOT/example.jsonl .
 cp $EXAMPLES_ROOT/python/spark_app.py .
 
 $SPARK_HOME/bin/spark-submit \
-  --packages org.neo4j:neo4j-connector-apache-spark_${SCALA_VERSION}:${CONNECTOR_VERSION}_for_spark_3 \
+  --packages org.neo4j.connectors:spark:${CONNECTOR_VERSION}-s_${SCALA_VERSION} \
   spark_app.py
