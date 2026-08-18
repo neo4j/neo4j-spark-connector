@@ -18,6 +18,6 @@ cp $EXAMPLES_ROOT/java/SparkApp.java src/main/java/
 mvn package
 
 $SPARK_HOME/bin/spark-submit \
-  --packages org.neo4j:neo4j-connector-apache-spark_${SCALA_VERSION}:${CONNECTOR_VERSION}_for_spark_3 \
+  --packages org.neo4j.connectors:spark:${CONNECTOR_VERSION}-s_${SCALA_VERSION} \
   --class SparkApp \
   target/spark-app-1.0.jar

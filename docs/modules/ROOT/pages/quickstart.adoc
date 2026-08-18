@@ -95,7 +95,7 @@ include::example$scala/SparkApp.scala[]
 [source, shell, subs="attributes+"]
 ----
 $SPARK_HOME/bin/spark-submit \
-  --packages org.neo4j:neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3 \
+  --packages org.neo4j.connectors:spark:{exact-connector-version}-s_{scala-version} \
   --class SparkApp \
   target/scala-{scala-version}/spark-app_{scala-version}-1.0.jar
 ----
@@ -124,7 +124,7 @@ include::example$python/spark_app.py[]
 [source, shell, subs="attributes+"]
 ----
 $SPARK_HOME/bin/spark-submit \
-  --packages org.neo4j:neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3 \
+  --packages org.neo4j.connectors:spark:{exact-connector-version}-s_{scala-version} \
   spark_app.py
 ----
 
@@ -153,7 +153,7 @@ include::example$java/SparkApp.java[]
 [source, shell, subs="attributes+"]
 ----
 $SPARK_HOME/bin/spark-submit \
-  --packages org.neo4j:neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3 \
+  --packages org.neo4j.connectors:spark:{exact-connector-version}-s_{scala-version} \
   --class SparkApp \
   target/spark-app-1.0.jar
 ----

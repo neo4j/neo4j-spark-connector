@@ -13,6 +13,12 @@ These are the current actively developed connector versions and their respective
 | Spark | Connector | Scala | Python | Maven Artifact
 
 |*4.1*
+|6.0.0
+|2.13
+|3.14, 3.13, 3.12, 3.11, 3.10
+|`org.neo4j.connectors:spark:6.0.0`
+
+|*4.1*
 |6.0.0-RC02
 |2.13
 |3.14, 3.13, 3.12, 3.11, 3.10
