@@ -35,6 +35,8 @@ def nativeStrategy() = {
         // Create new relationships
         .mode(SaveMode.Append)
         .format("org.neo4j.spark.DataSource")
+        // User `native` strategy
+        .option("relationship.save.strategy", "native")
         // Assign a type to the relationships
         .option("relationship", "BOUGHT")
         // Create source nodes and assign them a label
@@ -94,8 +96,6 @@ def matchMode() = {
         .format("org.neo4j.spark.DataSource")
         // Assign a type to the relationships
         .option("relationship", "BOUGHT")
-        // Use `keys` strategy
-        .option("relationship.save.strategy", "keys")
         // Match source nodes with the specified label
         .option("relationship.source.save.mode", "Match")
         .option("relationship.source.labels", ":Customer")
@@ -132,8 +132,6 @@ def overwriteMode() = {
         .format("org.neo4j.spark.DataSource")
         // Assign a type to the relationships
         .option("relationship", "BOUGHT")
-        // Use `keys` strategy
-        .option("relationship.save.strategy", "keys")
         // Overwrite source nodes and assign them a label
         .option("relationship.source.save.mode", "Overwrite")
         .option("relationship.source.labels", ":Customer")
@@ -170,8 +168,6 @@ def overwriteModeNodeRel() = {
         .format("org.neo4j.spark.DataSource")
         // Assign a type to the relationships
         .option("relationship", "BOUGHT")
-        // Use `keys` strategy
-        .option("relationship.save.strategy", "keys")
         // Overwrite source nodes and assign them a label
         .option("relationship.source.save.mode", "Overwrite")
         .option("relationship.source.labels", ":Customer")
