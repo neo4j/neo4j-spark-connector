@@ -1,10 +1,12 @@
+import os
+
 from pyspark import pipelines as dp
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 
 spark = SparkSession.active()
 
-NEO4J_URL = "%%%__NEO4J_URL__%%%"
+NEO4J_URL = os.environ.get("NEO4J_URL")
 NEO4J_USERNAME = "neo4j"
 NEO4J_PASSWORD = "password"
 

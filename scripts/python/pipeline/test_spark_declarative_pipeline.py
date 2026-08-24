@@ -170,6 +170,7 @@ def run_pipeline_command(
     connector_jar: Path,
     spec_path: Path,
     spark_local: Path,
+    neo4j_url: str,
     subcommand: str,
 ) -> None:
     command = [
@@ -193,6 +194,7 @@ def run_pipeline_command(
     environment["PYSPARK_PYTHON"] = sys.executable
     environment["SPARK_LOCAL_IP"] = "127.0.0.1"
     environment["SPARK_LOCAL_DIRS"] = str(spark_local.resolve())
+    environment["NEO4J_URL"] = neo4j_url
 
     log(subcommand, "Executing: " + " ".join(command))
     subprocess.run(
@@ -208,6 +210,7 @@ def run_integration_test(
     spark_pipelines_executable: Path,
     spark_pipelines_spec_path: Path,
     spark_local_path: Path,
+    neo4j_url: str,
 ) -> None:
     for command in ("dry-run", "run"):
         run_pipeline_command(
@@ -215,6 +218,7 @@ def run_integration_test(
             connector_jar,
             spark_pipelines_spec_path,
             spark_local_path,
+            neo4j_url,
             command,
         )
 
@@ -263,6 +267,7 @@ def main(raw_connector_jar_path: str, neo4j_image: str) -> int:
                 spark_pipelines_executable,
                 spec_path,
                 spark_local_path,
+                neo4j_url,
             )
 
         return 0
