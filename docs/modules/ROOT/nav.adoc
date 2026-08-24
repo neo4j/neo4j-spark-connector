@@ -36,6 +36,7 @@ include::partial$dwh-list.adoc[]
 * *Reference*
 * xref:types.adoc[]
 * xref:configuration.adoc[]
+* xref:known-issues.adoc[]
 * xref:faq.adoc[]
 
 * *Upgrades and migrations*

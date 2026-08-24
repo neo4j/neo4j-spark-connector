@@ -25,6 +25,9 @@ Neo4j Spark Connector provides first-class support to Graph Data Science library
 
 We don't support `mutate` or `write` procedure modes as they don't return any kind of usable information in the dataframe, you can achieve the same by joining dataframes and then use the Neo4j Spark connector to write back the data to whatever Neo4j instance you want.
 
+GDS reads also support a single partition only.
+See xref:known-issues.adoc#gds[Known issues and limitations] for details.
+
 === Example
 
 Immagine that we want to replicate the example for the Page Rank algorithm
@@ -316,7 +319,7 @@ df = spark.read.format("org.neo4j.spark.DataSource") \
 ----
 
 [TIP]
-If you get a _A graph with name [name] already exists_ error, take a look at this xref:faq.adoc#graph-already-exists[FAQ].
+If you get a _A graph with name [name] already exists_ error, take a look at xref:known-issues.adoc#graph-already-exists[Known issues and limitations].
 
 **Ensure that option `partitions` is set to 1. You do not want to execute this query in parallel, it should be executed only once.**
 
