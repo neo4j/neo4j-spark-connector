@@ -85,7 +85,7 @@ You can solve it by installing APOC: this removes the error, but
 all the values for that field are cast to String. This happens because Spark is not schema-free
 and needs each column always to have its own type.
 
-You can read more xref:read/schema.adoc[here], or see xref:known-issues.adoc#mixed-types[Cast errors when a property has different types across nodes].
+This is a xref:known-issues.adoc#mixed-types[known issue].
 
 If you are getting this error while trying to write to Neo4j, be aware that the current version of the connector doesn't support `*SaveMode.ErrorIfExists*`, and that is the default save mode.
 Change the save mode to one of `SaveMode.Append` or `SaveMode.Overwrite`.
