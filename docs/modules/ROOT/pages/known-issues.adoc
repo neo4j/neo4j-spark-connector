@@ -5,57 +5,13 @@
 This page is the canonical place to check for the current limitations of the Neo4j Connector for Apache Spark.
 Before opening a support ticket or a GitHub issue, check whether the behavior you are seeing is listed here.
 
-Each entry describes the limitation, the versions it applies to, and the recommended workaround, if any.
+Each entry describes the limitation and the recommended workaround, if any.
 
 [NOTE]
 ====
 Unless stated otherwise, entries apply to all xref:compatibility.adoc#_active_versions[actively supported versions] of the connector.
 For questions that are not about limitations, see xref:faq.adoc[].
 ====
-
-[#summary]
-== Summary
-
-[cols="2,3,1", options="header"]
-|===
-|Area |Known issue |Applies to
-
-|Writing
-|<<relationship-save-mode>>
-|All versions
-
-|Writing
-|<<schema-optimization-query>>
-|All versions
-
-|Reading
-|<<mixed-types>>
-|All versions
-
-|Reading
-|<<graph-already-exists>>
-|All versions
-
-|Reading
-|<<empty-sampling>>
-|All versions
-
-|GDS
-|<<gds-mutate-write>>
-|All versions
-
-|GDS
-|<<gds-partitions>>
-|All versions
-
-|Databricks
-|<<databricks-access-mode>>
-|All versions
-
-|Databricks
-|<<databricks-unity-catalog>>
-|All versions
-|===
 
 [#writing]
 == Writing
