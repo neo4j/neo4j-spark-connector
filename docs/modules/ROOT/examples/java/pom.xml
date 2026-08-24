@@ -13,9 +13,9 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
-      <artifactId>neo4j-connector-apache-spark_{scala-version}</artifactId>
-      <version>{exact-connector-version}_for_spark_3</version>
+      <groupId>org.neo4j.connectors</groupId>
+      <artifactId>spark</artifactId>
+      <version>{exact-connector-version}-s_{scala-version}</version>
     </dependency>
   </dependencies>
 </project>

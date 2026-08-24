@@ -26,7 +26,7 @@ The connector is available via Maven Central:
 =====
 [source, shell, subs="attributes+"]
 ----
-$SPARK_HOME/bin/spark-shell --packages org.neo4j:neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3
+$SPARK_HOME/bin/spark-shell --packages org.neo4j.connectors:spark:{exact-connector-version}-s_{scala-version}
 ----
 =====
 
@@ -34,7 +34,7 @@ $SPARK_HOME/bin/spark-shell --packages org.neo4j:neo4j-connector-apache-spark_{s
 =====
 [source, shell, subs="attributes+"]
 ----
-$SPARK_HOME/bin/pyspark --packages org.neo4j:neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3
+$SPARK_HOME/bin/pyspark --packages org.neo4j.connectors:spark:{exact-connector-version}-s_{scala-version}
 ----
 =====
 ====
@@ -88,7 +88,7 @@ If you use the link:https://github.com/databricks/sbt-spark-package[sbt-spark-pa
 
 [source, shell, subs="attributes+"]
 ----
-scala spDependencies += "org.neo4j/neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3"
+scala spDependencies += "org.neo4j.connectors/spark:{exact-connector-version}-s_{scala-version}"
 ----
 =====
 
@@ -109,6 +109,6 @@ include::example$java/pom.xml[]
 ----
 dependencies {
     // list of dependencies
-    compile "org.neo4j:neo4j-connector-apache-spark_{scala-version}:{exact-connector-version}_for_spark_3"
+    compile "org.neo4j.connectors:spark:{exact-connector-version}-s_{scala-version}"
 }
 ----
