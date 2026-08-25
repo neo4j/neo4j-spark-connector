@@ -143,20 +143,26 @@ spark \
 
 === Streaming property name
 
-For the streaming to work, you need each record to have a property of type `timestamp`
-to leverage when reading new data from Neo4j to be sent to the stream.
-
-Behind the scenes the connector is building a query with a `WHERE` clause that checks for the
-records that have this `[timestampProperty]` between a range of timestamps computed from checkpoint data
-and latest offset available in the database.
-
-So it's required that each node has the timestamp property of a Neo4j type (Long),
-and it *must* be not `null`.
-
-[NOTE]
-A property of type string like "2021-08-11" does not work. It needs to be a Long of Neo4j type.
-
+For the streaming reads, you need each record to have a "streaming property" to leverage when reading new data from Neo4j to be sent to the stream.
+The name of your streaming property must be passed along using the required option `streaming.property.name`.
 The property name can be anything, just remember to set the `streaming.property.name` accordingly.
+
+Behind the scenes the connector is building a query with a `WHERE` clause that checks for the records' streaming property that falls between a range of values computed from checkpoint data and latest offset available in the database.
+
+Because of how we construct this `WHERE` clause, it is _required_ to use the `Integer` type for the property (equivalent to Java/Scala's Long).
+It must not be `null`.
+We recommend that you use time-ordered sequence of numbers that are uniquely identifying (e.g. an unique incrementing ID).
+
+[WARNING]
+====
+If the values of your streaming property are not unique, you might lose data.
+Structured streaming reads keep track of progress using the highest property seen, then move on to a value strictly greater than that next time.
+If you write a record (mid-streaming) that has a streaming property which is a duplicate of an already read record, this data will not be streamed/read.
+====
+
+Using Neo4j built-in function `timestamp()` as value for these properties is a natural instinct.
+But be warned, if you have records with non-unique timestamps you might have duplicated timestamps in your data.
+Of course you can still use e.g. a `timestamp()` value if your domain can guarantee that this is unique or the above warning is not of concern.
 
 === _Streaming from_ option
 
