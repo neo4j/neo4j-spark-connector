@@ -70,26 +70,14 @@ For example, if the read query is `MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) 
 
 [source, cypher]
 ----
-MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name <1>
+CALL {
+  MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name <1>
+}
+RETURN id, name
 ORDER BY rand()
 LIMIT <limit> <2>
 ----
 <1> The original read query.
-<2> `<limit>` is the value provided via `schema.flatten.limit`.
-
-Some queries cannot take an `ORDER BY` and a `LIMIT` clause at the end, for example, when they already end with one.
-If that is the case, the connector wraps the read query in a subquery instead:
-
-[source, cypher]
-----
-CALL { <1>
-  MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.age as age
-}
-RETURN *
-ORDER BY rand()
-LIMIT <limit> <2>
-----
-<1> With Cypher 25, the connector uses the `CALL () { ... }` form.
 <2> `<limit>` is the value provided via `schema.flatten.limit`.
 
 The schema is then inferred from the query result.
