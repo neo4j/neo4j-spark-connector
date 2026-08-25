@@ -40,14 +40,28 @@ class PythonIntegrationTests(
                   """
               #!/bin/bash -eu
               mise use -g python@${pythonVersion.version}
-              
+
               python -m pip install --upgrade pip
-              pip install pyspark==${sparkVersion.version} "testcontainers[neo4j]" six tzlocal==2.1 
-              
+
+              # pipelines is a 4.1+ feature
+              if [[ "${sparkVersion.version}" != 4.0.* ]]; then
+                pip install pyspark[pipelines]==${sparkVersion.version} "testcontainers[neo4j]" six tzlocal==2.1
+              else
+                pip install pyspark==${sparkVersion.version} "testcontainers[neo4j]" six tzlocal==2.1
+              fi
+
               project_version="$(./mvnw help:evaluate -Dexpression="project.version" --quiet -DforceStdout)"
               jar_name="neo4j-spark-connector-${'$'}{project_version}-s_${scalaVersion.version}.jar"
+
               cd ./scripts/python
+
+              # common integration tests:
               python test_spark.py "${'$'}{jar_name}" "${neo4jVersion.dockerImage}"
+
+              # spark declarative pipeline integration test:
+              if [[ "${sparkVersion.version}" != 4.0.* ]]; then
+                python pipeline/test_spark_declarative_pipeline.py "${'$'}{jar_name}" "${neo4jVersion.dockerImage}"
+              fi
               """
                       .trimIndent()
 

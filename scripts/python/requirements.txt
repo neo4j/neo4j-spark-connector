@@ -1,4 +1,4 @@
-pyspark==4.0.1
+pyspark[pipelines]==4.1.3
 testcontainers[neo4j]
 six
 tzlocal==2.1

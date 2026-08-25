@@ -35,3 +35,4 @@ doc/package-lock.json
 scripts/python/local
 node_modules
 .junie
+__pycache__
