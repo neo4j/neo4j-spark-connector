@@ -10,13 +10,6 @@ When using the `query` option, the schema is inferred from the result of the que
 Both methods use sampling, which is the default value (`sample`) of the `schema.strategy` option.
 The exact APOC procedure or Cypher query depends on the read option.
 
-[NOTE]
-====
-The Cypher queries in this page are shown without their preamble.
-The connector prepends a Cypher version to each of them (for example, `CYPHER 5`), either automatically or based on the `cypher.version` option.
-See xref:performance/cypher-tuning.adoc[] for details.
-====
-
 This strategy works when all instances of a property in Neo4j have the same type.
 Otherwise, the connector still attempts to infer a schema but it logs a message like the following:
 
