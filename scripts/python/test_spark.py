@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-import unittest
-import sys
 import datetime
+import sys
+import unittest
 
-from tzlocal import get_localzone
-from testcontainers.neo4j import Neo4jContainer
-from pyspark.sql import SparkSession
 from neo4j import Driver
+from pyspark.sql import SparkSession
+from testcontainers.neo4j import Neo4jContainer
+from tzlocal import get_localzone
 
 
 class SparkTest(unittest.TestCase):
