@@ -48,17 +48,12 @@ The following access modes are not supported:
 * No isolation shared (legacy)
 * Legacy Table ACL and credential passthrough modes
 
-*Cause*: in `Standard` access mode Databricks isolates user code from the driver JVM and restricts third-party data sources.
-`sc`, `spark.sparkContext`, and `sqlContext` are unavailable to Scala code, and an administrator has to add Maven coordinates and JAR paths to an allowlist before they can be installed.
-Neo4j does not test the connector under these modes.
 
 [#unity-catalog]
 === Unity Catalog is supported in `Dedicated` access mode only
 
 Unity Catalog support follows the same restriction as the access mode: the connector supports Unity Catalog on `Dedicated` clusters only.
 
-When Unity Catalog is enabled, an administrator may also have to add the Maven coordinate or the volume path of the connector JAR to the workspace allowlist before it can be installed.
-See <<jar-install>>.
 
 [#serverless]
 === Serverless compute is not supported
@@ -143,12 +138,6 @@ Copy the connector JAR only.
 Never copy its Spark or Scala dependencies, as doing so can leave the cluster unable to start.
 ====
 
-==== What not to do
-
-* Do not install more than one connector version, or both Scala variants, on the same cluster.
-* Do not combine install patterns for the same cluster.
-* Do not use `spark-submit` with `--packages` on Databricks.
-Use a JAR task or a cluster library.
 
 [#cluster-profile]
 === `spark.databricks.cluster.profile` interactions
@@ -181,15 +170,6 @@ It selects the legacy High Concurrency cluster profile, which enables user isola
 The connector does not work on such clusters.
 ====
 
-Consequences to be aware of:
-
-* Do not set `spark.databricks.cluster.profile` by hand in the *Spark config* text area.
-Choose the cluster type in the UI or set `data_security_mode` through the API instead.
-* If a cluster policy pins `spark.databricks.cluster.profile` to `serverless`, the connector cannot be used on any cluster created from that policy.
-Request the `Unrestricted` policy, or a policy that leaves the profile unset.
-* On a `singleNode` cluster everything runs in the driver JVM.
-Reads and writes work, but there is no distribution across executors, so keep the `partitions` option low.
-Single-node clusters are suitable for development and small workloads.
 
 [#dbr-compatibility]
 === Databricks Runtime versions and support windows
