@@ -162,7 +162,10 @@ If you write a record (mid-streaming) that has a streaming property which is a d
 
 Using Neo4j built-in function `timestamp()` as value for these properties is a natural instinct.
 But be warned, if you have records with non-unique timestamps you might have duplicated timestamps in your data.
-Of course you can still use e.g. a `timestamp()` value if your domain can guarantee that this is unique or the above warning is not of concern.
+Imagine you are reading a stream from a Neo4j database under a heavy write scenario over multiple transactions.
+Every timestamp value of writes that happens within the same millisecond will have non-unique timestamp, and is prone to the above warning.
+A streaming read might reach Neo4j in-between two write transactions within the same millisecond.
+The later written records will then never be read.
 
 === _Streaming from_ option
 
