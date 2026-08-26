@@ -201,7 +201,7 @@ object Neo4jUtil {
       case notNull: IsNotNull => getCorrectProperty(container, attributeAlias.getOrElse(notNull.attribute)).isNotNull
       case isNull: IsNull     => getCorrectProperty(container, attributeAlias.getOrElse(isNull.attribute)).isNull
       case not: Not           => mapSparkFiltersToCypher(not.child, container, attributeAlias).not()
-      case _: AlwaysTrue      => Conditions.noCondition()
+      case _: AlwaysTrue      => Cypher.literalTrue().asCondition()
       case _: AlwaysFalse     => Cypher.literalFalse().asCondition()
       case unsupported =>
         throw new IllegalArgumentException(s"Filter of type `${unsupported.getClass.getName}` is not supported.")
