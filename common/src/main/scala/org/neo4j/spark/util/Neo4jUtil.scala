@@ -198,10 +198,13 @@ object Neo4jUtil {
       case contains: StringContains =>
         getCorrectProperty(container, attributeAlias.getOrElse(contains.attribute))
           .contains(valueToCypherExpression(contains.attribute, contains.value))
-      case notNull: IsNotNull   => getCorrectProperty(container, attributeAlias.getOrElse(notNull.attribute)).isNotNull
-      case isNull: IsNull       => getCorrectProperty(container, attributeAlias.getOrElse(isNull.attribute)).isNull
-      case not: Not             => mapSparkFiltersToCypher(not.child, container, attributeAlias).not()
-      case filter @ (_: Filter) => throw new IllegalArgumentException(s"Filter of type `$filter` is not supported.")
+      case notNull: IsNotNull => getCorrectProperty(container, attributeAlias.getOrElse(notNull.attribute)).isNotNull
+      case isNull: IsNull     => getCorrectProperty(container, attributeAlias.getOrElse(isNull.attribute)).isNull
+      case not: Not           => mapSparkFiltersToCypher(not.child, container, attributeAlias).not()
+      case _: AlwaysTrue      => Conditions.noCondition()
+      case _: AlwaysFalse     => Cypher.literalFalse().asCondition()
+      case unsupported =>
+        throw new IllegalArgumentException(s"Filter of type `${unsupported.getClass.getName}` is not supported.")
     }
   }
 
