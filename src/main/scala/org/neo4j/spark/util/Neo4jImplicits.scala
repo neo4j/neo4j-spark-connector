@@ -30,6 +30,7 @@ import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.MapType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
+import org.neo4j.cypherdsl.support.schema_name.SchemaNames
 import org.neo4j.driver.Value
 import org.neo4j.driver.types.Entity
 import org.neo4j.driver.types.Node
@@ -42,18 +43,21 @@ import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.jdk.CollectionConverters.MapHasAsScala
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
-import javax.lang.model.SourceVersion
-
 object Neo4jImplicits {
 
+  private val BACKTICK = "`"
+
   implicit class CypherImplicits(str: String) {
-    private def isValidCypherIdentifier() = SourceVersion.isIdentifier(str) && !str.trim.startsWith("$")
 
-    def quote(): String = if (!isValidCypherIdentifier() && !str.isQuoted()) s"`$str`" else str
+    def sanitizeSchemaName(): String = {
+      if (str.startsWith(BACKTICK) && str.endsWith(BACKTICK)) {
+        SchemaNames.sanitize(str.substring(1, str.length - 1)).orElse("")
+      } else {
+        SchemaNames.sanitize(str).orElse("")
+      }
+    }
 
-    def unquote(): String = str.replaceAll("`", "");
-
-    def isQuoted(): Boolean = str.startsWith("`");
+    def unquote(): String = str.replaceAll(BACKTICK, "")
 
     def removeAlias(): String = {
       val splatString = str.unquote().split('.')
@@ -79,7 +83,7 @@ object Neo4jImplicits {
 
       val base64ed = java.util.Base64.getEncoder.encodeToString(attributeValue.getBytes())
 
-      s"${base64ed}_${str.unquote()}".quote()
+      s"${base64ed}_${str.unquote()}".sanitizeSchemaName()
     }
   }
 

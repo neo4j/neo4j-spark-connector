@@ -319,7 +319,7 @@ class Neo4jQueryReadStrategy(
 
         if (entity != null && splatColumn.length == 1) {
           entity match {
-            case n: Node         => n.as(entityName.quote())
+            case n: Node         => n.as(entityName.sanitizeSchemaName())
             case r: Relationship => r.getRequiredSymbolicName
           }
         } else {
