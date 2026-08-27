@@ -10,6 +10,10 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      spark:
+        specifier: 'link:'
+        version: 'link:'
     devDependencies:
       '@commitlint/cli':
         specifier: ^21.2.1
