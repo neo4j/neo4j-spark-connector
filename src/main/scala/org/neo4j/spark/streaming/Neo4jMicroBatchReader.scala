@@ -93,10 +93,16 @@ class Neo4jMicroBatchReader(
           try {
             schemaService.lastOffset()
           } catch {
-            case _: Throwable => null
+            case e: Throwable =>
+              logWarning(
+                "Could not read the latest streaming offset for property " + neo4jOptions.streamingOptions.propertyName,
+                e
+              )
+              Option.empty[Long]
           }
       }
     )
+
     offsetValue.map(value => Neo4jOffset(value)).orNull
   }
 
