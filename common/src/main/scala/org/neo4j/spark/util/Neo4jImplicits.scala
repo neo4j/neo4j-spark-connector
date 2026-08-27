@@ -46,6 +46,7 @@ import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.MapType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
+import org.neo4j.cypherdsl.support.schema_name.SchemaNames
 import org.neo4j.driver.Value
 import org.neo4j.driver.types.Entity
 import org.neo4j.driver.types.Node
@@ -56,18 +57,27 @@ import org.neo4j.spark.service.SchemaService
 
 import scala.collection.JavaConverters._
 
-import javax.lang.model.SourceVersion
-
 object Neo4jImplicits {
 
+  private val BACKTICK = "`"
+
   implicit class CypherImplicits(str: String) {
-    private def isValidCypherIdentifier() = SourceVersion.isIdentifier(str) && !str.trim.startsWith("$")
 
-    def quote(): String = if (!isValidCypherIdentifier() && !str.isQuoted()) s"`$str`" else str
+    def sanitizeSchemaName(): String = {
+      val sanitizeThis =
+        if (str.startsWith(BACKTICK) && str.endsWith(BACKTICK)) str.substring(1, str.length - 1) else str
 
-    def unquote(): String = str.replaceAll("`", "");
+      // 1) we target older JVMs and must therefore use CypherDSL 2022.
+      // 2) introducing CypherDSL sanitizer here is to resolve a security concern.
+      // because of (1) and (2), we don't get the fix for escaping names that begin with "$", introduced in version 2024
+      if (sanitizeThis.startsWith("$")) {
+        SchemaNames.sanitize(sanitizeThis, true).orElse("")
+      } else {
+        SchemaNames.sanitize(sanitizeThis).orElse("")
+      }
+    }
 
-    def isQuoted(): Boolean = str.startsWith("`");
+    def unquote(): String = str.replaceAll(BACKTICK, "")
 
     def removeAlias(): String = {
       val splatString = str.unquote().split('.')
@@ -93,7 +103,7 @@ object Neo4jImplicits {
 
       val base64ed = java.util.Base64.getEncoder.encodeToString(attributeValue.getBytes())
 
-      s"${base64ed}_${str.unquote()}".quote()
+      s"${base64ed}_${str.unquote()}".sanitizeSchemaName()
     }
   }
 
