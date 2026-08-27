@@ -91,7 +91,9 @@ class SchemaService(
         logResolutionChange("APOC is not installed. Switching to query schema resolution", e)
         // TODO get back to Cypher DSL when rand function will be available
         val query =
-          s"""${selectCypherVersionClause(neo4j)}MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
+          s"""${selectCypherVersionClause(
+              neo4j
+            )}MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.sanitizeSchemaName()).mkString(":")})
              |RETURN ${Neo4jUtil.NODE_ALIAS}
              |ORDER BY rand()
              |LIMIT ${options.schemaMetadata.flattenLimit}
@@ -245,10 +247,10 @@ class SchemaService(
           s"""${selectCypherVersionClause(
               neo4j
             )}MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(
-              _.quote()
+              _.sanitizeSchemaName()
             ).mkString(":")})
              |MATCH (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}:${options.relationshipMetadata.target.labels.map(
-              _.quote()
+              _.sanitizeSchemaName()
             ).mkString(":")})
              |MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
              |RETURN ${Neo4jUtil.RELATIONSHIP_ALIAS}
@@ -317,7 +319,9 @@ class SchemaService(
       columns.map(StructField(_, DataTypes.StringType))
     } else {
       try {
-        columns.map(column => structFields.find(_.name.quote() == column.quote()).orNull).filter(_ != null)
+        columns.map(column =>
+          structFields.find(_.name.sanitizeSchemaName() == column.sanitizeSchemaName()).orNull
+        ).filter(_ != null)
       } catch {
         case _: Throwable => structFields.toArray
       }
@@ -424,7 +428,7 @@ class SchemaService(
   def countForNodeWithQuery(filters: Array[Filter]): Long = {
     val query = if (filters.isEmpty) {
       options.nodeMetadata.labels
-        .map(_.quote())
+        .map(_.sanitizeSchemaName())
         .map(label =>
           s"""
              |MATCH (:$label)
@@ -450,16 +454,16 @@ class SchemaService(
   def countForRelationshipWithQuery(filters: Array[Filter]): Long = {
     val query = if (filters.isEmpty) {
       val sourceQueries = options.relationshipMetadata.source.labels
-        .map(_.quote())
+        .map(_.sanitizeSchemaName())
         .map(label =>
-          s"""MATCH (:$label)-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType.quote()}]->()
+          s"""MATCH (:$label)-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType.sanitizeSchemaName()}]->()
              |RETURN count(${Neo4jUtil.RELATIONSHIP_ALIAS}) AS count
              |""".stripMargin
         )
       val targetQueries = options.relationshipMetadata.target.labels
-        .map(_.quote())
+        .map(_.sanitizeSchemaName())
         .map(label =>
-          s"""MATCH ()-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType.quote()}]->(:$label)
+          s"""MATCH ()-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType.sanitizeSchemaName()}]->(:$label)
              |RETURN count(${Neo4jUtil.RELATIONSHIP_ALIAS}) AS count
              |""".stripMargin
         )
@@ -667,9 +671,9 @@ class SchemaService(
       case OptimizationType.NONE => log.info("No optimization type provided")
       case _ => {
         try {
-          val quotedLabel = label.quote()
+          val quotedLabel = label.sanitizeSchemaName()
           val quotedProps = props
-            .map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.quote()}")
+            .map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.sanitizeSchemaName()}")
             .mkString(", ")
           val isNeo4j4 = neo4j.getVersion.getMajor == 4
           val uniqueFieldName = if (!isNeo4j4) "owningConstraint" else "uniqueness"
@@ -687,7 +691,7 @@ class SchemaService(
               )
             }
           }
-          val actionName = s"spark_${action.toString}_${label}_$dashSeparatedProps".quote()
+          val actionName = s"spark_${action.toString}_${label}_$dashSeparatedProps".sanitizeSchemaName()
           val queryPrefix = action match {
             case OptimizationType.INDEX            => s"CREATE INDEX $actionName"
             case OptimizationType.NODE_CONSTRAINTS => s"CREATE CONSTRAINT $actionName"
@@ -735,8 +739,8 @@ class SchemaService(
     }
     val dashSeparatedProps = keys.values.mkString("-")
     val constraintName =
-      s"spark_${entityType}_${constraintType.replace(s"$entityType ", "")}-CONSTRAINT_${entityIdentifier}_$dashSeparatedProps".quote()
-    val props = keys.values.map(_.quote()).map("e." + _).mkString(", ")
+      s"spark_${entityType}_${constraintType.replace(s"$entityType ", "")}-CONSTRAINT_${entityIdentifier}_$dashSeparatedProps".sanitizeSchemaName()
+    val props = keys.values.map(_.sanitizeSchemaName()).map("e." + _).mkString(", ")
     val asciiRepresentation: String = createCypherPattern(entityType, entityIdentifier)
     session.writeTransaction(
       tx => {
@@ -750,8 +754,8 @@ class SchemaService(
 
   private def createCypherPattern(entityType: String, entityIdentifier: String) = {
     val asciiRepresentation = entityType match {
-      case "NODE"         => s"(e:${entityIdentifier.quote()})"
-      case "RELATIONSHIP" => s"()-[e:${entityIdentifier.quote()}]->()"
+      case "NODE"         => s"(e:${entityIdentifier.sanitizeSchemaName()})"
+      case "RELATIONSHIP" => s"()-[e:${entityIdentifier.sanitizeSchemaName()}]->()"
       case _              => throw new IllegalArgumentException(s"$entityType not supported")
     }
     asciiRepresentation
@@ -775,18 +779,19 @@ class SchemaService(
           })
           .foreach(t => {
             val prop = t._1
-            val propQuoted = prop.quote()
+            val propQuoted = prop.sanitizeSchemaName()
             val cypherType = t._2
             val isNullable = t._3
             if (constraints.contains(SchemaConstraintsOptimizationType.TYPE)) {
-              val typeConstraintName = s"spark_$entityType-TYPE-CONSTRAINT-$entityIdentifier-$prop".quote()
+              val typeConstraintName = s"spark_$entityType-TYPE-CONSTRAINT-$entityIdentifier-$prop".sanitizeSchemaName()
               tx.run(
                 s"CREATE CONSTRAINT $typeConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$propQuoted IS :: $cypherType"
               ).consume()
             }
             if (constraints.contains(SchemaConstraintsOptimizationType.EXISTS)) {
               if (!isNullable) {
-                val notNullConstraintName = s"spark_$entityType-NOT_NULL-CONSTRAINT-$entityIdentifier-$prop".quote()
+                val notNullConstraintName =
+                  s"spark_$entityType-NOT_NULL-CONSTRAINT-$entityIdentifier-$prop".sanitizeSchemaName()
                 tx.run(
                   s"CREATE CONSTRAINT $notNullConstraintName IF NOT EXISTS FOR $asciiRepresentation REQUIRE e.$propQuoted IS NOT NULL"
                 ).consume()
@@ -993,9 +998,9 @@ class SchemaService(
   }
 
   private def lastOffsetForRelationship(): Option[Long] = {
-    val sourceLabel = options.relationshipMetadata.source.labels.head.quote()
-    val targetLabel = options.relationshipMetadata.target.labels.head.quote()
-    val relType = options.relationshipMetadata.relationshipType.quote()
+    val sourceLabel = options.relationshipMetadata.source.labels.head.sanitizeSchemaName()
+    val targetLabel = options.relationshipMetadata.target.labels.head.sanitizeSchemaName()
+    val relType = options.relationshipMetadata.relationshipType.sanitizeSchemaName()
 
     session.run(
       s"""MATCH (s:$sourceLabel)-[r:$relType]->(t:$targetLabel)
