@@ -33,21 +33,19 @@ import org.neo4j.spark.util.Neo4jImplicits._
 
 import scala.collection.immutable.ListMap
 import scala.jdk.CollectionConverters.IterableHasAsJava
-import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.jdk.CollectionConverters.MapHasAsJava
-import scala.jdk.CollectionConverters.MapHasAsScala
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
 class Neo4jImplicitsTest {
 
   @Nested
-  class Quotes {
+  class Sanitizes {
 
     @Test
     def quotes_the_string(): Unit = {
       val value = "Test with space"
 
-      val actual = value.quote()
+      val actual = value.sanitizeSchemaName()
 
       assertThat(actual).isEqualTo(s"`$value`")
     }
@@ -56,25 +54,61 @@ class Neo4jImplicitsTest {
     def quotes_text_that_starts_with_$(): Unit = {
       val value = "$string"
 
-      val actual = value.quote()
+      val actual = value.sanitizeSchemaName()
 
-      assertThat(actual).isEqualTo(s"`$value`")
+      assertThat(actual).isEqualTo("`$string`")
+    }
+
+    @Test
+    def quotes_text_that_starts_with_$_even_when_quoted(): Unit = {
+      val value = "`$string`"
+
+      val actual = value.sanitizeSchemaName()
+
+      assertThat(actual).isEqualTo("`$string`")
+    }
+
+    @Test
+    def sanitizes_text_that_has_backtick(): Unit = {
+      val value = "User can put back`ticks"
+
+      val actual = value.sanitizeSchemaName()
+
+      assertThat(actual).isEqualTo(s"`User can put back``ticks`")
+    }
+
+    @Test
+    def sanitizes_text_that_has_backtick_and_no_spaces(): Unit = {
+      val value = "Per`son"
+
+      val actual = value.sanitizeSchemaName()
+
+      assertThat(actual).isEqualTo(s"`Per``son`")
     }
 
     @Test
     def does_not_requote_the_string(): Unit = {
       val value = "`Test with space`"
 
-      val actual = value.quote()
+      val actual = value.sanitizeSchemaName()
 
       assertThat(actual).isEqualTo(value)
+    }
+
+    @Test
+    def does_not_requote_the_string_even_when_sanitized(): Unit = {
+      val value = "`Test wi`th space`"
+
+      val actual = value.sanitizeSchemaName()
+
+      assertThat(actual).isEqualTo("`Test wi``th space`")
     }
 
     @Test
     def does_not_quote_the_string(): Unit = {
       val value = "Test"
 
-      val actual = value.quote()
+      val actual = value.sanitizeSchemaName()
 
       assertThat(actual).isEqualTo(value)
     }
