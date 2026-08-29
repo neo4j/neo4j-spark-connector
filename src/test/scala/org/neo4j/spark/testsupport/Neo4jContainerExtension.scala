@@ -27,6 +27,7 @@ import org.neo4j.spark.testsupport.Neo4jContainerExtension.log
 import org.rnorth.ducttape.unreliables.Unreliables
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.testcontainers.containers.ContainerLaunchException
 import org.testcontainers.containers.Neo4jContainer
 import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy
@@ -138,7 +139,19 @@ class Neo4jContainerExtension
     }
     withLogConsumer(logConsumer)
     addEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-    super.start()
+
+    val maxRetry = 3
+    for (attempt <- 1 to maxRetry) {
+      try {
+        super.start()
+      } catch {
+        case _: ContainerLaunchException =>
+          val retryNotice = if (attempt == maxRetry) "" else ", RETRY IN 1000ms"
+          System.err.println(s"FAILED TO LAUNCH CONTAINER DURING ATTEMPT $attempt$retryNotice")
+          Thread.sleep(1000L)
+        case e: Throwable => throw e
+      }
+    }
 
     if (fixture.nonEmpty) {
       val driver = GraphDatabase.driver(this.getBoltUrl, createAuth())
