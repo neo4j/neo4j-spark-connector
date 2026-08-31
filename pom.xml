@@ -69,7 +69,7 @@
         <slf4j-api.version>2.0.18</slf4j-api.version>
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
         <spark.version>4.1.2</spark.version>
-        <spotless-maven-plugin.version>3.10.0</spotless-maven-plugin.version>
+        <spotless-maven-plugin.version>3.10.1</spotless-maven-plugin.version>
         <test.jvm.args>
             -XX:+IgnoreUnrecognizedVMOptions
             --add-opens=java.base/java.lang=ALL-UNNAMED
