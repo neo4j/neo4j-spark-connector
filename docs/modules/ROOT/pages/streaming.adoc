@@ -141,31 +141,23 @@ spark \
   .show()
 ----
 
-=== Streaming property name
+=== Streaming property
 
-For the streaming reads, you need each record to have a "streaming property" to leverage when reading new data from Neo4j to be sent to the stream.
-The name of your streaming property must be passed along using the required option `streaming.property.name`.
-The property name can be anything, just remember to set the `streaming.property.name` accordingly.
+When reading from Neo4j, each record must include a unique increasing `Integer` value (a _streaming property_).
 
-Behind the scenes the connector is building a query with a `WHERE` clause that checks for the records' streaming property that falls between a range of values computed from checkpoint data and latest offset available in the database.
+The connector uses the value of the streaming property to filter records between the checkpoint and the latest offset stored in the database.
 
-Because of how we construct this `WHERE` clause, it is _required_ to use the `Integer` type for the property (equivalent to Java/Scala's Long).
-It must not be `null`.
-We recommend that you use time-ordered sequence of numbers that are uniquely identifying (e.g. an unique incrementing ID).
+The `streaming.property.name` option sets the name of the node or relationship property to use.
 
 [WARNING]
 ====
 If the values of your streaming property are not unique, you might lose data.
-Structured streaming reads keep track of progress using the highest property seen, then move on to a value strictly greater than that next time.
-If you write a record (mid-streaming) that has a streaming property which is a duplicate of an already read record, this data will not be streamed/read.
+Structured streaming reads keep track of the progress using the value of the streaming property, which must increase for each subsequent read.
+If this value is already present in a previously written record, the new data will not be read.
 ====
 
-Using Neo4j built-in function `timestamp()` as value for these properties is a natural instinct.
-But be warned, if you have records with non-unique timestamps you might have duplicated timestamps in your data.
-Imagine you are reading a stream from a Neo4j database under a heavy write scenario over multiple transactions.
-Every timestamp value of writes that happens within the same millisecond will have non-unique timestamp, and is prone to the above warning.
-A streaming read might reach Neo4j in-between two write transactions within the same millisecond.
-The later written records will then never be read.
+Although the Neo4j `timestamp()` function might seem a good choice to create a streaming property, its millisecond resolution may not be enough to guarantee uniqueness in a write-heavy scenario.
+If several transactions happen within the same millisecond, the connector will only read one.
 
 === _Streaming from_ option
 
