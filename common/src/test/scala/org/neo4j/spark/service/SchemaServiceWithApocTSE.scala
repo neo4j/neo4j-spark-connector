@@ -16,6 +16,7 @@
  */
 package org.neo4j.spark.service
 
+import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
@@ -218,7 +219,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       CREATE (p1:Person {age: 31, name: 'Jane Doe'}),
         (p2:Person {name: 'John Doe', age: 33, location: null}),
         (p3:Person {age: 25, location: point({latitude: 12.12, longitude: 31.13})})
-    """
+      """
     )
 
     val options: java.util.Map[String, String] = new util.HashMap[String, String]()
@@ -239,24 +240,18 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   @Test
   def testPageMathWhenCorruptedNodeIdentifiers(): Unit = {
     // given
-    val setUp =
+    initTest(
       """
-        |CREATE (:`Person with spaces` {name: "Alice"})-[:KNOWS]->(:`Person with spaces` {name: "Bob"})
-        |CREATE (:`Person with spaces` {name: "Bob"})-[:KNOWS]->(:`Person with spaces` {name: "Alice"})
-        |CREATE (:`Person with spaces` {name: "Alice"})-[:KNOWS]->(:`Person with spaces` {name: "Charlie"})
-        |CREATE (:`Person with spaces` {name: "Charlie"})-[:KNOWS]->(:`Person with spaces` {name: "Alice"})
-        |CREATE (:`Person with spaces` {name: "Bob"})-[:KNOWS]->(:`Person with spaces` {name: "Charlie"})
-        |CREATE (:`Person with spaces` {name: "Charlie"})-[:KNOWS]->(:`Person with spaces` {name: "Bob"})
-        |""".stripMargin
+      CREATE (:`Person with spaces` {name: "A"})-[:KNOWS]->(:`Person with spaces` {name: "B"})
+      CREATE (:`Person with spaces` {name: "B"})-[:KNOWS]->(:`Person with spaces` {name: "A"})
+      CREATE (:`Person with spaces` {name: "A"})-[:KNOWS]->(:`Person with spaces` {name: "C"})
+      CREATE (:`Person with spaces` {name: "C"})-[:KNOWS]->(:`Person with spaces` {name: "A"})
+      CREATE (:`Person with spaces` {name: "B"})-[:KNOWS]->(:`Person with spaces` {name: "C"})
+      CREATE (:`Person with spaces` {name: "C"})-[:KNOWS]->(:`Person with spaces` {name: "B"})
+     """
+    )
 
-    val desiredPartitions = 3
-
-    SparkConnectorScalaSuiteWithApocIT.session()
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(setUp).consume()
-        }
-      )
+    val desiredPartitions = 2
 
     val options: java.util.Map[String, String] = new util.HashMap[String, String]()
     options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
@@ -267,13 +262,21 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val neo4jOptions = new Neo4jOptions(options)
     val driverCache = new DriverCache(neo4jOptions.connection)
     val neo4j = new Neo4j(new Neo4jVersion(5, 26, 0), Neo4jEdition.ENTERPRISE, Neo4jDeploymentType.SELF_MANAGED)
-    val schemaService: SchemaService = new SchemaService(neo4j, neo4jOptions, driverCache)
+    val schemaService = new SchemaServiceFallbackSpy(neo4j, neo4jOptions, driverCache)
 
-    // when
-    val pages = schemaService.skipLimitFromPartition(Some(TopN(2)))
+    try {
+      // when
+      val pages = schemaService.skipLimitFromPartition(Some(TopN(2)))
 
-    // then
-    assertEquals(desiredPartitions, pages.size)
+      // then -- 2 pages of size 3
+      assertEquals(desiredPartitions, pages.size)
+      assertEquals(0, pages.head.skip)
+      assertEquals(3, pages.last.skip)
+      assertEquals(0, schemaService.fallbackCount)
+    } finally {
+      schemaService.close()
+      driverCache.close()
+    }
   }
 
   private def getExpectedStructType(structFields: Seq[StructField]): StructType = {
@@ -306,5 +309,21 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     driverCache.close()
 
     schema
+  }
+
+  private class SchemaServiceFallbackSpy(neo4j: Neo4j, options: Neo4jOptions, driverCache: DriverCache)
+      extends SchemaService(neo4j, options, driverCache) {
+
+    var fallbackCount: Int = 0
+
+    override def countForNodeWithQuery(filters: Array[Filter]): Long = {
+      fallbackCount += 1
+      super.countForNodeWithQuery(filters)
+    }
+
+    override def countForRelationshipWithQuery(filters: Array[Filter]): Long = {
+      fallbackCount += 1
+      super.countForRelationshipWithQuery(filters)
+    }
   }
 }
