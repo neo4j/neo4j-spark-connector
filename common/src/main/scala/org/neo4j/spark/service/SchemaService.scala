@@ -518,21 +518,23 @@ class SchemaService(
           .asInstanceOf[util.Map[String, Long]]
           .asScala
 
-        val minFromSource = options.relationshipMetadata.source.labels // no sanitization here - labels used as map keys
+        val sourceCounts = options.relationshipMetadata.source.labels // no sanitization here - labels used as map keys
           .map(label =>
             map.get(s"(:$label)-[:${options.relationshipMetadata.relationshipType}]->()")
           )
 
-        val minFromTarget = options.relationshipMetadata.target.labels // no sanitization here - labels used as map keys
+        val targetCounts = options.relationshipMetadata.target.labels // no sanitization here - labels used as map keys
           .map(label =>
             map.get(s"()-[:${options.relationshipMetadata.relationshipType}]->(:$label)")
           )
 
-        if (minFromSource.contains(None) || minFromTarget.contains(None)) {
-          logResolutionChange("Count store lookup incomplete. Switching to query count resolution", null)
+        val validCounts = (sourceCounts ++ targetCounts).flatten
+
+        if (validCounts.isEmpty) {
+          logResolutionChange("Count store lookup failed. Switching to query count resolution", null)
           countForRelationshipWithQuery(filters)
         } else {
-          Math.min(minFromSource.flatten.min, minFromTarget.flatten.min)
+          validCounts.min
         }
       } else {
         countForRelationshipWithQuery(filters)
