@@ -153,7 +153,7 @@ The `streaming.property.name` option sets the name of the node or relationship p
 ====
 If the values of your streaming property are not unique, you might lose data.
 Structured streaming reads keep track of the progress using the value of the streaming property, which must increase for each subsequent read to keep order.
-If you write a new record during streaming whose streaming property value is less than the current stream's checkpoint, that record will not bea read.
+If you write a new record during streaming whose streaming property value is less than the current stream's checkpoint, that record will not be read.
 ====
 
 Although the Neo4j `timestamp()` function might seem a good choice to create a streaming property, its millisecond resolution may not be enough to guarantee uniqueness in a write-heavy scenario.
