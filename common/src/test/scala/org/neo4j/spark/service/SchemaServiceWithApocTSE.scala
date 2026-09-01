@@ -249,7 +249,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
         |CREATE (:`Person with spaces` {name: "Charlie"})-[:KNOWS]->(:`Person with spaces` {name: "Bob"})
         |""".stripMargin
 
-    val desiredParititions = 3
+    val desiredPartitions = 3
 
     SparkConnectorScalaSuiteWithApocIT.session()
       .writeTransaction(
@@ -262,7 +262,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
     options.put(Neo4jOptions.RELATIONSHIP_SOURCE_LABELS, "Person with spaces")
     options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
-    options.put(Neo4jOptions.PARTITIONS, desiredParititions.toString)
+    options.put(Neo4jOptions.PARTITIONS, desiredPartitions.toString)
 
     val neo4jOptions = new Neo4jOptions(options)
     val driverCache = new DriverCache(neo4jOptions.connection)
@@ -273,7 +273,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val pages = schemaService.skipLimitFromPartition(Some(TopN(2)))
 
     // then
-    assertEquals(desiredParititions, pages.size)
+    assertEquals(desiredPartitions, pages.size)
   }
 
   private def getExpectedStructType(structFields: Seq[StructField]): StructType = {
