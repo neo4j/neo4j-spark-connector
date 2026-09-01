@@ -34,6 +34,7 @@ import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.spark.SparkConnectorScalaBaseWithApocTSE
 import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT
+import org.neo4j.spark.config.TopN
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
@@ -233,6 +234,46 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       )),
       schema
     )
+  }
+
+  @Test
+  def testPageMathWhenCorruptedNodeIdentifiers(): Unit = {
+    // given
+    val setUp =
+      """
+        |CREATE (:`Person with spaces` {name: "Alice"})-[:KNOWS]->(:`Person with spaces` {name: "Bob"})
+        |CREATE (:`Person with spaces` {name: "Bob"})-[:KNOWS]->(:`Person with spaces` {name: "Alice"})
+        |CREATE (:`Person with spaces` {name: "Alice"})-[:KNOWS]->(:`Person with spaces` {name: "Charlie"})
+        |CREATE (:`Person with spaces` {name: "Charlie"})-[:KNOWS]->(:`Person with spaces` {name: "Alice"})
+        |CREATE (:`Person with spaces` {name: "Bob"})-[:KNOWS]->(:`Person with spaces` {name: "Charlie"})
+        |CREATE (:`Person with spaces` {name: "Charlie"})-[:KNOWS]->(:`Person with spaces` {name: "Bob"})
+        |""".stripMargin
+
+    val desiredParititions = 3
+
+    SparkConnectorScalaSuiteWithApocIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(setUp).consume()
+        }
+      )
+
+    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
+    options.put(Neo4jOptions.RELATIONSHIP_SOURCE_LABELS, "Person with spaces")
+    options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+    options.put(Neo4jOptions.PARTITIONS, desiredParititions.toString)
+
+    val neo4jOptions = new Neo4jOptions(options)
+    val driverCache = new DriverCache(neo4jOptions.connection)
+    val neo4j = new Neo4j(new Neo4jVersion(5, 26, 0), Neo4jEdition.ENTERPRISE, Neo4jDeploymentType.SELF_MANAGED)
+    val schemaService: SchemaService = new SchemaService(neo4j, neo4jOptions, driverCache)
+
+    // when
+    val pages = schemaService.skipLimitFromPartition(Some(TopN(2)))
+
+    // then
+    assertEquals(desiredParititions, pages.size)
   }
 
   private def getExpectedStructType(structFields: Seq[StructField]): StructType = {

@@ -25,10 +25,6 @@ import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runners.MethodSorters
 import org.neo4j.Closeables.use
-import org.neo4j.caniuse.Neo4j
-import org.neo4j.caniuse.Neo4jDeploymentType
-import org.neo4j.caniuse.Neo4jEdition
-import org.neo4j.caniuse.Neo4jVersion
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
@@ -42,7 +38,6 @@ import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.QueryType
 
 import java.util
-import java.util.UUID
 
 @FixMethodOrder(MethodSorters.JVM)
 class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
