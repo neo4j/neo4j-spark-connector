@@ -43,7 +43,6 @@ import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.QueryType
 
 import java.util
-import java.util.UUID
 
 @FixMethodOrder(MethodSorters.JVM)
 class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
@@ -238,8 +237,9 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   }
 
   @Test
-  def testPageMathWhenCorruptedNodeIdentifiers(): Unit = {
-    // given
+  def testPageMathForRelsWhenEscapedNodeIdentifiers(): Unit = {
+    val desiredPartitions = 2
+
     initTest(
       """
       CREATE (:`Person with spaces` {name: "A"})-[:KNOWS]->(:`Person with spaces` {name: "B"})
@@ -251,27 +251,73 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
      """
     )
 
-    val desiredPartitions = 2
-
     val options: java.util.Map[String, String] = new util.HashMap[String, String]()
     options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
     options.put(Neo4jOptions.RELATIONSHIP_SOURCE_LABELS, "Person with spaces")
+    options.put(Neo4jOptions.RELATIONSHIP_TARGET_LABELS, "Person with spaces")
     options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
     options.put(Neo4jOptions.PARTITIONS, desiredPartitions.toString)
 
     val neo4jOptions = new Neo4jOptions(options)
     val driverCache = new DriverCache(neo4jOptions.connection)
-    val neo4j = new Neo4j(new Neo4jVersion(5, 26, 0), Neo4jEdition.ENTERPRISE, Neo4jDeploymentType.SELF_MANAGED)
+    val neo4j = new Neo4j(new Neo4jVersion(4, 4, 0), Neo4jEdition.ENTERPRISE, Neo4jDeploymentType.SELF_MANAGED)
     val schemaService = new SchemaServiceFallbackSpy(neo4j, neo4jOptions, driverCache)
 
     try {
-      // when
       val pages = schemaService.skipLimitFromPartition(Some(TopN(2)))
 
-      // then -- 2 pages of size 3
-      assertEquals(desiredPartitions, pages.size)
-      assertEquals(0, pages.head.skip)
-      assertEquals(3, pages.last.skip)
+      // two pages of size 3 with no query fallback
+      assertEquals(
+        Seq(
+          PartitionPagination(0, 0, TopN(3)),
+          PartitionPagination(1, 3, TopN(3))
+        ),
+        pages
+      )
+      assertEquals(0, schemaService.fallbackCount)
+    } finally {
+      schemaService.close()
+      driverCache.close()
+    }
+  }
+
+  @Test
+  def testPageMathForRelsWhenMatchingOnOneNode(): Unit = {
+    val desiredPartitions = 2
+
+    initTest(
+      """
+      CREATE (:Person {name: "A"})-[:KNOWS]->(:Person {name: "B"})
+      CREATE (:Person {name: "B"})-[:KNOWS]->(:Person {name: "A"})
+      CREATE (:Person {name: "A"})-[:KNOWS]->(:Person {name: "C"})
+      CREATE (:Person {name: "C"})-[:KNOWS]->(:Person {name: "A"})
+      CREATE (:Person {name: "B"})-[:KNOWS]->(:Person {name: "C"})
+      CREATE (:Person {name: "C"})-[:KNOWS]->(:Person {name: "B"})
+     """
+    )
+
+    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
+    options.put(Neo4jOptions.RELATIONSHIP_SOURCE_LABELS, "Person")
+    options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+    options.put(Neo4jOptions.PARTITIONS, desiredPartitions.toString)
+
+    val neo4jOptions = new Neo4jOptions(options)
+    val driverCache = new DriverCache(neo4jOptions.connection)
+    val neo4j = new Neo4j(new Neo4jVersion(4, 4, 0), Neo4jEdition.ENTERPRISE, Neo4jDeploymentType.SELF_MANAGED)
+    val schemaService = new SchemaServiceFallbackSpy(neo4j, neo4jOptions, driverCache)
+
+    try {
+      val pages = schemaService.skipLimitFromPartition(Some(TopN(2)))
+
+      // two pages of size 3 with no query fallback
+      assertEquals(
+        Seq(
+          PartitionPagination(0, 0, TopN(3)),
+          PartitionPagination(1, 3, TopN(3))
+        ),
+        pages
+      )
       assertEquals(0, schemaService.fallbackCount)
     } finally {
       schemaService.close()
