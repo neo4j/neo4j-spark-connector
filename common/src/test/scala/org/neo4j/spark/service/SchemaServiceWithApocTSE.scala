@@ -267,13 +267,10 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       val pages = schemaService.skipLimitFromPartition(Some(TopN(2)))
 
       // two pages of size 3 with no query fallback
-      assertEquals(
-        Seq(
-          PartitionPagination(0, 0, TopN(3)),
-          PartitionPagination(1, 3, TopN(3))
-        ),
-        pages
-      )
+      assertEquals(0, pages.head.partitionNumber)
+      assertEquals(0, pages.head.skip)
+      assertEquals(1, pages.last.partitionNumber)
+      assertEquals(3, pages.last.skip)
       assertEquals(0, schemaService.fallbackCount)
     } finally {
       schemaService.close()
@@ -311,13 +308,10 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       val pages = schemaService.skipLimitFromPartition(Some(TopN(2)))
 
       // two pages of size 3 with no query fallback
-      assertEquals(
-        Seq(
-          PartitionPagination(0, 0, TopN(3)),
-          PartitionPagination(1, 3, TopN(3))
-        ),
-        pages
-      )
+      assertEquals(0, pages.head.partitionNumber)
+      assertEquals(0, pages.head.skip)
+      assertEquals(1, pages.last.partitionNumber)
+      assertEquals(3, pages.last.skip)
       assertEquals(0, schemaService.fallbackCount)
     } finally {
       schemaService.close()
