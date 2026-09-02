@@ -28,7 +28,6 @@ import org.neo4j.spark.config.TopN
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
 
-import scala.annotation.nowarn
 import scala.collection.JavaConverters
 
 class SchemaServiceTest {

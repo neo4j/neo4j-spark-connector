@@ -517,19 +517,25 @@ class SchemaService(
           .getOrElse(Collections.emptyMap())
           .asInstanceOf[util.Map[String, Long]]
           .asScala
-        val minFromSource = options.relationshipMetadata.source.labels
-          .map(_.quote())
+
+        val sourceCounts = options.relationshipMetadata.source.labels // no sanitization here - labels used as map keys
           .map(label =>
-            map.get(s"(:$label)-[:${options.relationshipMetadata.relationshipType}]->()").getOrElse(Long.MaxValue)
+            map.get(s"(:$label)-[:${options.relationshipMetadata.relationshipType}]->()")
           )
-          .min
-        val minFromTarget = options.relationshipMetadata.target.labels
-          .map(_.quote())
+
+        val targetCounts = options.relationshipMetadata.target.labels // no sanitization here - labels used as map keys
           .map(label =>
-            map.get(s"()-[:${options.relationshipMetadata.relationshipType}]->(:$label)").getOrElse(Long.MaxValue)
+            map.get(s"()-[:${options.relationshipMetadata.relationshipType}]->(:$label)")
           )
-          .min
-        Math.min(minFromSource, minFromTarget)
+
+        val validCounts = (sourceCounts ++ targetCounts).flatten
+
+        if (validCounts.isEmpty) {
+          logResolutionChange("Count store lookup failed. Switching to query count resolution", null)
+          countForRelationshipWithQuery(filters)
+        } else {
+          validCounts.min
+        }
       } else {
         countForRelationshipWithQuery(filters)
       }
@@ -553,6 +559,7 @@ class SchemaService(
       Seq(skipLimit)
     } else {
       val count: Long = this.count()
+
       if (count <= 0) {
         Seq(PartitionPagination.EMPTY)
       } else {
@@ -1009,7 +1016,8 @@ class SchemaService(
 
   private def logResolutionChange(message: String, e: ClientException): Unit = {
     log.warn(message)
-    if (!e.code().equals("Neo.ClientError.Procedure.ProcedureNotFound")) {
+
+    if (e != null && !e.code().equals("Neo.ClientError.Procedure.ProcedureNotFound")) {
       log.warn(s"For the following exception", e)
     }
   }

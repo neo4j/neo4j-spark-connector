@@ -16,6 +16,7 @@
  */
 package org.neo4j.spark.service
 
+import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
@@ -34,6 +35,7 @@ import org.neo4j.driver.TransactionWork
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.spark.SparkConnectorScalaBaseWithApocTSE
 import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT
+import org.neo4j.spark.config.TopN
 import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
@@ -41,7 +43,6 @@ import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.QueryType
 
 import java.util
-import java.util.UUID
 
 @FixMethodOrder(MethodSorters.JVM)
 class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
@@ -217,7 +218,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       CREATE (p1:Person {age: 31, name: 'Jane Doe'}),
         (p2:Person {name: 'John Doe', age: 33, location: null}),
         (p3:Person {age: 25, location: point({latitude: 12.12, longitude: 31.13})})
-    """
+      """
     )
 
     val options: java.util.Map[String, String] = new util.HashMap[String, String]()
@@ -233,6 +234,89 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       )),
       schema
     )
+  }
+
+  @Test
+  def testPageMathForRelsWhenEscapedNodeIdentifiers(): Unit = {
+    val desiredPartitions = 2
+
+    initTest(
+      """
+      CREATE (:`Person with spaces` {name: "A"})-[:KNOWS]->(:`Person with spaces` {name: "B"})
+      CREATE (:`Person with spaces` {name: "B"})-[:KNOWS]->(:`Person with spaces` {name: "A"})
+      CREATE (:`Person with spaces` {name: "A"})-[:KNOWS]->(:`Person with spaces` {name: "C"})
+      CREATE (:`Person with spaces` {name: "C"})-[:KNOWS]->(:`Person with spaces` {name: "A"})
+      CREATE (:`Person with spaces` {name: "B"})-[:KNOWS]->(:`Person with spaces` {name: "C"})
+      CREATE (:`Person with spaces` {name: "C"})-[:KNOWS]->(:`Person with spaces` {name: "B"})
+     """
+    )
+
+    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
+    options.put(Neo4jOptions.RELATIONSHIP_SOURCE_LABELS, "Person with spaces")
+    options.put(Neo4jOptions.RELATIONSHIP_TARGET_LABELS, "Person with spaces")
+    options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+    options.put(Neo4jOptions.PARTITIONS, desiredPartitions.toString)
+
+    val neo4jOptions = new Neo4jOptions(options)
+    val driverCache = new DriverCache(neo4jOptions.connection)
+    val neo4j = new Neo4j(new Neo4jVersion(4, 4, 0), Neo4jEdition.ENTERPRISE, Neo4jDeploymentType.SELF_MANAGED)
+    val schemaService = new SchemaServiceFallbackSpy(neo4j, neo4jOptions, driverCache)
+
+    try {
+      val pages = schemaService.skipLimitFromPartition(Some(TopN(2)))
+
+      // two pages of size 3 with no query fallback
+      assertEquals(0, pages.head.partitionNumber)
+      assertEquals(0, pages.head.skip)
+      assertEquals(1, pages.last.partitionNumber)
+      assertEquals(3, pages.last.skip)
+      assertEquals(0, schemaService.fallbackCount)
+    } finally {
+      schemaService.close()
+      driverCache.close()
+    }
+  }
+
+  @Test
+  def testPageMathForRelsWhenMatchingOnOneNode(): Unit = {
+    val desiredPartitions = 2
+
+    initTest(
+      """
+      CREATE (:Person {name: "A"})-[:KNOWS]->(:Person {name: "B"})
+      CREATE (:Person {name: "B"})-[:KNOWS]->(:Person {name: "A"})
+      CREATE (:Person {name: "A"})-[:KNOWS]->(:Person {name: "C"})
+      CREATE (:Person {name: "C"})-[:KNOWS]->(:Person {name: "A"})
+      CREATE (:Person {name: "B"})-[:KNOWS]->(:Person {name: "C"})
+      CREATE (:Person {name: "C"})-[:KNOWS]->(:Person {name: "B"})
+     """
+    )
+
+    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
+    options.put(Neo4jOptions.RELATIONSHIP_SOURCE_LABELS, "Person")
+    options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+    options.put(Neo4jOptions.PARTITIONS, desiredPartitions.toString)
+
+    val neo4jOptions = new Neo4jOptions(options)
+    val driverCache = new DriverCache(neo4jOptions.connection)
+    val neo4j = new Neo4j(new Neo4jVersion(4, 4, 0), Neo4jEdition.ENTERPRISE, Neo4jDeploymentType.SELF_MANAGED)
+    val schemaService = new SchemaServiceFallbackSpy(neo4j, neo4jOptions, driverCache)
+
+    try {
+      val pages = schemaService.skipLimitFromPartition(Some(TopN(2)))
+
+      // two pages of size 3 with no query fallback
+      assertEquals(0, pages.head.partitionNumber)
+      assertEquals(0, pages.head.skip)
+      assertEquals(1, pages.last.partitionNumber)
+      assertEquals(3, pages.last.skip)
+      assertEquals(0, schemaService.fallbackCount)
+    } finally {
+      schemaService.close()
+      driverCache.close()
+    }
   }
 
   private def getExpectedStructType(structFields: Seq[StructField]): StructType = {
@@ -265,5 +349,21 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     driverCache.close()
 
     schema
+  }
+
+  private class SchemaServiceFallbackSpy(neo4j: Neo4j, options: Neo4jOptions, driverCache: DriverCache)
+      extends SchemaService(neo4j, options, driverCache) {
+
+    var fallbackCount: Int = 0
+
+    override def countForNodeWithQuery(filters: Array[Filter]): Long = {
+      fallbackCount += 1
+      super.countForNodeWithQuery(filters)
+    }
+
+    override def countForRelationshipWithQuery(filters: Array[Filter]): Long = {
+      fallbackCount += 1
+      super.countForRelationshipWithQuery(filters)
+    }
   }
 }
