@@ -16,19 +16,13 @@ These are the current actively developed connector versions and their respective
 |6.0.0
 |2.13
 |3.14, 3.13, 3.12, 3.11, 3.10
-|`org.neo4j.connectors:spark:6.0.0`
-
-|*4.1*
-|6.0.0-RC02
-|2.13
-|3.14, 3.13, 3.12, 3.11, 3.10
-|`org.neo4j.connectors:spark:6.0.0-RC02`
+|`org.neo4j.connectors:spark:6.0.0-s_2.13`
 
 |*4.0*
-|6.0.0-RC02
+|6.0.0
 |2.13
 |3.14, 3.13, 3.12, 3.11, 3.10
-|`org.neo4j.connectors:spark:6.0.0-RC02`
+|`org.neo4j.connectors:spark:6.0.0-s_2.13`
 
 |*3.5*
 |5.4.3
