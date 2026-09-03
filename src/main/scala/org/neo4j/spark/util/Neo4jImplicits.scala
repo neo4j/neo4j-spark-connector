@@ -233,7 +233,7 @@ object Neo4jImplicits {
      * preserves that information once the reference is flattened into a single string.
      */
     def rawAttributeName(): String = {
-      predicate.references().head.fieldNames().map(_.quote()).mkString(".")
+      predicate.references().head.fieldNames().map(_.sanitizeSchemaName()).mkString(".")
     }
 
     def rawLiteralValue(options: Neo4jOptions): Option[Value] = {
