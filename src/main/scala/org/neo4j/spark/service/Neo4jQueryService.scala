@@ -306,7 +306,7 @@ class Neo4jQueryReadStrategy(
         val name = column.unquote()
         if (entity != null && alias.exists(a => name == a || name == s"<$a>")) {
           entity match {
-            case n: Node         => n.as(column.quote())
+            case n: Node         => n.as(column.sanitizeSchemaName())
             case r: Relationship => r.getRequiredSymbolicName
           }
         } else {
