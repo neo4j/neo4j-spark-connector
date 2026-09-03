@@ -507,8 +507,7 @@ case class Neo4jDriverOptions(
         if (!encryption) {
           logWarning(
             s"Connecting to ${primaryUrl.getScheme}://${primaryUrl.getHost} without any encryption! " +
-              s"Credentials will be sent in cleartext. To start encrypting, use a '+s' scheme (e.g. neo4j+s://) or set " +
-              s"connector option 'encryption.enabled' to true."
+              s"Credentials will be sent in cleartext. To start encrypting, use an encrypted scheme (e.g. neo4j+s://)."
           )
 
           builder.withoutEncryption()
