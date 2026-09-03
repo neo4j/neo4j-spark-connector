@@ -74,18 +74,18 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
 
     override def accept(key: String, value: AnyRef): Unit = {
       if (key.startsWith(Neo4jUtil.RELATIONSHIP_ALIAS.concat("."))) {
-        relMap.get(PROPERTIES).put(key.removeAlias(), value)
+        relMap.get(PROPERTIES).put(key.removeEntityAlias(Neo4jUtil.RELATIONSHIP_ALIAS), value)
       } else if (key.startsWith(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS.concat("."))) {
         if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
-          sourceNodeMap.get(KEYS).put(key.removeAlias(), value)
+          sourceNodeMap.get(KEYS).put(key.removeEntityAlias(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS), value)
         } else {
-          sourceNodeMap.get(PROPERTIES).put(key.removeAlias(), value)
+          sourceNodeMap.get(PROPERTIES).put(key.removeEntityAlias(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS), value)
         }
       } else if (key.startsWith(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS.concat("."))) {
         if (options.relationshipMetadata.target.nodeKeys.contains(key)) {
-          targetNodeMap.get(KEYS).put(key.removeAlias(), value)
+          targetNodeMap.get(KEYS).put(key.removeEntityAlias(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS), value)
         } else {
-          targetNodeMap.get(PROPERTIES).put(key.removeAlias(), value)
+          targetNodeMap.get(PROPERTIES).put(key.removeEntityAlias(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS), value)
         }
       }
     }

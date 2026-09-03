@@ -26,14 +26,7 @@ import org.apache.spark.sql.sources.And
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.Or
 import org.neo4j.caniuse.Neo4j
-import org.neo4j.cypherdsl.core.Cypher.callRawCypher
 import org.neo4j.cypherdsl.core._
-import org.neo4j.cypherdsl.core.renderer.Configuration
-import org.neo4j.cypherdsl.core.renderer.GeneralizedRenderer
-import org.neo4j.cypherdsl.core.renderer.Renderer
-import org.neo4j.cypherdsl.parser.CypherParser
-import org.neo4j.cypherdsl.parser.ExpressionCreatedEventType
-import org.neo4j.cypherdsl.parser.Options
 import org.neo4j.spark.cypher.CypherPreamble.fullPreamble
 import org.neo4j.spark.cypher.CypherRenderer
 import org.neo4j.spark.cypher.QueryEmbedder
@@ -265,23 +258,17 @@ class Neo4jQueryReadStrategy(
   private def convertSort(entity: PropertyContainer, order: SortOrder): SortItem = {
     val sortExpression = order.expression().describe()
 
-    val container: Option[PropertyContainer] = entity match {
-      case relationship: Relationship =>
-        if (sortExpression.contains(s"${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}.")) {
-          Some(relationship.getLeft)
-        } else if (sortExpression.contains(s"${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}.")) {
-          Some(relationship.getRight)
-        } else if (sortExpression.contains(s"${Neo4jUtil.RELATIONSHIP_ALIAS}.")) {
-          Some(relationship)
-        } else {
-          None
-        }
-      case _ => Some(entity)
+    val container: Option[(PropertyContainer, Option[String])] = entity match {
+      case relationship: Relationship => entityAlias(sortExpression)
+          .map(alias => (relationshipContainer(alias, relationship), Some(alias)))
+      case _ => Some((entity, None))
     }
 
     Cypher.sort(
       container
-        .map(_.property(sortExpression.removeAlias()))
+        .map { case (propertyContainer, alias) =>
+          Neo4jUtil.getCorrectProperty(propertyContainer, sortExpression, alias)
+        }
         .getOrElse(Cypher.name(sortExpression.unquote())),
       direction(order)
     )
@@ -304,29 +291,66 @@ class Neo4jQueryReadStrategy(
       )
     } else {
       requiredColumns.map(column => {
-        val splatColumn = column.split('.')
-        val entityName = splatColumn.head
+        // an aggregation is named after the function, e.g. `SUM(``target.price``)`, so the entity
+        // it belongs to has to be resolved from the column the aggregation is computed on
+        val alias = columnEntityAlias(aggregatedColumn(column).getOrElse(column))
 
-        val entity = if (entityName.contains(Neo4jUtil.RELATIONSHIP_ALIAS)) {
-          relationship
-        } else if (entityName.contains(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)) {
-          sourceNode
-        } else if (entityName.contains(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)) {
-          targetNode
-        } else {
-          null
-        }
+        val entity = alias
+          .map {
+            case Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS => sourceNode
+            case Neo4jUtil.RELATIONSHIP_TARGET_ALIAS => targetNode
+            case _                                   => relationship
+          }
+          .orNull
 
-        if (entity != null && splatColumn.length == 1) {
+        val name = column.unquote()
+        if (entity != null && alias.exists(a => name == a || name == s"<$a>")) {
           entity match {
-            case n: Node         => n.as(entityName.quote())
+            case n: Node         => n.as(column.quote())
             case r: Relationship => r.getRequiredSymbolicName
           }
         } else {
-          getCorrectProperty(column, entity)
+          getCorrectProperty(column, entity, alias)
         }
       })
     }
+  }
+
+  private val relationshipAliases =
+    Seq(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, Neo4jUtil.RELATIONSHIP_ALIAS)
+
+  /**
+   * The column an aggregation is computed on, e.g. `` `target.price` `` for
+   * `` SUM(`target.price`) ``. Aggregations over the whole row, like `COUNT(*)`, have none.
+   */
+  private def aggregatedColumn(column: String): Option[String] = aggregateColumns
+    .find(_.toString == column)
+    .flatMap {
+      case count: Count => Some(count.column().describe())
+      case max: Max     => Some(max.column().describe())
+      case min: Min     => Some(min.column().describe())
+      case sum: Sum     => Some(sum.column().describe())
+      case _            => None
+    }
+
+  /**
+   * Returns the alias of the relationship entity the given column is prefixed with, if any.
+   */
+  private def entityAlias(column: String): Option[String] = relationshipAliases.find(column.hasEntityAlias)
+
+  /**
+   * Same as [[entityAlias]], but it also recognises the internal fields, which wrap the alias in
+   * angle brackets, e.g. `<source.elementId>` or `<source>`.
+   */
+  private def columnEntityAlias(column: String): Option[String] = {
+    val name = column.unquote().stripPrefix("<")
+    relationshipAliases.find(alias => name == alias || name == s"$alias>" || name.hasEntityAlias(alias))
+  }
+
+  private def relationshipContainer(alias: String, relationship: Relationship): PropertyContainer = alias match {
+    case Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS => relationship.getLeft
+    case Neo4jUtil.RELATIONSHIP_TARGET_ALIAS => relationship.getRight
+    case _                                   => relationship
   }
 
   private def buildStatementAggregation(
@@ -412,16 +436,14 @@ class Neo4jQueryReadStrategy(
   private def filterRelationship(sourceNode: Node, targetNode: Node, relationship: Relationship) = {
     val matchQuery = Cypher.`match`(sourceNode).`match`(targetNode).`match`(relationship)
 
-    def getContainer(filter: Filter): PropertyContainer = {
-      if (filter.isAttribute(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)) {
-        sourceNode
-      } else if (filter.isAttribute(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)) {
-        targetNode
-      } else if (filter.isAttribute(Neo4jUtil.RELATIONSHIP_ALIAS)) {
-        relationship
-      } else {
-        throw new IllegalArgumentException(s"Attribute '${filter.getAttribute.get}' is not valid")
-      }
+    def getAlias(filter: Filter): String = relationshipAliases
+      .find(filter.hasEntityAlias)
+      .getOrElse(throw new IllegalArgumentException(s"Attribute '${filter.getAttribute.get}' is not valid"))
+
+    def getContainer(alias: String): PropertyContainer = alias match {
+      case Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS => sourceNode
+      case Neo4jUtil.RELATIONSHIP_TARGET_ALIAS => targetNode
+      case _                                   => relationship
     }
 
     if (filters.nonEmpty) {
@@ -430,7 +452,8 @@ class Neo4jQueryReadStrategy(
           case and: And => mapFilter(and.left).and(mapFilter(and.right))
           case or: Or   => mapFilter(or.left).or(mapFilter(or.right))
           case filter: Filter =>
-            Neo4jUtil.mapSparkFiltersToCypher(filter, getContainer(filter), filter.getAttributeWithoutEntityName)
+            val alias = getAlias(filter)
+            Neo4jUtil.mapSparkFiltersToCypher(filter, getContainer(alias), Some(alias))
         }
       }
 
@@ -441,10 +464,23 @@ class Neo4jQueryReadStrategy(
     matchQuery
   }
 
-  private def getCorrectProperty(column: String, entity: PropertyContainer): Expression = {
+  /**
+   * Builds the projection for a required column.
+   *
+   * `alias` must be set only when the column is prefixed with the alias of the entity it belongs
+   * to, as it happens for relationship reads: node, query and GDS columns carry no alias, so a dot
+   * there is part of the property name and must be kept.
+   */
+  private def getCorrectProperty(
+    column: String,
+    entity: PropertyContainer,
+    alias: Option[String] = None
+  ): Expression = {
     def propertyOrSymbolicName(col: String) = {
       if (entity != null) entity.property(col) else Cypher.name(col)
     }
+
+    def withoutAlias(col: String) = alias.map(col.removeEntityAlias).getOrElse(col.unquote())
 
     column match {
       case Neo4jUtil.INTERNAL_ID_FIELD => Cypher.elementId(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD)
@@ -464,12 +500,10 @@ class Neo4jQueryReadStrategy(
         Cypher.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_TARGET_LABELS_FIELD)
       case "*" => Asterisk.INSTANCE
       case name => {
-        val cleanedName = name.removeAlias()
         aggregateColumns.find(_.toString == name)
           .map {
             case count: Count => {
-              val col = count.column().describe().unquote().removeAlias()
-              val prop = propertyOrSymbolicName(col)
+              val prop = propertyOrSymbolicName(withoutAlias(count.column().describe()))
               if (count.isDistinct) {
                 Cypher.countDistinct(prop).as(name)
               } else {
@@ -477,17 +511,10 @@ class Neo4jQueryReadStrategy(
               }
             }
             case countStar: CountStar => Cypher.count(Asterisk.INSTANCE).as(name)
-            case max: Max =>
-              val col = max.column().describe().unquote().removeAlias()
-              val prop = propertyOrSymbolicName(col)
-              Cypher.max(prop).as(name)
-            case min: Min =>
-              val col = min.column().describe().unquote().removeAlias()
-              val prop = propertyOrSymbolicName(col)
-              Cypher.min(prop).as(name)
+            case max: Max => Cypher.max(propertyOrSymbolicName(withoutAlias(max.column().describe()))).as(name)
+            case min: Min => Cypher.min(propertyOrSymbolicName(withoutAlias(min.column().describe()))).as(name)
             case sum: Sum => {
-              val col = sum.column().describe().unquote().removeAlias()
-              val prop = propertyOrSymbolicName(col)
+              val prop = propertyOrSymbolicName(withoutAlias(sum.column().describe()))
               if (sum.isDistinct) {
                 Cypher.sumDistinct(prop).as(name)
               } else {
@@ -495,7 +522,7 @@ class Neo4jQueryReadStrategy(
               }
             }
           }
-          .getOrElse(propertyOrSymbolicName(cleanedName).as(name))
+          .getOrElse(propertyOrSymbolicName(withoutAlias(name)).as(name))
           .asInstanceOf[Expression]
       }
     }
