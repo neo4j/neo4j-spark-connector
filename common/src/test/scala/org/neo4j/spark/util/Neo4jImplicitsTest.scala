@@ -156,19 +156,52 @@ class Neo4jImplicitsTest {
   }
 
   @Test
-  def `should return the attribute without the entity identifier`(): Unit = {
-    // given
-    val filter = EqualTo("person.address.coords", 32)
-
-    // when
-    val attribute = filter.getAttributeWithoutEntityName
-
-    // then
-    assertEquals("address.coords", attribute.get)
+  def `should detect the entity alias` {
+    assertTrue(EqualTo("source.name", "John").hasEntityAlias("source"))
+    assertTrue(EqualTo("`source.name`", "John").hasEntityAlias("source"))
+    assertTrue(EqualTo("`source.table.key`", "John").hasEntityAlias("source"))
+    assertTrue(EqualTo("`rel.since`", 32).hasEntityAlias("rel"))
   }
 
   @Test
-  def `struct should return true if contains fields`(): Unit = {
+  def `should not detect an entity alias when it is only part of the property name` {
+    assertFalse(EqualTo("`mysource.name`", "John").hasEntityAlias("source"))
+    assertFalse(EqualTo("`name.source.x`", "John").hasEntityAlias("source"))
+    assertFalse(EqualTo("source", "John").hasEntityAlias("source"))
+  }
+
+  @Test
+  def `should split a nested property access` {
+    assertEquals(Seq("location", "x"), "location.x".propertyPath())
+  }
+
+  @Test
+  def `should keep a quoted property name as a single segment` {
+    assertEquals(Seq("table.key"), "`table.key`".propertyPath())
+    assertEquals(Seq("a.b.c"), "`a.b.c`".propertyPath())
+  }
+
+  @Test
+  def `should split a nested access on a quoted property name` {
+    assertEquals(Seq("table.key", "x"), "`table.key`.x".propertyPath())
+  }
+
+  @Test
+  def `should remove the entity alias keeping the dots of the property name` {
+    assertEquals("table.key", "`source.table.key`".removeEntityAlias("source"))
+    assertEquals("a.b.c", "`source.a.b.c`".removeEntityAlias("source"))
+    assertEquals("name", "source.name".removeEntityAlias("source"))
+    assertEquals("location.x", "`source.location`.x".removeEntityAlias("source"))
+  }
+
+  @Test
+  def `should leave the property untouched when it is not prefixed with the alias` {
+    assertEquals("table.key", "`table.key`".removeEntityAlias("source"))
+    assertEquals("mysource.key", "`mysource.key`".removeEntityAlias("source"))
+  }
+
+  @Test
+  def `struct should return true if contains fields`: Unit = {
     val struct = StructType(Seq(
       StructField("is_hero", DataTypes.BooleanType),
       StructField("name", DataTypes.StringType),
