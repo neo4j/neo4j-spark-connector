@@ -518,7 +518,14 @@ case class Neo4jDriverOptions(
         trustStrategy
           .map(Config.TrustStrategy.Strategy.valueOf)
           .map {
-            case TrustStrategy.Strategy.TRUST_ALL_CERTIFICATES              => TrustStrategy.trustAllCertificates()
+            case TrustStrategy.Strategy.TRUST_ALL_CERTIFICATES =>
+              if (encryption) { // no encryption -> no handshake -> no need for log
+                logWarning(
+                  "TRUST_ALL_CERTIFICATES disables server identity verification, making the connection " +
+                    "vulnerable to man-in-the-middle attacks. Do not use it in production."
+                )
+              }
+              TrustStrategy.trustAllCertificates()
             case TrustStrategy.Strategy.TRUST_SYSTEM_CA_SIGNED_CERTIFICATES => TrustStrategy.trustSystemCertificates()
             case TrustStrategy.Strategy.TRUST_CUSTOM_CA_SIGNED_CERTIFICATES =>
               TrustStrategy.trustCustomCertificateSignedBy(new File(certificatePath))
