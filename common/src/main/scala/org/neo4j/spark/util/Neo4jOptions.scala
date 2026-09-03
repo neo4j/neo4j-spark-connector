@@ -481,7 +481,7 @@ case class Neo4jDriverOptions(
   acquisitionTimeout: Int,
   livenessCheckTimeout: Int,
   connectionTimeout: Int
-) extends Serializable {
+) extends Serializable with Logging {
 
   def createDriver(): Driver = {
     val (url, _) = connectionUrls
@@ -505,6 +505,12 @@ case class Neo4jDriverOptions(
       case "neo4j+s" | "neo4j+ssc" | "bolt+s" | "bolt+ssc" => ()
       case _ => {
         if (!encryption) {
+          logWarning(
+            s"Connecting to ${primaryUrl.getScheme}://${primaryUrl.getHost} without any encryption! " +
+              s"Credentials will be sent in cleartext. To start encrypting, use a '+s' scheme (e.g. neo4j+s://) or set " +
+              s"connector option 'encryption.enabled' to true."
+          )
+
           builder.withoutEncryption()
         } else {
           builder.withEncryption()
