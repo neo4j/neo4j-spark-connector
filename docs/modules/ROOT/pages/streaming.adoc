@@ -27,7 +27,7 @@ Here are some links to learn more about the Spark streaming approach:
 4+|*Source*
 
 |`streaming.property.name`
-|The timestamp property used for batch reading. Read more xref:#_streaming_property_name[here].
+|The timestamp property used for batch reading. Read more xref:#_streaming_property[here].
 |_(none)_
 |Yes
 
