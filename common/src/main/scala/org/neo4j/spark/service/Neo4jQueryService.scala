@@ -49,7 +49,7 @@ class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: Sa
   private def createPropsList(props: Map[String, String], prefix: String): String = {
     props
       .map(key => {
-        s"${key._2.quote()}: ${Neo4jQueryStrategy.VARIABLE_EVENT}.$prefix.${key._2.quote()}"
+        s"${key._2.sanitizeSchemaName()}: ${Neo4jQueryStrategy.VARIABLE_EVENT}.$prefix.${key._2.sanitizeSchemaName()}"
       }).mkString(", ")
   }
 
@@ -77,14 +77,14 @@ class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: Sa
     val sourceKeyword = keywordFromSaveMode(options.relationshipMetadata.sourceSaveMode)
     val targetKeyword = keywordFromSaveMode(options.relationshipMetadata.targetSaveMode)
 
-    val relationship = options.relationshipMetadata.relationshipType.quote()
+    val relationship = options.relationshipMetadata.relationshipType.sanitizeSchemaName()
 
     val sourceLabels = options.relationshipMetadata.source.labels
-      .map(_.quote())
+      .map(_.sanitizeSchemaName())
       .mkString(":")
 
     val targetLabels = options.relationshipMetadata.target.labels
-      .map(_.quote())
+      .map(_.sanitizeSchemaName())
       .mkString(":")
 
     val sourceKeys = createPropsList(
@@ -107,7 +107,7 @@ class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: Sa
     val relKeys = if (options.relationshipMetadata.relationshipKeys.nonEmpty) {
       options.relationshipMetadata.relationshipKeys
         .map(t =>
-          s"${t._2.quote()}: ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.KEYS}.${t._1.quote()}"
+          s"${t._2.sanitizeSchemaName()}: ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.KEYS}.${t._1.sanitizeSchemaName()}"
         )
         .mkString("{", ", ", "}")
     } else {
@@ -126,7 +126,7 @@ class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: Sa
     val keyword = keywordFromSaveMode(saveMode)
 
     val labels = options.nodeMetadata.labels
-      .map(_.quote())
+      .map(_.sanitizeSchemaName())
       .mkString(":")
 
     val keys = createPropsList(
@@ -244,7 +244,7 @@ class Neo4jQueryReadStrategy(
 
         if (entity != null && splatColumn.length == 1) {
           entity match {
-            case n: Node         => n.as(entityName.quote())
+            case n: Node         => n.as(entityName.sanitizeSchemaName())
             case r: Relationship => r.getRequiredSymbolicName
           }
         } else {

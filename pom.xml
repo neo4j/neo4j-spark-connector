@@ -139,6 +139,11 @@
                 <version>${cypherdsl.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.neo4j</groupId>
+                <artifactId>neo4j-cypher-dsl-schema-name-support</artifactId>
+                <version>${cypherdsl.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.neo4j.connectors</groupId>
                 <artifactId>commons-authn-keycloak</artifactId>
                 <version>${connectors-commons.version}</version>
