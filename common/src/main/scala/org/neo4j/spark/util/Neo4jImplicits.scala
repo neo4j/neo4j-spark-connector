@@ -46,6 +46,7 @@ import org.apache.spark.sql.types.DataTypes
 import org.apache.spark.sql.types.MapType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
+import org.neo4j.cypherdsl.support.schema_name.SchemaNames
 import org.neo4j.driver.Value
 import org.neo4j.driver.types.Entity
 import org.neo4j.driver.types.Node
@@ -56,28 +57,76 @@ import org.neo4j.spark.service.SchemaService
 
 import scala.collection.JavaConverters._
 
-import javax.lang.model.SourceVersion
-
 object Neo4jImplicits {
 
+  private val BACKTICK = "`"
+
+  /**
+   * Matches one segment of a property path: either a backtick quoted name,
+   * which can contain dots, or a run of characters up to the next dot.
+   */
+  private val PATH_SEGMENT = """`([^`]*)`|([^.`]+)""".r
+
   implicit class CypherImplicits(str: String) {
-    private def isValidCypherIdentifier() = SourceVersion.isIdentifier(str) && !str.trim.startsWith("$")
 
-    def quote(): String = if (!isValidCypherIdentifier() && !str.isQuoted()) s"`$str`" else str
+    def sanitizeSchemaName(): String = {
+      val sanitizeThis =
+        if (str.startsWith(BACKTICK) && str.endsWith(BACKTICK)) str.substring(1, str.length - 1) else str
 
-    def unquote(): String = str.replaceAll("`", "");
-
-    def isQuoted(): Boolean = str.startsWith("`");
-
-    def removeAlias(): String = {
-      val splatString = str.unquote().split('.')
-
-      if (splatString.size > 1) {
-        splatString.tail.mkString(".")
+      // 1) we target older JVMs and must therefore use CypherDSL 2022.
+      // 2) introducing CypherDSL sanitizer here is to resolve a security concern.
+      // because of (1) and (2), we don't get the fix for escaping names that begin with "$", introduced in version 2024
+      if (sanitizeThis.startsWith("$")) {
+        SchemaNames.sanitize(sanitizeThis, true).orElse("")
       } else {
-        str
+        SchemaNames.sanitize(sanitizeThis).orElse("")
       }
     }
+
+    def unquote(): String = str.replaceAll(BACKTICK, "")
+
+    /**
+     * Splits a, possibly backtick quoted, property path into its segments.
+     *
+     * Dots inside backticks belong to the property name, so `` `table.key` `` is a single property
+     * named `table.key`, while `location.x` is the `x` field of the `location` property.
+     */
+    def propertyPath(): Seq[String] = {
+      val segments = PATH_SEGMENT.findAllMatchIn(str)
+        .map(m => Option(m.group(1)).getOrElse(m.group(2)))
+        .toSeq
+
+      if (segments.isEmpty) Seq(str) else segments
+    }
+
+    /**
+     * Removes the given entity alias (`source`, `target` or `rel`) from the head of the property
+     * path, leaving the rest of the path untouched.
+     *
+     * Only the alias is removed, not everything up to the first dot: `source.table.key` is the
+     * `table.key` property of the `source` node, not the `key` field of its `table` property.
+     */
+    def propertyPathWithoutAlias(alias: String): Seq[String] = {
+      val path = str.propertyPath()
+      val prefix = s"$alias."
+
+      path.head match {
+        case head if head.startsWith(prefix) => head.substring(prefix.length) +: path.tail
+        case `alias` if path.size > 1        => path.tail
+        case _                               => path
+      }
+    }
+
+    def hasEntityAlias(alias: String): Boolean = {
+      val path = str.propertyPath()
+
+      path.head.startsWith(s"$alias.") || (path.head == alias && path.size > 1)
+    }
+
+    /**
+     * Same as [[propertyPathWithoutAlias]], for the callers that need the path back as a string.
+     */
+    def removeEntityAlias(alias: String): String = str.propertyPathWithoutAlias(alias).mkString(".")
 
     /**
      * df: we need this to handle scenarios like `WHERE age > 19 and age < 22`,
@@ -93,7 +142,7 @@ object Neo4jImplicits {
 
       val base64ed = java.util.Base64.getEncoder.encodeToString(attributeValue.getBytes())
 
-      s"${base64ed}_${str.unquote()}".quote()
+      s"${base64ed}_${str.unquote()}".sanitizeSchemaName()
     }
   }
 
@@ -200,8 +249,13 @@ object Neo4jImplicits {
       }
     }
 
+    /**
+     * Spark keeps the field names of a reference separate, so it already knows whether `a.b` is a
+     * property literally named `a.b` or the `b` field of the `a` property. Quoting each field name
+     * preserves that information once the reference is flattened into a single string.
+     */
     def rawAttributeName(): String = {
-      predicate.references().head.fieldNames().mkString(".")
+      predicate.references().head.fieldNames().map(_.sanitizeSchemaName()).mkString(".")
     }
 
     def rawLiteralValue(options: Neo4jOptions): Option[Value] = {
@@ -262,12 +316,7 @@ object Neo4jImplicits {
       case _                           => null
     })
 
-    def isAttribute(entityType: String): Boolean = {
-      getAttribute.exists(_.contains(s"$entityType."))
-    }
-
-    def getAttributeWithoutEntityName: Option[String] =
-      filter.getAttribute.map(_.unquote().split('.').tail.mkString("."))
+    def hasEntityAlias(alias: String): Boolean = getAttribute.exists(_.hasEntityAlias(alias))
 
     /**
      * df: we are not handling AND/OR because they are not actually filters

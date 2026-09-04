@@ -30,62 +30,109 @@ import org.junit.Test
 import org.neo4j.spark.util.Neo4jImplicits._
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.collection.immutable.ListMap
 
 class Neo4jImplicitsTest {
 
   @Test
-  def `should quote the string` {
+  def `should quote the string`(): Unit = {
     // given
     val value = "Test with space"
 
     // when
-    val actual = value.quote
+    val actual = value.sanitizeSchemaName()
 
     // then
     assertEquals(s"`$value`", actual)
   }
 
   @Test
-  def `should quote text that starts with $` {
+  def `should quote text that starts with $`(): Unit = {
     // given
-    val value = "$tring"
+    val value = "$string"
 
     // when
-    val actual = value.quote
+    val actual = value.sanitizeSchemaName()
 
     // then
-    assertEquals(s"`$value`", actual)
+    assertEquals("`$string`", actual)
   }
 
   @Test
-  def `should not re-quote the string` {
+  def `should quote text that starts with $ even when quoted`(): Unit = {
+    // given
+    val value = "`$string`"
+
+    // when
+    val actual = value.sanitizeSchemaName()
+
+    // then
+    assertEquals("`$string`", actual)
+  }
+
+  @Test
+  def `should sanitize text that has backtick`(): Unit = {
+    // given
+    val value = "User can put back`ticks"
+
+    // when
+    val actual = value.sanitizeSchemaName()
+
+    // then
+    assertEquals("`User can put back``ticks`", actual)
+  }
+
+  @Test
+  def `should sanitize text that has backtick and no spaces`(): Unit = {
+    // given
+    val value = "Per`son"
+
+    // when
+    val actual = value.sanitizeSchemaName()
+
+    // then
+    assertEquals("`Per``son`", actual)
+  }
+
+  @Test
+  def `should not re-quote the string`(): Unit = {
     // given
     val value = "`Test with space`"
 
     // when
-    val actual = value.quote
+    val actual = value.sanitizeSchemaName()
 
     // then
     assertEquals(value, actual)
   }
 
   @Test
-  def `should not quote the string` {
+  def `should not re-quote the string even when sanitized`(): Unit = {
+    // given
+    val value = "`Test wi`th space`"
+
+    // when
+    val actual = value.sanitizeSchemaName()
+
+    // then
+    assertEquals(actual, "`Test wi``th space`")
+  }
+
+  @Test
+  def `should not quote the string`(): Unit = {
     // given
     val value = "Test"
 
     // when
-    val actual = value.quote
+    val actual = value.sanitizeSchemaName()
 
     // then
     assertEquals(value, actual)
   }
 
   @Test
-  def `should return attribute if filter has it` {
+  def `should return attribute if filter has it`(): Unit = {
     // given
     val filter = EqualTo("name", "John")
 
@@ -97,7 +144,7 @@ class Neo4jImplicitsTest {
   }
 
   @Test
-  def `should return an empty option if the filter doesn't have an attribute` {
+  def `should return an empty option if the filter doesn't have an attribute`(): Unit = {
     // given
     val filter = And(EqualTo("name", "John"), EqualTo("age", 32))
 
@@ -109,15 +156,48 @@ class Neo4jImplicitsTest {
   }
 
   @Test
-  def `should return the attribute without the entity identifier` {
-    // given
-    val filter = EqualTo("person.address.coords", 32)
+  def `should detect the entity alias` {
+    assertTrue(EqualTo("source.name", "John").hasEntityAlias("source"))
+    assertTrue(EqualTo("`source.name`", "John").hasEntityAlias("source"))
+    assertTrue(EqualTo("`source.table.key`", "John").hasEntityAlias("source"))
+    assertTrue(EqualTo("`rel.since`", 32).hasEntityAlias("rel"))
+  }
 
-    // when
-    val attribute = filter.getAttributeWithoutEntityName
+  @Test
+  def `should not detect an entity alias when it is only part of the property name` {
+    assertFalse(EqualTo("`mysource.name`", "John").hasEntityAlias("source"))
+    assertFalse(EqualTo("`name.source.x`", "John").hasEntityAlias("source"))
+    assertFalse(EqualTo("source", "John").hasEntityAlias("source"))
+  }
 
-    // then
-    assertEquals("address.coords", attribute.get)
+  @Test
+  def `should split a nested property access` {
+    assertEquals(Seq("location", "x"), "location.x".propertyPath())
+  }
+
+  @Test
+  def `should keep a quoted property name as a single segment` {
+    assertEquals(Seq("table.key"), "`table.key`".propertyPath())
+    assertEquals(Seq("a.b.c"), "`a.b.c`".propertyPath())
+  }
+
+  @Test
+  def `should split a nested access on a quoted property name` {
+    assertEquals(Seq("table.key", "x"), "`table.key`.x".propertyPath())
+  }
+
+  @Test
+  def `should remove the entity alias keeping the dots of the property name` {
+    assertEquals("table.key", "`source.table.key`".removeEntityAlias("source"))
+    assertEquals("a.b.c", "`source.a.b.c`".removeEntityAlias("source"))
+    assertEquals("name", "source.name".removeEntityAlias("source"))
+    assertEquals("location.x", "`source.location`.x".removeEntityAlias("source"))
+  }
+
+  @Test
+  def `should leave the property untouched when it is not prefixed with the alias` {
+    assertEquals("table.key", "`table.key`".removeEntityAlias("source"))
+    assertEquals("mysource.key", "`mysource.key`".removeEntityAlias("source"))
   }
 
   @Test
@@ -132,7 +212,7 @@ class Neo4jImplicitsTest {
   }
 
   @Test
-  def `struct should return false if not contains fields`: Unit = {
+  def `struct should return false if not contains fields`(): Unit = {
     val struct =
       StructType(Seq(StructField("is_hero", DataTypes.BooleanType), StructField("name", DataTypes.StringType)))
 
@@ -140,7 +220,7 @@ class Neo4jImplicitsTest {
   }
 
   @Test
-  def `getMissingFields should handle maps`: Unit = {
+  def `getMissingFields should handle maps`(): Unit = {
     val struct = StructType(Seq(
       StructField("im", DataTypes.StringType),
       StructField("im.a", DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType)),
@@ -161,7 +241,7 @@ class Neo4jImplicitsTest {
   }
 
   @Test
-  def `groupByCols aggregation should work`: Unit = {
+  def `groupByCols aggregation should work`(): Unit = {
     val aggField = new NamedReference {
       override def fieldNames(): Array[String] = Array("foo")
 
