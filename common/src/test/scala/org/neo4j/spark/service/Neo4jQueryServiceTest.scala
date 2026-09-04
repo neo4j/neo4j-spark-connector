@@ -127,6 +127,69 @@ class Neo4jQueryServiceTest {
 
   @Test
   @Parameters(method = "versions_and_prefixes")
+  def testNodeOneLabelWithSelectedColumnsContainingDots(neo4j: Neo4j, prefix: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(neo4j, Array.empty[Filter], PartitionPagination.EMPTY, List("table.key", "a.b.c"))
+    ).createQuery()
+
+    assertEquals(
+      s"${prefix}MATCH (n:`Person`) RETURN n.`table.key` AS `table.key`, n.`a.b.c` AS `a.b.c`",
+      query
+    )
+  }
+
+  @Test
+  @Parameters(method = "versions_and_prefixes")
+  def testNodeFilterOnColumnWhoseNameContainsDots(neo4j: Neo4j, prefix: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val filters: Array[Filter] = Array[Filter](
+      EqualTo("`table.key`", "value"),
+      EqualTo("`a.b.c`", "value")
+    )
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, filters)).createQuery()
+
+    val tableKeyParam = "$" + "`table.key`".toParameterName("value")
+    val abcParam = "$" + "`a.b.c`".toParameterName("value")
+
+    assertEquals(
+      s"${prefix}MATCH (n:`Person`) " +
+        s"WHERE (n.`table.key` = $tableKeyParam AND n.`a.b.c` = $abcParam) RETURN n",
+      query
+    )
+  }
+
+  @Test
+  @Parameters(method = "versions_and_prefixes")
+  def testNodeFilterOnNestedField(neo4j: Neo4j, prefix: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val filters: Array[Filter] = Array[Filter](
+      GreaterThan("location.x", 0)
+    )
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, filters)).createQuery()
+
+    val paramName = "$" + "location.x".toParameterName(0)
+
+    assertEquals(s"${prefix}MATCH (n:`Person`) WHERE n.location.x > $paramName RETURN n", query)
+  }
+
+  @Test
+  @Parameters(method = "versions_and_prefixes")
   def testNodeOneLabelWithInternalIdSelected(neo4j: Neo4j, prefix: String): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
@@ -292,6 +355,69 @@ class Neo4jQueryServiceTest {
       s"${prefix}MATCH (source:`Person`) " +
         "MATCH (target:`Person`) " +
         "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, id(source) AS `<source.id>`",
+      query
+    )
+  }
+
+  @Test
+  @Parameters(method = "versions_and_prefixes")
+  def testRelationshipWithSelectedColumnsContainingDots(neo4j: Neo4j, prefix: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "false")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        neo4j,
+        Array.empty[Filter],
+        PartitionPagination.EMPTY,
+        List("source.table.key", "target.a.b.c", "rel.table.key")
+      )
+    ).createQuery()
+
+    assertEquals(
+      s"${prefix}MATCH (source:`Person`) " +
+        "MATCH (target:`Person`) " +
+        "MATCH (source)-[rel:`KNOWS`]->(target) " +
+        "RETURN source.`table.key` AS `source.table.key`, " +
+        "target.`a.b.c` AS `target.a.b.c`, " +
+        "rel.`table.key` AS `rel.table.key`",
+      query
+    )
+  }
+
+  @Test
+  @Parameters(method = "versions_and_prefixes")
+  def testRelationshipFilterOnColumnWhoseNameContainsDots(neo4j: Neo4j, prefix: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "false")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val filters: Array[Filter] = Array[Filter](
+      EqualTo("`source.table.key`", "value"),
+      EqualTo("`rel.a.b.c`", "value")
+    )
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(neo4j, filters)).createQuery()
+
+    val sourceParam = "$" + "`source.table.key`".toParameterName("value")
+    val relParam = "$" + "`rel.a.b.c`".toParameterName("value")
+
+    assertEquals(
+      s"${prefix}MATCH (source:`Person`) " +
+        "MATCH (target:`Person`) " +
+        "MATCH (source)-[rel:`KNOWS`]->(target) " +
+        s"WHERE (source.`table.key` = $sourceParam AND rel.`a.b.c` = $relParam) " +
+        "RETURN rel, source AS source, target AS target",
       query
     )
   }
@@ -682,6 +808,64 @@ class Neo4jQueryServiceTest {
           |MERGE (source)-[rel:`DID BUY`{`transaction identifier`: event.rel.keys.transactionId}]->(target)
           |SET rel += event.rel.properties
           |""".stripMargin,
+      query
+    )
+  }
+
+  @Test
+  @Parameters(method = "versions_and_prefixes")
+  def testShouldDoAggregationOnLabelsWithColumnsContainingDots(neo4j: Neo4j, prefix: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val nestedField = new DummyNamedReference("`a.b.c`")
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        neo4j,
+        Array.empty[Filter],
+        PartitionPagination.EMPTY,
+        Seq("table.key", "MAX(`a.b.c`)"),
+        Array(new Max(nestedField))
+      )
+    ).createQuery()
+
+    assertEquals(
+      s"${prefix}MATCH (n:`Person`) RETURN n.`table.key` AS `table.key`, max(n.`a.b.c`) AS `MAX(``a.b.c``)`",
+      query
+    )
+  }
+
+  @Test
+  @Parameters(method = "versions_and_prefixes")
+  def testShouldDoAggregationOnRelationshipWithColumnsContainingDots(neo4j: Neo4j, prefix: String): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "BOUGHT")
+    options.put("relationship.nodes.map", "false")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Product")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val nestedField = new DummyNamedReference("`target.a.b.c`")
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(
+        neo4j,
+        Array.empty[Filter],
+        PartitionPagination.EMPTY,
+        Seq("source.table.key", "SUM(`target.a.b.c`)"),
+        Array(new Sum(nestedField, false))
+      )
+    ).createQuery()
+
+    assertEquals(
+      s"${prefix}MATCH (source:`Person`) " +
+        "MATCH (target:`Product`) " +
+        "MATCH (source)-[rel:`BOUGHT`]->(target) " +
+        "RETURN source.`table.key` AS `source.table.key`, sum(target.`a.b.c`) AS `SUM(``target.a.b.c``)`",
       query
     )
   }

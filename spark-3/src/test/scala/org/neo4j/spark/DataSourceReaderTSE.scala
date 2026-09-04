@@ -1146,6 +1146,115 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def testReadNodeWithPropertyNamesContainingDots(): Unit = {
+    executeQuery("CREATE (m:Map {`table.key`: 'value', `a.b.c`: 'nested value', plain: 'plain value'})")
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Map")
+      .load()
+
+    val rows = df.collectAsList()
+
+    assertEquals(1, rows.size())
+    assertEquals("value", rows.get(0).getAs[String]("table.key"))
+    assertEquals("nested value", rows.get(0).getAs[String]("a.b.c"))
+    assertEquals("plain value", rows.get(0).getAs[String]("plain"))
+  }
+
+  @Test
+  def testFilterNodeOnPropertyNamesContainingDots(): Unit = {
+    executeQuery(
+      """CREATE (:Map {`table.key`: 'value', `a.b.c`: 'nested value'})
+        |CREATE (:Map {`table.key`: 'another value', `a.b.c`: 'another nested value'})""".stripMargin
+    )
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Map")
+      .load()
+      .select("`table.key`")
+      .where("`a.b.c` = 'nested value'")
+
+    val rows = df.collectAsList()
+
+    assertEquals(1, rows.size())
+    assertEquals("value", rows.get(0).getAs[String]("table.key"))
+  }
+
+  @Test
+  def testReadRelationshipWithPropertyNamesContainingDots(): Unit = {
+    executeQuery(
+      """CREATE (s:MapSource {`table.key`: 'source value', `a.b.c`: 'source nested value'})
+        |CREATE (t:MapTarget {`table.key`: 'target value', `a.b.c`: 'target nested value'})
+        |CREATE (s)-[:MAPS {`table.key`: 'rel value', `a.b.c`: 'rel nested value'}]->(t)""".stripMargin
+    )
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship.nodes.map", "false")
+      .option("relationship.source.labels", "MapSource")
+      .option("relationship", "MAPS")
+      .option("relationship.target.labels", "MapTarget")
+      .load()
+
+    val rows = df.collectAsList()
+
+    assertEquals(1, rows.size())
+    val row = rows.get(0)
+    assertEquals("source value", row.getAs[String]("source.table.key"))
+    assertEquals("source nested value", row.getAs[String]("source.a.b.c"))
+    assertEquals("target value", row.getAs[String]("target.table.key"))
+    assertEquals("target nested value", row.getAs[String]("target.a.b.c"))
+    assertEquals("rel value", row.getAs[String]("rel.table.key"))
+    assertEquals("rel nested value", row.getAs[String]("rel.a.b.c"))
+  }
+
+  @Test
+  def testFilterRelationshipOnPropertyNamesContainingDots(): Unit = {
+    executeQuery(
+      """CREATE (s:MapSource {`table.key`: 'source value', `a.b.c`: 'source nested value'})
+        |CREATE (t:MapTarget {`table.key`: 'target value'})
+        |CREATE (s)-[:MAPS {`table.key`: 'rel value'}]->(t)
+        |CREATE (s2:MapSource {`table.key`: 'another source value', `a.b.c`: 'another nested value'})
+        |CREATE (t2:MapTarget {`table.key`: 'another target value'})
+        |CREATE (s2)-[:MAPS {`table.key`: 'another rel value'}]->(t2)""".stripMargin
+    )
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship.nodes.map", "false")
+      .option("relationship.source.labels", "MapSource")
+      .option("relationship", "MAPS")
+      .option("relationship.target.labels", "MapTarget")
+      .load()
+      .select("`rel.table.key`", "`target.table.key`")
+      .where("`source.a.b.c` = 'source nested value'")
+
+    val rows = df.collectAsList()
+
+    assertEquals(1, rows.size())
+    assertEquals("rel value", rows.get(0).getAs[String]("rel.table.key"))
+    assertEquals("target value", rows.get(0).getAs[String]("target.table.key"))
+  }
+
+  @Test
+  def testReadQueryWithColumnNamesContainingDots(): Unit = {
+    executeQuery("CREATE (m:Map {`table.key`: 'value', `a.b.c`: 'nested value'})")
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query", "MATCH (m:Map) RETURN m.`table.key` AS `table.key`, m.`a.b.c` AS `a.b.c`")
+      .load()
+
+    val rows = df.collectAsList()
+
+    assertEquals(1, rows.size())
+    assertEquals("value", rows.get(0).getAs[String]("table.key"))
+    assertEquals("nested value", rows.get(0).getAs[String]("a.b.c"))
+  }
+
+  @Test
   def testQueries(): Unit = {
     val dfMap = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -1921,13 +2030,17 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(Set("target.name", "target.id"), df.columns.toSet)
   }
 
-  private def initTest(query: String): DataFrame = {
+  private def executeQuery(query: String): Unit = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(
         new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(query).consume()
         }
       )
+  }
+
+  private def initTest(query: String): DataFrame = {
+    executeQuery(query)
 
     ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
