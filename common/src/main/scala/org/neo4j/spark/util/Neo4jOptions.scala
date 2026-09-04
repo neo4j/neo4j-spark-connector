@@ -481,7 +481,7 @@ case class Neo4jDriverOptions(
   acquisitionTimeout: Int,
   livenessCheckTimeout: Int,
   connectionTimeout: Int
-) extends Serializable {
+) extends Serializable with Logging {
 
   def createDriver(): Driver = {
     val (url, _) = connectionUrls
@@ -505,6 +505,11 @@ case class Neo4jDriverOptions(
       case "neo4j+s" | "neo4j+ssc" | "bolt+s" | "bolt+ssc" => ()
       case _ => {
         if (!encryption) {
+          logWarning(
+            s"Connecting to ${primaryUrl.getScheme}://${primaryUrl.getHost} without any encryption! " +
+              s"Credentials will be sent in cleartext. To start encrypting, use an encrypted scheme (such as 'neo4j+s://')."
+          )
+
           builder.withoutEncryption()
         } else {
           builder.withEncryption()
@@ -512,7 +517,14 @@ case class Neo4jDriverOptions(
         trustStrategy
           .map(Config.TrustStrategy.Strategy.valueOf)
           .map {
-            case TrustStrategy.Strategy.TRUST_ALL_CERTIFICATES              => TrustStrategy.trustAllCertificates()
+            case TrustStrategy.Strategy.TRUST_ALL_CERTIFICATES =>
+              if (encryption) { // no encryption -> no handshake -> no need for log
+                logWarning(
+                  "TRUST_ALL_CERTIFICATES disables server identity verification, making the connection " +
+                    "vulnerable to man-in-the-middle attacks. Do not use it in production."
+                )
+              }
+              TrustStrategy.trustAllCertificates()
             case TrustStrategy.Strategy.TRUST_SYSTEM_CA_SIGNED_CERTIFICATES => TrustStrategy.trustSystemCertificates()
             case TrustStrategy.Strategy.TRUST_CUSTOM_CA_SIGNED_CERTIFICATES =>
               TrustStrategy.trustCustomCertificateSignedBy(new File(certificatePath))
