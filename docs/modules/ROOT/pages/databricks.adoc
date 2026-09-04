@@ -6,29 +6,240 @@ include::partial$third-party.adoc[]
 
 * A Databricks workspace must be available on an URL like `\https://dbc-xxxxxxxx-yyyy.cloud.databricks.com`.
 
+[#limitations]
+== Limitations
+
+The connector runs on Databricks *classic compute* with the *`Dedicated`* access mode (called `Single user` in the previous Databricks UI).
+No other Databricks compute type is supported.
+
+Read this section before creating a cluster.
+For limitations that are not specific to Databricks, see xref:known-issues.adoc[].
+
+[#supported-compute]
+=== Supported and unsupported compute
+
+.Databricks compute support
+[cols="4,1,5", options="header"]
+|===
+| Databricks compute | Supported | Notes
+
+| Classic compute, `Dedicated` access mode (formerly `Single user`)
+| Yes
+| The only supported configuration.
+Use the `Unrestricted` cluster policy, or a custom policy that permits Maven or JAR libraries.
+
+| Classic compute, any shared access mode: `Standard` (formerly `Shared`), no-isolation shared, or legacy High Concurrency
+| No
+| See <<access-mode,Access modes>>.
+Legacy High Concurrency clusters are selected by `spark.databricks.cluster.profile serverless`, which is covered in <<cluster-profile,Cluster profile>>.
+
+| Serverless compute (notebooks and jobs)
+| No
+| See <<serverless,Serverless compute>>.
+|===
+
+[#access-mode]
+=== `Standard` and shared access modes are not supported
+
+The connector requires the `Dedicated` access mode.
+The following access modes are not supported:
+
+* `Standard` (formerly `Shared`)
+* No isolation shared (legacy)
+* Legacy Table ACL and credential passthrough modes
+
+
+[#unity-catalog]
+=== Unity Catalog is supported in `Dedicated` access mode only
+
+Unity Catalog support follows the same restriction as the access mode: the connector supports Unity Catalog on `Dedicated` clusters only.
+
+
+[#serverless]
+=== Serverless compute is not supported
+
+The connector cannot run on serverless compute, for either notebooks or jobs.
+Use classic compute with the `Dedicated` access mode.
+
+[#jar-install]
+=== Installing the connector JAR
+
+There are three ways to get the connector onto a Databricks cluster.
+Use the first one unless you have a specific reason not to.
+
+.Install patterns
+[cols="2,3,4", options="header"]
+|===
+| Pattern | When to use it | Constraints
+
+| Maven coordinate as a cluster library
+| Default.
+Use this unless Maven Central is unreachable or a policy forbids Maven resolution.
+| The cluster (or its Maven proxy) must be able to reach Maven Central at startup.
+With Unity Catalog, the coordinate may need to be allowlisted.
+
+| Uploaded JAR as a cluster library
+| Air-gapped workspaces, pinned builds, or when Maven resolution is blocked.
+| Store the JAR in a Unity Catalog volume (DBR 13.3 and above) or in cloud object storage.
+JARs stored in *workspace files* are not supported for `Dedicated` access mode.
+
+| Init script that copies the JAR to `/databricks/jars/`
+| Only when the connector must be on the classpath before Spark starts — for example when a Spark configuration set at cluster startup references connector classes.
+| Init scripts must live in a Unity Catalog volume or in cloud object storage (DBR 13.3 and above).
+Global init scripts run on `Dedicated` and no-isolation-shared clusters only.
+Not available on serverless compute.
+|===
+
+==== Maven coordinate
+
+On the cluster *Libraries* tab, select *Install new*, choose *Maven*, and enter the coordinate directly:
+
+[source, subs="attributes+"]
+----
+org.neo4j.connectors:spark:{exact-connector-version}-s_{scala-version}
+----
+
+[IMPORTANT]
+====
+Do not use *Search Packages* to look the connector up in Spark Packages.
+The connector has not been published to Spark Packages since version 5.4.0.
+Enter the Maven Central coordinate above instead.
+====
+
+The Scala suffix must match the cluster runtime.
+See <<dbr-compatibility>>.
+
+==== Uploaded JAR
+
+Download the JAR from the link:https://neo4j.com/product/connectors/apache-spark-connector/[Neo4j Connector page] or the link:https://github.com/neo4j/neo4j-spark-connector/releases[GitHub releases page], upload it to a Unity Catalog volume, then install it as a cluster library from that volume.
+
+[NOTE]
+====
+The downloadable JAR already bundles its dependencies, including the Neo4j Java Driver.
+The Maven coordinate resolves those dependencies transitively instead.
+Install one or the other, never both, and do not install a standalone `neo4j-java-driver` library alongside the bundled JAR.
+====
+
+==== Init script
+
+An init script runs on every node before the driver and executor JVMs start, which is what makes it the only option when the connector has to be on the classpath before Spark initializes.
+
+.Example init script stored in a Unity Catalog volume
+[source, bash, subs="attributes+"]
+----
+#!/bin/bash
+cp /Volumes/<catalog>/<schema>/<volume>/neo4j-spark-connector-{exact-connector-version}-s_{scala-version}.jar /databricks/jars/
+----
+
+[CAUTION]
+====
+JARs placed in `/databricks/jars/` are added to the runtime classpath and can shadow the JARs shipped with Databricks Runtime.
+Copy the connector JAR only.
+Never copy its Spark or Scala dependencies, as doing so can leave the cluster unable to start.
+====
+
+
+[#cluster-profile]
+=== `spark.databricks.cluster.profile` interactions
+
+Databricks sets `spark.databricks.cluster.profile` for you based on the cluster type you choose.
+Its value determines whether the connector can run.
+
+.Cluster profile values
+[cols="2,4,2", options="header"]
+|===
+| Value | Cluster type | Supported
+
+| Not set
+| Multi-node classic cluster
+| Yes, with `Dedicated` access mode
+
+| `singleNode`
+| Single-node cluster; Databricks also sets `spark.master local[*, 4]` and the `ResourceClass=SingleNode` tag
+| Yes, with `Dedicated` access mode
+
+| `serverless`
+| Legacy High Concurrency cluster; requires the `ResourceClass=Serverless` tag
+| No
+|===
+
+[WARNING]
+====
+The value `serverless` is unrelated to serverless compute.
+It selects the legacy High Concurrency cluster profile, which enables user isolation and table ACLs and is therefore equivalent to a shared cluster.
+The connector does not work on such clusters.
+====
+
+
+[#dbr-compatibility]
+=== Databricks Runtime versions and support windows
+
+To find which connector version to use with a given Databricks Runtime, see the xref:index.adoc#_compatibility[connector version compatibility table], which lists the supported Databricks Runtime for each release.
+The always current version is published at link:https://neo4j.com/docs/spark/current/#_compatibility[neo4j.com/docs/spark/current].
+
+Only LTS runtimes are validated.
+The table below adds the two Databricks-specific details you also need: the Scala version of each runtime, and the date Databricks stops supporting it.
+
+.Scala version and support window per Databricks Runtime
+[cols="2,2,2", options="header"]
+|===
+| Databricks Runtime | Scala | Databricks end of support
+
+| 17.3 LTS
+| 2.13
+| 2028-10-22
+
+| 16.4 LTS
+| 2.12 or 2.13
+| 2028-05-09
+
+| 15.4 LTS
+| 2.12
+| 2027-08-19
+
+| 14.3 LTS
+| 2.12
+| 2027-02-01
+|===
+
+Rules to apply when choosing versions:
+
+* The Scala suffix of the connector artifact must match the Scala version of the runtime.
+Databricks Runtime 16.4 LTS is the last runtime that offers Scala 2.12, and it ships in both variants, so check which one your cluster uses.
+* Connector 6.x requires Scala 2.13 and Java 17 or later, so it needs Databricks Runtime 17.3 LTS or later.
+The Scala 2.13 variant of Databricks Runtime 16.4 LTS does not qualify, because that runtime ships Spark 3.5.2 rather than Spark 4.
+* Non-LTS Databricks Runtime releases and Databricks Runtime for Machine Learning are outside the validated matrix.
+* Databricks supports each LTS runtime for three years from its release date.
+Plan connector upgrades against the runtime end-of-support date rather than the other way round.
+
+For runtime release and support dates, see the link:https://docs.databricks.com/aws/en/release-notes/runtime/[Databricks Runtime release notes].
+
+[#other-issues]
+=== Other Databricks-specific issues
+
+Neo4j AuraDB customers connecting from Databricks may hit SSL handshake errors caused by the Databricks Java security settings.
+See xref:faq.adoc#_databricks_setup[Databricks setup] in the FAQ.
+
 == Set up a compute cluster
 
-. Create a compute cluster with `Single user` access mode, `Unrestricted` policy, and your preferred Scala runtime.
+. Create a compute cluster with the `Dedicated` access mode (called `Single user` in the previous Databricks UI), the `Unrestricted` policy, and a runtime whose Scala version matches the connector.
 +
 [CAUTION]
 ====
-Shared access modes are not currently supported.
+`Standard` and shared access modes, serverless compute, and legacy High Concurrency clusters are not supported.
+See <<limitations>>.
 ====
 . Once the cluster is available, open its page and select the *Libraries* tab.
 . Select *Install new* and choose *Maven* as the library source.
-. Select *Search Packages* and search for either `neo4j-spark-connector` from the `neo4j` organization (Spark Packages) or `neo4j-connector-apache-spark` (Maven Central) from the `org.neo4j` group ID, then *Select* the most recent release.
+. Enter the Maven Central coordinate `org.neo4j.connectors:spark:{exact-connector-version}-s_{scala-version}`.
 +
 [NOTE]
 ====
-Make sure to select the correct version of the connector by matching the Scala version to the cluster's runtime.
+The Scala suffix of the coordinate must match the Scala version of the cluster runtime.
+See <<dbr-compatibility>> and <<jar-install>>.
 ====
 
 . Select *Install*.
-
-=== Unity Catalog
-
-Neo4j supports the Unity Catalog in `Single user` access mode only.
-Refer to the link:https://docs.databricks.com/en/compute/access-mode-limitations.html[Databricks documentation] for further information.
 
 == Session configuration
 
