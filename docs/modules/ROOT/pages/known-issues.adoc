@@ -116,16 +116,16 @@ include::partial$third-party.adoc[]
 [#databricks-access-mode]
 === Shared access modes are not supported
 
-The connector only works on Databricks compute clusters created with the `Single user` access mode and the `Unrestricted` policy.
+The connector only works on Databricks compute clusters created with the `Dedicated` access mode and the `Unrestricted` policy.
 Shared and no-isolation-shared access modes are not supported.
 
-*Workaround*: create a dedicated `Single user` cluster for jobs that use the connector.
+*Workaround*: create a `Dedicated` access mode cluster for jobs that use the connector.
 See xref:databricks.adoc#_set_up_a_compute_cluster[Set up a compute cluster].
 
 [#databricks-unity-catalog]
-=== Unity Catalog is supported in `Single user` access mode only
+=== Unity Catalog is supported in `Dedicated` access mode only
 
-Unity Catalog support follows the same restriction as the cluster access mode: Neo4j supports the Unity Catalog in `Single user` access mode only.
+Unity Catalog support follows the same restriction as the cluster access mode: Neo4j supports the Unity Catalog in `Dedicated` access mode only.
 
 Refer to the link:https://docs.databricks.com/en/compute/access-mode-limitations.html[Databricks access mode limitations] for further information.
 
