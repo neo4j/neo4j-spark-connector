@@ -132,8 +132,22 @@ object Neo4jUtil {
     .map(_ => "databricks")
     .getOrElse("spark")
 
-  def getCorrectProperty(container: PropertyContainer, attribute: String): Property = {
-    container.property(attribute.split('.'): _*)
+  /**
+   * Builds the property access for a Spark attribute.
+   *
+   * `entityAlias` must be set when the attribute is prefixed with the alias of the container
+   * (`source`, `target` or `rel`), as it happens for relationship reads.
+   */
+  def getCorrectProperty(
+    container: PropertyContainer,
+    attribute: String,
+    entityAlias: Option[String] = None
+  ): Property = {
+    val path = entityAlias
+      .map(attribute.propertyPathWithoutAlias)
+      .getOrElse(attribute.propertyPath())
+
+    container.property(path: _*)
   }
 
   def paramsFromFilters(filters: Array[Filter]): Map[String, Any] = {
@@ -163,44 +177,37 @@ object Neo4jUtil {
   def mapSparkFiltersToCypher(
     filter: Filter,
     container: PropertyContainer,
-    attributeAlias: Option[String] = None
+    entityAlias: Option[String] = None
   ): Condition = {
+    def property(attribute: String): Property = getCorrectProperty(container, attribute, entityAlias)
+
     filter match {
       case eqns: EqualNullSafe =>
         val parameter = valueToCypherExpression(eqns.attribute, eqns.value)
-        val property = getCorrectProperty(container, attributeAlias.getOrElse(eqns.attribute))
-        property.isNull.and(parameter.isNull)
-          .or(property.isEqualTo(parameter))
+        val prop = property(eqns.attribute)
+        prop.isNull.and(parameter.isNull)
+          .or(prop.isEqualTo(parameter))
       case eq: EqualTo =>
-        getCorrectProperty(container, attributeAlias.getOrElse(eq.attribute))
-          .isEqualTo(valueToCypherExpression(eq.attribute, eq.value))
+        property(eq.attribute).isEqualTo(valueToCypherExpression(eq.attribute, eq.value))
       case gt: GreaterThan =>
-        getCorrectProperty(container, attributeAlias.getOrElse(gt.attribute))
-          .gt(valueToCypherExpression(gt.attribute, gt.value))
+        property(gt.attribute).gt(valueToCypherExpression(gt.attribute, gt.value))
       case gte: GreaterThanOrEqual =>
-        getCorrectProperty(container, attributeAlias.getOrElse(gte.attribute))
-          .gte(valueToCypherExpression(gte.attribute, gte.value))
+        property(gte.attribute).gte(valueToCypherExpression(gte.attribute, gte.value))
       case lt: LessThan =>
-        getCorrectProperty(container, attributeAlias.getOrElse(lt.attribute))
-          .lt(valueToCypherExpression(lt.attribute, lt.value))
+        property(lt.attribute).lt(valueToCypherExpression(lt.attribute, lt.value))
       case lte: LessThanOrEqual =>
-        getCorrectProperty(container, attributeAlias.getOrElse(lte.attribute))
-          .lte(valueToCypherExpression(lte.attribute, lte.value))
+        property(lte.attribute).lte(valueToCypherExpression(lte.attribute, lte.value))
       case in: In =>
-        getCorrectProperty(container, attributeAlias.getOrElse(in.attribute))
-          .in(valueToCypherExpression(in.attribute, in.values))
+        property(in.attribute).in(valueToCypherExpression(in.attribute, in.values))
       case startWith: StringStartsWith =>
-        getCorrectProperty(container, attributeAlias.getOrElse(startWith.attribute))
-          .startsWith(valueToCypherExpression(startWith.attribute, startWith.value))
+        property(startWith.attribute).startsWith(valueToCypherExpression(startWith.attribute, startWith.value))
       case endsWith: StringEndsWith =>
-        getCorrectProperty(container, attributeAlias.getOrElse(endsWith.attribute))
-          .endsWith(valueToCypherExpression(endsWith.attribute, endsWith.value))
+        property(endsWith.attribute).endsWith(valueToCypherExpression(endsWith.attribute, endsWith.value))
       case contains: StringContains =>
-        getCorrectProperty(container, attributeAlias.getOrElse(contains.attribute))
-          .contains(valueToCypherExpression(contains.attribute, contains.value))
-      case notNull: IsNotNull => getCorrectProperty(container, attributeAlias.getOrElse(notNull.attribute)).isNotNull
-      case isNull: IsNull     => getCorrectProperty(container, attributeAlias.getOrElse(isNull.attribute)).isNull
-      case not: Not           => mapSparkFiltersToCypher(not.child, container, attributeAlias).not()
+        property(contains.attribute).contains(valueToCypherExpression(contains.attribute, contains.value))
+      case notNull: IsNotNull => property(notNull.attribute).isNotNull
+      case isNull: IsNull     => property(isNull.attribute).isNull
+      case not: Not           => mapSparkFiltersToCypher(not.child, container, entityAlias).not()
       case _: AlwaysTrue      => Cypher.literalTrue().asCondition()
       case _: AlwaysFalse     => Cypher.literalFalse().asCondition()
       case unsupported =>

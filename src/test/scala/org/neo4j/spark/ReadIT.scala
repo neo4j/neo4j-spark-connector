@@ -1172,6 +1172,43 @@ class ReadIT {
 
       assertThat(df.count()).isEqualTo(10)
     }
+
+    @Test
+    def reads_repacked_map(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      driver.executableQuery("CREATE (m:Map {`table.key`: 'value', `a.b.c`: 'nested value', plain: 'plain value'})")
+        .execute()
+
+      val df = spark.read.format(classOf[DataSource].getName)
+        .option("labels", "Map")
+        .load()
+
+      val rows = df.collect()
+
+      assertThat(rows).hasSize(1)
+      assertThat(rows.head.getAs[String]("table.key")).isEqualTo("value")
+      assertThat(rows.head.getAs[String]("a.b.c")).isEqualTo("nested value")
+      assertThat(rows.head.getAs[String]("plain")).isEqualTo("plain value")
+    }
+
+    @Test
+    def filters_on_repacked_map(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      driver.executableQuery(
+        """CREATE (:Map {`table.key`: 'value', `a.b.c`: 'nested value'})
+          |CREATE (:Map {`table.key`: 'another value', `a.b.c`: 'another nested value'})""".stripMargin
+      ).execute()
+
+      val df = spark.read.format(classOf[DataSource].getName)
+        .option("labels", "Map")
+        .load()
+        .select("`table.key`")
+        .where("`a.b.c` = 'nested value'")
+
+      val rows = df.collect()
+
+      assertThat(rows).hasSize(1)
+      assertThat(rows.head.getAs[String]("table.key")).isEqualTo("value")
+    }
+
   }
 
   @Nested
@@ -1580,12 +1617,79 @@ class ReadIT {
       assertThat(row.getAs[Long]("total")).isEqualTo(11L)
     }
 
+    @Test
+    def reads_repacked_map(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      driver.executableQuery(
+        """CREATE (s:MapSource {`table.key`: 'source value', `a.b.c`: 'source nested value'})
+          |CREATE (t:MapTarget {`table.key`: 'target value', `a.b.c`: 'target nested value'})
+          |CREATE (s)-[:MAPS {`table.key`: 'rel value', `a.b.c`: 'rel nested value'}]->(t)""".stripMargin
+      ).execute()
+
+      val df = spark.read.format(classOf[DataSource].getName)
+        .option("relationship.source.labels", "MapSource")
+        .option("relationship", "MAPS")
+        .option("relationship.target.labels", "MapTarget")
+        .load()
+
+      val rows = df.collect()
+
+      assertThat(rows).hasSize(1)
+      val row = rows.head
+      assertThat(row.getAs[String]("source.table.key")).isEqualTo("source value")
+      assertThat(row.getAs[String]("source.a.b.c")).isEqualTo("source nested value")
+      assertThat(row.getAs[String]("target.table.key")).isEqualTo("target value")
+      assertThat(row.getAs[String]("target.a.b.c")).isEqualTo("target nested value")
+      assertThat(row.getAs[String]("rel.table.key")).isEqualTo("rel value")
+      assertThat(row.getAs[String]("rel.a.b.c")).isEqualTo("rel nested value")
+    }
+
+    @Test
+    def filters_on_repacked_map(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      driver.executableQuery(
+        """CREATE (s:MapSource {`table.key`: 'source value', `a.b.c`: 'source nested value'})
+          |CREATE (t:MapTarget {`table.key`: 'target value'})
+          |CREATE (s)-[:MAPS {`table.key`: 'rel value'}]->(t)
+          |CREATE (s2:MapSource {`table.key`: 'another source value', `a.b.c`: 'another nested value'})
+          |CREATE (t2:MapTarget {`table.key`: 'another target value'})
+          |CREATE (s2)-[:MAPS {`table.key`: 'another rel value'}]->(t2)""".stripMargin
+      ).execute()
+
+      val df = spark.read.format(classOf[DataSource].getName)
+        .option("relationship.source.labels", "MapSource")
+        .option("relationship", "MAPS")
+        .option("relationship.target.labels", "MapTarget")
+        .load()
+        .select("`rel.table.key`", "`target.table.key`")
+        .where("`source.a.b.c` = 'source nested value'")
+
+      val rows = df.collect()
+
+      assertThat(rows).hasSize(1)
+      assertThat(rows.head.getAs[String]("rel.table.key")).isEqualTo("rel value")
+      assertThat(rows.head.getAs[String]("target.table.key")).isEqualTo("target value")
+    }
+
   }
 
   @Nested
   @DisplayName("by query")
   @Execution(ExecutionMode.SAME_THREAD)
   class ByQuery {
+
+    @Test
+    def reads_repacked_map(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {
+      driver.executableQuery("CREATE (m:Map {`table.key`: 'value', `a.b.c`: 'nested value'})").execute()
+
+      val df = spark.read.format(classOf[DataSource].getName)
+        .option("query", "MATCH (m:Map) RETURN m.`table.key` AS `table.key`, m.`a.b.c` AS `a.b.c`")
+        .load()
+
+      val rows = df.collect()
+
+      assertThat(rows).hasSize(1)
+      assertThat(rows.head.getAs[String]("table.key")).isEqualTo("value")
+      assertThat(rows.head.getAs[String]("a.b.c")).isEqualTo("nested value")
+    }
 
     @Test
     def supports_returning_lists(driver: Driver, spark: SparkSession, neo4j: Neo4j): Unit = {

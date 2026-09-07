@@ -178,6 +178,107 @@ class Neo4jQueryServiceTest {
 
     @ParameterizedTest
     @MethodSource(Array("versions_and_prefixes"))
+    def labels_when_the_selected_columns_contain_dots(
+      neo4j: Neo4j,
+      customCypherVersion: String,
+      prefix: String
+    ): Unit = {
+      val neo4jOptions = new Neo4jOptions(Map(
+        Neo4jOptions.URL -> "bolt://localhost",
+        QueryType.LABELS.toString.toLowerCase -> "Person",
+        Neo4jOptions.CYPHER_VERSION -> customCypherVersion
+      ))
+
+      val query: String = new Neo4jQueryService(
+        neo4jOptions,
+        new Neo4jQueryReadStrategy(
+          neo4j,
+          new CypherRenderer(neo4j, neo4jOptions),
+          new QueryEmbedder(),
+          Array.empty[Filter],
+          PartitionPagination.EMPTY,
+          List("table.key", "a.b.c")
+        )
+      ).createQuery()
+
+      assertThat(query).isEqualTo(
+        s"${prefix}MATCH (n:`Person`) RETURN n.`table.key` AS `table.key`, n.`a.b.c` AS `a.b.c`"
+      )
+    }
+
+    @ParameterizedTest
+    @MethodSource(Array("versions_and_prefixes"))
+    def labels_when_filtering_on_a_column_whose_name_contains_dots(
+      neo4j: Neo4j,
+      customCypherVersion: String,
+      prefix: String
+    ): Unit = {
+      val neo4jOptions = new Neo4jOptions(Map(
+        Neo4jOptions.URL -> "bolt://localhost",
+        QueryType.LABELS.toString.toLowerCase -> "Person",
+        Neo4jOptions.CYPHER_VERSION -> customCypherVersion
+      ))
+
+      val filters: Array[Filter] = Array[Filter](
+        EqualTo("`table.key`", "value"),
+        EqualTo("`a.b.c`", "value")
+      )
+
+      val query: String =
+        new Neo4jQueryService(
+          neo4jOptions,
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
+            new QueryEmbedder(),
+            filters
+          )
+        ).createQuery()
+
+      val tableKeyParam = "$" + "`table.key`".toParameterName("value")
+      val abcParam = "$" + "`a.b.c`".toParameterName("value")
+
+      assertThat(query).isEqualTo(
+        s"${prefix}MATCH (n:`Person`) " +
+          s"WHERE (n.`table.key` = $tableKeyParam AND n.`a.b.c` = $abcParam) RETURN n"
+      )
+    }
+
+    @ParameterizedTest
+    @MethodSource(Array("versions_and_prefixes"))
+    def labels_when_filtering_on_a_nested_field(
+      neo4j: Neo4j,
+      customCypherVersion: String,
+      prefix: String
+    ): Unit = {
+      val neo4jOptions = new Neo4jOptions(Map(
+        Neo4jOptions.URL -> "bolt://localhost",
+        QueryType.LABELS.toString.toLowerCase -> "Person",
+        Neo4jOptions.CYPHER_VERSION -> customCypherVersion
+      ))
+
+      val filters: Array[Filter] = Array[Filter](
+        GreaterThan("location.x", 0)
+      )
+
+      val query: String =
+        new Neo4jQueryService(
+          neo4jOptions,
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
+            new QueryEmbedder(),
+            filters
+          )
+        ).createQuery()
+
+      val paramName = "$" + "location.x".toParameterName(0)
+
+      assertThat(query).isEqualTo(s"${prefix}MATCH (n:`Person`) WHERE n.location.x > $paramName RETURN n")
+    }
+
+    @ParameterizedTest
+    @MethodSource(Array("versions_and_prefixes"))
     def labels_when_internal_id_selected(
       neo4j: Neo4j,
       customCypherVersion: String,
@@ -421,6 +522,88 @@ class Neo4jQueryServiceTest {
         s"${prefix}MATCH (source:`Person`) " +
           "MATCH (target:`Person`) " +
           s"MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, elementId(source) AS `<source.elementId>`"
+      )
+    }
+
+    @ParameterizedTest
+    @MethodSource(Array("versions_and_prefixes"))
+    def relationship_when_the_selected_columns_contain_dots(
+      neo4j: Neo4j,
+      customCypherVersion: String,
+      prefix: String
+    ): Unit = {
+      val neo4jOptions = new Neo4jOptions(Map(
+        Neo4jOptions.URL -> "bolt://localhost",
+        "relationship" -> "KNOWS",
+        "relationship.nodes.map" -> "false",
+        "relationship.source.labels" -> "Person",
+        "relationship.target.labels" -> "Person",
+        Neo4jOptions.CYPHER_VERSION -> customCypherVersion
+      ))
+
+      val query: String = new Neo4jQueryService(
+        neo4jOptions,
+        new Neo4jQueryReadStrategy(
+          neo4j,
+          new CypherRenderer(neo4j, neo4jOptions),
+          new QueryEmbedder(),
+          Array.empty[Filter],
+          PartitionPagination.EMPTY,
+          List("source.table.key", "target.a.b.c", "rel.table.key")
+        )
+      ).createQuery()
+
+      assertThat(query).isEqualTo(
+        s"${prefix}MATCH (source:`Person`) " +
+          "MATCH (target:`Person`) " +
+          "MATCH (source)-[rel:`KNOWS`]->(target) " +
+          "RETURN source.`table.key` AS `source.table.key`, " +
+          "target.`a.b.c` AS `target.a.b.c`, " +
+          "rel.`table.key` AS `rel.table.key`"
+      )
+    }
+
+    @ParameterizedTest
+    @MethodSource(Array("versions_and_prefixes"))
+    def relationship_when_filtering_on_a_column_whose_name_contains_dots(
+      neo4j: Neo4j,
+      customCypherVersion: String,
+      prefix: String
+    ): Unit = {
+      val neo4jOptions = new Neo4jOptions(Map(
+        Neo4jOptions.URL -> "bolt://localhost",
+        "relationship" -> "KNOWS",
+        "relationship.nodes.map" -> "false",
+        "relationship.source.labels" -> "Person",
+        "relationship.target.labels" -> "Person",
+        Neo4jOptions.CYPHER_VERSION -> customCypherVersion
+      ))
+
+      val filters: Array[Filter] = Array[Filter](
+        EqualTo("`source.table.key`", "value"),
+        EqualTo("`rel.a.b.c`", "value")
+      )
+
+      val query: String =
+        new Neo4jQueryService(
+          neo4jOptions,
+          new Neo4jQueryReadStrategy(
+            neo4j,
+            new CypherRenderer(neo4j, neo4jOptions),
+            new QueryEmbedder(),
+            filters
+          )
+        ).createQuery()
+
+      val sourceParam = "$" + "`source.table.key`".toParameterName("value")
+      val relParam = "$" + "`rel.a.b.c`".toParameterName("value")
+
+      assertThat(query).isEqualTo(
+        s"${prefix}MATCH (source:`Person`) " +
+          "MATCH (target:`Person`) " +
+          "MATCH (source)-[rel:`KNOWS`]->(target) " +
+          s"WHERE (source.`table.key` = $sourceParam AND rel.`a.b.c` = $relParam) " +
+          "RETURN rel, source AS source, target AS target"
       )
     }
 
@@ -791,6 +974,76 @@ class Neo4jQueryServiceTest {
            | AND (target.age = ${parameterNames("target.age_1")} OR target.age = ${parameterNames("target.age_2")})
            | AND rel.score = ${parameterNames("rel.score")})
            | RETURN rel, source AS source, target AS target""".stripMargin.replaceAll("\n", "")
+      )
+    }
+
+    @ParameterizedTest
+    @MethodSource(Array("versions_and_prefixes"))
+    def labels_yields_aggregations_on_columns_whose_name_contains_dots(
+      neo4j: Neo4j,
+      customCypherVersion: String,
+      prefix: String
+    ): Unit = {
+      val neo4jOptions = new Neo4jOptions(Map(
+        Neo4jOptions.URL -> "bolt://localhost",
+        QueryType.LABELS.toString.toLowerCase -> "Person",
+        Neo4jOptions.CYPHER_VERSION -> customCypherVersion
+      ))
+
+      val nestedField = new DummyNamedReference("`a.b.c`")
+      val query: String = new Neo4jQueryService(
+        neo4jOptions,
+        new Neo4jQueryReadStrategy(
+          neo4j,
+          new CypherRenderer(neo4j, neo4jOptions),
+          new QueryEmbedder(),
+          Array.empty[Filter],
+          PartitionPagination.EMPTY,
+          Seq("table.key", "MAX(`a.b.c`)"),
+          Array(new Max(nestedField))
+        )
+      ).createQuery()
+
+      assertThat(query).isEqualTo(
+        s"${prefix}MATCH (n:`Person`) RETURN n.`table.key` AS `table.key`, max(n.`a.b.c`) AS `MAX(``a.b.c``)`"
+      )
+    }
+
+    @ParameterizedTest
+    @MethodSource(Array("versions_and_prefixes"))
+    def relationship_yields_aggregations_on_columns_whose_name_contains_dots(
+      neo4j: Neo4j,
+      customCypherVersion: String,
+      prefix: String
+    ): Unit = {
+      val neo4jOptions = new Neo4jOptions(Map(
+        Neo4jOptions.URL -> "bolt://localhost",
+        "relationship" -> "BOUGHT",
+        "relationship.nodes.map" -> "false",
+        "relationship.source.labels" -> "Person",
+        "relationship.target.labels" -> "Product",
+        Neo4jOptions.CYPHER_VERSION -> customCypherVersion
+      ))
+
+      val nestedField = new DummyNamedReference("`target.a.b.c`")
+      val query: String = new Neo4jQueryService(
+        neo4jOptions,
+        new Neo4jQueryReadStrategy(
+          neo4j,
+          new CypherRenderer(neo4j, neo4jOptions),
+          new QueryEmbedder(),
+          Array.empty[Filter],
+          PartitionPagination.EMPTY,
+          Seq("source.table.key", "SUM(`target.a.b.c`)"),
+          Array(new Sum(nestedField, false))
+        )
+      ).createQuery()
+
+      assertThat(query).isEqualTo(
+        s"${prefix}MATCH (source:`Person`) " +
+          "MATCH (target:`Product`) " +
+          "MATCH (source)-[rel:`BOUGHT`]->(target) " +
+          "RETURN source.`table.key` AS `source.table.key`, sum(target.`a.b.c`) AS `SUM(``target.a.b.c``)`"
       )
     }
 

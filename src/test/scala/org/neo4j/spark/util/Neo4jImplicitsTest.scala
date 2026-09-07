@@ -33,21 +33,19 @@ import org.neo4j.spark.util.Neo4jImplicits._
 
 import scala.collection.immutable.ListMap
 import scala.jdk.CollectionConverters.IterableHasAsJava
-import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.jdk.CollectionConverters.MapHasAsJava
-import scala.jdk.CollectionConverters.MapHasAsScala
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
 class Neo4jImplicitsTest {
 
   @Nested
-  class Quotes {
+  class Sanitizes {
 
     @Test
     def quotes_the_string(): Unit = {
       val value = "Test with space"
 
-      val actual = value.quote()
+      val actual = value.sanitizeSchemaName()
 
       assertThat(actual).isEqualTo(s"`$value`")
     }
@@ -56,25 +54,61 @@ class Neo4jImplicitsTest {
     def quotes_text_that_starts_with_$(): Unit = {
       val value = "$string"
 
-      val actual = value.quote()
+      val actual = value.sanitizeSchemaName()
 
-      assertThat(actual).isEqualTo(s"`$value`")
+      assertThat(actual).isEqualTo("`$string`")
+    }
+
+    @Test
+    def quotes_text_that_starts_with_$_even_when_quoted(): Unit = {
+      val value = "`$string`"
+
+      val actual = value.sanitizeSchemaName()
+
+      assertThat(actual).isEqualTo("`$string`")
+    }
+
+    @Test
+    def sanitizes_text_that_has_backtick(): Unit = {
+      val value = "User can put back`ticks"
+
+      val actual = value.sanitizeSchemaName()
+
+      assertThat(actual).isEqualTo(s"`User can put back``ticks`")
+    }
+
+    @Test
+    def sanitizes_text_that_has_backtick_and_no_spaces(): Unit = {
+      val value = "Per`son"
+
+      val actual = value.sanitizeSchemaName()
+
+      assertThat(actual).isEqualTo(s"`Per``son`")
     }
 
     @Test
     def does_not_requote_the_string(): Unit = {
       val value = "`Test with space`"
 
-      val actual = value.quote()
+      val actual = value.sanitizeSchemaName()
 
       assertThat(actual).isEqualTo(value)
+    }
+
+    @Test
+    def does_not_requote_the_string_even_when_sanitized(): Unit = {
+      val value = "`Test wi`th space`"
+
+      val actual = value.sanitizeSchemaName()
+
+      assertThat(actual).isEqualTo("`Test wi``th space`")
     }
 
     @Test
     def does_not_quote_the_string(): Unit = {
       val value = "Test"
 
-      val actual = value.quote()
+      val actual = value.sanitizeSchemaName()
 
       assertThat(actual).isEqualTo(value)
     }
@@ -102,12 +136,52 @@ class Neo4jImplicitsTest {
     }
 
     @Test
-    def returns_the_attribute_without_the_entity_identifier(): Unit = {
-      val filter = EqualTo("person.address.coords", 32)
+    def detects_the_entity_alias(): Unit = {
+      assertTrue(EqualTo("source.name", "John").hasEntityAlias("source"))
+      assertTrue(EqualTo("`source.name`", "John").hasEntityAlias("source"))
+      assertTrue(EqualTo("`source.table.key`", "John").hasEntityAlias("source"))
+      assertTrue(EqualTo("`rel.since`", 32).hasEntityAlias("rel"))
+    }
 
-      val attribute = filter.getAttributeWithoutEntityName
+    @Test
+    def does_not_detect_an_entity_alias_when_it_is_only_part_of_the_property_name(): Unit = {
+      assertFalse(EqualTo("`mysource.name`", "John").hasEntityAlias("source"))
+      assertFalse(EqualTo("`name.source.x`", "John").hasEntityAlias("source"))
+      assertFalse(EqualTo("source", "John").hasEntityAlias("source"))
+    }
+  }
 
-      assertThat(attribute.get).isEqualTo("address.coords")
+  @Nested
+  class PropertyPaths {
+
+    @Test
+    def splits_a_nested_property_access(): Unit = {
+      assertThat("location.x".propertyPath().asJava).containsExactly("location", "x")
+    }
+
+    @Test
+    def keeps_a_quoted_property_name_as_a_single_segment(): Unit = {
+      assertThat("`table.key`".propertyPath().asJava).containsExactly("table.key")
+      assertThat("`a.b.c`".propertyPath().asJava).containsExactly("a.b.c")
+    }
+
+    @Test
+    def splits_a_nested_access_on_a_quoted_property_name(): Unit = {
+      assertThat("`table.key`.x".propertyPath().asJava).containsExactly("table.key", "x")
+    }
+
+    @Test
+    def removes_the_entity_alias_keeping_the_dots_of_the_property_name(): Unit = {
+      assertThat("`source.table.key`".removeEntityAlias("source")).isEqualTo("table.key")
+      assertThat("`source.a.b.c`".removeEntityAlias("source")).isEqualTo("a.b.c")
+      assertThat("source.name".removeEntityAlias("source")).isEqualTo("name")
+      assertThat("`source.location`.x".removeEntityAlias("source")).isEqualTo("location.x")
+    }
+
+    @Test
+    def leaves_the_property_untouched_when_it_is_not_prefixed_with_the_alias(): Unit = {
+      assertThat("`table.key`".removeEntityAlias("source")).isEqualTo("table.key")
+      assertThat("`mysource.key`".removeEntityAlias("source")).isEqualTo("mysource.key")
     }
   }
 

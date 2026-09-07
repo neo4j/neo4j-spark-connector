@@ -6,12 +6,28 @@ updates:
       interval: "daily"
     cooldown:
       default-days: 3
-  - &maven
-    package-ecosystem: "maven"
+    target-branch: "6.0"
+
+  - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
     cooldown:
       default-days: 3
-  - <<: *maven
+    target-branch: "5.0"
+
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    cooldown:
+      default-days: 3
+    target-branch: "6.0"
+
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    cooldown:
+      default-days: 3
     target-branch: "5.0"

@@ -4,7 +4,7 @@ Since Neo4j is essentially schemaless while Spark DataFrames use a fixed tabular
 
 . If APOC is installed, the connector uses the link:{neo4j-docs-base-uri}/apoc/current/overview/apoc.meta/apoc.meta.nodeTypeProperties/[`apoc.meta.nodeTypeProperties`^] and the link:{neo4j-docs-base-uri}/apoc/current/overview/apoc.meta/apoc.meta.relTypeProperties/[`apoc.meta.relTypeProperties`^] procedures.
 You can xref:performance/tuning.adoc#sampling[tune] both.
-. If APOC is not installed, the connector uses the first _n_ results (defined by the `schema.flatten.limit` option) of an additional Cypher query to infer the schema by the type of each column.
+. If APOC is not installed, the connector uses random _n_ results (defined by the `schema.flatten.limit` option) of an additional Cypher query to infer the schema by the type of each column.
 When using the `query` option, the schema is inferred from the result of the query itself.
 
 Both methods use sampling, which is the default value (`sample`) of the `schema.strategy` option.
@@ -47,14 +47,16 @@ Otherwise, it executes the following Cypher query:
 
 [source, cypher]
 ----
-MATCH (source:<source_labels>)-[rel:<relationship>]->(target:<target_labels>)  <1> <2> <3>
+MATCH (source:<source_labels>) <1>
+MATCH (target:<target_labels>) <2>
+MATCH (source)-[rel:<relationship>]->(target) <3>
 RETURN rel
 ORDER BY rand()
 LIMIT <limit> <4>
 ----
 <1> `<source_labels>` is the list of labels provided by `relationship.source.labels` option.
 <2> `<target_labels>` is the list of labels provided by `relationship.target.labels` option.
-<3> `<relationship>` is the list of labels provided by `relationship` option.
+<3> `<relationship>` is the relationship type provided by `relationship` option.
 <4> `<limit>` is the value provided via `schema.flatten.limit`.
 
 The schema is then inferred from the query result.
@@ -62,13 +64,16 @@ The schema is then inferred from the query result.
 [#query]
 == `query` option
 
-With the `query` option, the connector uses the first _n_ results (defined by the `schema.flatten.limit` option) of the query result to infer the schema.
+With the `query` option, the connector uses random _n_ results (defined by the `schema.flatten.limit` option) of the query result to infer the schema.
 
 For example, if the read query is `MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name`, the connector runs the following query first:
 
 [source, cypher]
 ----
-MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.age as age <1>
+CALL {
+  MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name <1>
+}
+RETURN id, name
 ORDER BY rand()
 LIMIT <limit> <2>
 ----
