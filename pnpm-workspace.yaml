@@ -9,6 +9,3 @@ trustPolicyExclude:
 
 allowBuilds:
   core-js: false
-
-overrides:
-  "danger>undici": "^6.28.0"
