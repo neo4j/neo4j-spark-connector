@@ -186,6 +186,31 @@ class Neo4jImplicitsTest {
   }
 
   @Nested
+  class ParameterNames {
+
+    @Test
+    def are_valid_unquoted_cypher_identifiers(): Unit = {
+      val validUnquoted = "[a-zA-Z_][a-zA-Z0-9_]*"
+
+      assertThat("name".toParameterName("John Doe")).matches(validUnquoted)
+      assertThat("source.name".toParameterName("John Doe")).matches(validUnquoted)
+      assertThat("`table.key`".toParameterName("value")).matches(validUnquoted)
+      assertThat("location.x".toParameterName(0)).matches(validUnquoted)
+      assertThat("fi``(╯°□°)╯︵ ┻━┻eld".toParameterName(null)).matches(validUnquoted)
+    }
+
+    @Test
+    def differ_for_different_values_of_the_same_attribute(): Unit = {
+      assertThat("age".toParameterName(19)).isNotEqualTo("age".toParameterName(22))
+    }
+
+    @Test
+    def are_stable_for_the_same_attribute_and_value(): Unit = {
+      assertThat("`table.key`".toParameterName("value")).isEqualTo("`table.key`".toParameterName("value"))
+    }
+  }
+
+  @Nested
   class MissingFields {
 
     @Test
