@@ -32,8 +32,11 @@ import org.neo4j.spark.cypher.QueryEmbedder
 import org.neo4j.spark.service._
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
+import org.neo4j.spark.util.Neo4jUnknownCommitOutcomeException
 import org.neo4j.spark.util.Neo4jUtil.closeSafely
+import org.neo4j.spark.util.Neo4jUtil.isConnectionFailure
 import org.neo4j.spark.util.Neo4jUtil.isRetryableException
+import org.neo4j.spark.util.UnknownCommitOutcome
 
 import java.io.Closeable
 import java.time.Duration
@@ -41,7 +44,6 @@ import java.util
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.locks.LockSupport
 
-import scala.annotation.tailrec
 import scala.jdk.CollectionConverters.MapHasAsJava
 
 abstract class BaseDataWriter(
@@ -53,6 +55,8 @@ abstract class BaseDataWriter(
   options: Neo4jOptions,
   scriptResult: java.util.List[java.util.Map[String, AnyRef]]
 ) extends Logging with Closeable with DataWriter[InternalRow] {
+
+  import BaseDataWriter._
 
   private val STOPPED_THREAD_EXCEPTION_MESSAGE =
     "Connection to the database terminated. Thread interrupted while committing the transaction"
@@ -90,8 +94,25 @@ abstract class BaseDataWriter(
     }
   }
 
-  @tailrec
   private def writeBatch(): Unit = {
+    var retry = true
+    while (retry) {
+      retry = false
+      try {
+        attemptBatch()
+      } catch {
+        case failure: BatchAttemptFailure => retry = handleFailure(failure)
+      }
+    }
+  }
+
+  /**
+   * Runs the batch once, tracking how far it got so that a failure can be interpreted. Any failure is wrapped in a
+   * [[BatchAttemptFailure]] carrying that phase, which is what makes the difference between "the server never
+   * applied this" and "the server may have applied this" visible to the caller.
+   */
+  private def attemptBatch(): Unit = {
+    var phase: CommitPhase = BeforeCommit
     try {
       if (session == null || !session.isOpen) {
         session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
@@ -127,12 +148,12 @@ abstract class BaseDataWriter(
              |""".stripMargin
         )
       }
-      transaction.commit()
 
-      if (skipped > 0) {
-        log.info(s"Skipped $skipped rows that contained null values in one of their key property values.")
-        skipped = 0
-      }
+      phase = Committing
+      transaction.commit()
+      phase = Committed
+
+      logSkipped()
 
       // update metrics
       metrics.applyCounters(batch.size(), counters)
@@ -140,24 +161,90 @@ abstract class BaseDataWriter(
       closeSafely(transaction)
       batch.clear()
     } catch {
-      case e: Throwable =>
-        if (options.transactionSettings.shouldFailOn(e)) {
-          log.error("unable to write batch due to explicitly configured failure condition", e)
-          throw e
-        }
+      case e: Throwable => throw new BatchAttemptFailure(phase, e)
+    }
+  }
 
-        if (isRetryableException(e) && retries.getCount > 0) {
-          retries.countDown()
-          log.info(
-            s"encountered a transient exception while writing batch, retrying ${options.transactionSettings.retries - retries.getCount} time",
-            e
-          )
-          close()
-          LockSupport.parkNanos(Duration.ofMillis(options.transactionSettings.retryTimeout).toNanos)
-          writeBatch()
-        } else {
-          logAndThrowException(e)
-        }
+  /**
+   * @return `true` if the batch should be attempted again, `false` if it is done. Throws if the task must fail.
+   */
+  private def handleFailure(failure: BatchAttemptFailure): Boolean = {
+    val e = failure.cause
+
+    if (failure.phase == Committed) {
+      // The commit returned normally, so the batch is in the database whatever failed afterwards. Drop it rather
+      // than let a later attempt replay work that has already been applied.
+      batch.clear()
+      logAndThrowException(e)
+    }
+
+    if (options.transactionSettings.shouldFailOn(e)) {
+      log.error("unable to write batch due to explicitly configured failure condition", e)
+      throw e
+    }
+
+    // A streaming query being torn down interrupts the commit thread, which technically leaves the outcome unknown
+    // too. Spark replays the epoch either way, so there is nothing for the policy below to add here.
+    if (failure.phase == Committing && isConnectionFailure(e) && !isStoppedThread(e)) {
+      handleUnknownCommitOutcome(e)
+    } else {
+      retryOrThrow(e)
+    }
+  }
+
+  private def isStoppedThread(e: Throwable): Boolean =
+    e.isInstanceOf[ServiceUnavailableException] && e.getMessage == STOPPED_THREAD_EXCEPTION_MESSAGE
+
+  private def retryOrThrow(e: Throwable): Boolean = {
+    if (isRetryableException(e) && retries.getCount > 0) {
+      retries.countDown()
+      log.info(
+        s"encountered a transient exception while writing batch, retrying ${options.transactionSettings.retries - retries.getCount} time",
+        e
+      )
+      close()
+      LockSupport.parkNanos(Duration.ofMillis(options.transactionSettings.retryTimeout).toNanos)
+      true
+    } else {
+      logAndThrowException(e)
+    }
+  }
+
+  /**
+   * The connection dropped while the answer to `COMMIT` was in flight, so the server may or may not have applied
+   * the batch. Which of the two bad options to take is the user's call.
+   */
+  private def handleUnknownCommitOutcome(e: Throwable): Boolean = {
+    val context =
+      s"the outcome of the commit of a batch of ${batch.size()} elements is unknown " +
+        s"(jobId=$jobId, partitionId=$partitionId): the connection dropped before the server answered"
+
+    options.transactionSettings.unknownCommitOutcome match {
+      case UnknownCommitOutcome.RETRY =>
+        logWarning(
+          s"$context. Replaying the batch as configured by " +
+            s"'${Neo4jOptions.TRANSACTION_COMMIT_UNKNOWN_OUTCOME}=${UnknownCommitOutcome.RETRY}'. If the commit had " +
+            s"in fact been applied and this write is not idempotent, the batch is now duplicated. Use " +
+            s"'${Neo4jOptions.TRANSACTION_COMMIT_UNKNOWN_OUTCOME}=${UnknownCommitOutcome.FAIL}' to have the task " +
+            s"fail instead of replaying it.",
+          e
+        )
+        retryOrThrow(e)
+
+      case UnknownCommitOutcome.FAIL =>
+        close()
+        throw new Neo4jUnknownCommitOutcomeException(
+          s"$context. Failing the task without replaying the batch, as configured by " +
+            s"'${Neo4jOptions.TRANSACTION_COMMIT_UNKNOWN_OUTCOME}=${UnknownCommitOutcome.FAIL}'.",
+          e
+        )
+    }
+  }
+
+  private def logSkipped(): Unit = {
+    if (skipped > 0) {
+      log.info(s"Skipped $skipped rows that contained null values in one of their key property values.")
+      skipped = 0
     }
   }
 
@@ -166,8 +253,8 @@ abstract class BaseDataWriter(
    * exception that is thrown when the streaming query is interrupted, we don't want to cause
    * any error in this case. The transaction are rolled back automatically.
    */
-  private def logAndThrowException(e: Throwable): Unit = {
-    if (e.isInstanceOf[ServiceUnavailableException] && e.getMessage == STOPPED_THREAD_EXCEPTION_MESSAGE) {
+  private def logAndThrowException(e: Throwable): Nothing = {
+    if (isStoppedThread(e)) {
       logWarning(e.getMessage)
     } else {
       logError("unable to write batch", e)
@@ -199,4 +286,23 @@ abstract class BaseDataWriter(
   }
 
   override def currentMetricsValues(): Array[CustomTaskMetric] = metrics.metricValues()
+}
+
+private[spark] object BaseDataWriter {
+
+  /**
+   * How far an attempt at writing a batch got before it failed.
+   */
+  sealed private trait CommitPhase
+
+  /** The transaction had not been asked to commit, so the server cannot have applied it. */
+  private case object BeforeCommit extends CommitPhase
+
+  /** `COMMIT` had been sent but not answered, so whether the server applied it is unknown. */
+  private case object Committing extends CommitPhase
+
+  /** `COMMIT` was answered successfully, so the server definitely applied it. */
+  private case object Committed extends CommitPhase
+
+  private class BatchAttemptFailure(val phase: CommitPhase, val cause: Throwable) extends RuntimeException(cause)
 }
