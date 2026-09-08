@@ -43,7 +43,7 @@ label:feature[]
 Control what happens when a commit outcome is unknown
 | When the connection drops while a commit is in flight, the server may or may not have applied the transaction, and earlier versions always replayed the batch, silently duplicating it for non-idempotent writes.
 The new `transaction.commit.unknown.outcome` option makes that a choice between `RETRY` (the previous behavior, now also logging a warning) and `FAIL`.
-See xref:write/transactions.adoc[Transactions, retries, and partial failures].
+See xref:write/transactions.adoc#unknown-commit-outcome[Transactions, retries, and partial failures].
 
 a|
 label:new[]
