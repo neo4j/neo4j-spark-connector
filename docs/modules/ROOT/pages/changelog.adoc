@@ -3,6 +3,73 @@
 
 This page mirrors the link:https://github.com/neo4j/neo4j-spark-connector/releases[GitHub releases^] of the Neo4j Connector for Apache Spark, listing headline features, fixes, and breaking changes for every minor and patch release of the 6.x line.
 
+[#_6_1_0]
+== Version 6.1.0 (TBC)
+
+[cols="1,2",options="header"]
+|===
+| Feature | Details
+
+a|
+label:new[]
+label:feature[]
+
+Control what happens when a commit outcome is unknown
+| When the connection drops while a commit is in flight, the server may or may not have applied the transaction, and earlier versions always replayed the batch, silently duplicating it for non-idempotent writes.
+The new `transaction.commit.unknown.outcome` option makes that a choice between `RETRY` (the previous behavior, now also logging a warning) and `FAIL`.
+See xref:write/transactions.adoc#unknown-commit-outcome[].
+
+a|
+label:bug[]
+label:fixed[]
+
+Stream reader no longer applies create optimizations
+| Schema optimizations meant for writes are no longer run by the streaming reader.
+
+a|
+label:bug[]
+label:fixed[]
+
+Schema names are sanitized with the Cypher DSL
+| Replaces the connector's own quoting function, fixing labels and property names that need escaping.
+
+a|
+label:bug[]
+label:fixed[]
+
+Labels containing spaces no longer cause a slowdown
+| Such labels are quoted correctly, so reads and writes against them no longer degenerate into scans.
+
+a|
+label:bug[]
+label:fixed[]
+
+Property names containing dots are no longer ambiguous with alias separators
+| A backtick-quoted property path such as `` `my.property` `` is no longer split on its dots.
+
+a|
+label:bug[]
+label:fixed[]
+
+No more `NullPointerException` when computing the latest offset
+| Affected streaming reads.
+
+a|
+label:bug[]
+label:fixed[]
+
+Fix: `alwaysTrue` and `alwaysFalse` predicates are handled
+| These are now pushed down correctly instead of raising an error.
+
+a|
+label:bug[]
+label:fixed[]
+
+Removed the skip/limit validation
+| It rejected valid partitioned reads.
+
+|===
+
 [#_6_0_0]
 == Version 6.0.0 (24 July 2026)
 

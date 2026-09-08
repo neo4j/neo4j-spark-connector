@@ -28,7 +28,7 @@ For more details on compatibility, see xref:compatibility.adoc[].
 |===
 |Connector |Neo4j |Spark |Databricks
 
-|6.0
+|6.0 / 6.1
 |5.x, 2025.x, 2026.x
 |4.0, 4.1
 |17.3 LTS

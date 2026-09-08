@@ -57,6 +57,7 @@ Never treat a failed write as a no-op.
 Before rerunning a failed job, either make the write idempotent (see <<merge-safety>>) or clean up what the previous attempt committed, otherwise the retry duplicates the rows that had already landed.
 ====
 
+[#spark-task-retries]
 === Spark task retries
 
 Spark's own fault tolerance assumes tasks can be replayed safely, which does not hold for a non-transactional sink.
@@ -64,15 +65,22 @@ If a task fails with an exception, Spark may retry the whole task, which re-runs
 With `SaveMode.Append`, which generates `CREATE`, every replayed row becomes a duplicate.
 
 To make a task retry harmless, use `SaveMode.Overwrite` with keys and a supporting constraint, so replaying a row updates it instead of creating a second copy.
+Set `spark.task.maxFailures=1` if you would rather a task failure stopped the job than had Spark replay the partition.
+
+[NOTE]
+====
+This is a different problem from the one `transaction.commit.unknown.outcome` addresses, and none of that option's values solve it.
+Task retries replay a partition that the connector knows it did not finish; <<unknown-commit-outcome>> is about a single batch whose fate the connector cannot determine.
+====
 
 === Streaming writes
 
-Structured Streaming writes use the same per-batch commit model and the connector's epoch commit is a no-op, so streaming gives you the same at-least-once behavior described above. A failed and restarted epoch can rewrite rows it had already committed.
+Structured Streaming writes use the same per-batch commit model and the connector's epoch commit does no bookkeeping, so streaming gives you the same at-least-once behavior described above. A failed and restarted epoch can rewrite rows it had already committed.
 
 [#retries]
 == Retry behavior
 
-Each task retries a failed batch itself before giving up, controlled by two of the xref:write/options.adoc[write options]:
+Each task retries a failed batch itself before giving up, controlled by these xref:write/options.adoc[write options]:
 
 .Retry options
 [cols="1,3,1"]
@@ -87,12 +95,21 @@ Each task retries a failed batch itself before giving up, controlled by two of t
 |Milliseconds to wait before each retry.
 |`0`
 
+|`transaction.commit.unknown.outcome`
+|What to do when a commit fails without revealing whether it was applied. See <<unknown-commit-outcome>>.
+|`RETRY`
+
 |===
 
 The logic applied to an exception is, in order:
 
+. If the batch had already committed and the failure came from something the task did afterwards, the batch is dropped rather than replayed, and the task fails.
+. If the exception matches `transaction.codes.fail`, it is rethrown and the task fails.
+. If the exception is a lost connection raised *while a commit was in flight*, `transaction.commit.unknown.outcome` decides what happens. See <<unknown-commit-outcome>>.
 . If the exception is retryable and the task's retry budget is not exhausted, the task closes its transaction and session, waits `transaction.retry.timeout`, and re-runs *the current batch only*.
 . Otherwise the exception is rethrown and the task fails.
+
+A failure raised before the commit was sent — while opening the session, running the query, or streaming its results — is always safe to retry: the server never applied the transaction, and it rolls it back when the connection goes away.
 
 An exception is retryable when it, or anything in its cause chain, is one the Neo4j driver marks as retryable. In practice these are:
 
@@ -108,15 +125,35 @@ A task set to 3 retries that spends all three on its first batch has no retries 
 Increase the value for large partitions on a busy cluster.
 ====
 
+[#unknown-commit-outcome]
 === Retries can duplicate data
 
 A retry re-runs the batch, which is only safe if the batch had not already been applied. That is not always knowable.
 
 If a connection is lost while a commit is in flight, the outcome is *indeterminate*: the server may have committed the transaction and been unable to tell the client.
-The driver raises `ServiceUnavailableException`, the connector classifies it as retryable, and the batch is written again.
+The driver raises `ServiceUnavailableException`, or `SessionExpiredException` on a routed (`neo4j://`) connection, and there is no way to ask the server afterwards which of the two happened.
 This is the mechanism behind duplicates that appear after `ExclusiveLock` and connection errors in the logs, even though the job reports the batch as failed and retried.
 
-Which outcomes are possible depends on how the write is expressed:
+`transaction.commit.unknown.outcome` chooses what the task does with that:
+
+[cols="1,3"]
+|===
+|Value |Behavior
+
+|`RETRY`
+|Replay the batch. Never fails the job for this reason, duplicates the batch whenever the lost commit had in fact been applied and the write is not idempotent. This is the default and the behavior of every earlier version.
+
+|`FAIL`
+|Fail the task with a `Neo4jUnknownCommitOutcomeException` without replaying the batch.
+|===
+
+[WARNING]
+====
+`FAIL` stops the task from replaying the batch, but it does not stop *Spark* from replaying the whole partition — see <<spark-task-retries>>.
+Use it together with `spark.task.maxFailures=1`, or the duplicate you avoided inside the task comes back as a task retry.
+====
+
+Whether any of this matters depends on how the write is expressed:
 
 [cols="1,2"]
 |===
@@ -126,14 +163,19 @@ Which outcomes are possible depends on how the write is expressed:
 |Duplicate nodes or relationships, always. `CREATE` has no notion of an existing row.
 
 |`SaveMode.Overwrite` (`MERGE`) with a uniqueness or key constraint on the keys
-|Safe. The retry matches what the first attempt wrote and updates it.
+|Safe. The retry matches what the first attempt wrote and updates it. The connector writes properties with `SET x += event.properties`, an absolute assignment, so replaying one cannot double-count.
 
 |`SaveMode.Overwrite` (`MERGE`) without a constraint on the keys
 |Duplicates are possible, because `MERGE` may not see a concurrently written node. See <<merge-safety>>.
 
+|`relationship.source.save.mode` or `relationship.target.save.mode` set to `Append`
+|Duplicate endpoint nodes, even under `SaveMode.Overwrite`. These options are independent of the save mode and render `CREATE` for the endpoint. The default, `Match`, is safe.
+
 |`query` option
-|Depends entirely on your query. Only an idempotent query survives a retry.
+|Depends entirely on your query; `SaveMode` is not involved. Only an idempotent query survives a retry, which rules out `CREATE`, accumulations such as `SET n.total = n.total + event.amount`, and list appends.
 |===
+
+If your write falls in a safe row, leave `transaction.commit.unknown.outcome` at `RETRY`: a replay is harmless. If it does not, the only way to make a replay safe is to express the write as a `MERGE` on constrained keys; failing that, `FAIL` at least turns a silent duplicate into a visible failure.
 
 [#merge-safety]
 == MERGE safety under parallelism
@@ -205,6 +247,7 @@ Putting the above together, a large import that tolerates failure and retry look
 . Use `SaveMode.Overwrite` with keys rather than `Append`, so a replayed batch or task updates instead of duplicating.
 . Size `batch.size` to the server's heap, and remember it also bounds how much work a single failure can lose.
 . Raise `transaction.retries` and set a non-zero `transaction.retry.timeout` for long partitions, so a leader switch or a burst of lock contention does not fail the job.
+. If step 4 is not available to you — an append-only model, a multi-edge model, or a `query` write that cannot be made idempotent — decide what a lost commit response should do, since replaying it duplicates the batch. See <<unknown-commit-outcome>>.
 
 [source, scala]
 ----
