@@ -184,7 +184,7 @@
         </dependency>
         <dependency>
             <groupId>org.neo4j.connectors</groupId>
-            <artifactId>commons-authn-spi</artifactId>
+            <artifactId>commons-driver-auth-spi</artifactId>
             <version>${connectors-commons.version}</version>
         </dependency>
         <dependency>
@@ -229,7 +229,7 @@
         </dependency>
         <dependency>
             <groupId>org.neo4j.connectors</groupId>
-            <artifactId>commons-authn-provided</artifactId>
+            <artifactId>commons-driver-auth-provided</artifactId>
             <version>${connectors-commons.version}</version>
             <scope>runtime</scope>
         </dependency>
