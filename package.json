@@ -1,10 +1,10 @@
 {
   "devDependencies": {
-    "@commitlint/cli": "^21.2.1",
-    "@commitlint/config-conventional": "^21.2.0",
-    "@commitlint/lint": "^21.2.0",
-    "@commitlint/load": "^21.2.0",
-    "danger": "^13.0.10",
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@commitlint/lint": "^21.2.2",
+    "@commitlint/load": "^21.2.2",
+    "danger": "^14.0.7",
     "husky": "^9.1.7"
   },
   "scripts": {
@@ -13,5 +13,5 @@
   "dependencies": {
     "spark": "link:"
   },
-  "packageManager": "pnpm@11.25.0"
+  "packageManager": "pnpm@12.3.4"
 }
