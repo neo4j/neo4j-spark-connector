@@ -155,7 +155,7 @@ object Neo4jUtil {
   def paramsFromFilters(filters: Array[Filter]): Map[String, Any] = {
     filters.flatMap(f => f.flattenFilters).map(_.getAttributeAndValue)
       .filter(_.nonEmpty)
-      .map(valAndAtt => valAndAtt.head.toString.unquote() -> toParamValue(valAndAtt(1)))
+      .map(valAndAtt => valAndAtt.head.toString -> toParamValue(valAndAtt(1)))
       .toMap
   }
 

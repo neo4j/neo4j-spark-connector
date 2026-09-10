@@ -39,7 +39,7 @@ cp pom.xml pom.xml.bak
 ./mvnw -B versions:set -DnewVersion=${RELEASE_VERSION} -DgenerateBackupPoms=false
 
 # build
-./mvnw -B clean "${GOAL}" -Dscala-"${SCALA_VERSION}" -DskipTests ${ALT_DEPLOYMENT_REPOSITORY}
+./mvnw -B clean "${GOAL}" -Dscala-"${SCALA_VERSION}" -DskipTests -DskipITs ${ALT_DEPLOYMENT_REPOSITORY}
 
 if [ ! ${CI:-false} = true ]; then
   exit_script

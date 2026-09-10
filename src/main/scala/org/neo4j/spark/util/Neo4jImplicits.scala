@@ -39,6 +39,9 @@ import org.neo4j.spark.converter.CypherToSparkTypeConverter
 import org.neo4j.spark.converter.SparkToNeo4jDataConverter
 import org.neo4j.spark.service.SchemaService
 
+import java.nio.charset.StandardCharsets
+import java.util.HexFormat
+
 import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.jdk.CollectionConverters.MapHasAsScala
 import scala.jdk.CollectionConverters.SeqHasAsJava
@@ -52,6 +55,17 @@ object Neo4jImplicits {
   private val PATH_SEGMENT = """`([^`]*)`|([^.`]+)""".r
 
   private val BACKTICK = "`"
+
+  /**
+   * Everything that cannot appear in an unquoted Cypher identifier.
+   */
+  private val NON_IDENTIFIER_CHARS = """[^a-zA-Z0-9_]""".r
+
+  /**
+   * Generated parameter names start with this, so that the hex encoded value cannot make the name
+   * start with a digit.
+   */
+  private val PARAMETER_NAME_PREFIX = "p"
 
   implicit class CypherImplicits(str: String) {
 
@@ -111,7 +125,17 @@ object Neo4jImplicits {
     /**
      * df: we need this to handle scenarios like `WHERE age > 19 and age < 22`,
      * so we can't basically add a parameter named \$age.
-     * So we base64 encode the value to ensure a unique parameter name
+     * So we encode the value to ensure a unique parameter name
+     *
+     * The name must be a valid, unquoted Cypher identifier: cypher-dsl escapes parameter names on
+     * its own, so a pre-escaped name would be escaped twice, and a name containing a dot would be
+     * rendered as a namespaced one. Neither would match the name the value is bound to.
+     *
+     * The value is hex encoded, so that the encoding never contains the `_` separator and two
+     * different values always end up with two different parameter names. The attribute is only
+     * carried along for readability, hence the plain replacement of the characters that cannot
+     * appear in an identifier: two attributes can only collide once the encoded values are equal,
+     * and then the parameter holds the very same value anyway.
      */
     def toParameterName(value: Any): String = {
       val attributeValue = if (value == null) {
@@ -120,9 +144,10 @@ object Neo4jImplicits {
         value.toString
       }
 
-      val base64ed = java.util.Base64.getEncoder.encodeToString(attributeValue.getBytes())
+      val encodedValue = HexFormat.of().formatHex(attributeValue.getBytes(StandardCharsets.UTF_8))
+      val readableAttribute = NON_IDENTIFIER_CHARS.replaceAllIn(str.unquote(), "_")
 
-      s"${base64ed}_${str.unquote()}".sanitizeSchemaName()
+      s"$PARAMETER_NAME_PREFIX${encodedValue}_$readableAttribute"
     }
   }
 
