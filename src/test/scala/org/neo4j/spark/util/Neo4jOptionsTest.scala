@@ -220,6 +220,36 @@ class Neo4jOptionsTest {
   }
 
   @Test
+  def defaults_unknown_commit_outcome_to_retry(): Unit = {
+    val neo4jOptions = new Neo4jOptions(Map(Neo4jOptions.URL -> "neo4j://localhost"))
+
+    assertThat(neo4jOptions.transactionSettings.unknownCommitOutcome).isEqualTo(UnknownCommitOutcome.RETRY)
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = Array("FAIL", "fail", "Fail"))
+  def parses_unknown_commit_outcome_case_insensitively(value: String): Unit = {
+    val neo4jOptions = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "neo4j://localhost",
+      Neo4jOptions.TRANSACTION_COMMIT_UNKNOWN_OUTCOME -> value
+    ))
+
+    assertThat(neo4jOptions.transactionSettings.unknownCommitOutcome).isEqualTo(UnknownCommitOutcome.FAIL)
+  }
+
+  @Test
+  def rejects_an_unknown_commit_outcome_policy(): Unit = {
+    assertThatExceptionOfType(classOf[NoSuchElementException])
+      .isThrownBy(() =>
+        new Neo4jOptions(Map(
+          Neo4jOptions.URL -> "neo4j://localhost",
+          Neo4jOptions.TRANSACTION_COMMIT_UNKNOWN_OUTCOME -> "sometimes"
+        )).transactionSettings
+      )
+      .withMessage("No value found for 'sometimes'")
+  }
+
+  @Test
   def supports_transaction_timeout(): Unit = {
     val neo4jOptions = new Neo4jOptions(Map(
       Neo4jOptions.URL -> "neo4j://localhost,neo4j://foo.bar,neo4j://foo.bar.baz:7783",
