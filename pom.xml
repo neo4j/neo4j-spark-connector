@@ -36,7 +36,7 @@
         <caniuse.version>1.4.1</caniuse.version>
         <commons-compress.version>1.28.0</commons-compress.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
-        <connectors-commons.version>1.0.0-SNAPSHOT</connectors-commons.version>
+        <connectors-commons.version>1.0.0-rc3</connectors-commons.version>
         <cypherdsl.version>2025.3.2</cypherdsl.version>
         <driver.version>6.2.1</driver.version>
         <java.version>17</java.version>
