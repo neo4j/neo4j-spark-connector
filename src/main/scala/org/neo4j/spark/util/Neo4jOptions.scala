@@ -20,7 +20,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.jetbrains.annotations.TestOnly
-import org.neo4j.connectors.authn._
+import org.neo4j.connectors.driver.auth.AuthConfig
+import org.neo4j.connectors.driver.auth.AuthTokenManagerRegistry
 import org.neo4j.driver.Config.TrustStrategy
 import org.neo4j.driver._
 import org.neo4j.driver.exceptions.Neo4jException
@@ -32,13 +33,11 @@ import java.net.URI
 import java.time.Duration
 import java.util
 import java.util.Locale
-import java.util.ServiceLoader
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.TimeUnit
 
-import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.jdk.CollectionConverters.MapHasAsScala
 import scala.jdk.CollectionConverters.SetHasAsJava
@@ -573,71 +572,11 @@ case class Neo4jDriverOptions(
     if (auth == null || auth.isEmpty) {
       throw new IllegalArgumentException(s"Authentication type name is required")
     }
-    val token = createAuthTokenSupplier
-    val name = token.getName
+
     val username = authParameters.get("username")
     val password = authParameters.get("password")
-    val supplier = token.create(username.orNull, password.orNull, authParameters.asJava)
-
-    name match {
-      case "basic" =>
-        val token = supplier.get().asInstanceOf[UserNameAndPasswordAuthenticationToken]
-        new StaticAuthTokenManager(AuthTokens.basic(token.getUsername, token.getPassword))
-      case "bearer" | "keycloak" =>
-        AuthTokenManagers.bearer(() => {
-          val token = supplier.get().asInstanceOf[BearerAuthenticationToken]
-          val authToken = AuthTokens.bearer(token.getToken)
-          val exp = token.getExpiresAt
-          if (exp == null) {
-            authToken.expiringAt(Long.MaxValue)
-          } else {
-            authToken.expiringAt(exp.toEpochMilli)
-          }
-        })
-      case "custom" =>
-        val token = supplier.get().asInstanceOf[CustomAuthenticationToken]
-        new StaticAuthTokenManager(AuthTokens.custom(
-          token.getPrincipal,
-          token.getCredentials,
-          token.getRealm,
-          token.getScheme,
-          token.getParameters
-        ))
-      case "kerberos" =>
-        AuthTokenManagers.basic(() => {
-          val token = supplier.get().asInstanceOf[KerberosAuthenticationToken]
-          AuthTokens.kerberos(token.getToken)
-        })
-      case "none" =>
-        new StaticAuthTokenManager(AuthTokens.none())
-    }
-  }
-
-  private def createAuthTokenSupplier: AuthenticationTokenSupplierFactory = {
-    if (auth == null || auth.isEmpty) {
-      throw new IllegalArgumentException(s"Authentication type name is required")
-    }
-    val supplierFactories = ServiceLoader.load(
-      classOf[AuthenticationTokenSupplierFactory],
-      getClass.getClassLoader
-    ).iterator()
-      .asScala
-      .toList
-
-    val filteredSupplierFactories = supplierFactories.filter(s => s.getName != null && s.getName.equalsIgnoreCase(auth))
-
-    if (filteredSupplierFactories.isEmpty) {
-      throw new IllegalArgumentException(
-        s"Authentication method '$auth' is not supported. Supported authentication methods are: ${supplierFactories.map(_.getName).mkString(", ")}"
-      )
-    }
-    if (filteredSupplierFactories.size > 1) {
-      throw new IllegalArgumentException(
-        s"Multiple implementation for authentication type '$auth' are found"
-      )
-    }
-
-    filteredSupplierFactories.head
+    val authConfig = AuthConfig.of(username.orNull, password.orNull, authParameters.asJava)
+    AuthTokenManagerRegistry.usingDefaultClassLoader().create(auth, authConfig)
   }
 
 }
