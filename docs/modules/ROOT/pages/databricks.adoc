@@ -5,29 +5,67 @@ include::partial$third-party.adoc[]
 == Prerequisites
 
 * A Databricks workspace must be available on an URL like `\https://dbc-xxxxxxxx-yyyy.cloud.databricks.com`.
+* A Databricks Runtime compatible with your connector version.
+See the link:https://neo4j.com/docs/spark/current/#_compatibility[connector compatibility table], which lists only LTS runtimes.
 
 == Set up a compute cluster
 
-. Create a compute cluster with `Single user` access mode, `Unrestricted` policy, and your preferred Scala runtime.
+. Create a compute cluster with `Dedicated` access mode, `Unrestricted` policy, and your preferred Scala runtime.
 +
 [CAUTION]
 ====
-Shared access modes are not currently supported.
+The `Dedicated` access mode is required.
+The `Standard` and other shared access modes are not supported.
+See <<limitations>>.
 ====
 . Once the cluster is available, open its page and select the *Libraries* tab.
 . Select *Install new* and choose *Maven* as the library source.
-. Select *Search Packages* and search for either `neo4j-spark-connector` from the `neo4j` organization (Spark Packages) or `neo4j-connector-apache-spark` (Maven Central) from the `org.neo4j` group ID, then *Select* the most recent release.
+. In the *Coordinate* field, enter `org.neo4j.connectors:spark:{exact-connector-version}-s_{scala-version}`.
 +
 [NOTE]
 ====
-Make sure to select the correct version of the connector by matching the Scala version to the cluster's runtime.
+Do not use *Search Packages*, as the connector has not been published to Spark Packages since version 5.4.0.
+The Scala suffix of the coordinate must match the Scala version of the cluster runtime.
 ====
 
 . Select *Install*.
 
+=== Installation methods
+
+The Maven coordinate is the default and covers most workspaces.
+It requires the cluster, or its Maven proxy, to reach Maven Central at startup, and with Unity Catalog the coordinate may need to be allowlisted.
+
+When a cluster policy blocks Maven resolution, or the workspace has no outbound network access, install a downloaded JAR as a cluster library instead.
+Store it in a Unity Catalog volume or in cloud object storage, as JARs kept in workspace files cannot be used with the `Dedicated` access mode.
+See xref:installation.adoc[] for where to download the JAR.
+
+[NOTE]
+====
+The downloadable JAR bundles its dependencies, including the Neo4j Java Driver, which the Maven coordinate resolves transitively instead.
+Install one or the other, never both, and never alongside a standalone `neo4j-java-driver` library.
+====
+
+Cluster libraries are installed after the driver and executor JVMs start.
+An init script is the only option when the connector must be on the classpath before Spark initializes, for example when a Spark configuration set at cluster startup references connector classes.
+The script must live in a Unity Catalog volume or in cloud object storage.
+
+.Example init script stored in a Unity Catalog volume
+[source, shell, subs="attributes+"]
+----
+#!/bin/bash
+cp /Volumes/<catalog>/<schema>/<volume>/neo4j-spark-connector-{exact-connector-version}-s_{scala-version}.jar /databricks/jars/
+----
+
+[CAUTION]
+====
+Use a cluster library unless you have that specific requirement.
+JARs placed in `/databricks/jars/` join the runtime classpath and can shadow the JARs shipped with Databricks Runtime.
+Copy the connector JAR only, never its Spark or Scala dependencies.
+====
+
 === Unity Catalog
 
-Neo4j supports the Unity Catalog in `Single user` access mode only.
+Neo4j supports the Unity Catalog in `Dedicated` access mode only.
 Refer to the link:https://docs.databricks.com/en/compute/access-mode-limitations.html[Databricks documentation] for further information.
 
 == Session configuration
@@ -208,3 +246,13 @@ df = (
 # Write the DataFrame to another Delta table
 df.write.saveAsTable("customers_status_example")
 ----
+
+[#limitations]
+== Limitations
+
+The connector runs on Databricks classic compute with the `Dedicated` access mode only.
+This means the connector does not support serverless compute, for either notebooks or jobs.
+The `Standard` and no-isolation-shared access modes and legacy High Concurrency clusters are not supported either.
+Databricks sets `spark.databricks.cluster.profile` from the cluster type: unset or `singleNode` are supported, while `serverless` selects a legacy High Concurrency cluster and, despite its name, has nothing to do with serverless compute.
+
+For limitations that are not specific to Databricks, see xref:known-issues.adoc[].
