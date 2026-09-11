@@ -235,7 +235,11 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
       .toSet
     val batchSize = getParameter(BATCH_SIZE, DEFAULT_BATCH_SIZE.toString).toInt
     val retryTimeout = getParameter(TRANSACTION_RETRY_TIMEOUT, DEFAULT_TRANSACTION_RETRY_TIMEOUT.toString).toInt
-    Neo4jTransactionSettings(retries, failOnTransactionCodes, batchSize, retryTimeout)
+    val unknownCommitOutcome = UnknownCommitOutcome.withCaseInsensitiveName(getParameter(
+      TRANSACTION_COMMIT_UNKNOWN_OUTCOME,
+      DEFAULT_TRANSACTION_COMMIT_UNKNOWN_OUTCOME.toString
+    ))
+    Neo4jTransactionSettings(retries, failOnTransactionCodes, batchSize, retryTimeout, unknownCommitOutcome)
   }
 
   val relationshipMetadata: Neo4jRelationshipMetadata = initNeo4jRelationshipMetadata()
@@ -439,7 +443,8 @@ case class Neo4jTransactionSettings(
   retries: Int,
   failOnTransactionCodes: Set[String],
   batchSize: Int,
-  retryTimeout: Long
+  retryTimeout: Long,
+  unknownCommitOutcome: UnknownCommitOutcome.Value = Neo4jOptions.DEFAULT_TRANSACTION_COMMIT_UNKNOWN_OUTCOME
 ) {
 
   def shouldFailOn(exception: Throwable): Boolean = {
@@ -732,6 +737,7 @@ object Neo4jOptions {
   val TRANSACTION_RETRIES = "transaction.retries"
   val TRANSACTION_RETRY_TIMEOUT = "transaction.retry.timeout"
   val TRANSACTION_CODES_FAIL = "transaction.codes.fail"
+  val TRANSACTION_COMMIT_UNKNOWN_OUTCOME = "transaction.commit.unknown.outcome"
 
   // Transaction metadata
   private val TX_METADATA_OPTION_PREFIX = "db.transaction.metadata."
@@ -765,6 +771,7 @@ object Neo4jOptions {
   val DEFAULT_BATCH_SIZE = 5000
   val DEFAULT_TRANSACTION_RETRIES = 3
   val DEFAULT_TRANSACTION_RETRY_TIMEOUT = 0
+  val DEFAULT_TRANSACTION_COMMIT_UNKNOWN_OUTCOME: UnknownCommitOutcome.Value = UnknownCommitOutcome.RETRY
   val DEFAULT_TRANSACTION_TIMEOUT = null
   val DEFAULT_RELATIONSHIP_NODES_MAP = false
   val DEFAULT_SCHEMA_STRATEGY = SchemaStrategy.SAMPLE
@@ -864,4 +871,17 @@ object ConstraintsOptimizationType extends CaseInsensitiveEnumeration {
 
 object SchemaConstraintsOptimizationType extends CaseInsensitiveEnumeration {
   val TYPE, EXISTS, NONE = Value
+}
+
+/**
+ * What a task does when a transaction commit fails in a way that leaves the outcome unknown, i.e. when the
+ * connection to the server drops while the connector is waiting for the answer to a `COMMIT` message. The server
+ * may or may not have applied the transaction, and there is no way to ask it afterwards.
+ *
+ *   - `RETRY` replays the batch. This is the historical behaviour: it never fails the job for this reason, but it
+ *     duplicates the batch whenever the lost commit had in fact been applied and the write is not idempotent.
+ *   - `FAIL` fails the task with a [[Neo4jUnknownCommitOutcomeException]] without replaying the batch.
+ */
+object UnknownCommitOutcome extends CaseInsensitiveEnumeration {
+  val RETRY, FAIL = Value
 }

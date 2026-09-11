@@ -27,6 +27,8 @@ import org.neo4j.cypherdsl.core._
 import org.neo4j.driver.Session
 import org.neo4j.driver.Transaction
 import org.neo4j.driver.exceptions.RetryableException
+import org.neo4j.driver.exceptions.ServiceUnavailableException
+import org.neo4j.driver.exceptions.SessionExpiredException
 import org.neo4j.driver.types.Entity
 import org.neo4j.driver.types.Path
 import org.neo4j.spark.service.SchemaService
@@ -153,7 +155,7 @@ object Neo4jUtil {
   def paramsFromFilters(filters: Array[Filter]): Map[String, Any] = {
     filters.flatMap(f => f.flattenFilters).map(_.getAttributeAndValue)
       .filter(_.nonEmpty)
-      .map(valAndAtt => valAndAtt.head.toString.unquote() -> toParamValue(valAndAtt(1)))
+      .map(valAndAtt => valAndAtt.head.toString -> toParamValue(valAndAtt(1)))
       .toMap
   }
 
@@ -253,6 +255,29 @@ object Neo4jUtil {
       exception.isInstanceOf[RetryableException] || isRetryableException(
         exception.getCause
       )
+  }
+
+  /**
+   * Whether the exception reports a lost connection rather than an answer from the server.
+   *
+   * This is the distinction that matters for a failed `COMMIT`: a server that answers `COMMIT` with a failure has
+   * definitely not applied the transaction, while a connection that dies while the answer is in flight leaves the
+   * outcome unknown.
+   *
+   * `ConnectionReadTimeoutException` extends `ServiceUnavailableException` and is therefore covered too, as is a
+   * `SessionExpiredException` raised because a routed connection dropped. Note that `SessionExpiredException` is
+   * also how the driver reports `Neo.ClientError.Cluster.NotALeader`, which *is* a definite answer; telling the two
+   * apart would mean inspecting the `org.neo4j.bolt.connection` cause types, which are driver internals. Treating
+   * both as a lost connection errs on the safe side.
+   */
+  @tailrec
+  def isConnectionFailure(exception: Throwable): Boolean = {
+    if (exception == null) {
+      false
+    } else
+      exception.isInstanceOf[ServiceUnavailableException] ||
+      exception.isInstanceOf[SessionExpiredException] ||
+      isConnectionFailure(exception.getCause)
   }
 
 }

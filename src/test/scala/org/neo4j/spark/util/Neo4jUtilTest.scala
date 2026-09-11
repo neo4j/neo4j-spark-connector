@@ -18,7 +18,14 @@ package org.neo4j.spark.util
 
 import org.apache.commons.lang3.StringUtils
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.neo4j.driver.exceptions.ClientException
+import org.neo4j.driver.exceptions.ConnectionReadTimeoutException
+import org.neo4j.driver.exceptions.ServiceUnavailableException
+import org.neo4j.driver.exceptions.SessionExpiredException
+import org.neo4j.driver.exceptions.TransientException
 
 class Neo4jUtilTest {
 
@@ -43,6 +50,41 @@ class Neo4jUtilTest {
     System.setProperty("neo4j.spark.platform", "abc")
     val actual = Neo4jUtil.connectorEnv
     assertEquals("abc", actual)
+  }
+
+  @Test
+  def testIsConnectionFailureForLostConnections(): Unit = {
+    assertTrue(Neo4jUtil.isConnectionFailure(new ServiceUnavailableException("connection terminated")))
+    assertTrue(Neo4jUtil.isConnectionFailure(new SessionExpiredException("server no longer available")))
+    assertTrue(Neo4jUtil.isConnectionFailure(ConnectionReadTimeoutException.INSTANCE))
+  }
+
+  @Test
+  def testIsConnectionFailureWalksTheCauseChain(): Unit = {
+    val wrapped = new RuntimeException("wrapper", new ServiceUnavailableException("connection terminated"))
+    assertTrue(Neo4jUtil.isConnectionFailure(wrapped))
+  }
+
+  @Test
+  def testIsConnectionFailureForAnswersFromTheServer(): Unit = {
+    assertFalse(Neo4jUtil.isConnectionFailure(null))
+    assertFalse(Neo4jUtil.isConnectionFailure(new ClientException(
+      "Neo.ClientError.Schema.ConstraintValidationFailed",
+      "already exists"
+    )))
+    // Retryable, but a definite answer: the server did not apply the transaction.
+    assertFalse(Neo4jUtil.isConnectionFailure(new TransientException(
+      "Neo.TransientError.Transaction.DeadlockDetected",
+      "deadlock"
+    )))
+  }
+
+  @Test
+  def testTransientExceptionsStayRetryable(): Unit = {
+    assertTrue(Neo4jUtil.isRetryableException(new TransientException(
+      "Neo.TransientError.Transaction.DeadlockDetected",
+      "deadlock"
+    )))
   }
 
 }

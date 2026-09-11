@@ -37,7 +37,7 @@
         <commons-compress.version>1.28.0</commons-compress.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <connectors-commons.version>1.0.0-rc2</connectors-commons.version>
-        <cypherdsl.version>2025.3.1</cypherdsl.version>
+        <cypherdsl.version>2025.3.2</cypherdsl.version>
         <driver.version>6.2.1</driver.version>
         <java.version>17</java.version>
         <jboss-logging.version>3.6.3.Final</jboss-logging.version>
@@ -468,9 +468,10 @@
                     <version>${maven-failsafe-plugin.version}</version>
                     <configuration>
                         <includes>
-                            <include>**/*IT.*</include>
-                            <include>**/*TSE.*</include>
+                            <include>**/*IT</include>
+                            <include>**/*TSE</include>
                         </includes>
+                        <failIfNoTests>true</failIfNoTests>
                         <forkCount>1</forkCount>
                         <reuseForks>true</reuseForks>
                         <argLine>${test.jvm.args} -Dstrict.cypher=true</argLine>
