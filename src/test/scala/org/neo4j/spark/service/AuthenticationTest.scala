@@ -16,11 +16,22 @@
  */
 package org.neo4j.spark.service
 
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtensionContext
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.ArgumentsProvider
+import org.junit.jupiter.params.provider.ArgumentsSource
+import org.junit.jupiter.params.support.ParameterDeclarations
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.same
+import org.mockito.ArgumentMatchers.{eq => eqTo}
 import org.mockito.Mockito
 import org.mockito.Mockito.times
+import org.neo4j.connectors.driver.auth.AuthConfig
+import org.neo4j.connectors.driver.auth.AuthTokenManagerRegistry
 import org.neo4j.driver.AuthToken
 import org.neo4j.driver.AuthTokenManager
 import org.neo4j.driver.AuthTokens
@@ -32,55 +43,167 @@ import org.neo4j.spark.util.Neo4jOptions
 import org.testcontainers.shaded.com.google.common.io.BaseEncoding
 
 import java.net.URI
+import java.util.stream
+
+object AuthenticationModeCaseProvider {
+
+  case class Test(testName: String, token: AuthToken, options: Map[String, String]) {
+    override def toString: String = testName
+  }
+}
+
+class AuthenticationModeCaseProvider extends ArgumentsProvider {
+  private[this] val TOKEN_STRING = BaseEncoding.base64.encode("user:password".getBytes)
+
+  override def provideArguments(
+    parameters: ParameterDeclarations,
+    context: ExtensionContext
+  ): stream.Stream[_ <: Arguments] = {
+    val cases = List(
+      (
+        "basic",
+        AuthTokens.basic("user", "pass"),
+        Map(
+          "url" -> "bolt://localhost:7687",
+          "authentication.type" -> "basic",
+          "authentication.basic.username" -> "user",
+          "authentication.basic.password" -> "pass"
+        )
+      ),
+      (
+        "bearer",
+        AuthTokens.bearer(TOKEN_STRING),
+        Map(
+          "url" -> "bolt://localhost:7687",
+          "authentication.type" -> "bearer",
+          "authentication.bearer.token" -> TOKEN_STRING
+        )
+      ),
+      (
+        "custom",
+        AuthTokens.custom("", TOKEN_STRING, "", ""),
+        Map(
+          "url" -> "bolt://localhost:7687",
+          "authentication.type" -> "custom",
+          "authentication.custom.credentials" -> TOKEN_STRING
+        )
+      ),
+      (
+        "kerberos",
+        AuthTokens.kerberos(TOKEN_STRING),
+        Map(
+          "url" -> "bolt://localhost:7687",
+          "authentication.type" -> "kerberos",
+          "authentication.kerberos.ticket" -> TOKEN_STRING
+        )
+      )
+    )
+
+    val testArguments = cases.map(c => Arguments.of(AuthenticationModeCaseProvider.Test(c._1, c._2, c._3))).toArray
+    java.util.stream.Stream.of(testArguments: _*)
+  }
+}
 
 class AuthenticationTest {
 
-  @Test
-  def testLdapConnectionToken(): Unit = {
-    val token = BaseEncoding.base64.encode("user:password".getBytes)
+  @ParameterizedTest(name = "{0}")
+  @ArgumentsSource(classOf[AuthenticationModeCaseProvider])
+  def should_officially_support_our_provided_authn_managers(testCase: AuthenticationModeCaseProvider.Test): Unit = {
+    val mockedDriverConnection = Mockito.mockStatic(classOf[GraphDatabase])
 
-    val options = Map(
-      "url" -> "bolt://localhost:7687",
-      "authentication.type" -> "custom",
-      "authentication.custom.credentials" -> token,
-      "labels" -> "Person"
-    )
+    mockedDriverConnection
+      .when(() => GraphDatabase.driver(any[URI], any[AuthTokenManager](), any[Config]))
+      .thenReturn(Mockito.mock(classOf[Driver]))
 
-    stubGraphDatabaseConnectionCallAndAssertToken(options, AuthTokens.custom("", token, "", ""))
-  }
+    val (cache, tokenSpy) = cacheWithTokenSpy(testCase.options)
 
-  @Test
-  def testBearerAuthToken(): Unit = {
-    val token = BaseEncoding.base64.encode("user:password".getBytes)
-
-    val options = Map(
-      "url" -> "bolt://localhost:7687",
-      "authentication.type" -> "bearer",
-      "authentication.bearer.token" -> token
-    )
-
-    stubGraphDatabaseConnectionCallAndAssertToken(options, AuthTokens.bearer(token))
-  }
-
-  def stubGraphDatabaseConnectionCallAndAssertToken(options: Map[String, String], token: AuthToken): Unit = {
-    val neo4jOptions = new Neo4jOptions(options)
-    val neo4jDriverOptions = neo4jOptions.connection
-    val driverCache = new DriverCache(neo4jDriverOptions)
-    val mockedGraphDatabase = Mockito.mockStatic(classOf[GraphDatabase])
     try {
-      mockedGraphDatabase.when(() => GraphDatabase.driver(any[URI](), any[AuthTokenManager](), any[Config]()))
-        .thenReturn(Mockito.mock(classOf[Driver]))
+      cache.getOrCreate()
 
-      driverCache.getOrCreate()
-
-      val managerCaptor = ArgumentCaptor.forClass(classOf[AuthTokenManager])
-      mockedGraphDatabase.verify(
-        () => GraphDatabase.driver(any[URI](), managerCaptor.capture(), any[Config]()),
+      mockedDriverConnection.verify(
+        () => GraphDatabase.driver(any[URI](), tokenSpy.capture(), any[Config]()),
         times(1)
       )
-      assert(token == managerCaptor.getValue.getToken.toCompletableFuture.join())
     } finally {
-      mockedGraphDatabase.close()
+      cache.close()
+      mockedDriverConnection.close()
     }
+
+    assertThat(tokenSpy.token).isEqualTo(testCase.token)
+  }
+
+  @Test
+  def should_create_driver_with_custom_provided_auth_supplier_with_provided_auth_options(): Unit = {
+    val authMethod = "keycloak"
+    val registry = Mockito.mock(classOf[AuthTokenManagerRegistry])
+    val tokenManager = Mockito.mock(classOf[AuthTokenManager])
+    val configCaptor = ArgumentCaptor.forClass(classOf[AuthConfig])
+
+    val mockedRegistryLookup = Mockito.mockStatic(classOf[AuthTokenManagerRegistry])
+    val mockedDriverConnection = Mockito.mockStatic(classOf[GraphDatabase])
+
+    val options = Map(
+      "url" -> "bolt://localhost:7687",
+      "authentication.type" -> authMethod,
+      "authentication.keycloak.username" -> "user",
+      "authentication.keycloak.password" -> "pass",
+      "authentication.keycloak.authServerUrl" -> "www.example.com",
+      "authentication.keycloak.realm" -> "test",
+      "authentication.keycloak.clientId" -> "abc123",
+      "authentication.keycloak.clientSecret" -> "super-secret"
+    )
+
+    mockedRegistryLookup
+      .when[AuthTokenManagerRegistry](() => AuthTokenManagerRegistry.usingDefaultClassLoader())
+      .thenReturn(registry)
+
+    Mockito.when(registry.create(eqTo(authMethod), any[AuthConfig]())).thenReturn(tokenManager)
+
+    mockedDriverConnection.when[Driver](() =>
+      GraphDatabase.driver(any[URI](), any[AuthTokenManager](), any[Config]())
+    ).thenReturn(Mockito.mock(classOf[Driver]))
+
+    val cache = new DriverCache(new Neo4jOptions(options).connection)
+
+    try {
+      cache.getOrCreate()
+
+      Mockito.verify(registry, times(1))
+        .create(eqTo("keycloak"), configCaptor.capture())
+
+      val config = configCaptor.getValue
+
+      assertThat(config.username()).contains("user")
+      assertThat(config.password()).contains("pass")
+      assertThat(config.asMap())
+        .containsEntry("authServerUrl", "www.example.com")
+        .containsEntry("realm", "test")
+        .containsEntry("clientId", "abc123")
+        .containsEntry("clientSecret", "super-secret")
+
+      mockedDriverConnection.verify(
+        () =>
+          GraphDatabase.driver(
+            any[URI](),
+            same(tokenManager),
+            any[Config]()
+          ),
+        times(1)
+      )
+    } finally {
+      cache.close()
+      mockedDriverConnection.close()
+      mockedRegistryLookup.close()
+    }
+  }
+
+  private def cacheWithTokenSpy(options: Map[String, String]): (DriverCache, ArgumentCaptor[AuthTokenManager]) = {
+    (new DriverCache(new Neo4jOptions(options).connection), ArgumentCaptor.forClass(classOf[AuthTokenManager]))
+  }
+
+  implicit private class AuthTokenManagerCaptorOperations(
+    private val captor: ArgumentCaptor[AuthTokenManager]
+  ) {
+    def token: AuthToken = captor.getValue.getToken.toCompletableFuture.join()
   }
 }
