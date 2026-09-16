@@ -123,7 +123,8 @@ class AuthenticationTest {
       .when(() => GraphDatabase.driver(any[URI], any[AuthTokenManager](), any[Config]))
       .thenReturn(Mockito.mock(classOf[Driver]))
 
-    val (cache, tokenSpy) = cacheWithTokenSpy(testCase.options)
+    val cache = new DriverCache(new Neo4jOptions(testCase.options).connection)
+    val tokenSpy = ArgumentCaptor.forClass(classOf[AuthTokenManager])
 
     try {
       cache.getOrCreate()
@@ -137,7 +138,7 @@ class AuthenticationTest {
       mockedDriverConnection.close()
     }
 
-    assertThat(tokenSpy.token).isEqualTo(testCase.token)
+    assertThat(tokenSpy.getValue.getToken.toCompletableFuture.join()).isEqualTo(testCase.token)
   }
 
   @Test
@@ -203,15 +204,5 @@ class AuthenticationTest {
       mockedDriverConnection.close()
       mockedRegistryLookup.close()
     }
-  }
-
-  private def cacheWithTokenSpy(options: Map[String, String]): (DriverCache, ArgumentCaptor[AuthTokenManager]) = {
-    (new DriverCache(new Neo4jOptions(options).connection), ArgumentCaptor.forClass(classOf[AuthTokenManager]))
-  }
-
-  implicit private class AuthTokenManagerCaptorOperations(
-    private val captor: ArgumentCaptor[AuthTokenManager]
-  ) {
-    def token: AuthToken = captor.getValue.getToken.toCompletableFuture.join()
   }
 }
