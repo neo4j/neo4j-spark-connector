@@ -64,7 +64,7 @@ class AuthenticationModeCaseProvider extends ArgumentsProvider {
         "basic",
         AuthTokens.basic("user", "pass"),
         Map(
-          "url" -> "bolt://localhost:7687",
+          "url" -> "neo4j+s://localhost:7687",
           "authentication.type" -> "basic",
           "authentication.basic.username" -> "user",
           "authentication.basic.password" -> "pass"
@@ -74,7 +74,7 @@ class AuthenticationModeCaseProvider extends ArgumentsProvider {
         "bearer",
         AuthTokens.bearer(TOKEN_STRING),
         Map(
-          "url" -> "bolt://localhost:7687",
+          "url" -> "neo4j+s://localhost:7687",
           "authentication.type" -> "bearer",
           "authentication.bearer.token" -> TOKEN_STRING
         )
@@ -83,7 +83,7 @@ class AuthenticationModeCaseProvider extends ArgumentsProvider {
         "custom",
         AuthTokens.custom("", TOKEN_STRING, "", ""),
         Map(
-          "url" -> "bolt://localhost:7687",
+          "url" -> "neo4j+s://localhost:7687",
           "authentication.type" -> "custom",
           "authentication.custom.credentials" -> TOKEN_STRING
         )
@@ -92,9 +92,17 @@ class AuthenticationModeCaseProvider extends ArgumentsProvider {
         "kerberos",
         AuthTokens.kerberos(TOKEN_STRING),
         Map(
-          "url" -> "bolt://localhost:7687",
+          "url" -> "neo4j+s://localhost:7687",
           "authentication.type" -> "kerberos",
           "authentication.kerberos.ticket" -> TOKEN_STRING
+        )
+      ),
+      (
+        "none",
+        AuthTokens.none(),
+        Map(
+          "url" -> "neo4j+s://localhost:7687",
+          "authentication.type" -> "none"
         )
       )
     )
@@ -143,7 +151,7 @@ class AuthenticationTest {
     val mockedDriverConnection = Mockito.mockStatic(classOf[GraphDatabase])
 
     val options = Map(
-      "url" -> "bolt://localhost:7687",
+      "url" -> "neo4j+s://localhost:7687",
       "authentication.type" -> authMethod,
       "authentication.keycloak.username" -> "user",
       "authentication.keycloak.password" -> "pass",
