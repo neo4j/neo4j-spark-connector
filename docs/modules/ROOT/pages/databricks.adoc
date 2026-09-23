@@ -25,7 +25,7 @@ See <<limitations>>.
 [NOTE]
 ====
 Do not use *Search Packages*, as the connector has not been published to Spark Packages since version 5.4.0.
-The Scala suffix of the coordinate must match the Scala version of the cluster runtime.
+Make sure the Scala suffix in the coordinate matches the Scala version of the cluster runtime.
 ====
 
 . Select *Install*.
