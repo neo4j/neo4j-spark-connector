@@ -206,7 +206,7 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
     val readOpts = Map(
       Neo4jOptions.URL -> SparkConnectorScalaSuiteIT.server.getBoltUrl,
       "query" -> "MATCH (f) RETURN f",
-      "script" -> "CREATE (:Foo)"
+      "script" -> "CREATE (:TestNode {id: 1})"
     )
 
     val exception = assertThrows(
