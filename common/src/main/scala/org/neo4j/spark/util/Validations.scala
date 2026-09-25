@@ -22,7 +22,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.AccessMode
-import org.neo4j.driver.summary
+import org.neo4j.driver.summary.QueryType.READ_ONLY
 import org.neo4j.spark.service.Neo4jQueryStrategy
 import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util
@@ -366,7 +366,7 @@ case class ValidateRead(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId: String)
             s"""WITH [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
                |${neo4jOptions.query.value}
                |""".stripMargin,
-            org.neo4j.driver.summary.QueryType.READ_ONLY
+            READ_ONLY
           )
           ValidationUtil.isTrue(queryError.isEmpty, queryError)
           if (neo4jOptions.queryMetadata.queryCount.nonEmpty) {
@@ -390,7 +390,7 @@ case class ValidateRead(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId: String)
         }
       }
       val scriptErrors = neo4jOptions.script
-        .map(schemaService.validateQuery(_))
+        .map(schemaService.validateQuery(_, READ_ONLY))
         .filter(_.nonEmpty)
         .mkString("\n")
       ValidationUtil.isTrue(
@@ -526,7 +526,7 @@ case class ValidateReadStreaming(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId
       neo4jOptions.query.queryType match {
         case QueryType.QUERY => {
           ValidationUtil.isTrue(
-            schemaService.isValidQuery(neo4jOptions.streamingOptions.queryOffset, summary.QueryType.READ_ONLY),
+            schemaService.isValidQuery(neo4jOptions.streamingOptions.queryOffset, READ_ONLY),
             """
               |Please set `streaming.query.offset` with a valid Cypher READ_ONLY query
               |that returns a long value i.e.
