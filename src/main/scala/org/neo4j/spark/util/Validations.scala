@@ -33,6 +33,7 @@ import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
 
 import java.util.Collections
 import java.util.Locale
+
 import scala.jdk.CollectionConverters.MapHasAsJava
 
 object Validations {
