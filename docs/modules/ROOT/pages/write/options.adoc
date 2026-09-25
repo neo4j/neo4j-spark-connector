@@ -29,6 +29,13 @@ See xref:write/transactions.adoc#retries[].
 |0
 |No
 
+|`transaction.commit.unknown.outcome`
+|What a task does when a commit fails without telling it whether the transaction was applied.
+One of `RETRY` or `FAIL`.
+See xref:write/transactions.adoc#unknown-commit-outcome[].
+|`RETRY`
+|No
+
 |`type.conversion`
 |Data conversion logic. When set to `legacy`, timestamps, intervals and byte arrays are processed the same way as they were before 5.4.0. See xref:../types.adoc[] for more information.
 |`default`
