@@ -25,6 +25,7 @@ import org.neo4j.caniuse.Cypher.{INSTANCE => Cypher}
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.AccessMode
 import org.neo4j.driver.summary
+import org.neo4j.driver.summary.QueryType.READ_ONLY
 import org.neo4j.spark.service.Neo4jQueryStrategy
 import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util
@@ -32,7 +33,6 @@ import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
 
 import java.util.Collections
 import java.util.Locale
-
 import scala.jdk.CollectionConverters.MapHasAsJava
 
 object Validations {
@@ -314,7 +314,7 @@ case class ValidateRead(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId: String)
                |${neo4jOptions.query.value}
                |""".stripMargin,
             params,
-            org.neo4j.driver.summary.QueryType.READ_ONLY
+            READ_ONLY
           )
           ValidationUtil.isTrue(queryError.isEmpty, queryError)
           if (neo4jOptions.queryMetadata.queryCount.nonEmpty) {
@@ -337,9 +337,11 @@ case class ValidateRead(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId: String)
           Validations.validate(ValidateGdsMetadata(neo4jOptions.gdsMetadata))
         }
       }
-      val params = new java.util.HashMap[String, AnyRef]()
+      val scriptParams = new java.util.HashMap[String, AnyRef]()
       val scriptErrors = neo4jOptions.script
-        .map(scriptQuery => schemaService.validateQuery(scriptQuery, params))
+        .map(scriptQuery =>
+          schemaService.validateQuery(scriptQuery, scriptParams, READ_ONLY)
+        )
         .filter(_.nonEmpty)
         .mkString("\n")
       ValidationUtil.isTrue(
@@ -484,7 +486,7 @@ case class ValidateReadStreaming(neo4j: Neo4j, neo4jOptions: Neo4jOptions, jobId
             schemaService.isValidQuery(
               neo4jOptions.streamingOptions.queryOffset,
               new java.util.HashMap[String, AnyRef](),
-              summary.QueryType.READ_ONLY
+              READ_ONLY
             ),
             """
               |Please set `streaming.query.offset` with a valid Cypher READ_ONLY query
