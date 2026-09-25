@@ -114,6 +114,27 @@ class ValidationsIT extends SparkConnectorScalaSuiteIT {
   }
 
   @Test
+  def testWriteScriptShouldBeRejectedOnRead(): Unit = {
+    // then
+    expectedException.expect(classOf[IllegalArgumentException])
+    expectedException.expectMessage(
+      CoreMatchers.containsString("The following script queries are not valid,")
+    )
+    expectedException.expectMessage(
+      CoreMatchers.containsString("but the actual type is")
+    )
+
+    // given
+    val readOpts: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    readOpts.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
+    readOpts.put("query", "MATCH (f) RETURN f")
+    readOpts.put("script", "CREATE (:TestNode {id: 1})")
+
+    // when
+    Validations.validate(ValidateRead(neo4j, new Neo4jOptions(readOpts), "1"))
+  }
+
+  @Test
   def testWriteQueryShouldBeSyntacticallyInvalid(): Unit = {
     // then
     val query = "MERGE (f{) RETURN f"
