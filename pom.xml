@@ -58,7 +58,7 @@
         <maven-site-plugin.version>3.22.0</maven-site-plugin.version>
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
         <maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
-        <mockito.version>5.23.0</mockito.version>
+        <mockito.version>5.24.0</mockito.version>
         <neo4j.experimental>false</neo4j.experimental>
         <neo4j.version>4.4.20</neo4j.version>
         <netty-bom.version>4.2.15.Final</netty-bom.version>
