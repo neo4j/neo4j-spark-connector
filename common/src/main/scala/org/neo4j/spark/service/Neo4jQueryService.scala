@@ -55,7 +55,7 @@ class Neo4jQueryWriteStrategy(private val neo4j: Neo4j, private val saveMode: Sa
 
   private def keywordFromSaveMode(saveMode: Any): String = {
     saveMode match {
-      case NodeSaveMode.Overwrite | SaveMode.Overwrite => "MERGE"
+      case SaveMode.Overwrite | NodeSaveMode.Overwrite => "MERGE"
       case SaveMode.Append | NodeSaveMode.Append       => "CREATE"
       case NodeSaveMode.Match                          => "MATCH"
       case _ => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")

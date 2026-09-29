@@ -47,7 +47,7 @@ val azureDF: DataFrame = spark.read
 // Save the `azureDF` as nodes with labels `Person` and `Customer` into Neo4j
 azureDF.write
   .format("org.neo4j.spark.DataSource")
-  .mode(SaveMode.ErrorIfExists)
+  .mode(SaveMode.Append)
   .option("url", "neo4j://<host>:<port>")
   .option("labels", ":Person:Customer")
   .save()
@@ -69,7 +69,7 @@ azureDF = (spark.read
 # Save the `azureDF` as nodes with labels `Person` and `Customer` into Neo4j
 (azureDF.write
   .format("org.neo4j.spark.DataSource")
-  .mode("ErrorIfExists")
+  .mode("Append")
   .option("url", "neo4j://<host>:<port>")
   .option("labels", ":Person:Customer")
   .save())
