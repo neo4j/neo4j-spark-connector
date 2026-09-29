@@ -43,7 +43,7 @@ val redshiftDF: DataFrame = spark.read
 // Save the `redshiftDF` as nodes with labels `Person` and `Customer` into Neo4j
 redshiftDF.write
   .format("org.neo4j.spark.DataSource")
-  .mode(SaveMode.ErrorIfExists)
+  .mode(SaveMode.Append)
   .option("url", "neo4j://<host>:<port>")
   .option("labels", ":Person:Customer")
   .save()
@@ -66,7 +66,7 @@ redshiftDF = (spark.read
 # Save the `redshiftDF` as nodes with labels `Person` and `Customer` into Neo4j
 (redshiftDF.write
   .format("org.neo4j.spark.DataSource")
-  .mode("ErrorIfExists")
+  .mode("Append")
   .option("url", "neo4j://<host>:<port>")
   .option("labels", ":Person:Customer")
   .save())
@@ -97,7 +97,7 @@ val redshiftDF: DataFrame = spark.read
 // Save the `redshiftDF` as nodes with labels `Person` and `Customer` into Neo4j
 redshiftDF.write
   .format("org.neo4j.spark.DataSource")
-  .mode(SaveMode.ErrorIfExists)
+  .mode(SaveMode.Append)
   .option("url", "neo4j://<host>:<port>")
   .option("labels", ":Person:Customer")
   .save()
@@ -120,7 +120,7 @@ redshiftDF = (spark.read
 # Save the `redshiftDF` as nodes with labels `Person` and `Customer` into Neo4j
 (redshiftDF.write
   .format("org.neo4j.spark.DataSource")
-  .mode("ErrorIfExists")
+  .mode("Append")
   .option("url", "neo4j://<host>:<port>")
   .option("labels", ":Person:Customer")
   .save())

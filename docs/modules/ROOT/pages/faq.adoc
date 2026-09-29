@@ -71,12 +71,10 @@ You can read more xref:read/schema.adoc[here].
 
 === I am getting an error _TableProvider implementation org.neo4j.spark.DataSource cannot be written with ErrorIfExists mode, please use Append or Overwrite modes instead_. What should I do?
 
-If you are getting this error while trying to write to Neo4j, be aware that the current version of the connector
-doesn't support `*SaveMode.ErrorIfExists*` on Spark 3,
-and that is the default save mode.
-So please, change the save mode to one of `SaveMode.Append` or `SaveMode.Overwrite`.
-
-We are working to fully support all the save modes on Spark 3.
+If you are getting this error while trying to interact with Neo4j, be aware that this connector does not support `*SaveMode.ErrorIfExists*`.
+Note that this is Spark's default save mode, so you might get this error by default.
+Please, change the save mode to one of `SaveMode.Append` or `SaveMode.Overwrite`.
+Examples in this documentation consistently demonstrates how.
 
 === I am getting errors _NoClassDefFoundError_ or _ClassNotFoundException_. What should I do?
 

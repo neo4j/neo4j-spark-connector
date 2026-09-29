@@ -34,7 +34,7 @@ val bigqueryDF: DataFrame = spark.read
 // Save the `bigqueryDF` as nodes with labels `Person` and `Customer` into Neo4j
 bigqueryDF.write
   .format("org.neo4j.spark.DataSource")
-  .mode(SaveMode.ErrorIfExists)
+  .mode(SaveMode.Append)
   .option("url", "neo4j://<host>:<port>")
   .option("labels", ":Answer")
   .load()
@@ -55,7 +55,7 @@ bigqueryDF = (spark.read
 # Save the `bigqueryDF` as nodes with labels `Person` and `Customer` into Neo4j
 (bigqueryDF.write
   .format("org.neo4j.spark.DataSource")
-  .mode("ErrorIfExists")
+  .mode("Append")
   .option("url", "neo4j://<host>:<port>")
   .option("labels", ":Answer")
   .load())
