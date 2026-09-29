@@ -287,7 +287,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <!-- todo remove -->
             <groupId>org.neo4j.connectors</groupId>
             <artifactId>commons-authn-keycloak</artifactId>
             <version>${connectors-commons.version}</version>

@@ -143,13 +143,37 @@ class ReauthenticationIT extends SparkConnectorScalaSuiteIT {
       "authentication.keycloak.clientSecret" -> "QNrSpbh0mxhnlYlI21UcBaz3Htb734vi"
     )
 
+    assertReadsAcrossTokenRefresh(options)
+  }
+
+  @Test
+  def createAnInstanceOfReAuthDriverWithGenericOidcProvider(): Unit = {
+    val realmUrl = s"http://${KEYCLOAK.getHost}:${KEYCLOAK.getHttpPort}/realms/neo4j-sso-test"
+    val options = Map(
+      "url" -> NEO4J.getBoltUrl,
+      "authentication.type" -> "oidc",
+      // Keycloak is reached through the mapped port but advertises its KC_HOSTNAME as issuer
+      "authentication.oidc.discoveryUrl" -> s"$realmUrl/.well-known/openid-configuration",
+      "authentication.oidc.expectedIssuer" -> "https://keycloak:8443/realms/neo4j-sso-test",
+      "authentication.oidc.grantType" -> "password",
+      "authentication.oidc.username" -> "john-tester",
+      "authentication.oidc.password" -> "testerpwd",
+      "authentication.oidc.clientId" -> "neo4j-commons-client",
+      "authentication.oidc.clientSecret" -> "QNrSpbh0mxhnlYlI21UcBaz3Htb734vi",
+      "authentication.oidc.scope" -> "openid"
+    )
+
+    assertReadsAcrossTokenRefresh(options)
+  }
+
+  private def assertReadsAcrossTokenRefresh(options: Map[String, String]): Unit = {
     var driver: Driver = null
     try {
       driver = GraphDatabase.driver(
         NEO4J.getBoltUrl,
         AuthTokens.basic("neo4j", NEO4J.getAdminPassword)
       )
-      driver.session().run(" CREATE (n:Test {field: 42}) CREATE (t:Test {field: 45})").consume()
+      driver.session().run("CREATE (n:Test {field: 42}) CREATE (t:Test {field: 45})").consume()
     } finally {
       driver.close()
     }
