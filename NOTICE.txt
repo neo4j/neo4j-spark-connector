@@ -20,12 +20,16 @@ Third-party licenses
 
 Apache Software License, Version 2.0
   Apache Commons Lang
+  ASM based accessors helper used by json-smart
   IntelliJ IDEA Annotations
+  JCIP Annotations under Apache License
+  JSON Small and Fast Parser
   Kotlin Stdlib
   Neo4j Bolt Connection (Bolt Provider reference impl)
   Neo4j Bolt Connection (Pooled Source impl)
   Neo4j Bolt Connection (Provider SPI)
   Neo4j Bolt Connection (Routed Source impl)
+  Neo4j Bolt Connection Codec
   Netty/Buffer
   Netty/Codec/Base
   Netty/Codec/Classes/Quic
@@ -43,8 +47,15 @@ Apache Software License, Version 2.0
   Netty/Transport/Native/io_uring
   Netty/Transport/Native/KQueue
   Netty/Transport/Native/Unix/Common
+  Nimbus Content Type
+  Nimbus JOSE+JWT
+  Nimbus LangTag
   Non-Blocking Reactive Foundation for the JVM
+  OAuth 2.0 SDK with OpenID Connect extensions
   org.apiguardian:apiguardian-api
+
+BSD License
+  asm
 
 MIT License
   SLF4J API Module

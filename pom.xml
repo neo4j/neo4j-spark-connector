@@ -36,9 +36,9 @@
         <caniuse.version>1.4.2</caniuse.version>
         <commons-compress.version>1.28.0</commons-compress.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
-        <connectors-commons.version>1.0.0-rc3</connectors-commons.version>
+        <connectors-commons.version>1.0.0-rc4</connectors-commons.version>
         <cypherdsl.version>2025.3.3</cypherdsl.version>
-        <driver.version>6.2.1</driver.version>
+        <driver.version>6.3.0</driver.version>
         <java.version>17</java.version>
         <jboss-logging.version>3.6.3.Final</jboss-logging.version>
         <junit.version>6.1.3</junit.version>
@@ -229,6 +229,12 @@
         </dependency>
         <dependency>
             <groupId>org.neo4j.connectors</groupId>
+            <artifactId>commons-driver-auth-oidc</artifactId>
+            <version>${connectors-commons.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j.connectors</groupId>
             <artifactId>commons-driver-auth-provided</artifactId>
             <version>${connectors-commons.version}</version>
             <scope>runtime</scope>
@@ -281,6 +287,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <!-- todo remove -->
             <groupId>org.neo4j.connectors</groupId>
             <artifactId>commons-authn-keycloak</artifactId>
             <version>${connectors-commons.version}</version>
@@ -576,9 +583,9 @@
                     <artifactId>maven-assembly-plugin</artifactId>
                     <version>3.8.0</version>
                     <configuration>
-                        <descriptorRefs>
-                            <descriptorRef>jar-with-dependencies</descriptorRef>
-                        </descriptorRefs>
+                        <descriptors>
+                            <descriptor>src/main/assemblies/spark-jar.xml</descriptor>
+                        </descriptors>
                         <finalName>${project.build.finalName}</finalName>
                         <attach>false</attach>
                     </configuration>
@@ -603,7 +610,7 @@
                             </goals>
                             <phase>package</phase>
                             <configuration>
-                                <sourceFile>${project.build.directory}/${project.build.finalName}-jar-with-dependencies.jar</sourceFile>
+                                <sourceFile>${project.build.directory}/${project.build.finalName}-spark-jar.jar</sourceFile>
                                 <destinationFile>${project.build.directory}/${project.build.finalName}.jar</destinationFile>
                             </configuration>
                         </execution>

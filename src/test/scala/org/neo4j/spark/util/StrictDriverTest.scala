@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.util.ClearSystemProperty
 import org.junit.jupiter.api.util.SetSystemProperty
 import org.neo4j.driver._
+import org.neo4j.driver.encryption.BasePropertyEncryption
 import org.neo4j.driver.internal.summary.InternalGqlNotification
 import org.neo4j.driver.summary._
 
@@ -161,6 +162,9 @@ final private class StubDriver(private val stubSession: Session) extends Driver 
 
   override def supportsMultiDbAsync(): CompletionStage[java.lang.Boolean] =
     CompletableFuture.completedStage(java.lang.Boolean.TRUE)
+
+  override def propertyEncryption[T <: BasePropertyEncryption](propertyEncryptionClass: Class[T]): T =
+    throw new UnsupportedOperationException
 }
 
 final private class StubSession(
