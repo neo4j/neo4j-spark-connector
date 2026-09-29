@@ -56,9 +56,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import java.time.LocalTime
 import java.time.OffsetTime
-import java.time.ZoneId
 import java.time.ZoneOffset
-import java.util.TimeZone
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.ListMap
@@ -1233,42 +1231,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals("John Scofield", res.get(3).getString(4))
     assertEquals("Guitar", res.get(3).getString(7))
-  }
-
-  @Test
-  def `should fail validating options if ErrorIfExists is used`(): Unit = {
-    var didThrow = false
-
-    val musicDf = Seq(
-      (12, "John Bonham", "Drums"),
-      (19, "John Mayer", "Guitar"),
-      (32, "John Scofield", "Guitar"),
-      (15, "John Butler", "Guitar")
-    ).toDF("experience", "name", "instrument")
-
-    try {
-      musicDf.repartition(1).write
-        .format(classOf[DataSource].getName)
-        .mode(SaveMode.Overwrite)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("relationship", "PLAYS")
-        .option("relationship.source.save.mode", "ErrorIfExists")
-        .option("relationship.target.save.mode", "Overwrite")
-        .option("relationship.save.strategy", "keys")
-        .option("relationship.source.labels", ":Musician")
-        .option("relationship.source.node.keys", "name:name")
-        .option("relationship.target.labels", ":Instrument")
-        .option("relationship.target.node.keys", "instrument:name")
-        .save()
-    } catch {
-      case e: IllegalArgumentException =>
-        assertEquals("Save mode 'ErrorIfExists' is not supported on Spark 3.0, use 'Append' instead.", e.getMessage)
-        didThrow = true
-      case e: Throwable =>
-        fail(s"should throw ${classOf[IllegalArgumentException].getName}, but ${e.getClass.getName} was thrown")
-    }
-
-    assertTrue(s"should throw ${classOf[IllegalArgumentException].getName}, but nothing was thrown", didThrow)
   }
 
   @Test

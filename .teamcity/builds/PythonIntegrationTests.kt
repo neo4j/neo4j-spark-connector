@@ -39,16 +39,17 @@ class PythonIntegrationTests(
               scriptContent =
                   """
               #!/bin/bash -eu
-              
+
               mise use -g python@${pythonVersion.version}
-                
+
               python -m pip install --upgrade pip
-              pip install pyspark==${sparkVersion.version} "testcontainers[neo4j]" six tzlocal==2.1 
-              
+              pip install pyspark==${sparkVersion.version} "testcontainers[neo4j]" six tzlocal==2.1
+
               project_version="$(./mvnw help:evaluate -Dexpression="project.version" --quiet -DforceStdout)"
               jar_name="neo4j-connector-apache-spark_${scalaVersion.version}-${'$'}{project_version}_for_spark_${sparkVersion.short}.jar"
+
               cd ./scripts/python
-              python test_spark.py "${'$'}{jar_name}" "${neo4jVersion.dockerImage}"
+              ./run_pyspark_tests.sh "${'$'}{jar_name}" "${neo4jVersion.dockerImage}"
               """
                       .trimIndent()
 

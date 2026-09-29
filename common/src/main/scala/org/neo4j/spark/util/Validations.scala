@@ -27,6 +27,8 @@ import org.neo4j.spark.service.Neo4jQueryStrategy
 import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util
 import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
+import org.neo4j.spark.util.Neo4jOptions.DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE
+import org.neo4j.spark.util.Neo4jOptions.SUPPORTED_SAVE_MODES
 
 import java.util.Locale
 
@@ -237,16 +239,44 @@ case class ValidateConnection(neo4jOptions: Neo4jOptions, jobId: String) extends
   }
 }
 
-case class ValidateSaveMode(saveMode: String) extends Validation {
+/**
+ * Makes sure that no save mode ever mentions 'ErrorIfExist'. This mode is supported in Spark for table sources.
+ * But for Neo4j, it is not supported. Allowing it causes crashes down the line, so this validation makes sure that we
+ * fail early rather than late.
+ */
+case class ValidateSaveMode(neo4jOptions: Neo4jOptions, actualSaveMode: SaveMode) extends Validation {
+  private val supportedNodeSaveModes = NodeSaveMode.values.mkString(", ")
+  private val supportedSaveModes = SUPPORTED_SAVE_MODES.mkString(", ")
+
+  private def err(mode: String, supported: String): String =
+    s"Save mode '$mode' is not a supported save mode. Supported modes: $supported"
 
   override def validate(): Unit = {
-    ValidationUtil.isTrue(
-      Neo4jOptions.SUPPORTED_SAVE_MODES.contains(SaveMode.valueOf(saveMode)),
-      s"""Unsupported SaveMode.
-         |You provided $saveMode, supported are:
-         |${Neo4jOptions.SUPPORTED_SAVE_MODES.mkString(",")}
-         |""".stripMargin
+    val sourceMode = neo4jOptions.relationshipMetadata.sourceSaveMode
+    val targetMode = neo4jOptions.relationshipMetadata.targetSaveMode
+    val streamingSaveMode = neo4jOptions.saveMode
+
+    ValidationUtil.isFalse(
+      sourceMode.equals(NodeSaveMode.ErrorIfExists),
+      "In 'relationship.source.save.mode': " + err(sourceMode.toString, supportedNodeSaveModes)
     )
+
+    ValidationUtil.isFalse(
+      targetMode.equals(NodeSaveMode.ErrorIfExists),
+      "In 'relationship.target.save.mode: " + err(targetMode.toString, supportedNodeSaveModes)
+    )
+
+    ValidationUtil.isTrue(
+      SUPPORTED_SAVE_MODES.contains(SaveMode.valueOf(streamingSaveMode)),
+      "In 'save.mode': " + err(streamingSaveMode, supportedSaveModes)
+    )
+
+    if (actualSaveMode != null) {
+      ValidationUtil.isTrue(
+        SUPPORTED_SAVE_MODES.contains(actualSaveMode),
+        err(actualSaveMode.toString, supportedSaveModes)
+      )
+    }
   }
 }
 
@@ -254,8 +284,7 @@ case class ValidateWrite(
   neo4j: Neo4j,
   neo4jOptions: Neo4jOptions,
   jobId: String,
-  saveMode: SaveMode,
-  customValidation: Neo4jOptions => Unit = _ => ()
+  saveMode: SaveMode
 ) extends Validation {
 
   override def validate(): Unit = {
@@ -300,7 +329,7 @@ case class ValidateWrite(
             case _ => ()
           }
         }
-        case QueryType.RELATIONSHIP => {
+        case QueryType.RELATIONSHIP =>
           ValidationUtil.isNotEmpty(
             neo4jOptions.relationshipMetadata.target.labels,
             s"${Neo4jOptions.RELATIONSHIP_SOURCE_LABELS} is required when Save Mode is Overwrite"
@@ -309,7 +338,6 @@ case class ValidateWrite(
             neo4jOptions.relationshipMetadata.target.labels,
             s"${Neo4jOptions.RELATIONSHIP_TARGET_LABELS} is required when Save Mode is Overwrite"
           )
-        }
       }
       neo4jOptions.script.foreach(query =>
         ValidationUtil.isTrue(
@@ -317,8 +345,6 @@ case class ValidateWrite(
           s"The following script query is not valid, please check the syntax: $query"
         )
       )
-
-      customValidation(neo4jOptions)
     } finally {
       schemaService.close()
       cache.close()

@@ -77,13 +77,13 @@ class Neo4jOptionsTest {
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
     options.put(Neo4jOptions.RELATIONSHIP_SAVE_STRATEGY, "nAtIve")
-    options.put(Neo4jOptions.RELATIONSHIP_SOURCE_SAVE_MODE, "Errorifexists")
+    options.put(Neo4jOptions.RELATIONSHIP_SOURCE_SAVE_MODE, "appEnd")
     options.put(Neo4jOptions.RELATIONSHIP_TARGET_SAVE_MODE, "overwrite")
 
     val neo4jOptions = new Neo4jOptions(options)
 
     assertEquals(RelationshipSaveStrategy.NATIVE, neo4jOptions.relationshipMetadata.saveStrategy)
-    assertEquals(NodeSaveMode.ErrorIfExists, neo4jOptions.relationshipMetadata.sourceSaveMode)
+    assertEquals(NodeSaveMode.Append, neo4jOptions.relationshipMetadata.sourceSaveMode)
     assertEquals(NodeSaveMode.Overwrite, neo4jOptions.relationshipMetadata.targetSaveMode)
   }
 

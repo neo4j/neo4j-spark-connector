@@ -32,6 +32,7 @@ import org.neo4j.spark.util.Neo4jOptions
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.util.ValidateConnection
 import org.neo4j.spark.util.ValidateNeo4jOptionsConsistency
+import org.neo4j.spark.util.ValidateSaveMode
 import org.neo4j.spark.util.ValidateSparkMinVersion
 import org.neo4j.spark.util.Validations
 
@@ -86,7 +87,11 @@ class DataSource extends TableProvider
         Neo4jOptions.fromSession(SparkSession.getActiveSession, caseInsensitiveStringMap.asCaseSensitiveMap())
     }
 
-    ValidateNeo4jOptionsConsistency(neo4jOptions).validate()
+    Validations.validate(
+      ValidateNeo4jOptionsConsistency(neo4jOptions),
+      ValidateSaveMode(neo4jOptions, null)
+    )
+
     neo4jOptions
   }
 

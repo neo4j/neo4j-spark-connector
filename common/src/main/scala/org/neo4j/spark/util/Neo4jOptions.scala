@@ -307,10 +307,12 @@ class Neo4jOptions(private val options: java.util.Map[String, String]) extends S
       RELATIONSHIP_SAVE_STRATEGY,
       DEFAULT_RELATIONSHIP_SAVE_STRATEGY.toString
     ).toUpperCase)
+
     val sourceSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(
       RELATIONSHIP_SOURCE_SAVE_MODE,
       DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE.toString
     ))
+
     val targetSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(
       RELATIONSHIP_TARGET_SAVE_MODE,
       DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE.toString
@@ -643,7 +645,7 @@ object Neo4jOptions {
   val NODE_PROPS = "node.properties"
 
   val BATCH_SIZE = "batch.size"
-  val SUPPORTED_SAVE_MODES = Seq(SaveMode.Overwrite, SaveMode.ErrorIfExists, SaveMode.Append)
+  val SUPPORTED_SAVE_MODES = Seq(SaveMode.Overwrite, SaveMode.Append)
 
   // Relationship Metadata
   val RELATIONSHIP_SOURCE_LABELS =
@@ -766,10 +768,6 @@ object StreamingFrom extends CaseInsensitiveEnumeration {
   implicit def valToStreamingFromValue(value: Value): StreamingFromValue = new StreamingFromValue(value)
 }
 
-object StorageType extends CaseInsensitiveEnumeration {
-  val NEO4J, SPARK = Value
-}
-
 object QueryType extends CaseInsensitiveEnumeration {
   val QUERY, LABELS, RELATIONSHIP, GDS = Value
 }
@@ -778,17 +776,11 @@ object RelationshipSaveStrategy extends CaseInsensitiveEnumeration {
   val NATIVE, KEYS = Value
 }
 
+/**
+ * `ErrorIfExists` is valid to parse, but it is invalid to use. Validations makes sure value is never used.
+ */
 object NodeSaveMode extends CaseInsensitiveEnumeration {
   val Overwrite, ErrorIfExists, Match, Append = Value
-
-  def fromSaveMode(saveMode: SaveMode): Value = {
-    saveMode match {
-      case SaveMode.Overwrite     => Overwrite
-      case SaveMode.ErrorIfExists => ErrorIfExists
-      case SaveMode.Append        => Append
-      case _                      => throw new IllegalArgumentException(s"SaveMode $saveMode not supported")
-    }
-  }
 }
 
 object SchemaStrategy extends CaseInsensitiveEnumeration {
