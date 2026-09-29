@@ -36,6 +36,8 @@ import scala.util.Using
 class DataSource extends TableProvider
     with DataSourceRegister {
 
+  private var neo4j: Neo4j = null
+
   Validations.validate(ValidateSparkMinVersion("4.0.0"))
 
   override def supportsExternalMetadata(): Boolean = true
@@ -63,13 +65,20 @@ class DataSource extends TableProvider
     val session = SparkSession.getActiveSession
     val externalOptions = caseInsensitiveStringMap.asCaseSensitiveMap().asScala.toMap
     val neo4jOptions = Neo4jOptions.fromSession(session, externalOptions)
+
+    ValidateSaveMode(neo4jOptions, null).validate()
     ValidateNeo4jOptionsConsistency(getNeo4jInfo(neo4jOptions.connection), neo4jOptions).validate()
+
     neo4jOptions
   }
 
   private def getNeo4jInfo(options: Neo4jDriverOptions): Neo4j = {
-    val driverCache = new DriverCache(options)
-    Using.resource(driverCache)(cache => Neo4jDetector.INSTANCE.detect(cache.getOrCreate()))
+    if (neo4j == null) {
+      val driverCache = new DriverCache(options)
+      neo4j = Using.resource(driverCache)(cache => Neo4jDetector.INSTANCE.detect(cache.getOrCreate()))
+    }
+
+    neo4j
   }
 
   override def getTable(

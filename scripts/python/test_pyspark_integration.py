@@ -1,16 +1,15 @@
-#!/usr/bin/env python3
-
 import datetime
 import sys
 import unittest
 
 from neo4j import Driver
+from pyspark.errors.exceptions.captured import AnalysisException
 from pyspark.sql import SparkSession
 from testcontainers.neo4j import Neo4jContainer
 from tzlocal import get_localzone
 
 
-class SparkTest(unittest.TestCase):
+class PySparkIntegrationTest(unittest.TestCase):
     neo4j_driver: Driver = None
     neo4j_container: Neo4jContainer = None
     spark: SparkSession = None
@@ -353,32 +352,50 @@ class SparkTest(unittest.TestCase):
 
         assert 8 == df.count()
 
+    def test_rejects_when_actual_save_mode_disallowed(self):
+        df = self.spark.createDataFrame([("a-node-id",)], ["id"])
+        expected = 'The data source "org.neo4j.spark.DataSource" cannot be written in the "ErrorIfExists" mode. Please use either the "Append" or "Overwrite" mode instea'
 
-if len(sys.argv) != 3:
-    print("Wrong arguments count")
-    print(sys.argv)
-    sys.exit(1)
+        with self.assertRaisesRegex(AnalysisException, expected):
+            (
+                df.write.mode("ErrorIfExists")
+                .format("org.neo4j.spark.DataSource")
+                .option("url", self.neo4j_container.get_connection_url())
+                .option("authentication", "basic")
+                .option("authentication.basic.username", self.neo4j_container.username)
+                .option("authentication.basic.password", self.neo4j_container.password)
+                .option("labels", "Node")
+                .option("node.keys", "id")
+                .save()
+            )
 
-neo4j_image = str(sys.argv.pop())
-connector_jar = str(sys.argv.pop())
-current_time_zone = get_localzone().zone
 
 if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("Wrong arguments count")
+        print(sys.argv)
+        sys.exit(1)
+
+    neo4j_image = str(sys.argv.pop())
+    connector_jar = str(sys.argv.pop())
+    current_time_zone = get_localzone().zone
+
     with (
-        Neo4jContainer(neo4j_image)
-        .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-        .with_env("NEO4J_db_temporal_timezone", current_time_zone)
-        .with_env("NEO4JLABS_PLUGINS", '["graph-data-science"]')
-    ) as neo4j_container:
-        with neo4j_container.get_driver() as neo4j_driver:
-            SparkTest.spark = (
-                SparkSession.builder.appName("Neo4jConnectorTests")
-                .master("local[*]")
-                .config("spark.jars", connector_jar)
-                .config("spark.driver.host", "127.0.0.1")
-                .getOrCreate()
-            )
-            SparkTest.neo4j_driver = neo4j_driver
-            SparkTest.neo4j_container = neo4j_container
-            unittest.main()
-            SparkTest.spark.close()
+        (
+            Neo4jContainer(neo4j_image)
+            .with_env("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
+            .with_env("NEO4J_db_temporal_timezone", current_time_zone)
+            .with_env("NEO4JLABS_PLUGINS", '["graph-data-science"]')
+        ) as neo4j_container,
+        neo4j_container.get_driver() as neo4j_driver,
+    ):
+        PySparkIntegrationTest.spark = (
+            SparkSession.builder.appName("Neo4jConnectorPySparkIntegrationTests")
+            .master("local[*]")
+            .config("spark.jars", connector_jar)
+            .config("spark.driver.host", "127.0.0.1")
+            .getOrCreate()
+        )
+        PySparkIntegrationTest.neo4j_driver = neo4j_driver
+        PySparkIntegrationTest.neo4j_container = neo4j_container
+        unittest.main()

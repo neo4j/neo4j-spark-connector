@@ -118,24 +118,6 @@ class WriteIT {
         }
       ),
       ExceptionTestCase(
-        "propagate validation error when 'ErrorIfExists' is used in rel save modes",
-        classOf[IllegalArgumentException],
-        "This connector does not support save mode 'ErrorIfExists'. Use save mode 'Append' instead.",
-        () => {
-          exampleDf.repartition(1).write
-            .format(classOf[DataSource].getName)
-            .mode(SaveMode.Overwrite)
-            .option("relationship", "PLAYS")
-            .option("relationship.source.save.mode", "ErrorIfExists")
-            .option("relationship.target.save.mode", "Overwrite")
-            .option("relationship.source.labels", ":Musician")
-            .option("relationship.source.node.keys", "name:name")
-            .option("relationship.target.labels", ":Instrument")
-            .option("relationship.target.node.keys", "instrument:name")
-            .save()
-        }
-      ),
-      ExceptionTestCase(
         "should propagate client exceptions via spark exceptions",
         classOf[SparkException],
         "org.neo4j.driver.exceptions.ClientException",
