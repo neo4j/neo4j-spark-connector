@@ -17,6 +17,7 @@
 package org.neo4j.spark.util
 
 import org.neo4j.driver._
+import org.neo4j.driver.encryption.BasePropertyEncryption
 import org.neo4j.driver.summary.GqlNotification
 import org.neo4j.driver.summary.ResultSummary
 
@@ -102,6 +103,9 @@ class StrictDriver(private val delegate: Driver) extends Driver {
 
   override def supportsMultiDbAsync(): CompletionStage[java.lang.Boolean] =
     delegate.supportsMultiDbAsync()
+
+  override def propertyEncryption[T <: BasePropertyEncryption](propertyEncryptionClass: Class[T]): T =
+    delegate.propertyEncryption(propertyEncryptionClass)
 }
 
 private class StrictExecutableQuery(
