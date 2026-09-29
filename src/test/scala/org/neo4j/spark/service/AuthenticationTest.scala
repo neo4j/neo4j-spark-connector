@@ -62,7 +62,7 @@ class AuthenticationModeCaseProvider extends ArgumentsProvider {
     val cases = List(
       (
         "basic",
-        AuthTokens.basic("user", "pass"),
+        AuthTokens.basic("user", "pass", ""),
         Map(
           "url" -> "neo4j+s://localhost:7687",
           "authentication.type" -> "basic",
