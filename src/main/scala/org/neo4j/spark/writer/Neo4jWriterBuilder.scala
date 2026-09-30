@@ -48,20 +48,17 @@ class Neo4jWriterBuilder(
     override def supportedCustomMetrics(): Array[CustomMetric] = DataWriterMetrics.metricDeclarations()
   }
 
-  def validOptions(actualSaveMode: SaveMode): Neo4jOptions = {
-    Validations.validate(ValidateWrite(
-      neo4j,
-      neo4jOptions,
-      queryId,
-      actualSaveMode,
-      (o: Neo4jOptions) => {
-        ValidationUtil.isFalse(
-          o.relationshipMetadata.sourceSaveMode.equals(NodeSaveMode.ErrorIfExists)
-            || o.relationshipMetadata.targetSaveMode.equals(NodeSaveMode.ErrorIfExists),
-          "This connector does not support save mode 'ErrorIfExists'. Use save mode 'Append' instead."
-        )
-      }
-    ))
+  private def validOptions(actualSaveMode: SaveMode): Neo4jOptions = {
+    Validations.validate(
+      ValidateSaveMode(neo4jOptions, actualSaveMode),
+      ValidateWrite(
+        neo4j,
+        neo4jOptions,
+        queryId,
+        actualSaveMode
+      )
+    )
+
     neo4jOptions
   }
 
@@ -71,7 +68,7 @@ class Neo4jWriterBuilder(
   @volatile
   private var streamWriter: Neo4jStreamingWriter = _
 
-  def isNewInstance(queryId: String, schema: StructType, options: Neo4jOptions): Boolean =
+  private def isNewInstance(queryId: String, schema: StructType, options: Neo4jOptions): Boolean =
     streamWriter == null ||
       streamWriter.queryId != queryId ||
       streamWriter.schema != schema ||
@@ -79,10 +76,9 @@ class Neo4jWriterBuilder(
 
   override def buildForStreaming(): StreamingWrite = {
     if (isNewInstance(queryId, schema, neo4jOptions)) {
-      val streamingSaveMode = neo4jOptions.saveMode
-      Validations.validate(ValidateSaveMode(streamingSaveMode))
+      Validations.validate(ValidateSaveMode(neo4jOptions, null))
+      val saveMode = SaveMode.valueOf(neo4jOptions.saveMode)
 
-      val saveMode = SaveMode.valueOf(streamingSaveMode)
       streamWriter = new Neo4jStreamingWriter(
         neo4j,
         queryId,

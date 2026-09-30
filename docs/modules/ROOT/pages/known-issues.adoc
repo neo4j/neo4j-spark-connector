@@ -16,19 +16,6 @@ For questions that are not about limitations, see xref:faq.adoc[].
 [#writing]
 == Writing
 
-[#relationship-save-mode]
-=== `ErrorIfExists` is not supported for relationship source and target nodes
-
-The `relationship.source.save.mode` and `relationship.target.save.mode` options do not accept `ErrorIfExists`.
-The write fails during validation with the following message:
-
-----
-This connector does not support save mode 'ErrorIfExists'. Use save mode 'Append' instead.
-----
-
-*Workaround*: use `Append`, `Overwrite`, or `Match` for the source and target save modes.
-See xref:write/relationship.adoc#node-save-modes[Node save modes] for details.
-
 [#schema-optimization-query]
 === Schema optimization options do not work with the `query` option
 

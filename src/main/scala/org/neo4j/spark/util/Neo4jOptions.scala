@@ -266,10 +266,12 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
       RELATIONSHIP_SAVE_STRATEGY,
       DEFAULT_RELATIONSHIP_SAVE_STRATEGY.toString
     ).toUpperCase)
+
     val sourceSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(
       RELATIONSHIP_SOURCE_SAVE_MODE,
       DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE.toString
     ))
+
     val targetSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(
       RELATIONSHIP_TARGET_SAVE_MODE,
       DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE.toString
@@ -659,7 +661,7 @@ object Neo4jOptions {
   val NODE_PROPS = "node.properties"
 
   val BATCH_SIZE = "batch.size"
-  val SUPPORTED_SAVE_MODES = Seq(SaveMode.Overwrite, SaveMode.ErrorIfExists, SaveMode.Append)
+  val SUPPORTED_SAVE_MODES = Seq(SaveMode.Overwrite, SaveMode.Append)
 
   // Relationship Metadata
   val RELATIONSHIP_SOURCE_LABELS =
@@ -808,6 +810,11 @@ object RelationshipSaveStrategy extends CaseInsensitiveEnumeration {
   val NATIVE, KEYS = Value
 }
 
+/**
+ * `ErrorIfExists` is valid to parse, but it is invalid to use. Validations makes sure value is never used.
+ *
+ * This is for backwards compatible reasons, could remove ErrorIfExists as a documented broken change.
+ */
 object NodeSaveMode extends CaseInsensitiveEnumeration {
   val Overwrite, ErrorIfExists, Match, Append = Value
 }

@@ -24,12 +24,12 @@ import org.neo4j.caniuse.CanIUse.INSTANCE.canIUse
 import org.neo4j.caniuse.Cypher.{INSTANCE => Cypher}
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.driver.AccessMode
-import org.neo4j.driver.summary
 import org.neo4j.driver.summary.QueryType.READ_ONLY
 import org.neo4j.spark.service.Neo4jQueryStrategy
 import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util
 import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
+import org.neo4j.spark.util.Neo4jOptions.SUPPORTED_SAVE_MODES
 
 import java.util.Collections
 import java.util.Locale
@@ -37,7 +37,7 @@ import java.util.Locale
 import scala.jdk.CollectionConverters.MapHasAsJava
 
 object Validations {
-  def validate(validations: Validation*): Unit = validations.toSet[Validation].foreach(_.validate())
+  def validate(validations: Validation*): Unit = validations.foreach(_.validate())
 }
 
 trait Validation extends Logging {
@@ -195,16 +195,44 @@ case class ValidateConnection(neo4jOptions: Neo4jOptions, jobId: String) extends
   }
 }
 
-case class ValidateSaveMode(saveMode: String) extends Validation {
+/**
+ * Makes sure that no save mode ever mentions 'ErrorIfExist'. This mode is supported in Spark for table sources.
+ * But for Neo4j, it is not supported. Allowing it causes crashes down the line, so this validation makes sure that we
+ * fail early rather than late.
+ */
+case class ValidateSaveMode(neo4jOptions: Neo4jOptions, actualSaveMode: SaveMode) extends Validation {
+  private val supportedNodeSaveModes = NodeSaveMode.values.mkString(", ")
+  private val supportedSaveModes = SUPPORTED_SAVE_MODES.mkString(", ")
+
+  private def err(mode: String, supported: String): String =
+    s"Save mode '$mode' is not a supported save mode. Supported modes: $supported"
 
   override def validate(): Unit = {
-    ValidationUtil.isTrue(
-      Neo4jOptions.SUPPORTED_SAVE_MODES.contains(SaveMode.valueOf(saveMode)),
-      s"""Unsupported SaveMode.
-         |You provided $saveMode, supported are:
-         |${Neo4jOptions.SUPPORTED_SAVE_MODES.mkString(",")}
-         |""".stripMargin
+    val sourceMode = neo4jOptions.relationshipMetadata.sourceSaveMode
+    val targetMode = neo4jOptions.relationshipMetadata.targetSaveMode
+    val streamingSaveMode = neo4jOptions.saveMode
+
+    ValidationUtil.isFalse(
+      sourceMode.equals(NodeSaveMode.ErrorIfExists),
+      "In 'relationship.source.save.mode': " + err(sourceMode.toString, supportedNodeSaveModes)
     )
+
+    ValidationUtil.isFalse(
+      targetMode.equals(NodeSaveMode.ErrorIfExists),
+      "In 'relationship.target.save.mode: " + err(targetMode.toString, supportedNodeSaveModes)
+    )
+
+    ValidationUtil.isTrue(
+      SUPPORTED_SAVE_MODES.contains(SaveMode.valueOf(streamingSaveMode)),
+      "In 'save.mode': " + err(streamingSaveMode, supportedSaveModes)
+    )
+
+    if (actualSaveMode != null) {
+      ValidationUtil.isTrue(
+        SUPPORTED_SAVE_MODES.contains(actualSaveMode),
+        err(actualSaveMode.toString, supportedSaveModes)
+      )
+    }
   }
 }
 
@@ -212,8 +240,7 @@ case class ValidateWrite(
   neo4j: Neo4j,
   neo4jOptions: Neo4jOptions,
   jobId: String,
-  saveMode: SaveMode,
-  customValidation: Neo4jOptions => Unit = _ => ()
+  saveMode: SaveMode
 ) extends Validation {
 
   override def validate(): Unit = {
@@ -238,7 +265,7 @@ case class ValidateWrite(
             org.neo4j.driver.summary.QueryType.READ_WRITE
           )
           ValidationUtil.isTrue(error.isEmpty, error)
-        case QueryType.LABELS => {
+        case QueryType.LABELS =>
           saveMode match {
             case SaveMode.Overwrite => {
               ValidationUtil.isNotEmpty(
@@ -248,7 +275,6 @@ case class ValidateWrite(
             }
             case _ => ()
           }
-        }
         case QueryType.RELATIONSHIP =>
           ValidationUtil.isNotEmpty(
             neo4jOptions.relationshipMetadata.target.labels,
@@ -265,8 +291,6 @@ case class ValidateWrite(
           s"The following script query is not valid, please check the syntax: $query"
         )
       )
-
-      customValidation(neo4jOptions)
     } finally {
       schemaService.close()
       cache.close()
