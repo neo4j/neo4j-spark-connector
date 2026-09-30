@@ -354,7 +354,7 @@ class PySparkIntegrationTest(unittest.TestCase):
 
     def test_rejects_when_actual_save_mode_disallowed(self):
         df = self.spark.createDataFrame([("a-node-id",)], ["id"])
-        expected = 'The data source "org.neo4j.spark.DataSource" cannot be written in the "ErrorIfExists" mode. Please use either the "Append" or "Overwrite" mode instea'
+        expected = 'The data source "org.neo4j.spark.DataSource" cannot be written in the "ErrorIfExists" mode. Please use either the "Append" or "Overwrite" mode instead'
 
         with self.assertRaisesRegex(AnalysisException, expected):
             (
