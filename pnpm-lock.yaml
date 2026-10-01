@@ -184,13 +184,13 @@ importers:
         version: 21.2.3(@types/node@26.4.1)(typescript@7.0.2)
       danger:
         specifier: ^14.0.7
-        version: 14.0.7(supports-color@10.2.2)(undici@7.29.1)
+        version: 14.0.7(supports-color@10.2.2)(undici@7.30.0)
       husky:
         specifier: ^9.1.7
         version: 9.1.7
       undici:
-        specifier: ^7.29.1
-        version: 7.29.1
+        specifier: ^7.30.0
+        version: 7.30.0
 
 packages:
 
@@ -916,8 +916,8 @@ packages:
   undici-types@8.3.0:
     resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
 
-  undici@7.29.1:
-    resolution: {integrity: sha512-RYONW2MeafgYlkVOKYKkA/Ag7BmXqgIWCa8t1m0JcxrQg9pI9lEqRhAOruOBCbAohOa/gkCF+iPi9hrgvTzu6Q==}
+  undici@7.30.0:
+    resolution: {integrity: sha512-dkrQXeHSaoamnItlYbmzG0wFYrM0ZwDxCIg0A7aKjTyyhh9svRzCNFEzV+Vm05/yehjCzjDZ31KXfGEjYSztDQ==}
     engines: {node: '>=20.18.1'}
 
   universal-user-agent@6.0.1:
@@ -1320,7 +1320,7 @@ snapshots:
     optionalDependencies:
       typescript: 7.0.2
 
-  danger@14.0.7(supports-color@10.2.2)(undici@7.29.1):
+  danger@14.0.7(supports-color@10.2.2)(undici@7.30.0):
     dependencies:
       '@gitbeaker/rest': 38.12.1
       '@octokit/rest': 20.1.2
@@ -1352,7 +1352,7 @@ snapshots:
       require-from-string: 2.0.2
       supports-hyperlinks: 4.5.0
     optionalDependencies:
-      undici: 7.29.1
+      undici: 7.30.0
     transitivePeerDependencies:
       - supports-color
 
@@ -1644,7 +1644,7 @@ snapshots:
 
   undici-types@8.3.0: {}
 
-  undici@7.29.1: {}
+  undici@7.30.0: {}
 
   universal-user-agent@6.0.1: {}
 
