@@ -6,8 +6,10 @@ that describes how values are stored in the database, but these types do not alw
 
 In some cases, there are data types that Neo4j provides that Spark does not have an equivalent for, and vice versa.
 
+[#type_mappings]
 == Data type mappings
 
+[#type_table]
 .Spark to Neo4j type mapping reference
 |===
 |Neo4j type |Spark type | Notes
@@ -69,7 +71,7 @@ Spark local timestamps (`TIMESTAMP_NTZ`) are written as `LocalDateTime`.
 |label:deprecated[Deprecated since 5.4.0] Set `data.conversion` to `legacy` to continue using it.
 
 |`Duration`
-|`struct { type: string, months: long, days: long, seconds: long, nanonseconds: integer, value: string }`
+|`struct { type: string, months: long, days: long, seconds: long, nanoseconds: integer, value: string }`
 |See link:https://neo4j.com/docs/cypher-manual/current/values-and-types/temporal/#cypher-temporal-durations[Temporal functions: duration].
 
 |`Duration`
@@ -114,6 +116,7 @@ Spark local timestamps (`TIMESTAMP_NTZ`) are written as `LocalDateTime`.
 
 |===
 
+[#complex_data_types]
 == Complex data types
 
 Spark does not natively support all Neo4j data types (for example link:{neo4j-docs-base-uri}/cypher-manual/current/values-and-types/spatial/#spatial-values-point-type[`Point`], link:{neo4j-docs-base-uri}/cypher-manual/current/values-and-types/temporal/#cypher-temporal-instants[`Time`], link:{neo4j-docs-base-uri}/cypher-manual/current/values-and-types/temporal/#cypher-temporal-durations[`Duration`]).
@@ -121,7 +124,7 @@ Such types are transformed into `Struct` types containing all the useful data.
 
 .Complex data type conversion
 |===
-|Neo4j type |Spark `Struct`
+| Neo4j type | Spark `Struct`
 
 |Duration
 a|
@@ -158,14 +161,16 @@ Struct(Array(
 ----
 |===
 
+[#map_structs]
 == Map type or Struct type
 
 The connector treats spark's maps and structs in the same way.
-Exception when a struct are matching the above mentioned struct-specific data representations.
-For the sake of simplicity, this section covers Maps only, you can assume Structs has equivalent functionality.
+Except for when a struct matches the above mentioned struct-specific data representations for complex types.
+For the sake of simplicity, this section covers maps only in code examples.
+You can assume structs has equivalent functionality.
 
-Since Neo4j does not support arbritrary map objects as values for properties, the connector needs to flatten the maps before writing to Neo4j.
-To demonstrate how we do the flattening, cosnider this dataset:
+Since Neo4j does not support arbitrary map or struct objects as values for properties, the connector needs to flatten the maps before writing to Neo4j.
+To demonstrate how we do the flattening, consider this dataset:
 
 [cols="1,2,6"]
 |===
@@ -180,7 +185,7 @@ To demonstrate how we do the flattening, cosnider this dataset:
 |{address: 'Statue of Liberty, 10', city: 'NY', state: 'NY'}
 |===
 
-The connector will flatten map stored at colum `lives_in` into three separate columns `lives_in.address`, `lives_in.city`, and `lives_in.state`:
+The connector will flatten the map or struct stored at column `lives_in` into three separate columns `lives_in.address`, `lives_in.city`, and `lives_in.state`:
 
 [cols="1,2,2,2,2"]
 |===
@@ -199,7 +204,7 @@ The connector will flatten map stored at colum `lives_in` into three separate co
 |NY
 |===
 
-For an end-to-end example, cosnider the following Spark job:
+For an end-to-end example, consider the following Spark job:
 
 [source,scala]
 ----
@@ -216,7 +221,7 @@ data.write
   .save()
 ----
 
-Because of the map-flattening in the connector you will find Neo4j nodes with label `Object` represented like this in the end:
+Because of the map or struct flattening in the connector you will find Neo4j nodes with label `Object` represented like this in the end:
 
 ----
 Object {
@@ -231,8 +236,11 @@ Object {
 }
 ----
 
+[#map_structs_duplication]
+=== Duplication issue with map or structs
+
 It is possible to fall into problematic situations when the flattened maps end up as duplicated columns of other flattened maps.
-Consider these two map structures.
+Consider these two maps:
 
 [source,scala]
 ----
@@ -248,7 +256,9 @@ data.write
   .save()
 ----
 
-Because the intermediate data structures after flattening the keys are duplicated, the connector will pick one of the associated value in a non-deterministic way.
+The intermediate data columns after flattening these keys will collide.
+We will have duplicated keys.
+In this scenario, the connector will pick one of the associated values in a non-deterministic way.
 To demonstrate, this is how the flattened intermediate structure looks like:
 
 [cols="1,1,2"]
@@ -280,40 +290,70 @@ Object {
 }
 ----
 
-=== Group duplicated keys to array of values
+[#map_structs_prevent_duplication]
+=== Prevent duplication issue with map or structs
 
-You can use the option `schema.map.group.duplicate.keys` to avoid this problem. The connector will group all the values with the same keys into an array. The default value for the option is `false`.
+You can use the option `schema.map.group.duplicate.keys` to avoid the duplicated key problem.
+The default value for the option is `false`.
+When using this option, we will group all the values with the same keys into an array.
 In a scenario like this:
 
 [source,scala]
 ----
 val data = Seq(
-  ("Foo", 1, Map("key.inner" -> Map("key" -> "innerValue"), "key" -> Map("inner.key" -> "value"))),
-  ("Bar", 1, Map("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1"))),
+  ("A", 1, Map("key.inner" -> Map("key" -> "innerValue0"), "key" -> Map("inner.key" -> "value0"))),
+  ("B", 1, Map("key.inner" -> Map("key" -> "innerValue1"), "key" -> Map("inner.key" -> "value1"))),
 ).toDF("id", "time", "table")
 data.write
   .mode(SaveMode.Append)
-  .format(classOf[DataSource].getName)
-  .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-  .option("labels", ":MyNodeWithFlattenedMap")
+  .format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://localhost:7687")
+  .option("labels", ":Object")
   .option("schema.map.group.duplicate.keys", true)
   .save()
 ----
 
-the output would be:
+You would instead get the Neo4j node representation where each duplicated value from the flattened maps are saved as arrays.
+The ordering is _not_ guaranteed.
 
 ----
-MyNodeWithFlattenedMap {
-    id: 'Foo',
+Object {
+    id: 'A',
     time: 1,
-    `table.key.inner.key`: ['innerValue', 'value'] // the order is not guaranteed
+    `table.key.inner.key`: ['innerValue0', 'value0']
 }
-MyNodeWithFlattenedMap {
-    id: 'Bar',
+Object {
+    id: 'B',
     time: 1,
-    `table.key.inner.key`: ['innerValue1', 'value1'] // the order is not guaranteed
+    `table.key.inner.key`: ['innerValue1', 'value1']
 }
 ----
+
+In order for `schema.map.group.duplicate.keys` to work, every "final" value of the maps or structs, that is the value that ends up being collected in the list, must be of one single type.
+This correlates to the fact that in Neo4j Arrays stored as properties must be homogeneous / of a single type.
+Naturally, you will get a Cypher exception if you break this.
+
+[#round_trip]
+[role=label--updated-5.6]
+== Read/write round trips for Map, Struct or Arrays
+
+In ideal scenarios if you take a map, struct or array from Spark, then write it with our connector and then read it again with our connector, you *should* expect the same value back.
+However, there are some considerations to be made regarding a full round trip where the connector handles both the write and the read.
+You might get one type in when writing from Spark to Neo4j. Then another type back reading from Neo4j back to Spark.
+This happens if your write are related to the previous two sections xref:#complex_data_types[Complex data types] and xref:#map_structs[Map type or Struct type].
+
+As described, it is possible for a struct _to become_ a `Duration`, `Point` or `Time` in Neo4j given the right shape.
+Nested maps or structs _will become_ a simple dot-notated column-name with plain values.
+Finally, it is possible maps or structs _to become_ an `Array` if option `schema.map.group.duplicate.keys` is `true`.
+
+[CAUTION]
+======
+Due to a long-living bug since connector version 5.1.0, fixed in connector version 5.6.0, round trips for flattened maps would yield spark `NULL` on read.
+If you experience flaky `NULL` values for nested structs and you are running a connector pre-5.6.0, consider upgrading your connector.
+======
+
+Once the value is written in Neo4j see the <<type_table, Spark to Neo4j type mapping reference>> for the expected type mappings.
+The table can be read bidirectionally.
 
 [#constraints]
 == Constraint type mapping
