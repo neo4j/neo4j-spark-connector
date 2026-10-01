@@ -6,7 +6,7 @@
     "@commitlint/load": "^21.2.3",
     "danger": "^14.0.7",
     "husky": "^9.1.7",
-    "undici": "^7.29.1"
+    "undici": "^7.30.0"
   },
   "scripts": {
     "prepare": "husky"
