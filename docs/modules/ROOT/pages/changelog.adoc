@@ -3,6 +3,63 @@
 
 This page mirrors the link:https://github.com/neo4j/neo4j-spark-connector/releases[GitHub releases^] of the Neo4j Connector for Apache Spark, listing headline features, fixes, and breaking changes for every minor and patch release of the 5.x line.
 
+[#_5_6_0]
+== Version 5.6.0 (2 October 2026)
+
+[cols="1,2",options="header"]
+|===
+| Feature | Details
+
+a|
+label:breaking[]
+
+Fail-early when using "ErrorIfExists"
+| This mode was never fully supported in v5.
+Either it failed or it has been silently equivalent to "Append", depending on situations.
+From 5.6.0 onwards we fail early with explicit error message.
+Pease update your "ErrorIfExists" fields to "Append".
+
+a|
+label:breaking[]
+
+Script is now read-only during read operations
+| You can no longer pass write-queries via the `script` option when spark is in read mode.
+This creates consistency across the board.
+For write operations, you can still use `script` as before.
+
+a|
+label:fixed[]
+
+Stops writing schemas on streaming-reads
+| Due to a bug, when using spark stream reads, we accidentally applied write-mode optimizations for that operation.
+This is fixed on v 5.6.0.
+
+a|
+label:fixed[]
+label:breaking[]
+
+Fixed dot-separated properry parsing
+| The parser for property names is updated to distinguish between previous ambiguity.
+This makes it possilbe to consistently read/write maps between the connector and Neo4j.
+
+a|
+label:bug[]
+
+Fixed labels with spaces cased slowdown
+| Fixed a bug where if you had a label with spaces during parallel reads, the connector would do more work than nessecary (causing slowdown).
+
+a| Updated sanitizations
+| Updated the sanitization procedure (for labels, types and properties) to be more consistent across the board.
+
+a|
+Various security fixes
+| Removed identified NullPointerExceptions.
+Fixed a race condition in how we handle drivers.
+Added a warning log entry for when you connect to Neo4j without a secure scheme.
+
+|===
+
+
 [#_5_5_0]
 == Version 5.5.0 (9 July 2026)
 
