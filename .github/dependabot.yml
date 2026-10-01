@@ -42,6 +42,10 @@ updates:
       prefix: "build(repo)"
       prefix-development: "build(repo)"
       include: "scope"
+    groups:
+      commitlint:
+        patterns:
+          - "@commitlint/*"
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -56,3 +60,7 @@ updates:
       prefix: "build(repo)"
       prefix-development: "build(repo)"
       include: "scope"
+    groups:
+      commitlint:
+        patterns:
+          - "@commitlint/*"
