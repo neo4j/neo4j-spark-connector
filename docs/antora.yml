@@ -8,8 +8,8 @@ nav:
 asciidoc:
   attributes:
     theme: docs
-    connector-version: '6.0'
-    exact-connector-version: '6.0.0'
+    connector-version: '6.1'
+    exact-connector-version: '6.1.0'
     scala-version: '2.13'
     exact-scala-version: '2.13.18'
     spark-version: '4.1.2'
