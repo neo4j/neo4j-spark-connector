@@ -8,12 +8,12 @@ nav:
 asciidoc:
   attributes:
     theme: docs
-    connector-version: '6.0'
-    exact-connector-version: '6.0.0'
+    connector-version: '6.1'
+    exact-connector-version: '6.1.0'
     scala-version: '2.13'
     exact-scala-version: '2.13.18'
     spark-version: '4.1.2'
-    connectors-commons-version: '1.0.0-rc2'
+    connectors-commons-version: '1.0.0-rc4'
     copyright: Neo4j Inc.
     url-neo4j-product-gds-lib: https://neo4j.com/product/graph-data-science-library/
     url-gh-spark-notebooks: https://github.com/utnaf/neo4j-connector-apache-spark-notebooks
