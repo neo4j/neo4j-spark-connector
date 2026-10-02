@@ -275,7 +275,7 @@ To demonstrate, this is what the flattened intermediate structure looks like:
 
 |===
 
-The resulting nodes in Neo4j is this, where the value picked is not guaranteed:
+The resulting nodes in Neo4j are these, where the values picked are not guaranteed:
 
 ----
 Object {
