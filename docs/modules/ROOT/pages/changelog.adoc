@@ -29,13 +29,6 @@ For write operations, you can still use `script` as before.
 
 a|
 label:fixed[]
-
-Stops writing schemas on streaming-reads
-| Due to a bug, when using Spark stream reads, write-mode optimizations were accidentally applied for that operation.
-This is fixed on v 5.6.0.
-
-a|
-label:fixed[]
 label:breaking[]
 
 Fixed dot-separated property parsing
@@ -43,19 +36,33 @@ Fixed dot-separated property parsing
 This makes it possible to consistently read/write maps between the connector and Neo4j.
 
 a|
+label:fixed[]
+
+Stops writing schemas on streaming-reads
+| Due to a bug, when using Spark stream reads, write-mode optimizations were accidentally applied for that operation.
+This is fixed on v 5.6.0.
+
+a|
 label:bug[]
 
 Fixed labels with spaces caused slowdown
 | Fixed a bug where if you had a label with spaces during parallel reads, the connector would do more work than necessary (causing slowdown).
 
-a| Updated sanitizations
-| Updated the sanitization procedure (for labels, types, and properties) to be more consistent across the board.
-
 a|
+label:fixed[]
+
 Various security fixes
 | Removed identified NullPointerExceptions.
 Fixed a race condition in how drivers are handled.
 Added a warning log entry for when you connect to Neo4j without a secure scheme.
+
+a|
+label:updated[]
+
+Updated sanitization procedure
+
+| Updated the sanitization procedure (for labels, types, and properties) to be more consistent across the board.
+Changes made with backwards compatibility in mind.
 
 |===
 
