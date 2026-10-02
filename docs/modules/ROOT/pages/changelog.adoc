@@ -15,15 +15,15 @@ label:breaking[]
 
 Fail-early when using "ErrorIfExists"
 | This mode was never fully supported in v5.
-Either it failed or it has been silently equivalent to "Append", depending on situations.
+Either it failed or was silently equivalent to "Append", depending on the situation.
 From 5.6.0 onwards we fail early with explicit error message.
-Pease update your "ErrorIfExists" fields to "Append".
+Update your "ErrorIfExists" fields to "Append".
 
 a|
 label:breaking[]
 
 Script is now read-only during read operations
-| You can no longer pass write-queries via the `script` option when spark is in read mode.
+| You can no longer pass write-queries via the `script` option when Spark is in read mode.
 This creates consistency across the board.
 For write operations, you can still use `script` as before.
 
@@ -31,30 +31,30 @@ a|
 label:fixed[]
 
 Stops writing schemas on streaming-reads
-| Due to a bug, when using spark stream reads, we accidentally applied write-mode optimizations for that operation.
+| Due to a bug, when using Spark stream reads, write-mode optimizations were accidentally applied for that operation.
 This is fixed on v 5.6.0.
 
 a|
 label:fixed[]
 label:breaking[]
 
-Fixed dot-separated properry parsing
+Fixed dot-separated property parsing
 | The parser for property names is updated to distinguish between previous ambiguity.
-This makes it possilbe to consistently read/write maps between the connector and Neo4j.
+This makes it possible to consistently read/write maps between the connector and Neo4j.
 
 a|
 label:bug[]
 
-Fixed labels with spaces cased slowdown
-| Fixed a bug where if you had a label with spaces during parallel reads, the connector would do more work than nessecary (causing slowdown).
+Fixed labels with spaces caused slowdown
+| Fixed a bug where if you had a label with spaces during parallel reads, the connector would do more work than necessary (causing slowdown).
 
 a| Updated sanitizations
-| Updated the sanitization procedure (for labels, types and properties) to be more consistent across the board.
+| Updated the sanitization procedure (for labels, types, and properties) to be more consistent across the board.
 
 a|
 Various security fixes
 | Removed identified NullPointerExceptions.
-Fixed a race condition in how we handle drivers.
+Fixed a race condition in how drivers are handled.
 Added a warning log entry for when you connect to Neo4j without a secure scheme.
 
 |===
