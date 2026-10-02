@@ -16,7 +16,7 @@ label:breaking[]
 Fail-early when using "ErrorIfExists"
 | This mode was never fully supported in v5.
 Either it failed or was silently equivalent to "Append", depending on the situation.
-From 5.6.0 onwards we fail early with explicit error message.
+From 5.6.0 onwards the connector fails early with an explicit error message.
 Update your "ErrorIfExists" fields to "Append".
 
 a|
