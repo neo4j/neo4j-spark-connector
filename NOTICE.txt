@@ -51,7 +51,7 @@ Apache Software License, Version 2.0
   Nimbus JOSE+JWT
   Nimbus LangTag
   Non-Blocking Reactive Foundation for the JVM
-  OAuth 2.0 SDK with OpenID Connect extensions
+  OAuth 2.0 SDK with OpenID Connect and Federation extensions
   org.apiguardian:apiguardian-api
 
 BSD License
