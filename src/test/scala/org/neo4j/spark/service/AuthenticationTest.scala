@@ -142,8 +142,76 @@ class AuthenticationTest {
   }
 
   @Test
-  def should_create_driver_with_custom_provided_auth_supplier_with_provided_auth_options(): Unit = {
-    val authMethod = "keycloak"
+  def should_detect_generic_oidc_with_provided_auth_parameters(): Unit = {
+    val registry = Mockito.mock(classOf[AuthTokenManagerRegistry])
+    val tokenManager = Mockito.mock(classOf[AuthTokenManager])
+    val configCaptor = ArgumentCaptor.forClass(classOf[AuthConfig])
+
+    val mockedRegistryLookup = Mockito.mockStatic(classOf[AuthTokenManagerRegistry])
+    val mockedDriverConnection = Mockito.mockStatic(classOf[GraphDatabase])
+
+    // mocking a Azure Entra ID setup
+    val issuer = s"https://login.microsoftonline.com/b92072a7-0b9a-4494-9b6d-6bf4b7ac84a8/v2.0"
+    val clientId = "e1bd668b-a30a-41f0-88c4-952924bc61d0"
+    val scope = s"api://$clientId/test offline_access"
+
+    val options = Map(
+      "url" -> "neo4j+s://localhost:7687",
+      "authentication.type" -> "oidc",
+      "authentication.oidc.issuer" -> issuer,
+      "authentication.oidc.clientId" -> clientId,
+      "authentication.oidc.clientAuthMethod" -> "none",
+      "authentication.oidc.grantType" -> "refresh_token",
+      "authentication.oidc.scope" -> scope
+    )
+
+    mockedRegistryLookup
+      .when[AuthTokenManagerRegistry](() => AuthTokenManagerRegistry.usingDefaultClassLoader())
+      .thenReturn(registry)
+
+    Mockito.when(registry.create(eqTo("oidc"), any[AuthConfig]())).thenReturn(tokenManager)
+
+    mockedDriverConnection.when[Driver](() =>
+      GraphDatabase.driver(any[URI](), any[AuthTokenManager](), any[Config]())
+    ).thenReturn(Mockito.mock(classOf[Driver]))
+
+    val cache = new DriverCache(new Neo4jOptions(options).connection)
+
+    try {
+      cache.getOrCreate()
+
+      Mockito.verify(registry, times(1))
+        .create(eqTo("oidc"), configCaptor.capture())
+
+      val config = configCaptor.getValue
+
+      assertThat(config.username()).contains("")
+      assertThat(config.password()).contains("")
+      assertThat(config.asMap())
+        .containsEntry("issuer", issuer)
+        .containsEntry("clientId", clientId)
+        .containsEntry("clientAuthMethod", "none")
+        .containsEntry("grantType", "refresh_token")
+        .containsEntry("scope", scope)
+
+      mockedDriverConnection.verify(
+        () =>
+          GraphDatabase.driver(
+            any[URI](),
+            same(tokenManager),
+            any[Config]()
+          ),
+        times(1)
+      )
+    } finally {
+      cache.close()
+      mockedDriverConnection.close()
+      mockedRegistryLookup.close()
+    }
+  }
+
+  @Test
+  def should_create_driver_with_custom_provided_auth_supplier_with_provided_auth_parameters(): Unit = {
     val registry = Mockito.mock(classOf[AuthTokenManagerRegistry])
     val tokenManager = Mockito.mock(classOf[AuthTokenManager])
     val configCaptor = ArgumentCaptor.forClass(classOf[AuthConfig])
@@ -153,7 +221,7 @@ class AuthenticationTest {
 
     val options = Map(
       "url" -> "neo4j+s://localhost:7687",
-      "authentication.type" -> authMethod,
+      "authentication.type" -> "keycloak",
       "authentication.keycloak.username" -> "user",
       "authentication.keycloak.password" -> "pass",
       "authentication.keycloak.authServerUrl" -> "www.example.com",
@@ -166,7 +234,7 @@ class AuthenticationTest {
       .when[AuthTokenManagerRegistry](() => AuthTokenManagerRegistry.usingDefaultClassLoader())
       .thenReturn(registry)
 
-    Mockito.when(registry.create(eqTo(authMethod), any[AuthConfig]())).thenReturn(tokenManager)
+    Mockito.when(registry.create(eqTo("keycloak"), any[AuthConfig]())).thenReturn(tokenManager)
 
     mockedDriverConnection.when[Driver](() =>
       GraphDatabase.driver(any[URI](), any[AuthTokenManager](), any[Config]())
