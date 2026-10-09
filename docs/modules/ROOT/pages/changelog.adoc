@@ -34,7 +34,8 @@ Fixed dot-separated property parsing
 | The parser for property names is updated to distinguish between previous ambiguity.
 Property names containing dots are no longer ambiguous with alias separators.
 A backtick-quoted property path such as `+`my.property`+` is no longer split on its dots.
-This makes it possible to consistently read/write maps between the connector and Neo4j.
+This makes it possible to consistently read/write maps or structs between the connector and Neo4j.
+See xref:types.adoc#map_structs[Data type mapping].
 
 a|
 label:new[]
@@ -43,7 +44,7 @@ label:feature[]
 Control what happens when a commit outcome is unknown
 | When the connection drops while a commit is in flight, the server may or may not have applied the transaction, and earlier versions always replayed the batch, silently duplicating it for non-idempotent writes.
 The new `transaction.commit.unknown.outcome` option makes that a choice between `RETRY` (the previous behavior, now also logging a warning) and `FAIL`.
-See xref:write/transactions.adoc[Transactions, retries, and partial failures].
+See xref:write/transactions.adoc#unknown-commit-outcome[Transactions, retries, and partial failures].
 
 a|
 label:new[]
