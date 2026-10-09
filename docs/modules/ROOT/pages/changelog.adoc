@@ -34,7 +34,8 @@ Fixed dot-separated property parsing
 | The parser for property names is updated to distinguish between previous ambiguity.
 Property names containing dots are no longer ambiguous with alias separators.
 A backtick-quoted property path such as `+`my.property`+` is no longer split on its dots.
-This makes it possible to consistently read/write maps between the connector and Neo4j.
+This makes it possible to consistently read/write maps or structs between the connector and Neo4j.
+See xref:types.adoc#map_structs[Data type mapping].
 
 a|
 label:new[]
