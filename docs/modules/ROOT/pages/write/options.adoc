@@ -133,14 +133,14 @@ Expected value is the version number itself, e.g. `5` or `25`
 |`cypher.tuning.*`
 |Set any cypher query tuning parameter with this prefix.
 See details on how to properly use this feature link:{neo4j-docs-base-uri}/spark/current/performance/cypher-tuning[here]
-|_(emtpy)_
+|_(empty)_
 |No
 
 4+|*Optimization options*
 
 |`script`
 |Apply a custom Cypher query which will run once before any write operations.
-Use this capability to apply custom optimizations e.g. custom index/contstraint queries.
+Use this capability to apply custom optimizations e.g. custom index/constraint queries.
 Can not be used with `script.N`, use either or.
 |_(empty)_
 |No

@@ -69,7 +69,7 @@ Spark local timestamps (`TIMESTAMP_NTZ`) are written as `LocalDateTime`.
 |label:deprecated[Deprecated since 5.4.0] Set `data.conversion` to `legacy` to continue using it.
 
 |`Duration`
-|`struct { type: string, months: long, days: long, seconds: long, nanonseconds: integer, value: string }`
+|`struct { type: string, months: long, days: long, seconds: long, nanoseconds: integer, value: string }`
 |See link:https://neo4j.com/docs/cypher-manual/current/values-and-types/temporal/#cypher-temporal-durations[Temporal functions: duration].
 
 |`Duration`
@@ -309,7 +309,7 @@ MyNodeWithFlattenedMap {
 |DateType |DATE
 |TimestampType |LOCAL DATETIME
 |Custom `pointType` as: Struct { type: string, srid: integer, x: double, y: double, z: double }| POINT
-|Custom `durationType` as: Struct { type: string, months: long, days: long, seconds: long, nanonseconds: integer, value: string }| DURATION
+|Custom `durationType` as: Struct { type: string, months: long, days: long, seconds: long, nanoseconds: integer, value: string }| DURATION
 |DataTypes.createArrayType(BooleanType, false) |LIST<BOOLEAN NOT NULL>
 |DataTypes.createArrayType(StringType, false) |LIST<STRING NOT NULL>
 |DataTypes.createArrayType(IntegerType, false) |LIST<INTEGER NOT NULL>

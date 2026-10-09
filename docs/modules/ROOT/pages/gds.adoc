@@ -9,7 +9,7 @@ GDS algorithms are bucketed into five groups:
 * _Centrality_ which helps to compute the importance of a node in a graph.
 * _Topological link prediction_ which estimates the likelihood of nodes forming a relationship.
 * _Similarity_ which evaluates the similarity of pairs of nodes.
-* _Path finding & search_ which finds optimal paths, evalutes route availability, and so on.
+* _Path finding & search_ which finds optimal paths, evaluates route availability, and so on.
 
 == GDS operates via Cypher
 
@@ -30,7 +30,7 @@ See xref:known-issues.adoc#gds[Known issues and limitations] for details.
 
 === Example
 
-Immagine that we want to replicate the example for the Page Rank algorithm
+Imagine that we want to replicate the example for the Page Rank algorithm
 detailed link:{url-neo4j-gds-manual}algorithms/page-rank/#algorithms-page-rank-examples[here in the GDS manual^].
 The related Spark example looks like the following (we assume that the data is already in Neo4j).
 
@@ -229,7 +229,7 @@ As you may understand from the examples above, you can pass all the required opt
 
 |`gds`
 |The procedure name.
-You can pick the well suited algorithm for your use case from the fllowing
+You can pick the well suited algorithm for your use case from the following
 link:{url-neo4j-gds-manual}algorithms/[page in the GDS manual^]
 |_(none)_
 |Yes

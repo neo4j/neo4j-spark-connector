@@ -24,7 +24,7 @@ product_id,product,customer_id,customer,quantity
 
 This data represents as simple `(:Customer)-[:BOUGHT]->(:Product)` graph model.
 
-The normalized loading approach requires that you create a number of different DatafFrames: one for each node label and relationship type in your desired graph. For example, in this case, you might create three DataFrames:
+The normalized loading approach requires that you create a number of different DataFrames: one for each node label and relationship type in your desired graph. For example, in this case, you might create three DataFrames:
 
 * `val products = spark.sql("SELECT product_id, product FROM purchases")`
 * `val customers = spark.sql("SELECT customer_id, customer FROM purchases")`

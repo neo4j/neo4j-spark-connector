@@ -184,7 +184,7 @@ SET rel += event.rel.properties
 
 The examples from the previous section use the `Append` mode for both relationships and nodes; this means that new relationships and new nodes are created every time the code is run.
 
-Node save modes different from `Append` have a different behaviour.
+Node save modes different from `Append` have a different behavior.
 
 === `Match` mode
 
