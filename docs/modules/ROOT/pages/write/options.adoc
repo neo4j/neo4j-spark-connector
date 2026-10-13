@@ -30,7 +30,7 @@ See xref:write/transactions.adoc#retries[].
 |No
 
 |`transaction.commit.unknown.outcome`
-|What a task does when a commit fails without telling it whether the transaction was applied.
+|Task behaviour when a commit fails without reporting the transaction status.
 One of `RETRY` or `FAIL`.
 See xref:write/transactions.adoc#unknown-commit-outcome[].
 |`RETRY`

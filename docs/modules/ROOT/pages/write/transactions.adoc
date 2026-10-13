@@ -109,7 +109,7 @@ The logic applied to an exception is, in order:
 . If the exception is retryable and the task's retry budget is not exhausted, the task closes its transaction and session, waits `transaction.retry.timeout`, and re-runs *the current batch only*.
 . Otherwise the exception is rethrown and the task fails.
 
-A failure raised before the commit was sent — while opening the session, running the query, or streaming its results — is always safe to retry: the server never applied the transaction, and it rolls it back when the connection goes away.
+A failure raised before the commit was sent (while opening the session, running the query, or streaming its results) is always safe to retry: the server never applied the transaction, and rolls it back when the connection drops.
 
 An exception is retryable when it, or anything in its cause chain, is one the Neo4j driver marks as retryable. In practice these are:
 
@@ -131,7 +131,7 @@ Increase the value for large partitions on a busy cluster.
 A retry re-runs the batch, which is only safe if the batch had not already been applied. That is not always knowable.
 
 If a connection is lost while a commit is in flight, the outcome is *indeterminate*: the server may have committed the transaction and been unable to tell the client.
-The driver raises `ServiceUnavailableException`, or `SessionExpiredException` on a routed (`neo4j://`) connection, and there is no way to ask the server afterwards which of the two happened.
+The driver raises `ServiceUnavailableException` on a direct connection or `SessionExpiredException` on a routed (`neo4j://`) connection, and the server does not provide any information to distinguish between the two.
 This is the mechanism behind duplicates that appear after `ExclusiveLock` and connection errors in the logs, even though the job reports the batch as failed and retried.
 
 `transaction.commit.unknown.outcome` chooses what the task does with that:
@@ -141,7 +141,7 @@ This is the mechanism behind duplicates that appear after `ExclusiveLock` and co
 |Value |Behavior
 
 |`RETRY`
-|Replay the batch. Never fails the job for this reason, duplicates the batch whenever the lost commit had in fact been applied and the write is not idempotent. This is the default and the behavior of every earlier version.
+|Replay the batch. The job never fails, but the batch is duplicated whenever the lost commit has in fact been applied and the write is not idempotent. This is the default and the behavior of every earlier version.
 
 |`FAIL`
 |Fail the task with a `Neo4jUnknownCommitOutcomeException` without replaying the batch.
@@ -163,13 +163,13 @@ Whether any of this matters depends on how the write is expressed:
 |Duplicate nodes or relationships, always. `CREATE` has no notion of an existing row.
 
 |`SaveMode.Overwrite` (`MERGE`) with a uniqueness or key constraint on the keys
-|Safe. The retry matches what the first attempt wrote and updates it. The connector writes properties with `SET x += event.properties`, an absolute assignment, so replaying one cannot double-count.
+|Safe. The retry matches what the first attempt wrote and updates it. The connector writes properties with `SET x += event.properties`, so replaying one does not create duplicates.
 
 |`SaveMode.Overwrite` (`MERGE`) without a constraint on the keys
 |Duplicates are possible, because `MERGE` may not see a concurrently written node. See <<merge-safety>>.
 
 |`relationship.source.save.mode` or `relationship.target.save.mode` set to `Append`
-|Duplicate endpoint nodes, even under `SaveMode.Overwrite`. These options are independent of the save mode and render `CREATE` for the endpoint. The default, `Match`, is safe.
+|Duplicate endpoint nodes, even under `SaveMode.Overwrite`. These options are independent of the save mode and always use a `CREATE` query. The default, `Match`, is safe.
 
 |`query` option
 |Depends entirely on your query; `SaveMode` is not involved. Only an idempotent query survives a retry, which rules out `CREATE`, accumulations such as `SET n.total = n.total + event.amount`, and list appends.

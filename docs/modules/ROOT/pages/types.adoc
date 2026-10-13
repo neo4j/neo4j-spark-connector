@@ -275,7 +275,7 @@ To demonstrate, this is what the flattened intermediate structure looks like:
 
 |===
 
-The resulting nodes in Neo4j are these, where the values picked are not guaranteed:
+The resulting nodes in Neo4j are the following, where the values picked are not guaranteed:
 
 ----
 Object {
@@ -293,9 +293,9 @@ Object {
 [#map_structs_prevent_duplication]
 === Prevent duplication issue with map or structs
 
-You can use the option `schema.map.group.duplicate.keys` to avoid the duplicated key problem.
+You can use the `schema.map.group.duplicate.keys` option to avoid the duplicated key problem.
 The default value for the option is `false`.
-When using this option, all the values with the same keys are grouped into an array.
+When set to `true`, all the values with the same keys are grouped into an array.
 In a scenario like this:
 
 [source,scala]
@@ -337,11 +337,11 @@ If you break this, you get a Cypher exception.
 [role=label--updated-6.1]
 == Read/write round trips for Map, Struct or Arrays
 
-In ideal scenarios if you take a map, struct or array from Spark, then write it with the connector and then read it again with the connector, you *should* expect the same value back.
+In an ideal scenario, if you read a map, struct or array from Spark, write it to Neo4j, then read it again from Spark, you *should* expect the same value back.
 However, there are some considerations regarding a full round trip where the connector handles both the write and the read.
-You may get one type in when writing from Spark to Neo4j. 
-Then another type back reading from Neo4j back to Spark.
-This happens if your write is related to the previous two sections xref:#complex_data_types[Complex data types] and xref:#map_structs[Map type or Struct type].
+
+For example, you may get different types writing from Spark to Neo4j and reading from Neo4j back to Spark.
+See xref:#complex_data_types[Complex data types] and xref:#map_structs[Map type or Struct type] for more details.
 
 As described, it is possible for a struct _to become_ a `Duration`, `Point` or `Time` in Neo4j given the right shape.
 Nested maps or structs _will become_ a simple dot-notated column-name with plain values.
