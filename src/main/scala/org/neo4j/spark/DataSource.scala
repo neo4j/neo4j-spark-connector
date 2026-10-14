@@ -26,7 +26,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Neo4jDetector
-import org.neo4j.driver.exceptions.SecurityRetryableException
+import org.neo4j.driver.exceptions.RetryableException
 import org.neo4j.spark.util._
 
 import java.util.UUID
@@ -81,7 +81,8 @@ class DataSource extends TableProvider
         try {
           Neo4jDetector.INSTANCE.detect(driver)
         } catch {
-          case _: SecurityRetryableException => Neo4jDetector.INSTANCE.detect(driver)
+          // retry all retryable exceptions
+          case _: RetryableException => Neo4jDetector.INSTANCE.detect(driver)
         }
       })
     }
