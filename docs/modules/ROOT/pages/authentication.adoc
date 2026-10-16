@@ -1,0 +1,532 @@
+[#authentication]
+= Authentication
+:description: This chapter describes how the Neo4j Connector for Apache Spark authenticates to Neo4j.
+
+The connector authenticates to Neo4j with the authentication type set in the `authentication.type` option.
+
+[cols="1m,3",options="header"]
+|===
+| Type | Description
+
+| none
+| No authentication.
+
+| basic
+| Username and password.
+Default.
+
+| kerberos
+| Kerberos ticket.
+
+| bearer
+| Static bearer token.
+
+| custom
+| Custom authentication scheme, principal and credentials.
+
+| oidc
+| Bearer token obtained and refreshed from an OAuth 2.0 or OpenID Connect identity provider.
+See <<oidc>>.
+|===
+
+Every option `authentication.<type>.<parameter>` is passed to the authentication type as `<parameter>`.
+`<type>` must match the value of `authentication.type` exactly, for example `oidc`, not `OIDC`.
+
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+val df = spark.read
+  .format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://localhost:7687")
+  .option("authentication.type", "basic")
+  .option("authentication.basic.username", "myuser")
+  .option("authentication.basic.password", "neo4jpassword")
+  .option("labels", "Person")
+  .load()
+----
+=====
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+df = (
+  spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://localhost:7687")
+  .option("authentication.type", "basic")
+  .option("authentication.basic.username", "myuser")
+  .option("authentication.basic.password", "neo4jpassword")
+  .option("labels", "Person")
+  .load()
+)
+----
+=====
+====
+
+To set the authentication options once for the whole Spark session, add the `neo4j.` prefix, for example `neo4j.authentication.type`.
+See xref:configuration.adoc#_neo4j_driver_options[Neo4j driver options].
+
+For the options of the `basic`, `kerberos`, `custom` and `bearer` types, see the xref:configuration.adoc#_neo4j_driver_options[list of available configuration settings].
+
+[#oidc]
+== OIDC
+
+The `oidc` type obtains bearer tokens from an OAuth 2.0 or OpenID Connect identity provider, and refreshes them before they expire or when Neo4j rejects them.
+It is included in the connector JAR file, so no extra dependency is required.
+
+Neo4j must be configured for link:https://neo4j.com/docs/operations-manual/current/authentication-authorization/sso-integration/[single sign-on] with the same identity provider.
+The issuer, the audience and the username claim of the token must match the Neo4j `dbms.security.oidc.<name>.*` settings.
+
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+val df = spark.read
+  .format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j+s://neo4j.example.com:7687")
+  .option("authentication.type", "oidc")
+  .option("authentication.oidc.issuer", "https://keycloak.example.com/realms/neo4j")
+  .option("authentication.oidc.clientId", "neo4j-client")
+  .option("authentication.oidc.clientSecret", "<client secret>")
+  .option("authentication.oidc.scope", "openid")
+  .option("labels", "Person")
+  .load()
+----
+=====
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+df = (
+  spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j+s://neo4j.example.com:7687")
+  .option("authentication.type", "oidc")
+  .option("authentication.oidc.issuer", "https://keycloak.example.com/realms/neo4j")
+  .option("authentication.oidc.clientId", "neo4j-client")
+  .option("authentication.oidc.clientSecret", "<client secret>")
+  .option("authentication.oidc.scope", "openid")
+  .option("labels", "Person")
+  .load()
+)
+----
+=====
+====
+
+=== Behavior
+
+* Set one of `issuer`, `discoveryUrl` or `tokenEndpoint`.
+* When `issuer` is set, the discovery document must contain the same issuer, or `expectedIssuer` if set.
+Otherwise, the connector rejects the document.
+* The connector never follows redirects from the token endpoint.
+* The connector does not contact the identity provider until it first connects to Neo4j.
+* The Spark driver and every Spark executor request their own tokens.
+Files set in `clientSecretFile`, `privateKeyFile`, `subjectTokenFile` and `trustStoreFile` must be available at the same path on every node.
+* The token expiry is read from `expires_in`, then from the JWT `exp` claim, then from `defaultTtlSeconds`.
+The connector treats the token as expired `refreshSkewSeconds` earlier.
+* The connector reads only PKCS#8 keys.
+To convert a `BEGIN RSA PRIVATE KEY` or `BEGIN EC PRIVATE KEY` file, run:
++
+[source,bash]
+----
+openssl pkcs8 -topk8 -nocrypt -in key.pem -out key.pk8.pem
+----
+
+=== Options
+
+All options have the `authentication.oidc.` prefix, for example `authentication.oidc.clientId`.
+
+.Token endpoint
+[cols="1m,3,1",options="header"]
+|===
+| Option | Description | Default
+
+| issuer
+| Base URL of the identity provider.
+The discovery document is read from `<issuer>/.well-known/openid-configuration`.
+| _(none)_
+
+| discoveryUrl
+| URL of the discovery document.
+Use it when the document is not at `<issuer>/.well-known/openid-configuration`.
+| Derived from `issuer`
+
+| expectedIssuer
+| Issuer that the discovery document must contain.
+Set it only when the identity provider is reached at one address and advertises another, for example behind a reverse proxy.
+| Value of `issuer`
+
+| tokenEndpoint
+| URL of the token endpoint.
+Skips discovery.
+| From the discovery document
+|===
+
+.Token request
+[cols="1m,3,1",options="header"]
+|===
+| Option | Description | Default
+
+| grantType
+| One of `client_credentials`, `password`, `refresh_token`, `jwt_bearer`, `token_exchange`.
+| `client_credentials`
+
+| username
+| Username for the `password` grant.
+| _(none)_
+
+| password
+| Password for the `password` grant.
+| _(none)_
+
+| scope
+| Space-separated scopes.
+| _(none)_
+
+| audience
+| Value of the `audience` request parameter.
+| _(none)_
+
+| resource
+| Value of the `resource` request parameter.
+| _(none)_
+
+| extraParam.<name>
+| Additional request parameter, sent as is.
+Overrides any other parameter with the same name.
+| _(none)_
+
+| refreshToken
+| Initial refresh token for the `refresh_token` grant.
+The connector uses the new refresh token when the identity provider rotates it.
+| _(none)_
+
+| subjectTokenFile
+| File with the subject token for the `token_exchange` grant.
+Read on every token request.
+| _(none)_
+
+| subjectTokenType
+| Type of the subject token.
+| `urn:ietf:params:oauth:token-type:jwt`
+|===
+
+.Client authentication
+[cols="1m,3,1",options="header"]
+|===
+| Option | Description | Default
+
+| clientId
+| Client ID.
+Required unless `clientAuthMethod` is `none`.
+| _(none)_
+
+| clientSecret
+| Client secret.
+| _(none)_
+
+| clientSecretFile
+| File with the client secret, instead of `clientSecret`.
+Read on every token request, so a rotated secret is picked up.
+| _(none)_
+
+| clientAuthMethod
+| One of `client_secret_basic`, `client_secret_post`, `private_key_jwt`, `none`.
+Cannot be `none` with the `client_credentials` grant.
+| `client_secret_basic`
+
+| privateKeyFile
+| PKCS#8 private key file, PEM or DER, for `private_key_jwt` and `jwt_bearer`.
+| _(none)_
+
+| privateKeyId
+| Key ID (`kid`) of the signed JWT.
+| _(none)_
+
+| privateKeyAlgorithm
+| One of `RS256`, `RS384`, `RS512`, `PS256`, `PS384`, `PS512`, `ES256`, `ES384`, `ES512`.
+| `RS256`
+
+| assertion.claim.<name>
+| Claim of the signed JWT.
+The connector sets `iss`, `sub`, `aud`, `iat`, `exp` and `jti` unless you set them.
+| _(none)_
+
+| assertionTtlSeconds
+| Lifetime of the signed JWT, in seconds.
+| `300`
+|===
+
+.Token response
+[cols="1m,3,1",options="header"]
+|===
+| Option | Description | Default
+
+| tokenField
+| Response field that contains the token: `access_token` or `id_token`.
+| `access_token`
+
+| refreshSkewSeconds
+| Number of seconds before expiry when the connector treats the token as expired.
+| `30`
+
+| defaultTtlSeconds
+| Token lifetime, in seconds, when the response has no `expires_in` and the token is not a JWT.
+| `300`
+|===
+
+.Connection to the identity provider
+[cols="1m,3,1",options="header"]
+|===
+| Option | Description | Default
+
+| connectTimeoutMs
+| Connection timeout, in milliseconds.
+| `10000`
+
+| requestTimeoutMs
+| Request timeout, in milliseconds.
+| `30000`
+
+| maxRetries
+| Number of retries on timeouts and on HTTP status `408`, `429` and `5xx`.
+| `3`
+
+| retryBackoffMs
+| Initial wait between retries, in milliseconds.
+Doubles on each retry, up to 30 seconds.
+| `500`
+
+| trustStoreFile
+| Trust store with the certificate of the identity provider, for self-signed or private certificates.
+| _(JVM default)_
+
+| trustStorePassword
+| Password of the trust store.
+| _(none)_
+
+| trustStoreType
+| Type of the trust store.
+| `PKCS12`
+
+| proxyHost
+| HTTP proxy host.
+Set together with `proxyPort`.
+| _(JVM default)_
+
+| proxyPort
+| HTTP proxy port.
+Set together with `proxyHost`.
+| _(JVM default)_
+|===
+
+.Profile
+[cols="1m,3,1",options="header"]
+|===
+| Option | Description | Default
+
+| profile
+| Set of default options for an identity provider: `google`, `okta` or `entra`.
+Options that you set override the defaults of the profile.
+| _(none)_
+|===
+
+=== Examples
+
+The following examples show the connector options and the matching Neo4j settings.
+
+[#oidc-keycloak]
+==== Keycloak
+
+[source,scala]
+----
+.option("authentication.type", "oidc")
+.option("authentication.oidc.issuer", "https://keycloak.example.com/realms/neo4j")
+.option("authentication.oidc.clientId", "neo4j-client")
+.option("authentication.oidc.clientSecret", "<client secret>")
+.option("authentication.oidc.scope", "openid")
+----
+
+To authenticate as a user rather than as a client, use the `password` grant:
+
+[source,scala]
+----
+.option("authentication.type", "oidc")
+.option("authentication.oidc.issuer", "https://keycloak.example.com/realms/neo4j")
+.option("authentication.oidc.grantType", "password")
+.option("authentication.oidc.username", "<username>")
+.option("authentication.oidc.password", "<password>")
+.option("authentication.oidc.clientId", "neo4j-client")
+.option("authentication.oidc.clientSecret", "<client secret>")
+.option("authentication.oidc.scope", "openid")
+----
+
+[source,properties]
+----
+dbms.security.oidc.keycloak.issuer=https://keycloak.example.com/realms/neo4j
+dbms.security.oidc.keycloak.audience=account
+dbms.security.oidc.keycloak.client_id=neo4j-client
+dbms.security.oidc.keycloak.claims.username=preferred_username
+dbms.security.oidc.keycloak.claims.groups=groups
+dbms.security.oidc.keycloak.well_known_discovery_uri=https://keycloak.example.com/realms/neo4j/.well-known/openid-configuration
+----
+
+==== Okta
+
+Set `issuer` to a custom authorization server, for example `https://example.okta.com/oauth2/default`.
+*Do not use* the org authorization server (`https://example.okta.com`): its access tokens are only for Okta's own APIs, and Neo4j cannot verify them.
+
+[source,scala]
+----
+.option("authentication.type", "oidc")
+.option("authentication.oidc.profile", "okta")
+.option("authentication.oidc.issuer", "https://example.okta.com/oauth2/<authorization server id>")
+.option("authentication.oidc.clientId", "<client id>")
+.option("authentication.oidc.clientSecret", "<client secret>")
+.option("authentication.oidc.scope", "neo4j.read")
+----
+
+[source,properties]
+----
+dbms.security.oidc.okta.issuer=https://example.okta.com/oauth2/<authorization server id>
+dbms.security.oidc.okta.audience=api://neo4j
+dbms.security.oidc.okta.claims.username=sub
+dbms.security.oidc.okta.claims.groups=groups
+----
+
+==== Microsoft Entra ID
+
+The scope must be `<application ID URI>/.default`.
+
+[source,scala]
+----
+.option("authentication.type", "oidc")
+.option("authentication.oidc.profile", "entra")
+.option("authentication.oidc.issuer", "https://login.microsoftonline.com/<tenant>/v2.0")
+.option("authentication.oidc.clientId", "<application id>")
+.option("authentication.oidc.clientSecret", "<client secret>")
+.option("authentication.oidc.scope", "api://neo4j/.default")
+----
+
+[source,properties]
+----
+dbms.security.oidc.entra.issuer=https://login.microsoftonline.com/<tenant>/v2.0
+dbms.security.oidc.entra.audience=<application id>
+dbms.security.oidc.entra.claims.username=sub
+dbms.security.oidc.entra.claims.groups=roles
+----
+
+==== Google
+
+The connector authenticates with a service account key.
+Extract `private_key` from the service account JSON file into a PKCS#8 PEM file, and make it available on every node.
+
+[source,scala]
+----
+.option("authentication.type", "oidc")
+.option("authentication.oidc.profile", "google")
+.option("authentication.oidc.privateKeyFile", "/etc/spark/secrets/service-account.pk8.pem")
+.option("authentication.oidc.privateKeyId", "<private_key_id from the service account JSON file>")
+.option("authentication.oidc.assertion.claim.iss", "svc@project.iam.gserviceaccount.com")
+.option("authentication.oidc.assertion.claim.sub", "svc@project.iam.gserviceaccount.com")
+.option("authentication.oidc.assertion.claim.target_audience", "neo4j")
+----
+
+[source,properties]
+----
+dbms.security.oidc.google.issuer=https://accounts.google.com
+dbms.security.oidc.google.audience=neo4j
+dbms.security.oidc.google.claims.username=email
+----
+
+[#custom-auth-type]
+== Add your own authentication type
+
+You can add an authentication type of your own:
+
+. Add a dependency on `org.neo4j.connectors:commons-driver-auth-spi`.
++
+[source,xml]
+----
+<dependency>
+  <groupId>org.neo4j.connectors</groupId>
+  <artifactId>commons-driver-auth-spi</artifactId>
+  <version>{connectors-commons-version}</version>
+  <scope>provided</scope>
+</dependency>
+----
+. Implement `org.neo4j.connectors.driver.auth.AuthTokenManagerFactory`:
+** `getName()` returns the name of the authentication type, the value of `authentication.type`.
+The name must not clash with an existing authentication type.
+** `create(AuthConfig, AuthContext)` returns the driver `AuthTokenManager`.
+. Register the class in `META-INF/services/org.neo4j.connectors.driver.auth.AuthTokenManagerFactory`.
+. Add the JAR file to the classpath of the Spark driver and executors, for example with the `--jars` option of `spark-submit`.
+
+`AuthConfig` contains the options of the authentication type:
+
+* `authentication.<type>.username` and `authentication.<type>.password` are available through `username()` and `password()`.
+* Any other `authentication.<type>.<parameter>` option is available through `get("<parameter>")`.
+
+[source,java]
+----
+public class MyAuthTokenManagerFactory implements AuthTokenManagerFactory {
+
+    @Override
+    public String getName() {
+        return "my-type";
+    }
+
+    @Override
+    public AuthTokenManager create(AuthConfig config, AuthContext context) {
+        AuthToken token = AuthTokens.bearer(config.require("token"));
+        return AuthTokenManagers.basic(() -> token);
+    }
+}
+----
+
+[source,scala]
+----
+.option("authentication.type", "my-type")
+.option("authentication.my-type.token", "<token>")
+----
+
+[#custom-auth-supplier]
+=== Authentication supplier (legacy)
+
+Before the `AuthTokenManagerFactory` interface, you added your own authentication type by implementing `org.neo4j.connectors.authn.AuthenticationTokenSupplierFactory` from the `org.neo4j.connectors:commons-authn-spi` library.
+The connector still supports these authentication suppliers, including the `keycloak` supplier from the `org.neo4j.connectors:commons-authn-keycloak` library, and configures them in the same way.
+When both an `AuthTokenManagerFactory` and an `AuthenticationTokenSupplierFactory` have the same name, the connector uses the `AuthTokenManagerFactory`.
+
+For new applications, use the <<oidc,`oidc`>> type or <<custom-auth-type,add your own authentication type>> instead.
+
+To replace the `keycloak` supplier with the `oidc` type, set `grantType` to `password` and include the realm in the `issuer` URL:
+
+[cols="1m,1m",options="header"]
+|===
+| `keycloak` option | `oidc` option
+
+| authentication.keycloak.authServerUrl +
+authentication.keycloak.realm
+| authentication.oidc.issuer = <authServerUrl>/realms/<realm>
+
+| authentication.keycloak.clientId
+| authentication.oidc.clientId
+
+| authentication.keycloak.clientSecret
+| authentication.oidc.clientSecret
+
+| authentication.keycloak.username
+| authentication.oidc.username
+
+| authentication.keycloak.password
+| authentication.oidc.password
+|===
+
+See the <<oidc-keycloak,Keycloak example>>.

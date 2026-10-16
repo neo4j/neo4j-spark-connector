@@ -70,6 +70,7 @@ New OIDC authentication (generic)
 | A generic OIDC token provider prefixed `oidc` added among available authentication options.
 You can freely pass OIDC configuration parameters with dot notation.
 Example: `.option("authentication.oidc.clientSecret", "secret")`
+See xref:authentication.adoc#oidc[Authentication].
 
 a|
 label:updated[]
@@ -82,7 +83,7 @@ label:bug[]
 label:fixed[]
 
 Custom authentication providers
-| Previous version accidentally broke xref:configuration.adoc#custom-auth-supplier[Custom authentication supplier].
+| Previous version accidentally broke xref:authentication.adoc#custom-auth-supplier[Custom authentication supplier].
 This is now fixed and functionality restored.
 
 a|

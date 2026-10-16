@@ -51,78 +51,11 @@ val dfJoin = dfOne.join(dfTwo, dfOne("name") === dfTwo("name"))
 ----
 
 
-[#custom-auth-supplier]
-== Custom authentication supplier
-The connector provides an option to use a custom authentication supplier in addition to
-already supported authentication types, such as `none`, `basic`, `kerberos`, `custom` and `bearer`.
+[#authentication]
+== Authentication
 
-The authentication supplier needs to implement interface `org.neo4j.connectors.authn.AuthenticationTokenSupplierFactory` from the `org.neo4j.connectors:commons-authn-spi` library.
-The interface requires implementing two methods:
-
-* *String getName()* - returns the name of the supplier.
-Must be unique and not clash with existing authentication types.
-
-* *Supplier<AuthenticationToken> create(String, String, Map<String, String>)* - accepts username, password and additional parameters and return a supplier of `AuthenticationToken`.
-
-An `AuthenticationToken` instance is an abstract representation of an arbitrary authentication to be presented to the Neo4j server and can contain a principal and its credentials (username and password), a token or other ways of confirming an identity.
-
-The interface itself offers the following factories:
-
-* `AuthenticationToken#bearer`
-* `AuthenticationToken#kerberos`
-* `AuthenticationToken#none`
-* `AuthenticationToken#usernameAndPassword`
-* `AuthenticationToken#custom`
-
-The typical use-case for an authentication supplier is supporting expiring tokens issued by OAuth 2.0 or OIDC providers.
-
-Custom authentication supplier can be used via the service loader mechanism and by setting configuration parameter `authentication.type` to the name
-of the supplier. Additional parameters can be specified as configuration options prefixed with `authentication.$name.`.
-
-=== Keycloak authentication supplier example
-[WARNING]
-====
-This supplier is based on the Keycloak client, which requires Java 11 or later.
-====
-
-An authentication supplier for link:https://www.keycloak.org/[Keycloak] is available as a ready-to-use, optional artifact: the `org.neo4j.connectors:commons-authn-keycloak` library.
-Instead of implementing the supplier yourself, add this library as a dependency to your application.
-
-[NOTE]
-====
-Check link:https://central.sonatype.com/artifact/org.neo4j.connectors/commons-authn-keycloak[Maven Central] for the latest available version.
-====
-
-[source, xml]
-----
-<dependency>
-  <groupId>org.neo4j.connectors</groupId>
-  <artifactId>commons-authn-keycloak</artifactId>
-  <version>{connectors-commons-version}</version>
-</dependency>
-----
-
-The library provides:
-
-* A factory class that creates the authentication token supplier and registers it under the name `keycloak` through the service loader mechanism.
-* A supplier that obtains an access token from a Keycloak server and refreshes it on expiration.
-
-Once the library is on the classpath, you can configure Spark to use Keycloak authentication as follows:
-[source, scala]
-----
-val df = spark.read
-  .format("org.neo4j.spark.DataSource")
-  .option("url", s"$NEO4J_URL")
-  .option("authentication.type", "keycloak")
-  .option("authentication.keycloak.username", s"$KEYCLOAK_USERNAME")
-  .option("authentication.keycloak.password", s"$KEYCLOAK_PASSWORD")
-  .option("authentication.keycloak.authServerUrl", s"$KEYCLOAK_URL")
-  .option("authentication.keycloak.realm", s"$KEYCLOAK_REALM")
-  .option("authentication.keycloak.clientId", s"$KEYCLOAK_CLIENT_ID")
-  .option("authentication.keycloak.clientSecret", s"$KEYCLOAK_CLIENT_SECRET")
-  .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.age as age")
-  .load()
-----
+The connector supports the `none`, `basic`, `kerberos`, `custom`, `bearer` and `oidc` authentication types, and authentication types of your own.
+See xref:authentication.adoc[].
 
 
 == Neo4j driver options
@@ -197,9 +130,10 @@ The authentication methods to be used:
 * `kerberos`
 * `custom`
 * `bearer`
-* any <<custom-auth-supplier, custom authentication supplier>>
+* `oidc`
+* xref:authentication.adoc#custom-auth-type[your own authentication type]
 
-See link:https://neo4j.com/docs/java-manual/6/connect-advanced[Authentication] for more information.
+See xref:authentication.adoc[] for more information.
 |`basic`
 |No
 
