@@ -32,7 +32,12 @@ See <<oidc>>.
 Every option `authentication.<type>.<parameter>` is passed to the authentication type as `<parameter>`.
 `<type>` must match the value of `authentication.type` exactly, for example `oidc`, not `OIDC`.
 
-[source,scala]
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+.Example
+[source, scala, role=nocollapse]
 ----
 val df = spark.read
   .format("org.neo4j.spark.DataSource")
@@ -43,6 +48,24 @@ val df = spark.read
   .option("labels", "Person")
   .load()
 ----
+=====
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+df = (
+  spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j://localhost:7687")
+  .option("authentication.type", "basic")
+  .option("authentication.basic.username", "myuser")
+  .option("authentication.basic.password", "neo4jpassword")
+  .option("labels", "Person")
+  .load()
+)
+----
+=====
+====
 
 To set the authentication options once for the whole Spark session, add the `neo4j.` prefix, for example `neo4j.authentication.type`.
 See xref:configuration.adoc#_neo4j_driver_options[Neo4j driver options].
@@ -58,7 +81,12 @@ It is included in the connector JAR file, so no extra dependency is required.
 Neo4j must be configured for link:https://neo4j.com/docs/operations-manual/current/authentication-authorization/sso-integration/[single sign-on] with the same identity provider.
 The issuer, the audience and the username claim of the token must match the Neo4j `dbms.security.oidc.<name>.*` settings.
 
-[source,scala]
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+.Example
+[source, scala, role=nocollapse]
 ----
 val df = spark.read
   .format("org.neo4j.spark.DataSource")
@@ -71,6 +99,26 @@ val df = spark.read
   .option("labels", "Person")
   .load()
 ----
+=====
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+df = (
+  spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j+s://neo4j.example.com:7687")
+  .option("authentication.type", "oidc")
+  .option("authentication.oidc.issuer", "https://keycloak.example.com/realms/neo4j")
+  .option("authentication.oidc.clientId", "neo4j-client")
+  .option("authentication.oidc.clientSecret", "<client secret>")
+  .option("authentication.oidc.scope", "openid")
+  .option("labels", "Person")
+  .load()
+)
+----
+=====
+====
 
 === Behavior
 
