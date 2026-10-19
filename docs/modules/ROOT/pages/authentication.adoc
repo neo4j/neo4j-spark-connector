@@ -68,7 +68,6 @@ df = (
 ====
 
 To set the authentication options once for the whole Spark session, add the `neo4j.` prefix, for example `neo4j.authentication.type`.
-See xref:configuration.adoc#_neo4j_driver_options[Neo4j driver options].
 
 For the options of the `basic`, `kerberos`, `custom` and `bearer` types, see the xref:configuration.adoc#_neo4j_driver_options[list of available configuration settings].
 
