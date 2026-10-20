@@ -75,6 +75,37 @@ If `key` and `value` have the same value (for example `"name:name"`), you can om
 |_(empty)_
 |===
 
+[#save-mode-semantics]
+== How DataFrame and node save modes interact
+
+A relationship write uses two independent kinds of save mode:
+
+* The DataFrame `mode()` controls how the *relationship* is written: `Append` builds a `CREATE`, `Overwrite` builds a `MERGE`.
+* `relationship.{source/target}.save.mode` control how the *source/target nodes* are written: `Match` builds a `MATCH`, `Append` builds a `CREATE`, `Overwrite` builds a `MERGE`.
+
+You should think of DataFrame's mode as _what happens to the relationship_.
+Then think of `save.mode` as _what happens to the (source/target) node_.
+The options can be combined in different ways to create quite some flexible outcomes.
+When used carelessly, some unintended situations might appear.
+Some examples.
+
+Setting DataFrame to `Append`, source to `Match` (default) and target to `Match` will only create the relationship if both nodes already exists (and therefore can be matched).
+Despite that DataFrame mode at a glance suggests it will always create/append, it is not always the case.
+Not even the default case.
+
+Setting DataFrame to `Overwrite`, source to `Match` and target to `Append` will only create the relationship if the source node already exists, and it will *always* try to create a new target node.
+Despite that DataFrame mode at a glance suggests that it will try to in-place update the relationship, it is never the case.
+Because we *always* create a new target node, therefore cannot match any existing relationship.
+
+Setting DataFrame mode, source mode and target mode to `Overwrite` will `MERGE` everything meaning creates source, and target unless they exist, creates relationship unless it exists.
+If anything already exists, update Neo4j with the new data.
+Setting all three should be use done if full upsert is your intent, it can be easy to forget to set all three.
+
+[NOTE]
+====
+The `Match` and `Overwrite` node save modes require the corresponding `relationship.source.node.keys` and `relationship.target.node.keys` options.
+====
+
 [#strategies]
 == Save strategies
 
@@ -259,53 +290,6 @@ SET source += event.source.properties
 MERGE (target:Product {name: event.target.keys.name})
 SET target += event.target.properties
 CREATE (source)-[rel:BOUGHT]->(target)
-SET rel += event.rel.properties
-----
-====
-
-[IMPORTANT]
-====
-Due to the concurrency of Spark jobs, when using the `Overwrite` mode you should use the xref:write/schema-optimization.adoc#node-constraints-unique[property uniqueness constraint] to guarantee node uniqueness.
-====
-
-== Overwrite nodes and relationships
-
-If you need to upsert both nodes and relationships, you must use the `Overwrite` mode for all the `relationship.source.node.keys`, `relationship.target.node.keys`, and `mode` options.
-
-If run multiple times, the following example does not create any duplicate nodes or relationships.
-
-[.tabbed-example]
-====
-[.include-with-Scala]
-=====
-.Example
-[source, scala, role=nocollapse, indent=0]
-----
-include::example$scala/WriteRelationship.scala[tags=code-overwrite-node-rel]
-----
-=====
-
-[.include-with-Python]
-=====
-.Example
-[source, python, role=nocollapse, indent=0]
-----
-include::example$python/write_relationship.py[tags=code-overwrite-node-rel]
-----
-=====
-====
-
-.Equivalent Cypher query
-[%collapsible]
-====
-[source, cypher]
-----
-UNWIND $events AS event
-MERGE (source:Customer {id: event.source.keys.id})
-SET source += event.source.properties
-MERGE (target:Product {name: event.target.keys.name})
-SET target += event.target.properties
-MERGE (source)-[rel:BOUGHT]->(target)
 SET rel += event.rel.properties
 ----
 ====
