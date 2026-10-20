@@ -112,3 +112,26 @@ dependencies {
     compile "org.neo4j.connectors:spark:{exact-connector-version}-s_{scala-version}"
 }
 ----
+
+[#thin-jar]
+[role=label--new-6.1.2]
+== Thin JAR
+
+By default, the connector JAR bundles its dependencies, such as Netty, Kotlin and Reactor.
+If you manage your own classpath, for example by placing each dependency as a separate JAR, the bundled classes can clash with other versions of the same libraries.
+
+In this case, use the `thin` classifier.
+The thin JAR contains only the connector, and its dependencies are declared in the Maven POM and resolved as usual.
+
+[source, xml, subs="attributes+"]
+----
+<dependency>
+  <groupId>org.neo4j.connectors</groupId>
+  <artifactId>spark</artifactId>
+  <version>{exact-connector-version}-s_{scala-version}</version>
+  <classifier>thin</classifier>
+</dependency>
+----
+
+The thin JAR is also included in the release archive, as `neo4j-spark-connector-{exact-connector-version}-s_{scala-version}-thin.jar`.
+Note that you must then add its dependencies to the classpath yourself.

@@ -19,8 +19,9 @@ You can build for Spark 4.x with Scala 2.13. Starting with version 6.0.0, only S
 ```
 
 This command generates the following artifact:
-* `target/neo4j-spark-connector-<version>-s_2.13.jar`
 
+- `target/neo4j-spark-connector-<version>-s_2.13.jar`
+- `target/neo4j-spark-connector-<version>-s_2.13-thin.jar`
 
 ## Integration with Apache Spark Applications
 
@@ -51,6 +52,21 @@ In your pom.xml, add:
     <version>[version]-s_2.13</version>
   </dependency>
 </dependencies>
+```
+
+**thin JAR**
+
+By default, the connector JAR bundles its dependencies.
+If you manage your own classpath and need to avoid clashes with libraries such as Netty, use the `thin` classifier.
+Its dependencies are resolved from Maven instead:
+
+```xml
+<dependency>
+  <groupId>org.neo4j.connectors</groupId>
+  <artifactId>spark</artifactId>
+  <version>[version]-s_2.13</version>
+  <classifier>thin</classifier>
+</dependency>
 ```
 
 For more info about the available version visit https://neo4j.com/developer/spark/overview/#_compatibility
