@@ -44,10 +44,11 @@ See xref:write/transactions.adoc#unknown-commit-outcome[].
 4+|*Node specific options*
 
 |`node.keys`
-|Comma-separated list of properties considered as node keys if you are using
-`SaveMode.Overwrite`
+|Comma-separated list of properties considered as node keys.
+Required when you write with `SaveMode.Overwrite`, because the connector uses the keys to `MERGE` the nodes.
+Not needed with `SaveMode.Append`.
 |_(none)_
-|No
+|Only with `SaveMode.Overwrite`
 
 |`node.keys.skip.nulls`
 | Whether to skip rows which contain null values for any of the specified columns in `node.keys`.
@@ -75,9 +76,11 @@ When the option is not set, all unmapped fields are set as relationship properti
 |No
 
 |`relationship.save.strategy`
-|xref:write/relationship.adoc#strategies[Save strategy] to be used
+|xref:write/relationship.adoc#strategies[Save strategy] to be used.
+Use `keys` (default) when you want to choose which DataFrame columns become node and relationship properties.
+Use `native` when your DataFrame already follows the connector's relationship read schema, for example when copying data from one database to another.
 |`keys`
-|Yes
+|No
 
 |`relationship.source.labels`
 |Colon-separated list of labels that identify the *source* node
