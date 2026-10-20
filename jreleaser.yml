@@ -54,6 +54,27 @@ files:
   globs:
     - pattern: artifacts/*.jar
 
+assemble:
+  archive:
+    zip:
+      active: ALWAYS
+      exported: true
+      stereotype: NONE
+      archiveName: neo4j-connector-apache-spark-{{projectVersion}}
+      distributionType: BINARY
+      attachPlatform: false
+      formats:
+        - ZIP
+      fileSets:
+        - input: '{{basedir}}/artifacts'
+          output: .
+          includes:
+            - '{{projectName}}-{{projectVersion}}*.jar'
+          excludes:
+            - '*-sources.jar'
+            - '*-javadoc.jar'
+      templateDirectory: src/jreleaser/assemblers/zip
+
 hooks:
   script:
 
