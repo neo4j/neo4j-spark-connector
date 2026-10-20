@@ -217,7 +217,7 @@ You are provided with two parameters to the query, `$stream.to` and `$stream.fro
 
 [IMPORTANT]
 ====
-The `$stream.offset` query parameter is no longer supported, and a query that uses it fails with an error.
+label:removed-6.0[] The previously available `$stream.offset` query parameter is no longer supported, and a query that uses it fails with an error.
 Use `$stream.from` and `$stream.to` instead.
 The connector also adds a filter on these two parameters to every query, so that the database can find the changes efficiently.
 ====
