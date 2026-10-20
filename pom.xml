@@ -370,8 +370,6 @@
                         </archive>
                     </configuration>
                     <executions>
-                        <!-- the default (classifier-less) jar is replaced by the bundled jar, see copy-rename-maven-plugin.
-                             this execution publishes the plain jar alongside it, whose dependencies are regular Maven dependencies -->
                         <execution>
                             <id>thin-jar</id>
                             <goals>
