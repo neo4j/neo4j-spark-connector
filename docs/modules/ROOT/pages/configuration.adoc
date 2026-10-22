@@ -143,7 +143,7 @@ See xref:authentication.adoc[] for more information.
 |No
 
 |`authentication.basic.password`
-|Username to use for basic authentication type
+|Password to use for basic authentication type
 |_(Neo4j Driver default)_
 |No
 
@@ -238,9 +238,9 @@ a|Possible values are:
 * `read`
 * `write`
 
-Used only while you're pulling data from Neo4j.
-In case of `read`, the connector in a cluster environment
-routes the requests to the followers, otherwise to the leader.
+Only affects how reads are routed. No effect on writes.
+In a cluster, `read` routes read requests to the followers, while `write` routes them to the leader.
+Writes always go to the leader, regardless of the value of this option.
 |`read`
 |No
 |===

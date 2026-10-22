@@ -143,7 +143,7 @@ spark \
 
 === Streaming property
 
-When reading from Neo4j, each record must include a unique increasing `Integer` value (a _streaming property_).
+When reading from Neo4j, each record must include a unique increasing, non-null `Long` value (a _streaming property_).
 
 The connector uses the value of the streaming property to filter records between the checkpoint and the latest offset stored in the database.
 
@@ -158,6 +158,20 @@ If you write a new record during streaming whose streaming property value is les
 
 Although the Neo4j `timestamp()` function might seem a good choice to create a streaming property, its millisecond resolution may not be enough to guarantee uniqueness in a write-heavy scenario.
 If several transactions happen within the same millisecond, the connector will only read one.
+
+If your source data, such as a Kafka topic, has no `Long` timestamp, you have two options when writing it to Neo4j.
+
+* Create the value from a DataFrame column, for example by casting a timestamp column to a `Long`:
++
+[source,python]
+----
+df = df.withColumn("timestamp", col("event_time").cast("long"))
+----
+
+* Set it on the server side with a `query` write, for example `MERGE (p:Person {id: event.id}) SET p.timestamp = timestamp()`.
+* 
+
+Either way, make sure every record includes a value, since records without one are never read.
 
 === _Streaming from_ option
 
@@ -203,10 +217,11 @@ df = spark.readStream \
 As you can see, the `streaming.from` and `streaming.property.name` must be specified anyway, but you need to take care of the `WHERE` clause by yourself.
 You are provided with two parameters to the query, `$stream.to` and `$stream.from`, which describes the range of changes we need to read.
 
-[NOTE]
+[IMPORTANT]
 ====
-Although the query parameter `$stream.offset`, which is now deprecated, is still supported in the query, all queries will be rewritten to also filter against `$stream.from` and `$stream.to` parameters.
-In order for database to query changes efficiently, update your queries to use these new query parameters.
+label:removed-6.0[] The previously available `$stream.offset` query parameter is no longer supported, and a query that uses it fails with an error.
+Use `$stream.from` and `$stream.to` instead.
+The connector also adds a filter on these two parameters to every query, so that the database can find the changes efficiently.
 ====
 
 In this case, the `streaming.query.offset` option is mandatory;
