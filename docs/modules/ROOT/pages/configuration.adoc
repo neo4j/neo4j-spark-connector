@@ -239,8 +239,8 @@ a|Possible values are:
 * `write`
 
 Only affects how reads are routed. No effect on writes.
-In a cluster, `read` routes read requests to the followers. `write` routes them to the leader.
-Writes always go to the leader, whatever the value.
+In a cluster, `read` routes read requests to the followers, while `write` routes them to the leader.
+Writes always go to the leader, regardless of the value of this option.
 |`read`
 |No
 |===

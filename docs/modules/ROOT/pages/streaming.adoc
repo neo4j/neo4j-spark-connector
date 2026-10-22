@@ -161,15 +161,17 @@ If several transactions happen within the same millisecond, the connector will o
 
 If your source data, such as a Kafka topic, has no `Long` timestamp, you have two options when writing it to Neo4j.
 
-Create the value from a DataFrame column, for example by casting a timestamp column to a `Long`:
-
+* Create the value from a DataFrame column, for example by casting a timestamp column to a `Long`:
++
 [source,python]
 ----
 df = df.withColumn("timestamp", col("event_time").cast("long"))
 ----
 
-Or set it on the server side with a `query` write, for example `MERGE (p:Person {id: event.id}) SET p.timestamp = timestamp()`.
-Either way, make sure every record gets a value, because records without one are never read.
+* Set it on the server side with a `query` write, for example `MERGE (p:Person {id: event.id}) SET p.timestamp = timestamp()`.
+* 
+
+Either way, make sure every record includes a value, since records without one are never read.
 
 === _Streaming from_ option
 
