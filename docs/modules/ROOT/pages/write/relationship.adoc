@@ -76,30 +76,23 @@ If `key` and `value` have the same value (for example `"name:name"`), you can om
 |===
 
 [#save-mode-semantics]
-== How DataFrame and node save modes interact
+== Using DataFrame and node save modes together
 
 A relationship write uses two independent kinds of save mode:
 
 * The DataFrame `mode()` controls how the *relationship* is written: `Append` builds a `CREATE`, `Overwrite` builds a `MERGE`.
 * `relationship.{source/target}.save.mode` control how the *source/target nodes* are written: `Match` builds a `MATCH`, `Append` builds a `CREATE`, `Overwrite` builds a `MERGE`.
 
-You should think of DataFrame's mode as _what happens to the relationship_.
-Then think of `save.mode` as _what happens to the (source/target) node_.
-The options can be combined in different ways to create quite some flexible outcomes.
-When used carelessly, some unintended situations might appear.
-Some examples.
+The two options can be combined in different ways, which may result in unintended consequences.
 
-Setting DataFrame to `Append`, source to `Match` (default) and target to `Match` will only create the relationship if both nodes already exists (and therefore can be matched).
-Despite that DataFrame mode at a glance suggests it will always create/append, it is not always the case.
-Not even the default case.
+* Setting DataFrame to `Append`, source to `Match` (default), and target to `Match` will only create the relationship if both nodes already exists (and therefore can be matched).
+This means that the relationship might not be created, even if the `Append` mode for the DataFrame suggests otherwise.
 
-Setting DataFrame to `Overwrite`, source to `Match` and target to `Append` will only create the relationship if the source node already exists, and it will *always* try to create a new target node.
-Despite that DataFrame mode at a glance suggests that it will try to in-place update the relationship, it is never the case.
-Because we *always* create a new target node, therefore cannot match any existing relationship.
+Setting DataFrame to `Overwrite`, source to `Match`, and target to `Append` will only create the relationship if the source node already exists, and it will *always* try to create a new target node.
+This means that a new relationship will always be created.
 
-Setting DataFrame mode, source mode and target mode to `Overwrite` will `MERGE` everything meaning creates source, and target unless they exist, creates relationship unless it exists.
-If anything already exists, update Neo4j with the new data.
-Setting all three should be use done if full upsert is your intent, it can be easy to forget to set all three.
+* Setting DataFrame mode, source mode and target mode to `Overwrite` will `MERGE` both relationships and nodes.
+This means relationships, source nodes, and target nodes will be created if they not exist or updated if they do, and is equivalent to a full upsert.
 
 [NOTE]
 ====
