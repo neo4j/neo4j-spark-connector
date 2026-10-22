@@ -133,6 +133,12 @@ SET rel += event.rel.properties
 ----
 ====
 
+[NOTE]
+====
+The two strategies generate the same Cypher query for the same save modes.
+They differ in how the connector reads your DataFrame: `native` takes properties from the `rel.`, `source.`, and `target.` column prefixes, while `keys` uses the column mappings you set in the options.
+====
+
 [#strategy-keys]
 === `keys` strategy
 
@@ -164,20 +170,7 @@ include::example$python/write_relationship.py[tags=code-keys]
 =====
 ====
 
-.Equivalent Cypher query
-[%collapsible]
-====
-[source, cypher]
-----
-UNWIND $events AS event
-CREATE (source:Customer)
-SET source += event.source.properties
-CREATE (target:Product)
-SET target += event.target.properties
-CREATE (source)-[rel:BOUGHT]->(target)
-SET rel += event.rel.properties
-----
-====
+The generated Cypher query is the same as the one shown for the <<strategy-native, `native` strategy>>.
 
 [#node-save-modes]
 == Node save modes
