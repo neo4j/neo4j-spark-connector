@@ -355,6 +355,49 @@ class DataSourceSchemaWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(expectedNode, actualNode)
   }
 
+  @Test
+  def shouldSkipSchemaForMapColumnsOnNodes(): Unit = {
+    val data = Seq(("Foo", Map("key" -> "value"))).toDF("name", "map")
+    val schema = StructType(data.schema.map(sf => StructField(sf.name, sf.dataType, false)))
+    val df = ss.createDataFrame(data.rdd, schema)
+
+    df
+      .write
+      .mode(SaveMode.Append)
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", s":$nodeWithSchema")
+      .option(Neo4jOptions.SCHEMA_OPTIMIZATION, schemaOptimization)
+      .save()
+
+    val expectedSchema = Seq(
+      constraintNodeNotNull(nodeWithSchema, "name"),
+      constraintNodeType(nodeWithSchema, "name", "STRING")
+    )
+
+    val actualSchema = SparkConnectorScalaSuiteIT.session()
+      .run(SHOW_CONSTRAINTS_QUERY)
+      .list()
+      .asScala
+      .map(_.asMap(v => v.asObject()).asScala.view.mapValues(mapData).toMap)
+      .toSeq
+
+    assertEquals(expectedSchema, actualSchema)
+
+    val actualNode: Map[String, Any] = SparkConnectorScalaSuiteIT.session()
+      .executeRead(tx =>
+        tx.run(s"MATCH (n:$nodeWithSchema) RETURN n")
+          .single()
+          .get("n")
+          .asNode()
+          .asMap()
+      )
+      .asScala
+      .toMap
+
+    assertEquals(Map("name" -> "Foo", "map.key" -> "value"), actualNode)
+  }
+
   final private def constraintNodeNotNull(node: String, prop: String): Map[String, Any] = Map(
     "name" -> s"spark_NODE-NOT_NULL-CONSTRAINT-$node-$prop",
     "type" -> "NODE_PROPERTY_EXISTENCE",
