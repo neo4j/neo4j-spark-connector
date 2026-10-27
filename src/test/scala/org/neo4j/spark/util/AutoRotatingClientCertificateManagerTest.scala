@@ -47,7 +47,7 @@ class AutoRotatingClientCertificateManagerTest {
   private def manager(password: Option[String] = None) =
     new AutoRotatingClientCertificateManager(certFile.getPath, keyFile.getPath, password)
 
-  private def  next(manager: AutoRotatingClientCertificateManager): ClientCertificate =
+  private def next(manager: AutoRotatingClientCertificateManager): ClientCertificate =
     manager.getClientCertificate.toCompletableFuture.get()
 
   @Test
