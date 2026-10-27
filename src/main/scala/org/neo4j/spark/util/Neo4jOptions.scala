@@ -158,6 +158,9 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
     getParameter(ENCRYPTION_ENABLED, DEFAULT_ENCRYPTION_ENABLED.toString).toBoolean,
     Option(getParameter(ENCRYPTION_TRUST_STRATEGY, null)),
     getParameter(ENCRYPTION_CA_CERTIFICATE_PATH, DEFAULT_EMPTY),
+    getParameter(ENCRYPTION_CLIENT_CERTIFICATE_PATH, DEFAULT_EMPTY),
+    getParameter(ENCRYPTION_CLIENT_KEY_PATH, DEFAULT_EMPTY),
+    Option(getParameter(ENCRYPTION_CLIENT_KEY_PASSWORD, null)),
     getParameter(CONNECTION_MAX_LIFETIME_MSECS, DEFAULT_CONNECTION_MAX_LIFETIME_MSECS.toString).toInt,
     getParameter(CONNECTION_ACQUISITION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt,
     getParameter(
@@ -506,6 +509,9 @@ case class Neo4jDriverOptions(
   encryption: Boolean,
   trustStrategy: Option[String],
   certificatePath: String,
+  clientCertificatePath: String,
+  clientKeyPath: String,
+  clientKeyPassword: Option[String],
   lifetime: Int,
   acquisitionTimeout: Int,
   livenessCheckTimeout: Int,
@@ -515,7 +521,11 @@ case class Neo4jDriverOptions(
 
   def createDriver(): Driver = {
     val (url, _) = connectionUrls
-    val driver = GraphDatabase.driver(url, createAuthTokenManager, toDriverConfig)
+    val config = toDriverConfig
+    val driver = createClientCertificateManager match {
+      case Some(certManager) => GraphDatabase.driver(url, createAuthTokenManager, certManager, config)
+      case None              => GraphDatabase.driver(url, createAuthTokenManager, config)
+    }
     if (minNotificationSeverity == NotificationSeverity.WARNING) {
       new StrictDriver(driver)
     } else {
@@ -587,6 +597,36 @@ case class Neo4jDriverOptions(
     (URI.create(urls.head.trim), resolved)
   }
 
+  private def createClientCertificateManager: Option[ClientCertificateManager] = {
+    val hasCertificate = clientCertificatePath.nonEmpty
+    val hasKey = clientKeyPath.nonEmpty
+    require(
+      hasCertificate == hasKey,
+      s"'${Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH}' and '${Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH}' " +
+        "must be provided together for mTLS"
+    )
+    if (!hasCertificate) {
+      require(
+        clientKeyPassword.isEmpty,
+        s"'${Neo4jOptions.ENCRYPTION_CLIENT_KEY_PASSWORD}' requires " +
+          s"'${Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH}' and '${Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH}'"
+      )
+      None
+    } else {
+      val (primaryUrl, _) = connectionUrls
+      val secureScheme = primaryUrl.getScheme match {
+        case "neo4j+s" | "neo4j+ssc" | "bolt+s" | "bolt+ssc" => true
+        case _                                               => false
+      }
+      require(
+        secureScheme || encryption,
+        "mTLS requires an encrypted connection: use an encrypted scheme (such as 'neo4j+s://') " +
+          s"or set '${Neo4jOptions.ENCRYPTION_ENABLED}' to true"
+      )
+      Some(new AutoRotatingClientCertificateManager(clientCertificatePath, clientKeyPath, clientKeyPassword))
+    }
+  }
+
   private def createAuthTokenManager: AuthTokenManager = {
     if (auth == null || auth.isEmpty) {
       throw new IllegalArgumentException(s"Authentication type name is required")
@@ -613,6 +653,9 @@ object Neo4jOptions {
   val ENCRYPTION_ENABLED = "encryption.enabled"
   val ENCRYPTION_TRUST_STRATEGY = "encryption.trust.strategy"
   val ENCRYPTION_CA_CERTIFICATE_PATH = "encryption.ca.certificate.path"
+  val ENCRYPTION_CLIENT_CERTIFICATE_PATH = "encryption.client.certificate.path"
+  val ENCRYPTION_CLIENT_KEY_PATH = "encryption.client.key.path"
+  val ENCRYPTION_CLIENT_KEY_PASSWORD = "encryption.client.key.password"
   val CONNECTION_MAX_LIFETIME_MSECS = "connection.max.lifetime.msecs"
   val CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS = "connection.liveness.timeout.msecs"
   val CONNECTION_ACQUISITION_TIMEOUT_MSECS = "connection.acquisition.timeout.msecs"
@@ -771,6 +814,55 @@ object Neo4jOptions {
 
     new Neo4jOptions(sessionLevelOptions ++ options)
   }
+}
+
+/**
+ * Client certificate manager for mTLS that supports certificate rotation.
+ *
+ * It delegates to the driver's `RotatingClientCertificateManager` (see `ClientCertificateManagers.rotating`), so the
+ * driver only reloads the certificate when it actually changed. Whenever a new connection is opened, the size and
+ * modification time of the certificate and key files are checked; if either file changed (e.g. renewed by
+ * cert-manager or Vault), the manager is rotated and every subsequent connection uses the new certificate without
+ * restarting the job. Existing connections keep their certificate until they are closed.
+ *
+ * The files must be available at the same path on the Spark driver and on every executor.
+ */
+class AutoRotatingClientCertificateManager(certificatePath: String, keyPath: String, keyPassword: Option[String])
+    extends ClientCertificateManager {
+
+  import AutoRotatingClientCertificateManager.validateReadable
+
+  private val certificateFile = new File(certificatePath)
+  private val keyFile = new File(keyPath)
+
+  validateReadable(Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH, certificateFile)
+  validateReadable(Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH, keyFile)
+
+  // `ClientCertificate` only references the files, the driver (re)reads them every time the manager is rotated
+  private val certificate = ClientCertificates.of(certificateFile, keyFile, keyPassword.orNull)
+  private val delegate = ClientCertificateManagers.rotating(certificate)
+  private var fingerprint = currentFingerprint()
+
+  override def getClientCertificate: CompletionStage[ClientCertificate] = {
+    synchronized {
+      val latest = currentFingerprint()
+      if (latest != fingerprint) {
+        fingerprint = latest
+        delegate.rotate(certificate)
+      }
+    }
+    delegate.getClientCertificate
+  }
+
+  // a missing file yields zeros, so it is detected as a change once it reappears
+  private def currentFingerprint(): (Long, Long, Long, Long) =
+    (certificateFile.lastModified(), certificateFile.length(), keyFile.lastModified(), keyFile.length())
+}
+
+object AutoRotatingClientCertificateManager {
+
+  private def validateReadable(option: String, file: File): Unit =
+    require(file.isFile && file.canRead, s"'$option' must point to a readable file, but got '${file.getPath}'")
 }
 
 class StaticAuthTokenManager(authToken: AuthToken) extends AuthTokenManager {
