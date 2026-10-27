@@ -41,7 +41,6 @@ import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -57,7 +56,6 @@ import org.neo4j.caniuse.CanIUse
 import org.neo4j.caniuse.Neo4j
 import org.neo4j.caniuse.Schema
 import org.neo4j.driver.Driver
-import org.neo4j.driver.Session
 import org.neo4j.driver.SessionConfig
 import org.neo4j.driver.TransactionContext
 import org.neo4j.driver.Value
@@ -1710,7 +1708,7 @@ class WriteIT {
         (4, 15, "John Butler", "Guitar")
       ).toDF("id", "experience", "name", "instrument")
 
-      try {
+      val thrown = catchThrowable(() =>
         musicDf.write
           .format("neo4j")
           .mode(SaveMode.Overwrite)
@@ -1723,19 +1721,15 @@ class WriteIT {
           .option("relationship.target.labels", ":Instrument")
           .option("relationship.target.node.keys", "instrument:name")
           .save()
-      } catch {
-        case exception: IllegalArgumentException => {
-          val clientException = ExceptionUtils.getRootCause(exception)
-          assertTrue(clientException.getMessage.equals(
-            """Write failed due to the following errors:
-              | - Schema is missing musician_name from option `relationship.source.node.keys`
-              |
-              |The option key and value might be inverted.""".stripMargin
-          ))
-        }
-        case generic: Throwable =>
-          fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, got ${generic.getClass} instead")
-      }
+      )
+
+      assertThat(thrown).isInstanceOf(classOf[IllegalArgumentException])
+      assertThat(ExceptionUtils.getRootCause(thrown)).hasMessage(
+        """Write failed due to the following errors:
+          | - Schema is missing musician_name from option `relationship.source.node.keys`
+          |
+          |The option key and value might be inverted.""".stripMargin
+      )
     }
 
     @Test
@@ -1749,7 +1743,7 @@ class WriteIT {
         (4, 15, "John Butler", "Guitar")
       ).toDF("id", "experience", "name", "instrument")
 
-      try {
+      val thrown = catchThrowable(() =>
         musicDf.write
           .format("neo4j")
           .mode(SaveMode.Overwrite)
@@ -1762,55 +1756,16 @@ class WriteIT {
           .option("relationship.target.labels", ":Instrument")
           .option("relationship.target.node.keys", "instrument_name:name")
           .save()
-      } catch {
-        case exception: IllegalArgumentException => {
-          val clientException = ExceptionUtils.getRootCause(exception)
-          assertTrue(clientException.getMessage.equals(
-            """Write failed due to the following errors:
-              | - Schema is missing instrument_name from option `relationship.target.node.keys`
-              | - Schema is missing musician_name, another_name from option `relationship.source.node.keys`
-              |
-              |The option key and value might be inverted.""".stripMargin
-          ))
-        }
-        case generic: Throwable =>
-          fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, got ${generic.getClass} instead")
-      }
-    }
+      )
 
-    @Test
-    def should_give_a_more_clear_error_if_node_properties_or_keys_are_inverted(spark: SparkSession): Unit = {
-      import spark.implicits._
-      val musicDf = Seq(
-        (1, 12, "John Henry Bonham", "Drums"),
-        (2, 19, "John Mayer", "Guitar"),
-        (3, 32, "John Scofield", "Guitar"),
-        (4, 15, "John Butler", "Guitar")
-      ).toDF("id", "experience", "name", "instrument")
-
-      try {
-        musicDf.write
-          .format("neo4j")
-          .mode(SaveMode.Append)
-          .option("database", "db1")
-          .option("labels", "Person")
-          .option("relationship.save.strategy", "native")
-          .option("node.properties", "musician_name:name,another_name:name")
-          .save()
-      } catch {
-        case exception: IllegalArgumentException => {
-          val clientException = ExceptionUtils.getRootCause(exception)
-          assertTrue(clientException.getMessage.equals(
-            """Write failed due to the following errors:
-              | - Schema is missing instrument_name from option `node.properties`
-              |
-              |The option key and value might be inverted.""".stripMargin
-          ))
-        }
-        case generic: Throwable => fail(
-            s"should be thrown a ${classOf[IllegalArgumentException].getName}, got ${generic.getClass} instead: ${generic.getMessage}"
-          )
-      }
+      assertThat(thrown).isInstanceOf(classOf[IllegalArgumentException])
+      assertThat(ExceptionUtils.getRootCause(thrown)).hasMessage(
+        """Write failed due to the following errors:
+          | - Schema is missing instrument_name from option `relationship.target.node.keys`
+          | - Schema is missing musician_name, another_name from option `relationship.source.node.keys`
+          |
+          |The option key and value might be inverted.""".stripMargin
+      )
     }
 
     @Test
