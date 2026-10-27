@@ -51,13 +51,13 @@
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
         <maven-deploy-plugin.version>3.2.0</maven-deploy-plugin.version>
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
-        <maven-failsafe-plugin.version>3.6.0</maven-failsafe-plugin.version>
+        <maven-failsafe-plugin.version>3.6.1</maven-failsafe-plugin.version>
         <maven-install-plugin.version>3.2.0</maven-install-plugin.version>
         <maven-jar-plugin.version>3.5.1</maven-jar-plugin.version>
         <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
         <maven-site-plugin.version>3.22.0</maven-site-plugin.version>
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
-        <maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
+        <maven-surefire-plugin.version>3.6.1</maven-surefire-plugin.version>
         <mockito.version>5.24.0</mockito.version>
         <neo4j.experimental>false</neo4j.experimental>
         <neo4j.version>4.4.20</neo4j.version>
