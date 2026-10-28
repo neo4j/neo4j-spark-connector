@@ -127,8 +127,8 @@ class CypherToSparkTypeConverter(options: Neo4jOptions) extends TypeConverter[St
       case "DateArray" | "LocalDateArray"         => DataTypes.createArrayType(DataTypes.DateType)
       case "DurationArray"                        => DataTypes.createArrayType(durationType)
       case "byte[]"                               => DataTypes.BinaryType
-      // Default is String
-      case _ => DataTypes.StringType
+      case "EmptyArray"                           => DataTypes.createArrayType(DataTypes.StringType)
+      case _                                      => DataTypes.StringType // Default is String
     }
   }
 }

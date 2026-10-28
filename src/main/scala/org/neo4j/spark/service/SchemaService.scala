@@ -175,13 +175,20 @@ class SchemaService(
       .map(t =>
         options.schemaMetadata.strategy match {
           case SchemaStrategy.SAMPLE =>
-            val types = t._2.map(value => {
+            val valuesByType = t._2.groupBy(value => {
               if (options.query.queryType == QueryType.QUERY) {
                 normalizedClassName(value, options)
               } else {
                 normalizedClassNameFromGraphEntity(value, options)
               }
-            }).toSet
+            })
+
+            // only consider EmptyArray in isolation iff it is alone in the sample
+            val types = if (valuesByType.keySet == Set("EmptyArray")) {
+              valuesByType.keySet
+            } else {
+              valuesByType.keySet - "EmptyArray"
+            }
 
             if (types.size > 1) {
               log.warn(
@@ -192,7 +199,7 @@ class SchemaService(
               )
               StructField(t._1, DataTypes.StringType)
             } else {
-              val value = t._2.head
+              val value = valuesByType(types.head).head
               StructField(t._1, cypherToSparkTypeConverter.convert(types.head, value))
             }
           case SchemaStrategy.STRING => StructField(t._1, DataTypes.StringType)
@@ -302,7 +309,7 @@ class SchemaService(
          |$query
          |ORDER BY rand()
          |LIMIT ${options.schemaMetadata.flattenLimit}
-         |""".stripMargin
+         |""".stripMargin.trim
     val randCallLimitedQueryForSchema = renderer.render(Cypher.callRawCypher(query)
       .returning(Cypher.asterisk())
       .orderBy(Cypher.rand())
@@ -978,11 +985,11 @@ object SchemaService {
   val DURATION_TYPE = "duration"
 
   def normalizedClassName(value: AnyRef, options: Neo4jOptions): String = value match {
-    case _: Array[Byte]       => if (options.legacyTypeConversionEnabled) value.getClass.getSimpleName else "ByteArray"
-    case _: java.util.List[_] => "Array"
-    case _: java.util.Map[_, _] => "Map"
-    case null                   => "String"
-    case _                      => value.getClass.getSimpleName
+    case _: Array[Byte] => if (options.legacyTypeConversionEnabled) value.getClass.getSimpleName else "ByteArray"
+    case list: java.util.List[_] => if (list.isEmpty) "EmptyArray" else "Array"
+    case _: java.util.Map[_, _]  => "Map"
+    case null                    => "String"
+    case _                       => value.getClass.getSimpleName
   }
 
   // from nodes and relationships we cannot have maps as properties and elements in lists are the same type
