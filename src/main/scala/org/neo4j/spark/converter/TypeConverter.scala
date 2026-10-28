@@ -94,7 +94,7 @@ class CypherToSparkTypeConverter(options: Neo4jOptions) extends TypeConverter[St
       case "Date" | "LocalDate" => DataTypes.DateType
       case "Duration"           => durationType
       case "ByteArray"          => DataTypes.BinaryType
-      case "Map" => {
+      case "Map" =>
         val valueType = if (value == null) {
           DataTypes.NullType
         } else {
@@ -105,8 +105,7 @@ class CypherToSparkTypeConverter(options: Neo4jOptions) extends TypeConverter[St
           if (types.size == 1) convert(types.head, map.values.head) else DataTypes.StringType
         }
         DataTypes.createMapType(DataTypes.StringType, valueType)
-      }
-      case "Array" => {
+      case "Array" =>
         val valueType = if (value == null) {
           DataTypes.NullType
         } else {
@@ -117,7 +116,6 @@ class CypherToSparkTypeConverter(options: Neo4jOptions) extends TypeConverter[St
           if (types.size == 1) convert(types.head, list.head) else DataTypes.StringType
         }
         DataTypes.createArrayType(valueType)
-      }
       // These are from APOC
       case "StringArray"                          => DataTypes.createArrayType(DataTypes.StringType)
       case "LongArray"                            => DataTypes.createArrayType(DataTypes.LongType)
