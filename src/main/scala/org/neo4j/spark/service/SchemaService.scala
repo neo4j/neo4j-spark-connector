@@ -174,7 +174,7 @@ class SchemaService(
       .mapValues(_.map(_._2))
       .map(t =>
         options.schemaMetadata.strategy match {
-          case SchemaStrategy.SAMPLE => {
+          case SchemaStrategy.SAMPLE =>
             val types = t._2.map(value => {
               if (options.query.queryType == QueryType.QUERY) {
                 normalizedClassName(value, options)
@@ -195,7 +195,6 @@ class SchemaService(
               val value = t._2.head
               StructField(t._1, cypherToSparkTypeConverter.convert(types.head, value))
             }
-          }
           case SchemaStrategy.STRING => StructField(t._1, DataTypes.StringType)
         }
       )
@@ -213,20 +212,20 @@ class SchemaService(
 
   private def structForRelationship() = {
     val structFields: mutable.Buffer[StructField] = ArrayBuffer(
-      StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.StringType, false),
-      StructField(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, DataTypes.StringType, false)
+      StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.StringType, nullable = false),
+      StructField(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, DataTypes.StringType, nullable = false)
     )
 
     if (options.relationshipMetadata.nodeMap) {
       structFields += StructField(
         s"<${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}>",
         DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType),
-        false
+        nullable = false
       )
       structFields += StructField(
         s"<${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}>",
         DataTypes.createMapType(DataTypes.StringType, DataTypes.StringType),
-        false
+        nullable = false
       )
     } else {
       structFields ++= structForNode(options.relationshipMetadata.source.labels)
@@ -451,7 +450,7 @@ class SchemaService(
     } else {
       queryReadStrategy.createStatementForNodeCount(options)
     }
-    log.info(s"Executing the following counting query on Neo4j: $query")
+    log.info(s"Executing the following node counting query on Neo4j: $query")
     session.executeRead(
       tx =>
         tx.run(query, Values.value(Neo4jUtil.paramsFromFilters(filters).asJava))
@@ -485,7 +484,7 @@ class SchemaService(
     } else {
       queryReadStrategy.createStatementForRelationshipCount(options)
     }
-    log.info(s"Executing the following counting query on Neo4j: $query")
+    log.info(s"Executing the following rel counting query on Neo4j: $query")
     session.executeRead(tx => tx.run(query).list(), sessionTransactionConfig)
       .asScala
       .map(_.get("count"))
@@ -493,7 +492,7 @@ class SchemaService(
       .min
   }
 
-  def countForNode(filters: Array[Filter]): Long =
+  private def countForNode(filters: Array[Filter]): Long =
     try {
       /*
        * we try to leverage the count store in order to have the faster response possible
@@ -506,8 +505,7 @@ class SchemaService(
         val map = session.executeRead(tx => tx.run(query).single(), sessionTransactionConfig)
           .asMap()
           .asScala
-          .get("labels")
-          .getOrElse(Collections.emptyMap())
+          .getOrElse("labels", Collections.emptyMap())
           .asInstanceOf[util.Map[String, Long]].asScala
         map.view.filterKeys(k => options.nodeMetadata.labels.contains(k))
           .values.min
@@ -522,15 +520,14 @@ class SchemaService(
       case e: Throwable => logExceptionForCount(e)
     }
 
-  def countForRelationship(filters: Array[Filter]): Long =
+  private def countForRelationship(filters: Array[Filter]): Long =
     try {
       if (filters.isEmpty) {
         val query = "CALL apoc.meta.stats() yield relTypes RETURN relTypes"
         val map = session.executeRead(tx => tx.run(query).single(), sessionTransactionConfig)
           .asMap()
           .asScala
-          .get("relTypes")
-          .getOrElse(Collections.emptyMap())
+          .getOrElse("relTypes", Collections.emptyMap())
           .asInstanceOf[util.Map[String, Long]]
           .asScala
 
@@ -556,11 +553,10 @@ class SchemaService(
         countForRelationshipWithQuery(filters)
       }
     } catch {
-      case e: ClientException => {
+      case e: ClientException =>
         val logPrefix = if (filters.isEmpty) "APOC is not installed. " else ""
         logResolutionChange(s"${logPrefix}Switching to query count resolution", e)
         countForRelationshipWithQuery(filters)
-      }
       case e: Throwable => logExceptionForCount(e)
     }
 
@@ -685,12 +681,11 @@ class SchemaService(
         session.executeRead(tx => tx.run(s"EXPLAIN $query", params).consume(), sessionTransactionConfig).queryType()
       expectedQueryTypes.isEmpty || expectedQueryTypes.contains(queryType)
     } catch {
-      case e: Throwable => {
+      case e: Throwable =>
         if (log.isDebugEnabled) {
           log.debug("Query not compiled because of the following exception:", e)
         }
         false
-      }
     }
 
   private def createEntityConstraint(
@@ -900,7 +895,7 @@ class SchemaService(
                   .asScala
                   .map(_.asMap())
                   .asJava
-              case _ => {
+              case _ =>
                 others
                   .slice(0, queries.size - 1)
                   .foreach(transaction.run)
@@ -909,7 +904,6 @@ class SchemaService(
                   .map(_.asMap())
                   .asJava
                 result
-              }
             }
           },
           sessionTransactionConfig
