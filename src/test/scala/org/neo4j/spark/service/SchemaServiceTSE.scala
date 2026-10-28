@@ -196,6 +196,23 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def testGetSchemaFromEmptyArray(): Unit = {
+    initTest("CREATE (:Typed {id: 1, arr: []}), (:Typed {id: 2, arr: []})")
+    val options = Map(
+      QueryType.QUERY.toString.toLowerCase -> "MATCH (t:Typed) RETURN t.id AS id, t.arr AS arr ORDER BY id"
+    )
+
+    val wantFields = Seq(
+      StructField("id", DataTypes.LongType),
+      StructField("arr", DataTypes.createArrayType(DataTypes.StringType))
+    )
+
+    val gotSchema = getSchema(options)
+
+    assertEquals(StructType(wantFields), gotSchema)
+  }
+
+  @Test
   def testGetSchemaFromMixedArraysOneEmpty(): Unit = {
     initTest("CREATE (:Typed {id: 1, arr: []}), (:Typed {id: 2, arr: [1, 2, 3]})")
     val options = Map(
