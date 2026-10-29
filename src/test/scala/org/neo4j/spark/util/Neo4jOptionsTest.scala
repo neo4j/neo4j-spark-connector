@@ -406,6 +406,7 @@ class Neo4jOptionsTest {
     assertThat(connection.clientCertificatePath).isEmpty()
     assertThat(connection.clientKeyPath).isEmpty()
     assertThat(connection.clientKeyPassword.isDefined).isFalse
+    assertThat(connection.clientCertificateRotationEnabled).isTrue
     connection.createDriver().close()
   }
 
@@ -444,6 +445,39 @@ class Neo4jOptionsTest {
 
     assertThat(driver).isNotNull
     driver.close()
+  }
+
+  @Test
+  def reads_mtls_certificate_rotation_option(): Unit = {
+    val connection =
+      mtlsOptions(Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED -> "false").connection
+
+    assertThat(connection.clientCertificateRotationEnabled).isFalse
+  }
+
+  @Test
+  def creates_driver_when_mtls_certificate_rotation_is_disabled(): Unit = {
+    val driver = mtlsOptions(
+      Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH -> mtlsFile("client.pem"),
+      Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH -> mtlsFile("client.key"),
+      Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED -> "false"
+    ).connection.createDriver()
+
+    assertThat(driver).isNotNull
+    driver.close()
+  }
+
+  @Test
+  def rejects_mtls_files_that_do_not_exist_when_certificate_rotation_is_disabled(): Unit = {
+    val connection = mtlsOptions(
+      Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH -> "/does/not/exist/client.pem",
+      Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH -> mtlsFile("client.key"),
+      Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED -> "false"
+    ).connection
+
+    assertThatExceptionOfType(classOf[IllegalArgumentException])
+      .isThrownBy(() => connection.createDriver())
+      .withMessageContaining("/does/not/exist/client.pem")
   }
 
   @Test

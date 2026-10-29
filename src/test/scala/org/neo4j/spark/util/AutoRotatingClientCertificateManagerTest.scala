@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.neo4j.driver.ClientCertificate
+import org.neo4j.driver.ClientCertificateManager
 import org.neo4j.driver.ClientCertificates
 
 import java.io.File
@@ -47,7 +48,7 @@ class AutoRotatingClientCertificateManagerTest {
   private def manager(password: Option[String] = None) =
     new AutoRotatingClientCertificateManager(certFile.getPath, keyFile.getPath, password)
 
-  private def next(manager: AutoRotatingClientCertificateManager): ClientCertificate =
+  private def next(manager: ClientCertificateManager): ClientCertificate =
     manager.getClientCertificate.toCompletableFuture.get()
 
   @Test
@@ -135,5 +136,42 @@ class AutoRotatingClientCertificateManagerTest {
       .isThrownBy(() => manager())
       .withMessageContaining(Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH)
       .withMessageContaining(keyFile.getPath)
+  }
+
+  @Test
+  def static_manager_returns_initial_certificate_on_first_call(): Unit = {
+    val manager = AutoRotatingClientCertificateManager.static(certFile.getPath, keyFile.getPath, Some("secret"))
+
+    assertThat(next(manager)).isEqualTo(ClientCertificates.of(certFile, keyFile, "secret"))
+  }
+
+  @Test
+  def static_manager_does_not_rotate_when_files_are_modified(): Unit = {
+    val manager = AutoRotatingClientCertificateManager.static(certFile.getPath, keyFile.getPath, None)
+    next(manager)
+
+    Files.writeString(certFile.toPath, "renewed cert")
+    certFile.setLastModified(2000L)
+    keyFile.setLastModified(2000L)
+
+    assertThat(next(manager)).isNull()
+  }
+
+  @Test
+  def static_manager_fails_when_certificate_file_is_missing(): Unit = {
+    assertThat(certFile.delete()).isTrue
+
+    assertThatExceptionOfType(classOf[IllegalArgumentException])
+      .isThrownBy(() => AutoRotatingClientCertificateManager.static(certFile.getPath, keyFile.getPath, None))
+      .withMessageContaining(Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH)
+  }
+
+  @Test
+  def static_manager_fails_when_key_file_is_missing(): Unit = {
+    assertThat(keyFile.delete()).isTrue
+
+    assertThatExceptionOfType(classOf[IllegalArgumentException])
+      .isThrownBy(() => AutoRotatingClientCertificateManager.static(certFile.getPath, keyFile.getPath, None))
+      .withMessageContaining(Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH)
   }
 }

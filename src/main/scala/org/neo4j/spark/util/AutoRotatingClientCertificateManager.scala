@@ -34,6 +34,9 @@ import java.util.concurrent.CompletionStage
  * restarting the job. Existing connections keep their certificate until they are closed.
  *
  * The files must be available at the same path on the Spark driver and on every executor.
+ *
+ * Rotation can be disabled with `encryption.client.certificate.rotation.enabled`, see
+ * [[AutoRotatingClientCertificateManager.static]].
  */
 class AutoRotatingClientCertificateManager(certificatePath: String, keyPath: String, keyPassword: Option[String])
     extends ClientCertificateManager {
@@ -68,6 +71,18 @@ class AutoRotatingClientCertificateManager(certificatePath: String, keyPath: Str
 }
 
 object AutoRotatingClientCertificateManager {
+
+  /**
+   * Client certificate manager for mTLS that loads the certificate once and never rotates it, so a renewed
+   * certificate is only picked up when a new driver is created.
+   */
+  def static(certificatePath: String, keyPath: String, keyPassword: Option[String]): ClientCertificateManager = {
+    val certificateFile = new File(certificatePath)
+    val keyFile = new File(keyPath)
+    validateReadable(Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH, certificateFile)
+    validateReadable(Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH, keyFile)
+    ClientCertificateManagers.rotating(ClientCertificates.of(certificateFile, keyFile, keyPassword.orNull))
+  }
 
   private def validateReadable(option: String, file: File): Unit =
     require(file.isFile && file.canRead, s"'$option' must point to a readable file, but got '${file.getPath}'")

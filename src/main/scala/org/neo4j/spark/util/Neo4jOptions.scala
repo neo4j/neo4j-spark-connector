@@ -161,6 +161,10 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
     getParameter(ENCRYPTION_CLIENT_CERTIFICATE_PATH, DEFAULT_EMPTY),
     getParameter(ENCRYPTION_CLIENT_KEY_PATH, DEFAULT_EMPTY),
     Option(getParameter(ENCRYPTION_CLIENT_KEY_PASSWORD, null)),
+    getParameter(
+      ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED,
+      DEFAULT_ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED.toString
+    ).toBoolean,
     getParameter(CONNECTION_MAX_LIFETIME_MSECS, DEFAULT_CONNECTION_MAX_LIFETIME_MSECS.toString).toInt,
     getParameter(CONNECTION_ACQUISITION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt,
     getParameter(
@@ -512,6 +516,7 @@ case class Neo4jDriverOptions(
   clientCertificatePath: String,
   clientKeyPath: String,
   clientKeyPassword: Option[String],
+  clientCertificateRotationEnabled: Boolean,
   lifetime: Int,
   acquisitionTimeout: Int,
   livenessCheckTimeout: Int,
@@ -623,7 +628,11 @@ case class Neo4jDriverOptions(
         "mTLS requires an encrypted connection: use an encrypted scheme (such as 'neo4j+s://') " +
           s"or set '${Neo4jOptions.ENCRYPTION_ENABLED}' to true"
       )
-      Some(new AutoRotatingClientCertificateManager(clientCertificatePath, clientKeyPath, clientKeyPassword))
+      if (clientCertificateRotationEnabled) {
+        Some(new AutoRotatingClientCertificateManager(clientCertificatePath, clientKeyPath, clientKeyPassword))
+      } else {
+        Some(AutoRotatingClientCertificateManager.static(clientCertificatePath, clientKeyPath, clientKeyPassword))
+      }
     }
   }
 
@@ -656,6 +665,7 @@ object Neo4jOptions {
   val ENCRYPTION_CLIENT_CERTIFICATE_PATH = "encryption.client.certificate.path"
   val ENCRYPTION_CLIENT_KEY_PATH = "encryption.client.key.path"
   val ENCRYPTION_CLIENT_KEY_PASSWORD = "encryption.client.key.password"
+  val ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED = "encryption.client.certificate.rotation.enabled"
   val CONNECTION_MAX_LIFETIME_MSECS = "connection.max.lifetime.msecs"
   val CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS = "connection.liveness.timeout.msecs"
   val CONNECTION_ACQUISITION_TIMEOUT_MSECS = "connection.acquisition.timeout.msecs"
@@ -763,6 +773,7 @@ object Neo4jOptions {
   val DEFAULT_ACCESS_MODE = AccessMode.READ
   val DEFAULT_AUTH_TYPE = "basic"
   val DEFAULT_ENCRYPTION_ENABLED = false
+  val DEFAULT_ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED = true
   val DEFAULT_SCHEMA_FLATTEN_LIMIT = 10
   val DEFAULT_BATCH_SIZE = 5000
   val DEFAULT_TRANSACTION_RETRIES = 3
