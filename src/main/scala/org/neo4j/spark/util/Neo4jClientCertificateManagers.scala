@@ -36,12 +36,12 @@ import java.util.concurrent.CompletionStage
  * The files must be available at the same path on the Spark driver and on every executor.
  *
  * Rotation can be disabled with `encryption.client.certificate.rotation.enabled`, see
- * [[AutoRotatingClientCertificateManager.static]].
+ * [[Neo4jClientCertificateManagers.static]].
  */
-class AutoRotatingClientCertificateManager(certificatePath: String, keyPath: String, keyPassword: Option[String])
+class Neo4jClientCertificateManagers(certificatePath: String, keyPath: String, keyPassword: Option[String])
     extends ClientCertificateManager {
 
-  import AutoRotatingClientCertificateManager.validateReadable
+  import Neo4jClientCertificateManagers.validateReadable
 
   private val certificateFile = new File(certificatePath)
   private val keyFile = new File(keyPath)
@@ -70,7 +70,7 @@ class AutoRotatingClientCertificateManager(certificatePath: String, keyPath: Str
     (certificateFile.lastModified(), certificateFile.length(), keyFile.lastModified(), keyFile.length())
 }
 
-object AutoRotatingClientCertificateManager {
+object Neo4jClientCertificateManagers {
 
   /**
    * Client certificate manager for mTLS that loads the certificate once and never rotates it, so a renewed

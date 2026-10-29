@@ -29,7 +29,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 
-class AutoRotatingClientCertificateManagerTest {
+class Neo4jClientCertificateManagersTest {
 
   @TempDir
   var dir: Path = _
@@ -46,7 +46,7 @@ class AutoRotatingClientCertificateManagerTest {
   }
 
   private def manager(password: Option[String] = None) =
-    new AutoRotatingClientCertificateManager(certFile.getPath, keyFile.getPath, password)
+    new Neo4jClientCertificateManagers(certFile.getPath, keyFile.getPath, password)
 
   private def next(manager: ClientCertificateManager): ClientCertificate =
     manager.getClientCertificate.toCompletableFuture.get()
@@ -140,14 +140,14 @@ class AutoRotatingClientCertificateManagerTest {
 
   @Test
   def static_manager_returns_initial_certificate_on_first_call(): Unit = {
-    val manager = AutoRotatingClientCertificateManager.static(certFile.getPath, keyFile.getPath, Some("secret"))
+    val manager = Neo4jClientCertificateManagers.static(certFile.getPath, keyFile.getPath, Some("secret"))
 
     assertThat(next(manager)).isEqualTo(ClientCertificates.of(certFile, keyFile, "secret"))
   }
 
   @Test
   def static_manager_does_not_rotate_when_files_are_modified(): Unit = {
-    val manager = AutoRotatingClientCertificateManager.static(certFile.getPath, keyFile.getPath, None)
+    val manager = Neo4jClientCertificateManagers.static(certFile.getPath, keyFile.getPath, None)
     next(manager)
 
     Files.writeString(certFile.toPath, "renewed cert")
@@ -162,7 +162,7 @@ class AutoRotatingClientCertificateManagerTest {
     assertThat(certFile.delete()).isTrue
 
     assertThatExceptionOfType(classOf[IllegalArgumentException])
-      .isThrownBy(() => AutoRotatingClientCertificateManager.static(certFile.getPath, keyFile.getPath, None))
+      .isThrownBy(() => Neo4jClientCertificateManagers.static(certFile.getPath, keyFile.getPath, None))
       .withMessageContaining(Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH)
   }
 
@@ -171,7 +171,7 @@ class AutoRotatingClientCertificateManagerTest {
     assertThat(keyFile.delete()).isTrue
 
     assertThatExceptionOfType(classOf[IllegalArgumentException])
-      .isThrownBy(() => AutoRotatingClientCertificateManager.static(certFile.getPath, keyFile.getPath, None))
+      .isThrownBy(() => Neo4jClientCertificateManagers.static(certFile.getPath, keyFile.getPath, None))
       .withMessageContaining(Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH)
   }
 }

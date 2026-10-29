@@ -629,9 +629,9 @@ case class Neo4jDriverOptions(
           s"or set '${Neo4jOptions.ENCRYPTION_ENABLED}' to true"
       )
       if (clientCertificateRotationEnabled) {
-        Some(new AutoRotatingClientCertificateManager(clientCertificatePath, clientKeyPath, clientKeyPassword))
+        Some(new Neo4jClientCertificateManagers(clientCertificatePath, clientKeyPath, clientKeyPassword))
       } else {
-        Some(AutoRotatingClientCertificateManager.static(clientCertificatePath, clientKeyPath, clientKeyPassword))
+        Some(Neo4jClientCertificateManagers.static(clientCertificatePath, clientKeyPath, clientKeyPassword))
       }
     }
   }
