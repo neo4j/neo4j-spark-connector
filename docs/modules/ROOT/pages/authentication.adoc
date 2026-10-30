@@ -591,8 +591,9 @@ By default, the connector checks the size and modification time of the certifica
 If either file changed, for example because cert-manager or Vault renewed it, new connections use the new certificate without restarting the job.
 Existing connections keep their certificate until they are closed.
 
-To load the certificate only once per driver, set `encryption.client.certificate.rotation.enabled` to `false`.
-A renewed certificate is then only picked up when the connector creates a new driver.
+To disable rotation, set `encryption.client.certificate.rotation.enabled` to `false`.
+The certificate is then loaded when a read or write starts, and a renewed certificate is only used by later reads and writes.
+Long-running jobs and streaming queries keep using the old certificate until they are restarted.
 
 === Options
 
