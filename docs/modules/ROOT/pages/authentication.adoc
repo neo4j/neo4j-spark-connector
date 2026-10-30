@@ -543,7 +543,7 @@ mTLS requires an encrypted connection: either use an encrypted URI scheme (`neo4
 
 [NOTE]
 ====
-The certificate and key files must be readable at the same path on the Spark driver and on every executor.
+The certificate and key files must be readable at the same path by the Spark driver and by every executor.
 ====
 
 [.tabbed-example]
