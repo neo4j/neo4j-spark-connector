@@ -2178,6 +2178,50 @@ class WriteIT {
       assertEquals(expectedNode, actualNode)
     }
 
+    @Test
+    def should_skip_schema_for_map_columns_on_nodes(driver: Driver, spark: SparkSession): Unit = {
+      import spark.implicits._
+
+      val data = Seq(("Foo", Map("key" -> "value"))).toDF("name", "map")
+      val schema = StructType(data.schema.map(sf => StructField(sf.name, sf.dataType, false)))
+      val df = spark.createDataFrame(data.rdd, schema)
+
+      df
+        .write
+        .mode(SaveMode.Append)
+        .format("neo4j")
+        .option("labels", s":$nodeWithSchema")
+        .option(Neo4jOptions.SCHEMA_OPTIMIZATION, schemaOptimization)
+        .save()
+
+      val expectedSchema = Seq(
+        constraintNodeNotNull(nodeWithSchema, "name"),
+        constraintNodeType(nodeWithSchema, "name", "STRING")
+      )
+
+      val actualSchema = driver.session()
+        .run(SHOW_CONSTRAINTS_QUERY)
+        .list()
+        .asScala
+        .map(_.asMap(v => v.asObject()).asScala.view.mapValues(mapData).toMap)
+        .toSeq
+
+      assertEquals(expectedSchema, actualSchema)
+
+      val actualNode: Map[String, Any] = driver.session()
+        .executeRead(tx =>
+          tx.run(s"MATCH (n:$nodeWithSchema) RETURN n")
+            .single()
+            .get("n")
+            .asNode()
+            .asMap()
+        )
+        .asScala
+        .toMap
+
+      assertEquals(Map("name" -> "Foo", "map.key" -> "value"), actualNode)
+    }
+
     private def constraintNodeNotNull(node: String, prop: String): Map[String, Any] = Map(
       "name" -> s"spark_NODE-NOT_NULL-CONSTRAINT-$node-$prop",
       "type" -> "NODE_PROPERTY_EXISTENCE",
