@@ -158,6 +158,13 @@ class Neo4jOptions(private val options: Map[String, String]) extends Serializabl
     getParameter(ENCRYPTION_ENABLED, DEFAULT_ENCRYPTION_ENABLED.toString).toBoolean,
     Option(getParameter(ENCRYPTION_TRUST_STRATEGY, null)),
     getParameter(ENCRYPTION_CA_CERTIFICATE_PATH, DEFAULT_EMPTY),
+    getParameter(ENCRYPTION_CLIENT_CERTIFICATE_PATH, DEFAULT_EMPTY),
+    getParameter(ENCRYPTION_CLIENT_KEY_PATH, DEFAULT_EMPTY),
+    Option(getParameter(ENCRYPTION_CLIENT_KEY_PASSWORD, null)),
+    getParameter(
+      ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED,
+      DEFAULT_ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED.toString
+    ).toBoolean,
     getParameter(CONNECTION_MAX_LIFETIME_MSECS, DEFAULT_CONNECTION_MAX_LIFETIME_MSECS.toString).toInt,
     getParameter(CONNECTION_ACQUISITION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt,
     getParameter(
@@ -506,6 +513,10 @@ case class Neo4jDriverOptions(
   encryption: Boolean,
   trustStrategy: Option[String],
   certificatePath: String,
+  clientCertificatePath: String,
+  clientKeyPath: String,
+  clientKeyPassword: Option[String],
+  clientCertificateRotationEnabled: Boolean,
   lifetime: Int,
   acquisitionTimeout: Int,
   livenessCheckTimeout: Int,
@@ -515,7 +526,11 @@ case class Neo4jDriverOptions(
 
   def createDriver(): Driver = {
     val (url, _) = connectionUrls
-    val driver = GraphDatabase.driver(url, createAuthTokenManager, toDriverConfig)
+    val config = toDriverConfig
+    val driver = createClientCertificateManager match {
+      case Some(certManager) => GraphDatabase.driver(url, createAuthTokenManager, certManager, config)
+      case None              => GraphDatabase.driver(url, createAuthTokenManager, config)
+    }
     if (minNotificationSeverity == NotificationSeverity.WARNING) {
       new StrictDriver(driver)
     } else {
@@ -587,6 +602,40 @@ case class Neo4jDriverOptions(
     (URI.create(urls.head.trim), resolved)
   }
 
+  private def createClientCertificateManager: Option[ClientCertificateManager] = {
+    val hasCertificate = clientCertificatePath.nonEmpty
+    val hasKey = clientKeyPath.nonEmpty
+    require(
+      hasCertificate == hasKey,
+      s"'${Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH}' and '${Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH}' " +
+        "must be provided together for mTLS"
+    )
+    if (!hasCertificate) {
+      require(
+        clientKeyPassword.isEmpty,
+        s"'${Neo4jOptions.ENCRYPTION_CLIENT_KEY_PASSWORD}' requires " +
+          s"'${Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH}' and '${Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH}'"
+      )
+      None
+    } else {
+      val (primaryUrl, _) = connectionUrls
+      val secureScheme = primaryUrl.getScheme match {
+        case "neo4j+s" | "neo4j+ssc" | "bolt+s" | "bolt+ssc" => true
+        case _                                               => false
+      }
+      require(
+        secureScheme || encryption,
+        "mTLS requires an encrypted connection: use an encrypted scheme (such as 'neo4j+s://') " +
+          s"or set '${Neo4jOptions.ENCRYPTION_ENABLED}' to true"
+      )
+      if (clientCertificateRotationEnabled) {
+        Some(new Neo4jClientCertificateManagers(clientCertificatePath, clientKeyPath, clientKeyPassword))
+      } else {
+        Some(Neo4jClientCertificateManagers.static(clientCertificatePath, clientKeyPath, clientKeyPassword))
+      }
+    }
+  }
+
   private def createAuthTokenManager: AuthTokenManager = {
     if (auth == null || auth.isEmpty) {
       throw new IllegalArgumentException(s"Authentication type name is required")
@@ -613,6 +662,10 @@ object Neo4jOptions {
   val ENCRYPTION_ENABLED = "encryption.enabled"
   val ENCRYPTION_TRUST_STRATEGY = "encryption.trust.strategy"
   val ENCRYPTION_CA_CERTIFICATE_PATH = "encryption.ca.certificate.path"
+  val ENCRYPTION_CLIENT_CERTIFICATE_PATH = "encryption.client.certificate.path"
+  val ENCRYPTION_CLIENT_KEY_PATH = "encryption.client.key.path"
+  val ENCRYPTION_CLIENT_KEY_PASSWORD = "encryption.client.key.password"
+  val ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED = "encryption.client.certificate.rotation.enabled"
   val CONNECTION_MAX_LIFETIME_MSECS = "connection.max.lifetime.msecs"
   val CONNECTION_LIVENESS_CHECK_TIMEOUT_MSECS = "connection.liveness.timeout.msecs"
   val CONNECTION_ACQUISITION_TIMEOUT_MSECS = "connection.acquisition.timeout.msecs"
@@ -720,6 +773,7 @@ object Neo4jOptions {
   val DEFAULT_ACCESS_MODE = AccessMode.READ
   val DEFAULT_AUTH_TYPE = "basic"
   val DEFAULT_ENCRYPTION_ENABLED = false
+  val DEFAULT_ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED = true
   val DEFAULT_SCHEMA_FLATTEN_LIMIT = 10
   val DEFAULT_BATCH_SIZE = 5000
   val DEFAULT_TRANSACTION_RETRIES = 3
