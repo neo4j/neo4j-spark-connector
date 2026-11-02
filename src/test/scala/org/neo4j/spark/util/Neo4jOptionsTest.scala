@@ -19,6 +19,7 @@ package org.neo4j.spark.util
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import org.neo4j.driver.AccessMode
@@ -28,6 +29,8 @@ import org.neo4j.spark.util.MapConverter.toScala
 import org.neo4j.spark.util.Neo4jOptions.GDS_TELEMETRY_ACTION
 
 import java.net.URI
+import java.nio.file.Files
+import java.nio.file.Path
 import java.time.Duration
 
 import scala.jdk.CollectionConverters.MapHasAsJava
@@ -385,5 +388,147 @@ class Neo4jOptionsTest {
       .isThrownBy(() => new Neo4jOptions(options)).withMessage(
         s"Script option 'script.$suffix' must have a suffix containing only digits."
       )
+  }
+
+  @TempDir
+  var certificatesDir: Path = _
+
+  private def mtlsFile(name: String): String =
+    Files.writeString(certificatesDir.resolve(name), name).toString
+
+  private def mtlsOptions(extra: (String, String)*): Neo4jOptions =
+    new Neo4jOptions(Map(Neo4jOptions.URL -> "neo4j+s://localhost") ++ extra)
+
+  @Test
+  def mtls_options_are_optional(): Unit = {
+    val connection = mtlsOptions().connection
+
+    assertThat(connection.clientCertificatePath).isEmpty()
+    assertThat(connection.clientKeyPath).isEmpty()
+    assertThat(connection.clientKeyPassword.isDefined).isFalse
+    assertThat(connection.clientCertificateRotationEnabled).isTrue
+    connection.createDriver().close()
+  }
+
+  @Test
+  def reads_mtls_options(): Unit = {
+    val connection = mtlsOptions(
+      Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH -> " /certs/client.pem ",
+      Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH -> "/certs/client.key",
+      Neo4jOptions.ENCRYPTION_CLIENT_KEY_PASSWORD -> "secret"
+    ).connection
+
+    assertThat(connection.clientCertificatePath).isEqualTo("/certs/client.pem")
+    assertThat(connection.clientKeyPath).isEqualTo("/certs/client.key")
+    assertThat(connection.clientKeyPassword.get).isEqualTo("secret")
+  }
+
+  @Test
+  def creates_driver_when_mtls_is_configured_on_encrypted_scheme(): Unit = {
+    val driver = mtlsOptions(
+      Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH -> mtlsFile("client.pem"),
+      Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH -> mtlsFile("client.key")
+    ).connection.createDriver()
+
+    assertThat(driver).isNotNull
+    driver.close()
+  }
+
+  @Test
+  def creates_driver_when_mtls_is_configured_with_encryption_enabled(): Unit = {
+    val driver = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      Neo4jOptions.ENCRYPTION_ENABLED -> "true",
+      Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH -> mtlsFile("client.pem"),
+      Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH -> mtlsFile("client.key")
+    )).connection.createDriver()
+
+    assertThat(driver).isNotNull
+    driver.close()
+  }
+
+  @Test
+  def reads_mtls_certificate_rotation_option(): Unit = {
+    val connection =
+      mtlsOptions(Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED -> "false").connection
+
+    assertThat(connection.clientCertificateRotationEnabled).isFalse
+  }
+
+  @Test
+  def creates_driver_when_mtls_certificate_rotation_is_disabled(): Unit = {
+    val driver = mtlsOptions(
+      Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH -> mtlsFile("client.pem"),
+      Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH -> mtlsFile("client.key"),
+      Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED -> "false"
+    ).connection.createDriver()
+
+    assertThat(driver).isNotNull
+    driver.close()
+  }
+
+  @Test
+  def rejects_mtls_files_that_do_not_exist_when_certificate_rotation_is_disabled(): Unit = {
+    val connection = mtlsOptions(
+      Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH -> "/does/not/exist/client.pem",
+      Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH -> mtlsFile("client.key"),
+      Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_ROTATION_ENABLED -> "false"
+    ).connection
+
+    assertThatExceptionOfType(classOf[IllegalArgumentException])
+      .isThrownBy(() => connection.createDriver())
+      .withMessageContaining("/does/not/exist/client.pem")
+  }
+
+  @Test
+  def rejects_mtls_files_that_do_not_exist(): Unit = {
+    val connection = mtlsOptions(
+      Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH -> "/does/not/exist/client.pem",
+      Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH -> mtlsFile("client.key")
+    ).connection
+
+    assertThatExceptionOfType(classOf[IllegalArgumentException])
+      .isThrownBy(() => connection.createDriver())
+      .withMessageContaining("/does/not/exist/client.pem")
+  }
+
+  @Test
+  def rejects_mtls_certificate_without_key(): Unit = {
+    val connection = mtlsOptions(Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH -> mtlsFile("client.pem")).connection
+
+    assertThatExceptionOfType(classOf[IllegalArgumentException])
+      .isThrownBy(() => connection.createDriver())
+      .withMessageContaining("must be provided together")
+  }
+
+  @Test
+  def rejects_mtls_key_without_certificate(): Unit = {
+    val connection = mtlsOptions(Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH -> mtlsFile("client.key")).connection
+
+    assertThatExceptionOfType(classOf[IllegalArgumentException])
+      .isThrownBy(() => connection.createDriver())
+      .withMessageContaining("must be provided together")
+  }
+
+  @Test
+  def rejects_mtls_key_password_without_certificate_and_key(): Unit = {
+    val connection = mtlsOptions(Neo4jOptions.ENCRYPTION_CLIENT_KEY_PASSWORD -> "secret").connection
+
+    assertThatExceptionOfType(classOf[IllegalArgumentException])
+      .isThrownBy(() => connection.createDriver())
+      .withMessageContaining(Neo4jOptions.ENCRYPTION_CLIENT_KEY_PASSWORD)
+  }
+
+  @Test
+  def rejects_mtls_on_unencrypted_connection(): Unit = {
+    val connection = new Neo4jOptions(Map(
+      Neo4jOptions.URL -> "bolt://localhost",
+      Neo4jOptions.ENCRYPTION_CLIENT_CERTIFICATE_PATH -> mtlsFile("client.pem"),
+      Neo4jOptions.ENCRYPTION_CLIENT_KEY_PATH -> mtlsFile("client.key")
+    )).connection
+
+    assertThatExceptionOfType(classOf[IllegalArgumentException])
+      .isThrownBy(() => connection.createDriver())
+      .withMessageContaining("mTLS requires an encrypted connection")
   }
 }
