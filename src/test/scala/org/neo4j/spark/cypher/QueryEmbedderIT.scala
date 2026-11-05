@@ -21,9 +21,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatCode
 import org.assertj.core.api.Assertions.assertThatObject
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -39,18 +37,23 @@ import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.spark.testsupport.Neo4jContainerProvider.ADMIN_PASSWORD
 import org.neo4j.spark.testsupport.Neo4jExtensions.Neo4jContainerExtensions
 import org.neo4j.spark.testsupport.TestUtil
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.neo4j.Neo4jContainer
 
-import java.time.Duration
 import java.util.stream.Stream
 
 import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
+@Testcontainers
 @TestInstance(PER_CLASS)
 class QueryEmbedderIT {
 
-  private val container = QueryEmbedderIT.NEO4J
+  @Container
+  private val container = new Neo4jContainer(TestUtil.neo4jImage())
+    .withAdminPassword(ADMIN_PASSWORD)
+    .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
 
   private var driver: Option[Driver] = None
 
@@ -61,7 +64,6 @@ class QueryEmbedderIT {
     val newDriver = container.driver()
     newDriver.verifyConnectivity()
     driver = Option(newDriver)
-    newDriver.executableQuery("MATCH (n) DETACH DELETE n").execute()
   }
 
   @AfterEach
@@ -244,23 +246,5 @@ class QueryEmbedderIT {
             )
             .isEqualTo(true)
       )
-  }
-}
-
-object QueryEmbedderIT {
-
-  private val NEO4J: Neo4jContainer = new Neo4jContainer(TestUtil.neo4jImage())
-    .withAdminPassword(ADMIN_PASSWORD)
-    .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-    .withStartupTimeout(Duration.ofMinutes(5))
-
-  @BeforeAll
-  def setUp(): Unit = {
-    NEO4J.start()
-  }
-
-  @AfterAll
-  def tearDown(): Unit = {
-    TestUtil.closeSafely(NEO4J)
   }
 }
