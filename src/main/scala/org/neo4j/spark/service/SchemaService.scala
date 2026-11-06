@@ -20,6 +20,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.DataTypes
+import org.apache.spark.sql.types.MapType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.neo4j.caniuse.Neo4j
@@ -739,7 +740,8 @@ class SchemaService(
     session.executeWrite(
       tx => {
         properties
-          .filter(t => struct.exists(f => f.name == t._1))
+          // map columns are flattened into `column.key` properties, so the column itself is never a property
+          .filter(t => struct.exists(f => f.name == t._1 && !f.dataType.isInstanceOf[MapType]))
           .map(t => {
             val field = struct.find(f => f.name == t._1).get
             (t._2, sparkToCypherTypeConverter.convert(field.dataType), field.nullable)
