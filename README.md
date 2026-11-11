@@ -20,8 +20,8 @@ You can build for Spark 4.x with Scala 2.13. Starting with version 6.0.0, only S
 
 This command generates the following artifact:
 
-- `target/neo4j-spark-connector-<version>-s_2.13.jar`
-- `target/neo4j-spark-connector-<version>-s_2.13-thin.jar`
+- `spark/target/neo4j-spark-connector-<version>-s_2.13.jar`
+- `spark/target/neo4j-spark-connector-<version>-s_2.13-thin.jar`
 
 ## Integration with Apache Spark Applications
 
