@@ -123,7 +123,6 @@ An exception is retryable when it, or anything in its cause chain, is one the Ne
 `transaction.retries` applies *per batch*.
 Each batch starts with the full count, so retries spent on earlier batches of a partition do not count against later ones.
 A task fails only when a single batch fails more than `transaction.retries` times in a row.
-Because a partition can now retry up to `transaction.retries` times for every batch it writes, set a non-zero `transaction.retry.timeout` so that retries against an unhealthy or heavily contended cluster back off instead of hammering it.
 ====
 
 [#unknown-commit-outcome]
