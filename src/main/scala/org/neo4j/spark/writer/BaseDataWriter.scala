@@ -41,7 +41,6 @@ import org.neo4j.spark.util.UnknownCommitOutcome
 import java.io.Closeable
 import java.time.Duration
 import java.util
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.locks.LockSupport
 
 import scala.jdk.CollectionConverters.MapHasAsJava
@@ -70,8 +69,6 @@ abstract class BaseDataWriter(
 
   private val batch: util.List[java.util.Map[String, Object]] = new util.ArrayList[util.Map[String, Object]]()
 
-  private val retries = new CountDownLatch(options.transactionSettings.retries)
-
   private val query: String =
     new Neo4jQueryService(
       options,
@@ -95,13 +92,18 @@ abstract class BaseDataWriter(
   }
 
   private def writeBatch(): Unit = {
+    var retriesUsed = 0
     var retry = true
     while (retry) {
       retry = false
       try {
         attemptBatch()
       } catch {
-        case failure: BatchAttemptFailure => retry = handleFailure(failure)
+        case failure: BatchAttemptFailure =>
+          retry = handleFailure(failure, retriesUsed)
+          if (retry) {
+            retriesUsed += 1
+          }
       }
     }
   }
@@ -166,9 +168,10 @@ abstract class BaseDataWriter(
   }
 
   /**
+   * @param retriesUsed how many times the current batch has already been retried
    * @return `true` if the batch should be attempted again, `false` if it is done. Throws if the task must fail.
    */
-  private def handleFailure(failure: BatchAttemptFailure): Boolean = {
+  private def handleFailure(failure: BatchAttemptFailure, retriesUsed: Int): Boolean = {
     val e = failure.cause
 
     if (failure.phase == Committed) {
@@ -186,20 +189,21 @@ abstract class BaseDataWriter(
     // A streaming query being torn down interrupts the commit thread, which technically leaves the outcome unknown
     // too. Spark replays the epoch either way, so there is nothing for the policy below to add here.
     if (failure.phase == Committing && isConnectionFailure(e) && !isStoppedThread(e)) {
-      handleUnknownCommitOutcome(e)
+      handleUnknownCommitOutcome(e, retriesUsed)
     } else {
-      retryOrThrow(e)
+      retryOrThrow(e, retriesUsed)
     }
   }
 
   private def isStoppedThread(e: Throwable): Boolean =
     e.isInstanceOf[ServiceUnavailableException] && e.getMessage == STOPPED_THREAD_EXCEPTION_MESSAGE
 
-  private def retryOrThrow(e: Throwable): Boolean = {
-    if (isRetryableException(e) && retries.getCount > 0) {
-      retries.countDown()
+  private def retryOrThrow(e: Throwable, retriesUsed: Int): Boolean = {
+    val maxRetries = options.transactionSettings.retries
+    if (isRetryableException(e) && retriesUsed < maxRetries) {
       log.info(
-        s"encountered a transient exception while writing batch, retrying ${options.transactionSettings.retries - retries.getCount} time",
+        s"encountered a transient exception while writing a batch of ${batch.size()} elements " +
+          s"(jobId=$jobId, partitionId=$partitionId), retry ${retriesUsed + 1} of $maxRetries",
         e
       )
       close()
@@ -214,7 +218,7 @@ abstract class BaseDataWriter(
    * The connection dropped while the answer to `COMMIT` was in flight, so the server may or may not have applied
    * the batch. Which of the two bad options to take is the user's call.
    */
-  private def handleUnknownCommitOutcome(e: Throwable): Boolean = {
+  private def handleUnknownCommitOutcome(e: Throwable, retriesUsed: Int): Boolean = {
     val context =
       s"the outcome of the commit of a batch of ${batch.size()} elements is unknown " +
         s"(jobId=$jobId, partitionId=$partitionId): the connection dropped before the server answered"
@@ -229,7 +233,7 @@ abstract class BaseDataWriter(
             s"fail instead of replaying it.",
           e
         )
-        retryOrThrow(e)
+        retryOrThrow(e, retriesUsed)
 
       case UnknownCommitOutcome.FAIL =>
         close()
