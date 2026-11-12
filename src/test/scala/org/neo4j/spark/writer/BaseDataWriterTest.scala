@@ -117,8 +117,7 @@ class BaseDataWriterTest {
   @Test
   def givesEveryBatchItsOwnRetryBudget(): Unit = {
     val fixture = new Fixture()
-    // Batch 1 uses its whole budget of 2 retries before succeeding, then batch 2 hits another deadlock. With a
-    // budget shared by the whole task, that second deadlock would fail the task.
+    // Batch 1 uses its whole budget of 2 retries before succeeding, then batch 2 hits another deadlock.
     when(fixture.transaction.run(anyString(), any(classOf[Value])))
       .thenThrow(deadlock)
       .thenThrow(deadlock)
