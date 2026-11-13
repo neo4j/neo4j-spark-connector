@@ -18,3 +18,6 @@
  * Building blocks for defining Neo4j ingestion jobs on top of the Neo4j Connector for Apache Spark.
  */
 package org.neo4j.spark.ingest;
+
+// TODO CONN-1674: I think this is a good place (not the file, the directory location) to put the public-facing static
+// TODO CONN-1674: API surface of which we intend to expose over PY4J.
