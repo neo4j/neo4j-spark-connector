@@ -184,13 +184,13 @@ importers:
         version: 21.2.4(typescript@7.0.2)
       danger:
         specifier: ^14.1.0
-        version: 14.1.0(supports-color@10.2.2)(undici@7.30.1)
+        version: 14.1.0(supports-color@10.2.2)(undici@7.30.2)
       husky:
         specifier: ^9.1.7
         version: 9.1.7
       undici:
-        specifier: ^7.30.1
-        version: 7.30.1
+        specifier: ^7.30.2
+        version: 7.30.2
 
 packages:
 
@@ -902,8 +902,8 @@ packages:
     engines: {node: '>=16.20.0'}
     hasBin: true
 
-  undici@7.30.1:
-    resolution: {integrity: sha512-03KrMbjIFDWQR5RNPrSw3bd1r12JpyFQl9/yxjUbJtqkjmllqC5lFjZh6ujeuJCKr8EOQvRW872Oy/az+nLYxg==}
+  undici@7.30.2:
+    resolution: {integrity: sha512-mLyPQnHwUxaM/rideoK/+KL8DaAJLRl4aBCfmX444aCSLnIaomqPLtNRe2jdCYcsk5wZzXrDIQC8ZeYNRAYyIA==}
     engines: {node: '>=20.18.1'}
 
   universal-user-agent@6.0.1:
@@ -1293,7 +1293,7 @@ snapshots:
     optionalDependencies:
       typescript: 7.0.2
 
-  danger@14.1.0(supports-color@10.2.2)(undici@7.30.1):
+  danger@14.1.0(supports-color@10.2.2)(undici@7.30.2):
     dependencies:
       '@gitbeaker/rest': 38.12.1
       '@octokit/rest': 20.1.2
@@ -1325,7 +1325,7 @@ snapshots:
       require-from-string: 2.0.2
       supports-hyperlinks: 4.5.0
     optionalDependencies:
-      undici: 7.30.1
+      undici: 7.30.2
     transitivePeerDependencies:
       - supports-color
 
@@ -1616,7 +1616,7 @@ snapshots:
       '@typescript/typescript-win32-x64': 7.0.2
     optional: true
 
-  undici@7.30.1: {}
+  undici@7.30.2: {}
 
   universal-user-agent@6.0.1: {}
 
