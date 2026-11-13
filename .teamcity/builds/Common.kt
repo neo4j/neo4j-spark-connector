@@ -308,7 +308,6 @@ private const val DOCS_PATHS = "^docs/"
  * `system.teamcity.build.changedFiles.file`. That file holds the changes since the previous build
  * on the branch, so once the pull request is rebased onto or merged with its target branch it also
  * lists every commit brought in from there. GitHub only lists the files the pull request changes.
- * The pull request head must match the build revision both before and after listing files.
  * Other builds still read TeamCity's list.
  *
  * Fails safe on the list of changes: if it cannot be fetched in full, or TeamCity's list is empty
