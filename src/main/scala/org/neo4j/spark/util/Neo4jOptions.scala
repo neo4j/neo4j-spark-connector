@@ -455,11 +455,27 @@ case class Neo4jTransactionSettings(
   unknownCommitOutcome: UnknownCommitOutcome.Value = Neo4jOptions.DEFAULT_TRANSACTION_COMMIT_UNKNOWN_OUTCOME
 ) {
 
+  /**
+   * Whether `exception`, or anything in its cause chain, is a [[Neo4jException]] whose Neo4j status code (e.g.
+   * `Neo.TransientError.Transaction.DeadlockDetected`) or GQLSTATUS code (five characters, e.g. `50N42`) is listed in
+   * `transaction.codes.fail`.
+   */
   def shouldFailOn(exception: Throwable): Boolean = {
-    exception match {
-      case e: Neo4jException => failOnTransactionCodes.contains(e.code())
-      case _                 => false
+    if (failOnTransactionCodes.isEmpty) {
+      return false
     }
+    val visited = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap[Throwable, java.lang.Boolean]())
+    var current = exception
+    while (current != null && visited.add(current)) {
+      current match {
+        case e: Neo4jException
+          if failOnTransactionCodes.contains(e.code()) || failOnTransactionCodes.contains(e.gqlStatus()) =>
+          return true
+        case _ =>
+      }
+      current = current.getCause
+    }
+    false
   }
 
 }
