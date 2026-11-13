@@ -168,6 +168,7 @@ abstract class BaseDataWriter(
   }
 
   /**
+   * @param failure the failed attempt, carrying the cause and the [[CommitPhase]] it reached before failing
    * @param retriesUsed how many times the current batch has already been retried
    * @return `true` if the batch should be attempted again, `false` if it is done. Throws if the task must fail.
    */
