@@ -308,6 +308,7 @@ private const val DOCS_PATHS = "^docs/"
  * `system.teamcity.build.changedFiles.file`. That file holds the changes since the previous build
  * on the branch, so once the pull request is rebased onto or merged with its target branch it also
  * lists every commit brought in from there. GitHub only lists the files the pull request changes.
+ * The pull request head must match the build revision both before and after listing files.
  * Other builds still read TeamCity's list.
  *
  * Fails safe on the list of changes: if it cannot be fetched in full, or TeamCity's list is empty
@@ -330,8 +331,21 @@ private fun docsOnlyDetection(): ScriptBuildStep = ScriptBuildStep {
           pull_request="${'$'}{BASH_REMATCH[1]}"
           echo "listing files changed by pull request ${'$'}{pull_request}"
 
-          # GitHub lists at most 3000 files, 100 per page
-          for page in ${'$'}(seq 1 30); do
+          pull_request_url="https://api.github.com/repos/$FULL_GITHUB_REPOSITORY/pulls/${'$'}{pull_request}"
+          get_pull_request_head() {
+            if ! response=${'$'}(curl --silent --show-error --fail --retry 3 "${'$'}{pull_request_url}"); then
+              return 1
+            fi
+
+            echo "${'$'}{response}" | jq -er '.head.sha | strings | select(test("^[0-9a-f]{40}${'$'}"))'
+          }
+
+          build_revision="%build.vcs.number%"
+          if ! head_before=${'$'}(get_pull_request_head) || [ "${'$'}{head_before}" != "${'$'}{build_revision}" ]; then
+            echo "pull request head does not match build revision, assuming code has changed"
+          else
+            # GitHub lists at most 3000 files, 100 per page
+            for page in ${'$'}(seq 1 30); do
             if ! response=${'$'}(curl --silent --show-error --fail --retry 3 \
                 --header "Accept: application/vnd.github+json" \
                 --header "Authorization: Bearer %github-pull-request-token%" \
@@ -349,7 +363,15 @@ private fun docsOnlyDetection(): ScriptBuildStep = ScriptBuildStep {
               listed=true
               break
             fi
-          done
+            done
+
+            if [ "${'$'}{listed}" = true ]; then
+              if ! head_after=${'$'}(get_pull_request_head) || [ "${'$'}{head_after}" != "${'$'}{build_revision}" ]; then
+                echo "pull request head changed while listing files, assuming code has changed"
+                listed=false
+              fi
+            fi
+          fi
         else
           changed_files="%system.teamcity.build.changedFiles.file%"
           echo "list of changed files: ${'$'}{changed_files}"
