@@ -13,7 +13,6 @@ on:
       - '4.[0-2]'
     paths:
       - "docs/**"
-      # changes to CI configuration run the full pipeline, docs checks included
       - ".github/workflows/**"
       - ".teamcity/**"
     types:
