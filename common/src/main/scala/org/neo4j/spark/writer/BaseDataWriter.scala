@@ -36,7 +36,6 @@ import org.neo4j.spark.util.Neo4jUtil.isRetryableException
 import java.io.Closeable
 import java.time.Duration
 import java.util
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.locks.LockSupport
 
 import scala.annotation.tailrec
@@ -64,8 +63,6 @@ abstract class BaseDataWriter(
 
   private val batch: util.List[java.util.Map[String, Object]] = new util.ArrayList[util.Map[String, Object]]()
 
-  private val retries = new CountDownLatch(options.transactionSettings.retries)
-
   private val query: String =
     new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(neo4j, saveMode)).createQuery()
 
@@ -85,8 +82,12 @@ abstract class BaseDataWriter(
     }
   }
 
+  /**
+   * @param retriesUsed how many times the current batch has already been retried. Every batch starts at 0, so
+   *                    `transaction.retries` applies per batch rather than per task.
+   */
   @tailrec
-  private def writeBatch(): Unit = {
+  private def writeBatch(retriesUsed: Int = 0): Unit = {
     try {
       if (session == null || !session.isOpen) {
         session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
@@ -141,15 +142,16 @@ abstract class BaseDataWriter(
           throw e
         }
 
-        if (isRetryableException(e) && retries.getCount > 0) {
-          retries.countDown()
+        val maxRetries = options.transactionSettings.retries
+        if (isRetryableException(e) && retriesUsed < maxRetries) {
           log.info(
-            s"encountered a transient exception while writing batch, retrying ${options.transactionSettings.retries - retries.getCount} time",
+            s"encountered a transient exception while writing a batch of ${batch.size()} elements " +
+              s"(jobId=$jobId, partitionId=$partitionId), retry ${retriesUsed + 1} of $maxRetries",
             e
           )
           close()
           LockSupport.parkNanos(Duration.ofMillis(options.transactionSettings.retryTimeout).toNanos)
-          writeBatch()
+          writeBatch(retriesUsed + 1)
         } else {
           logAndThrowException(e)
         }
