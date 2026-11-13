@@ -295,18 +295,27 @@ const val DOCS_ONLY_CHANGE = "docs-only-change"
 
 /**
  * Paths that cannot influence the build output. Anything not matching this is treated as a code
- * change, so adding a path here is the only way to make the build skip it.
+ * change, so adding a path here is the only way to make the build skip it. CI configuration,
+ * including the docs workflows, is deliberately left out so that changing it runs the full
+ * pipeline.
  */
-private const val DOCS_PATHS = "^(docs/|\\.github/workflows/docs-)"
+private const val DOCS_PATHS = "^docs/"
 
 /**
  * Sets [DOCS_ONLY_CHANGE] to `true` when every file changed in this build is documentation.
  *
- * Fails safe on the contents of the change list: if it is empty or absent, the change is treated as
- * touching code so that the build runs in full. The path of the list itself is always echoed, so
- * that a build reporting no changes can be told apart from one where TeamCity stopped providing the
- * list. Note that this runs on the agent rather than in a Docker image, so that it works the same
- * way for every build type.
+ * For pull requests the changed files are listed by GitHub instead of being read from
+ * `system.teamcity.build.changedFiles.file`. That file holds the changes since the previous build
+ * on the branch, so once the pull request is rebased onto or merged with its target branch it also
+ * lists every commit brought in from there. GitHub only lists the files the pull request changes.
+ * Other builds still read TeamCity's list.
+ *
+ * Fails safe on the list of changes: if it cannot be fetched in full, or TeamCity's list is empty
+ * or absent, the change is treated as touching code so that the build runs in full. A pull request
+ * that GitHub reports as changing no files is skipped. The path of TeamCity's list is always
+ * echoed, so that a build reporting no changes can be told apart from one where TeamCity stopped
+ * providing the list. Note that this runs on the agent rather than in a Docker image, so that it
+ * works the same way for every build type.
  */
 private fun docsOnlyDetection(): ScriptBuildStep = ScriptBuildStep {
   name = "detect docs-only change"
@@ -314,22 +323,76 @@ private fun docsOnlyDetection(): ScriptBuildStep = ScriptBuildStep {
       """
         #!/bin/bash -eu
 
-        changed_files="%system.teamcity.build.changedFiles.file%"
-        echo "list of changed files: ${'$'}{changed_files}"
+        changed_paths=${'$'}(mktemp)
+        listed=false
+
+        if [[ "%teamcity.build.branch%" =~ ^pull/([0-9]+)${'$'} ]]; then
+          pull_request="${'$'}{BASH_REMATCH[1]}"
+          echo "listing files changed by pull request ${'$'}{pull_request}"
+
+          pull_request_url="https://api.github.com/repos/$FULL_GITHUB_REPOSITORY/pulls/${'$'}{pull_request}"
+          get_pull_request_head() {
+            if ! response=${'$'}(curl --silent --show-error --fail --retry 3 "${'$'}{pull_request_url}"); then
+              return 1
+            fi
+
+            echo "${'$'}{response}" | jq -er '.head.sha | strings | select(test("^[0-9a-f]{40}${'$'}"))'
+          }
+
+          build_revision="%build.vcs.number%"
+          if ! head_before=${'$'}(get_pull_request_head) || [ "${'$'}{head_before}" != "${'$'}{build_revision}" ]; then
+            echo "pull request head does not match build revision, assuming code has changed"
+          else
+            # GitHub lists at most 3000 files, 100 per page
+            for page in ${'$'}(seq 1 30); do
+            if ! response=${'$'}(curl --silent --show-error --fail --retry 3 \
+                --header "Accept: application/vnd.github+json" \
+                --header "Authorization: Bearer %github-pull-request-token%" \
+                "https://api.github.com/repos/$FULL_GITHUB_REPOSITORY/pulls/${'$'}{pull_request}/files?per_page=100&page=${'$'}{page}"); then
+              echo "could not list files changed by pull request ${'$'}{pull_request}"
+              break
+            fi
+
+            # renamed files also report their old path, as previous_filename
+            echo "${'$'}{response}" \
+              | grep -oE '"(previous_)?filename": *"[^"]*"' \
+              | sed -E 's/^"[a-z_]+": *"//; s/"${'$'}//' >> "${'$'}{changed_paths}"
+
+            if [ "${'$'}(echo "${'$'}{response}" | grep -o '"filename":' | wc -l)" -lt 100 ]; then
+              listed=true
+              break
+            fi
+            done
+
+            if [ "${'$'}{listed}" = true ]; then
+              if ! head_after=${'$'}(get_pull_request_head) || [ "${'$'}{head_after}" != "${'$'}{build_revision}" ]; then
+                echo "pull request head changed while listing files, assuming code has changed"
+                listed=false
+              fi
+            fi
+          fi
+        else
+          changed_files="%system.teamcity.build.changedFiles.file%"
+          echo "list of changed files: ${'$'}{changed_files}"
+
+          if [ -s "${'$'}{changed_files}" ]; then
+            # each line is <path>:<change type>:<revision>
+            cut -d: -f1 "${'$'}{changed_files}" > "${'$'}{changed_paths}"
+            listed=true
+          fi
+        fi
 
         docs_only=false
-        if [ -s "${'$'}{changed_files}" ]; then
-          # each line is <path>:<change type>:<revision>
-          changed_paths=${'$'}(cut -d: -f1 "${'$'}{changed_files}")
-
+        if [ "${'$'}{listed}" = true ]; then
           echo "files changed in this build:"
-          echo "${'$'}{changed_paths}"
+          cat "${'$'}{changed_paths}"
 
-          if ! echo "${'$'}{changed_paths}" | grep -qvE '$DOCS_PATHS'; then
+          # also true when nothing changed at all
+          if ! grep -qvE '$DOCS_PATHS' "${'$'}{changed_paths}"; then
             docs_only=true
           fi
         else
-          echo "no list of changed files available, assuming code has changed"
+          echo "no complete list of changed files available, assuming code has changed"
         fi
 
         echo "docs-only change: ${'$'}{docs_only}"
