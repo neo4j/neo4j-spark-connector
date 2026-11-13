@@ -14,7 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Building blocks for defining Neo4j ingestion jobs on top of the Neo4j Connector for Apache Spark.
- */
-package org.neo4j.spark.importer;
+package org.neo4j.spark.ingest;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.apache.spark.sql.SparkSession;
+import org.junit.jupiter.api.Test;
+
+class SparkSessionSmokeTest {
+
+    @Test
+    void runsLocalSparkSession() throws Exception {
+        try (SparkSession spark = SparkSession.builder()
+                .master("local[1]")
+                .appName("spark-import-smoke-test")
+                .config("spark.ui.enabled", "false")
+                .getOrCreate()) {
+            assertEquals(3L, spark.range(3).count());
+        }
+    }
+}
