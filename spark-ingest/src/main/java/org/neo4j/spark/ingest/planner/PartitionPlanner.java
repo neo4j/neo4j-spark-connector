@@ -50,5 +50,5 @@ public abstract class PartitionPlanner {
      * partitions. Where partitions are represented in hashedDataset. So this plan just creates a logical ordering, no
      * heavy work has been done yet.
      */
-    abstract List<List<Partition>> plan();
+    public abstract List<List<Partition>> plan();
 }
