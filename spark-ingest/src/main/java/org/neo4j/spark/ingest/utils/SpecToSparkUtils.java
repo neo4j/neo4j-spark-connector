@@ -1,10 +1,13 @@
-package org.neo4j.spark.ingest;
+package org.neo4j.spark.ingest.utils;
 
 import java.util.List;
 import java.util.stream.Collectors;
 import org.neo4j.importer.v1.targets.PropertyMapping;
 
-public class ParseUtils {
+public final class SpecToSparkUtils {
+
+    private SpecToSparkUtils() {}
+
     public static String getLabels(List<String> labels) {
         return labels.isEmpty() ? "" : ":" + String.join(":", labels);
     }

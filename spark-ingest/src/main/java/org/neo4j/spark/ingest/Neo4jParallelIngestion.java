@@ -2,24 +2,18 @@ package org.neo4j.spark.ingest;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.*;
 import org.neo4j.importer.v1.ImportSpecification;
 import org.neo4j.importer.v1.pipeline.*;
+import org.neo4j.importer.v1.targets.PropertyMapping;
+import org.neo4j.spark.ingest.planner.DiagonalPartitionPlanner;
+import org.neo4j.spark.ingest.utils.SpecToSparkUtils;
 
 public class Neo4jParallelIngestion {
     private final SparkSession spark;
     private final ImportSpecification spec;
     private final HashMap<String, Dataset<Row>> datasets = new HashMap<>();
-
-    /**
-     * configuration for this poc requires
-     * url
-     * username
-     * password
-     */
-    private Map<String, String> configuration = new HashMap<>();
+    private final Map<String, String> configuration;
 
     public Neo4jParallelIngestion(SparkSession spark, ImportSpecification spec, Map<String, String> configuration) {
         this.spark = spark;
@@ -74,12 +68,53 @@ public class Neo4jParallelIngestion {
                 .option("authentication.basic.password", configuration.get("password"))
                 .option("database", "neo4j")
                 .option("batch.size", 20000)
-                .option("labels", ParseUtils.getLabels(node.labels()))
-                .option("node.keys", ParseUtils.getKeys(node.keyProperties()))
+                .option("labels", SpecToSparkUtils.getLabels(node.labels()))
+                .option("node.keys", SpecToSparkUtils.getKeys(node.keyProperties()))
                 .save();
     }
 
     private void ingestRelationship(RelationshipTargetStep relationship, int workers) {
         SparkSession.setActiveSession(spark);
+
+        // note: these are arrays because we assume composite keys
+        var startColumns = relationship.startNode().keyProperties().stream()
+                .map(PropertyMapping::getSourceField)
+                .map(functions::col)
+                .toArray(Column[]::new);
+
+        var endColumns = relationship.endNode().keyProperties().stream()
+                .map(PropertyMapping::getSourceField)
+                .map(functions::col)
+                .toArray(Column[]::new);
+
+        var planner = new DiagonalPartitionPlanner(
+                spark, datasets.get(relationship.sourceName()), startColumns, endColumns, workers);
+
+        for (var wave : planner.plan()) {
+            planner.getWave(wave)
+                    .mode("Append")
+                    .format(Constants.FORMAT)
+                    .option("url", configuration.get("url"))
+                    .option("authentication.basic.username", configuration.get("username"))
+                    .option("authentication.basic.password", configuration.get("password"))
+                    .option("database", "neo4j")
+                    .option("batch.size", 20000)
+                    .option("relationship", relationship.type())
+                    .option(
+                            "relationship.source.labels",
+                            SpecToSparkUtils.getLabels(relationship.startNode().labels()))
+                    .option(
+                            "relationship.source.node.keys",
+                            SpecToSparkUtils.getKeys(relationship.startNode().keyProperties()))
+                    .option("relationship.source.save.mode", "Match")
+                    .option(
+                            "relationship.target.labels",
+                            SpecToSparkUtils.getLabels(relationship.endNode().labels()))
+                    .option(
+                            "relationship.target.node.keys",
+                            SpecToSparkUtils.getKeys(relationship.endNode().keyProperties()))
+                    .option("relationship.target.save.mode", "Match")
+                    .save();
+        }
     }
 }

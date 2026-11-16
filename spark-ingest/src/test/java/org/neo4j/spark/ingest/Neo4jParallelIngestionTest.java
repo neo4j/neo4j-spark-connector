@@ -2,9 +2,12 @@ package org.neo4j.spark.ingest;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
-import java.io.StringReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.apache.spark.sql.SparkSession;
 import org.junit.jupiter.api.Test;
@@ -20,7 +23,7 @@ class Neo4jParallelIngestionTest {
     private final String fruit = DATA_DIR + "fruit.parquet";
 
     @Test
-    void fruteria_poc() throws SpecificationException {
+    void fruteria_poc() throws SpecificationException, IOException {
         SparkSession spark = SparkSession.builder()
                 .master("local[*]")
                 .appName("spark-ingest-smoke-test")
@@ -32,101 +35,16 @@ class Neo4jParallelIngestionTest {
         SparkSource skuSource = new SparkSource("sku", spark.read().parquet(sku));
         SparkSource fruitSource = new SparkSource("fruit", spark.read().parquet(fruit));
 
-        String rawSpec = """
-            ---
-            version: '1'
-            targets:
-              nodes:
-                - source: customer
-                  name: customer_nodes
-                  write_mode: merge
-                  labels: [ Customer ]
-                  properties:
-                    - source_field: customer_id
-                      target_property: customerId
-                      target_property_type: string
-                    - source_field: full_name
-                      target_property: fullName
-                      target_property_type: string
-                  schema:
-                    key_constraints:
-                      - name: customer_id_key
-                        label: Customer
-                        properties: [ customerId ]
-                    type_constraints:
-                      - name: customer_id_type
-                        label: Customer
-                        property: customerId
-                      - name: customer_full_name_type
-                        label: Customer
-                        property: fullName
-
-                - source: invoice
-                  name: invoice_nodes
-                  write_mode: merge
-                  labels: [ Invoice ]
-                  properties:
-                    - source_field: invoice_id
-                      target_property: invoiceId
-                      target_property_type: string
-                  schema:
-                    key_constraints:
-                      - name: invoice_id_key
-                        label: Invoice
-                        properties: [ invoiceId ]
-                    type_constraints:
-                      - name: invoice_id_type
-                        label: Invoice
-                        property: invoiceId
-
-                - source: sku
-                  name: sku_nodes
-                  write_mode: merge
-                  labels: [ Sku ]
-                  properties:
-                    - source_field: sku_id
-                      target_property: skuId
-                      target_property_type: string
-                    - source_field: description
-                      target_property: description
-                      target_property_type: string
-                  schema:
-                    key_constraints:
-                      - name: sku_id_key
-                        label: Sku
-                        properties: [ skuId ]
-                    type_constraints:
-                      - name: sku_id_type
-                        label: Sku
-                        property: skuId
-                      - name: sku_description_type
-                        label: Sku
-                        property: description
-
-                - source: fruit
-                  name: fruit_type_nodes
-                  write_mode: merge
-                  labels: [ "Fruit Type" ]
-                  properties:
-                    - source_field: fruit_type
-                      target_property: type
-                      target_property_type: string
-                  schema:
-                    key_constraints:
-                      - name: fruit_type_key
-                        label: "Fruit Type"
-                        properties: [ type ]
-                    type_constraints:
-                      - name: fruit_type_type
-                        label: "Fruit Type"
-                        property: type
-            """;
-
         var options = ImportSpecificationDeserializer.Options.builder()
                 .externalSources(Set.of(customerSource, invoiceSource, skuSource, fruitSource))
                 .build();
 
-        try (var reader = new StringReader(rawSpec)) {
+        try (var reader = new InputStreamReader(
+                Objects.requireNonNull(
+                        getClass().getResourceAsStream("/specs/fruteria.yaml"),
+                        "Missing test resource: /specs/fruteria.yaml"),
+                StandardCharsets.UTF_8)) {
+
             var specification = ImportSpecificationDeserializer.deserialize(reader, options);
 
             assertThat(specification.getSources())
@@ -135,7 +53,7 @@ class Neo4jParallelIngestionTest {
             Map<String, String> config = new HashMap<>();
             config.put("url", "neo4j://localhost:7687");
             config.put("username", "neo4j");
-            config.put("password", "password");
+            config.put("password", "pleasetestme");
             config.put("workers", "12");
 
             var plan = new Neo4jParallelIngestion(spark, specification, config);
