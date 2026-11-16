@@ -35,7 +35,7 @@ public abstract class PartitionPlanner {
 
     public DataFrameWriter<Row> getWave(List<Partition> wave) {
         var partitionIdsOfWave =
-                wave.stream().map(partition -> partition.id(partitionCount)).toList();
+                wave.stream().map(partition -> partition.id(partitionCount)).toArray();
 
         return hashedDataset
                 .filter(col(Constants.RELATIONSHIP_PARTITION).isin(partitionIdsOfWave))

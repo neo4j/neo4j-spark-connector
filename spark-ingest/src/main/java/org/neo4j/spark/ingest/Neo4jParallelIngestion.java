@@ -91,30 +91,34 @@ public class Neo4jParallelIngestion {
                 spark, datasets.get(relationship.sourceName()), startColumns, endColumns, workers);
 
         for (var wave : planner.plan()) {
-            planner.getWave(wave)
-                    .mode("Append")
-                    .format(Constants.FORMAT)
-                    .option("url", configuration.get("url"))
-                    .option("authentication.basic.username", configuration.get("username"))
-                    .option("authentication.basic.password", configuration.get("password"))
-                    .option("database", "neo4j")
-                    .option("batch.size", 20000)
-                    .option("relationship", relationship.type())
-                    .option(
-                            "relationship.source.labels",
-                            SpecToSparkUtils.getLabels(relationship.startNode().labels()))
-                    .option(
-                            "relationship.source.node.keys",
-                            SpecToSparkUtils.getKeys(relationship.startNode().keyProperties()))
-                    .option("relationship.source.save.mode", "Match")
-                    .option(
-                            "relationship.target.labels",
-                            SpecToSparkUtils.getLabels(relationship.endNode().labels()))
-                    .option(
-                            "relationship.target.node.keys",
-                            SpecToSparkUtils.getKeys(relationship.endNode().keyProperties()))
-                    .option("relationship.target.save.mode", "Match")
-                    .save();
+            ingestRelationshipWave(planner.getWave(wave), relationship);
         }
+    }
+
+    private void ingestRelationshipWave(DataFrameWriter<Row> waveWriter, RelationshipTargetStep relationship) {
+        waveWriter
+                .mode("Append")
+                .format(Constants.FORMAT)
+                .option("url", configuration.get("url"))
+                .option("authentication.basic.username", configuration.get("username"))
+                .option("authentication.basic.password", configuration.get("password"))
+                .option("database", "neo4j")
+                .option("batch.size", 20000)
+                .option("relationship", relationship.type())
+                .option(
+                        "relationship.source.labels",
+                        SpecToSparkUtils.getLabels(relationship.startNode().labels()))
+                .option(
+                        "relationship.source.node.keys",
+                        SpecToSparkUtils.getKeys(relationship.startNode().keyProperties()))
+                .option("relationship.source.save.mode", "Match")
+                .option(
+                        "relationship.target.labels",
+                        SpecToSparkUtils.getLabels(relationship.endNode().labels()))
+                .option(
+                        "relationship.target.node.keys",
+                        SpecToSparkUtils.getKeys(relationship.endNode().keyProperties()))
+                .option("relationship.target.save.mode", "Match")
+                .save();
     }
 }

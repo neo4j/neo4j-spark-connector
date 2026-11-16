@@ -90,3 +90,68 @@ targets:
                   - name: 'fruit_type_type'
                     label: 'Fruit Type'
                     property: 'type'
+
+    relationships:
+        - source: 'ordered'
+          name: 'customer_ordered_invoice'
+          write_mode: 'create'
+          node_match_mode: 'match'
+          type: 'ORDERED'
+          start_node_reference:
+              name: 'customer_nodes'
+              key_mappings:
+                  - source_field: 'customer_id'
+                    node_property: 'customerId'
+          end_node_reference:
+              name: 'invoice_nodes'
+              key_mappings:
+                  - source_field: 'invoice_id'
+                    node_property: 'invoiceId'
+
+        - source: 'ordered'
+          name: 'invoice_ordered_by_customer'
+          write_mode: 'create'
+          node_match_mode: 'match'
+          type: 'ORDERED BY'
+          start_node_reference:
+              name: 'invoice_nodes'
+              key_mappings:
+                  - source_field: 'invoice_id'
+                    node_property: 'invoiceId'
+          end_node_reference:
+              name: 'customer_nodes'
+              key_mappings:
+                  - source_field: 'customer_id'
+                    node_property: 'customerId'
+
+        - source: 'has'
+          name: 'invoice_contains_sku'
+          write_mode: 'create'
+          node_match_mode: 'match'
+          type: 'CONTAINS'
+          start_node_reference:
+              name: 'invoice_nodes'
+              key_mappings:
+                  - source_field: 'invoice_id'
+                    node_property: 'invoiceId'
+          end_node_reference:
+              name: 'sku_nodes'
+              key_mappings:
+                  - source_field: 'sku_id'
+                    node_property: 'skuId'
+
+        - source: 'typed'
+          name: 'sku_of_type_fruit'
+          write_mode: 'create'
+          node_match_mode: 'match'
+          type: 'OF_TYPE'
+          start_node_reference:
+              name: 'sku_nodes'
+              key_mappings:
+                  - source_field: 'sku_id'
+                    node_property: 'skuId'
+          end_node_reference:
+              name: 'fruit_type_nodes'
+              key_mappings:
+                  - source_field: 'fruit_type'
+                    node_property: 'type'
