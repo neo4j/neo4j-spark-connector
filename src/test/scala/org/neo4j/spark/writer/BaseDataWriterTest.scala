@@ -17,8 +17,10 @@
 package org.neo4j.spark.writer
 
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types.StructType
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.assertj.core.api.Assertions.assertThatNoException
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyString
@@ -112,12 +114,52 @@ class BaseDataWriterTest {
     fixture.verifyDataQueriesRun(3)
   }
 
+  @Test
+  def givesEveryBatchItsOwnRetryBudget(): Unit = {
+    val fixture = new Fixture()
+    // Batch 1 uses its whole budget of 2 retries before succeeding, then batch 2 hits another deadlock.
+    when(fixture.transaction.run(anyString(), any(classOf[Value])))
+      .thenThrow(deadlock)
+      .thenThrow(deadlock)
+      .thenReturn(fixture.result)
+      .thenThrow(deadlock)
+      .thenReturn(fixture.result)
+
+    val writer = fixture.writer(Map(Neo4jOptions.BATCH_SIZE -> "1"))
+
+    assertThatNoException().isThrownBy(() => {
+      writer.write(InternalRow.empty)
+      writer.write(InternalRow.empty)
+    })
+
+    // Batch 1: original attempt plus 2 retries. Batch 2: original attempt plus 1 retry.
+    fixture.verifyDataQueriesRun(5)
+  }
+
+  @Test
+  def stillCapsTheRetriesOfASingleBatch(): Unit = {
+    val fixture = new Fixture()
+    // Batch 1 succeeds at once, so batch 2 is the one that keeps deadlocking.
+    when(fixture.transaction.run(anyString(), any(classOf[Value])))
+      .thenReturn(fixture.result)
+      .thenThrow(deadlock)
+
+    val writer = fixture.writer(Map(Neo4jOptions.BATCH_SIZE -> "1"))
+    writer.write(InternalRow.empty)
+
+    assertThatExceptionOfType(classOf[TransientException])
+      .isThrownBy(() => writer.write(InternalRow.empty))
+
+    // Batch 1 once, then batch 2's original attempt plus its 2 retries.
+    fixture.verifyDataQueriesRun(4)
+  }
+
   private class Fixture {
     val driver: Driver = mock(classOf[Driver])
     val session: Session = mock(classOf[Session])
     val transaction: Transaction = mock(classOf[Transaction])
 
-    private val result = mock(classOf[Result])
+    val result: Result = mock(classOf[Result])
     private val summary = mock(classOf[ResultSummary])
 
     when(driver.session(any(classOf[SessionConfig]))).thenReturn(session)

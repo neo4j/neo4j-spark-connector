@@ -88,7 +88,7 @@ Each task retries a failed batch itself before giving up, controlled by these xr
 |Option |Description |Default
 
 |`transaction.retries`
-|How many times the task may retry a failed batch.
+|How many times each batch may be retried after a failure.
 |`3`
 
 |`transaction.retry.timeout`
@@ -106,7 +106,7 @@ The logic applied to an exception is, in order:
 . If the batch had already committed and the failure came from something the task did afterwards, the batch is dropped rather than replayed, and the task fails.
 . If the exception matches `transaction.codes.fail`, it is rethrown and the task fails.
 . If the exception is a lost connection raised *while a commit was in flight*, `transaction.commit.unknown.outcome` decides what happens. See <<unknown-commit-outcome>>.
-. If the exception is retryable and the task's retry budget is not exhausted, the task closes its transaction and session, waits `transaction.retry.timeout`, and re-runs *the current batch only*.
+. If the exception is retryable and the batch has not used up its `transaction.retries`, the task closes its transaction and session, waits `transaction.retry.timeout`, and re-runs *the current batch only*.
 . Otherwise the exception is rethrown and the task fails.
 
 A failure raised before the commit was sent (while opening the session, running the query, or streaming its results) is always safe to retry: the server never applied the transaction, and rolls it back when the connection drops.
@@ -120,9 +120,9 @@ An exception is retryable when it, or anything in its cause chain, is one the Ne
 
 [NOTE]
 ====
-`transaction.retries` is a budget *per task for its whole lifetime*, not per batch.
-A task set to 3 retries that spends all three on its first batch has no retries left for the remaining batches of that partition.
-Increase the value for large partitions on a busy cluster.
+`transaction.retries` applies *per batch*.
+Each batch starts with the full count, so retries spent on earlier batches of a partition do not count against later ones.
+A task fails only when a single batch fails more than `transaction.retries` times in a row.
 ====
 
 [#unknown-commit-outcome]
@@ -213,7 +213,7 @@ df.write
 
 A constraint makes `MERGE` correct, not contention-free. To keep the constraint, Neo4j takes a lock on the merged key, so concurrent partitions merging the same or related keys serialize against each other and, past a certain amount of parallelism, fail with deadlock or lock acquisition errors instead.
 
-Those errors are retryable, so a moderate amount of contention is absorbed by `transaction.retries` at the cost of throughput. Heavy contention exhausts the retry budget and fails the job.
+Those errors are retryable, so a moderate amount of contention is absorbed by `transaction.retries` at the cost of throughput. Heavy contention can make a single batch fail more than `transaction.retries` times, which fails the job.
 
 === Partition your data to avoid contention
 
