@@ -13,9 +13,25 @@
     <description>Ingestion API as a companion to the Neo4j Connector for Apache Spark ${spark.version}</description>
     <dependencies>
         <dependency>
+            <groupId>org.neo4j.connectors</groupId>
+            <artifactId>spark</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j.importer</groupId>
+            <artifactId>import-spec</artifactId>
+            <version>1.0.0-rc24</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${scala.binary.version}</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.27.7</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

@@ -11,7 +11,7 @@ exit_script() {
   echo "Process terminated cleaning up resources"
   mv -f pom.xml.bak pom.xml
   mv -f spark/pom.xml.bak spark/pom.xml
-  mv -f spark-import/pom.xml.bak spark-import/pom.xml
+  mv -f spark-ingest/pom.xml.bak spark-ingest/pom.xml
   trap - SIGINT SIGTERM # clear the trap
   kill -- -$$ || true # Sends SIGTERM to child/sub processes
 }
@@ -38,7 +38,7 @@ RELEASE_VERSION="${PROJECT_VERSION}-s_$SCALA_VERSION"
 # backup files
 cp pom.xml pom.xml.bak
 cp spark/pom.xml spark/pom.xml.bak
-cp spark-import/pom.xml spark-import/pom.xml.bak
+cp spark-ingest/pom.xml spark-ingest/pom.xml.bak
 
 ./mvnw -B versions:set -DnewVersion=${RELEASE_VERSION} -DgenerateBackupPoms=false
 
