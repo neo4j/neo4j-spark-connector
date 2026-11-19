@@ -17,8 +17,6 @@ Apache Software License, Version 2.0
   Neo4j Bolt Connection Codec
   Netty/Buffer
   Netty/Codec/Base
-  Netty/Codec/Classes/Quic
-  Netty/Codec/Native/Quic
   Netty/Common
   Netty/Handler
   Netty/Resolver
@@ -26,10 +24,8 @@ Apache Software License, Version 2.0
   Netty/TomcatNative [OpenSSL - Classes]
   Netty/Transport
   Netty/Transport/Classes/Epoll
-  Netty/Transport/Classes/io_uring
   Netty/Transport/Classes/KQueue
   Netty/Transport/Native/Epoll
-  Netty/Transport/Native/io_uring
   Netty/Transport/Native/KQueue
   Netty/Transport/Native/Unix/Common
   Nimbus Content Type
