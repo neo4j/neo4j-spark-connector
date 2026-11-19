@@ -427,5 +427,28 @@ class Neo4jImplicitsTest {
       ))
     }
 
+    @Test
+    def deserializes_values_into_expected_java_types(): Unit = {
+      val map = Map(
+        "int" -> "1",
+        "long" -> "3000000000",
+        "double" -> "1.5",
+        "bool" -> "true",
+        "empty" -> "",
+        "trailing" -> "1 2",
+        "comment" -> "abc#123"
+      )
+
+      Seq(map.toNestedDeserializedJavaMap, map.toNestedPrimitiveDeserializedJsonJavaMap).foreach { result =>
+        assertThat(result.get("int")).isEqualTo(Integer.valueOf(1))
+        assertThat(result.get("long")).isEqualTo(java.lang.Long.valueOf(3000000000L))
+        assertThat(result.get("double")).isEqualTo(java.lang.Double.valueOf(1.5))
+        assertThat(result.get("bool")).isEqualTo(java.lang.Boolean.TRUE)
+        assertThat(result.get("empty")).isEqualTo("")
+        assertThat(result.get("trailing")).isEqualTo("1 2")
+        assertThat(result.get("comment")).isEqualTo("abc#123")
+      }
+    }
+
   }
 }
