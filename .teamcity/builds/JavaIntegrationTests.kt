@@ -35,6 +35,8 @@ class JavaIntegrationTests(
               this.goals = "verify"
               this.runnerArgs =
                   "$MAVEN_DEFAULT_ARGS -Djava.version=${javaVersion.version} -Dscala-${scalaVersion.version} -DskipUnitTests"
+
+              dockerRunParameters = "$dockerRunParameters $TESTCONTAINERS_HOST_DOCKER_ARGS"
             }
           }
 

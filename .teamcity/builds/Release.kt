@@ -73,9 +73,9 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
               scriptContent =
                   """
                 #!/bin/bash
-                
+
                 set -eux
-                
+
                 if [ "%dry-run%" = "true" ]; then
                   echo "we are on a dry run, only performing upload to maven central"
                   export JRELEASER_MAVENCENTRAL_STAGE=UPLOAD
@@ -86,7 +86,7 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
                   export JRELEASER_ANNOUNCE_SLACK_ACTIVE=ALWAYS
                 fi
                 export MAVEN_ARGS="$MAVEN_DEFAULT_ARGS"
-                
+
                 # Execute JReleaser
                 jreleaser assemble
                 jreleaser full-release --debug
@@ -96,7 +96,7 @@ class Release(id: String, name: String, javaVersion: JavaVersion) :
               dockerImagePlatform = ScriptBuildStep.ImagePlatform.Linux
               dockerImage = javaVersion.dockerImage
               dockerRunParameters =
-                  "--volume /var/run/docker.sock:/var/run/docker.sock --volume %teamcity.build.checkoutDir%/signingkeysandbox:/root/.gnupg"
+                  "--volume /var/run/docker.sock:/var/run/docker.sock --volume %teamcity.build.checkoutDir%/signingkeysandbox:/root/.gnupg $TESTCONTAINERS_HOST_DOCKER_ARGS"
             }
 
             setVersion("Set next snapshot version", "%nextSnapshotVersion%", javaVersion)
