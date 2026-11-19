@@ -99,7 +99,8 @@ project {
                   name = neo4j.version,
                   javaVersions = setOf(JavaVersion.V_17, JavaVersion.V_21),
                   scalaVersions = setOf(ScalaVersion.V2_13),
-                  pysparkVersions = setOf(PySparkVersion.V4_0, PySparkVersion.V4_1, PySparkVersion.V4_2),
+                  pysparkVersions =
+                      setOf(PySparkVersion.V4_0, PySparkVersion.V4_1, PySparkVersion.V4_2),
                   neo4jVersions = setOf(neo4j),
                   forPullRequests = false,
                   forCompatibility = true,
