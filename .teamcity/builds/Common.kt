@@ -124,6 +124,7 @@ enum class PySparkVersion(
           PythonVersion.V3_13,
           PythonVersion.V3_14,
       ),
+  ),
   V4_2(
       SparkVersion.V4_2,
       ScalaVersion.V2_13,
