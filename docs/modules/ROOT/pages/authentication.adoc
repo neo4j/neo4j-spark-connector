@@ -529,3 +529,91 @@ authentication.keycloak.realm
 |===
 
 See the <<oidc-keycloak,Keycloak example>>.
+
+[#mtls]
+== Mutual TLS
+
+With mutual TLS (mTLS), the connector presents a client certificate to the Neo4j server during the TLS handshake, in addition to verifying the server certificate.
+mTLS works alongside any `authentication.type`.
+
+To enable mTLS, set both `encryption.client.certificate.path` and `encryption.client.key.path`.
+If the private key is encrypted, also set `encryption.client.key.password`.
+
+mTLS requires an encrypted connection: either use an encrypted URI scheme (`neo4j+s`, `neo4j+ssc`, `bolt+s`, `bolt+ssc`) or set `encryption.enabled` to `true`.
+
+[NOTE]
+====
+The certificate and key files must be readable at the same path by the Spark driver and by every executor.
+====
+
+[.tabbed-example]
+====
+[.include-with-scala]
+=====
+.Example
+[source, scala, role=nocollapse]
+----
+val df = spark.read
+  .format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j+s://neo4j.example.com:7687")
+  .option("authentication.type", "basic")
+  .option("authentication.basic.username", "myuser")
+  .option("authentication.basic.password", "neo4jpassword")
+  .option("encryption.client.certificate.path", "/etc/neo4j-certs/client.crt")
+  .option("encryption.client.key.path", "/etc/neo4j-certs/client.key")
+  .option("labels", "Person")
+  .load()
+----
+=====
+[.include-with-Python]
+=====
+.Example
+[source, python, role=nocollapse]
+----
+df = (
+  spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "neo4j+s://neo4j.example.com:7687")
+  .option("authentication.type", "basic")
+  .option("authentication.basic.username", "myuser")
+  .option("authentication.basic.password", "neo4jpassword")
+  .option("encryption.client.certificate.path", "/etc/neo4j-certs/client.crt")
+  .option("encryption.client.key.path", "/etc/neo4j-certs/client.key")
+  .option("labels", "Person")
+  .load()
+)
+----
+=====
+====
+
+=== Certificate rotation
+
+By default, the connector checks the size and modification time of the certificate and key files every time it opens a new connection.
+If either file changed, for example because cert-manager or Vault renewed it, new connections use the new certificate without restarting the job.
+Existing connections keep their certificate until they are closed.
+
+To disable rotation, set `encryption.client.certificate.rotation.enabled` to `false`.
+The certificate is then loaded when a read or write starts, and a renewed certificate is only used by later reads and writes.
+Long-running jobs and streaming queries keep using the old certificate until they are restarted.
+
+=== Options
+
+[cols="2m,3,1m",options="header"]
+|===
+| Option | Description | Default
+
+| encryption.client.certificate.path
+| Path to the client certificate (PEM).
+| _(none)_
+
+| encryption.client.key.path
+| Path to the client private key (PEM).
+| _(none)_
+
+| encryption.client.key.password
+| Password of the private key, if encrypted.
+| _(none)_
+
+| encryption.client.certificate.rotation.enabled
+| Reload the certificate and key when the files change.
+| true
+|===

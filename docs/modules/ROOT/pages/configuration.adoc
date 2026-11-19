@@ -193,6 +193,30 @@ Available values are:
 |_(Neo4j Driver default)_
 |No
 
+|`encryption.client.certificate.path`
+|Path to the client certificate (PEM) used for mutual TLS.
+Must be set together with `encryption.client.key.path`.
+See xref:authentication.adoc#mtls[Mutual TLS].
+|_(none)_
+|No
+
+|`encryption.client.key.path`
+|Path to the private key (PEM) of the client certificate used for mutual TLS.
+Must be set together with `encryption.client.certificate.path`.
+|_(none)_
+|No
+
+|`encryption.client.key.password`
+|Password of the client private key, if it is encrypted.
+|_(none)_
+|No
+
+|`encryption.client.certificate.rotation.enabled`
+|When `true`, the connector reloads the client certificate and key whenever the files change, without restarting the job.
+When `false`, they are loaded once per driver.
+|`true`
+|No
+
 |`connection.max.lifetime.msecs`
 |Connection lifetime in milliseconds
 |_(Neo4j Driver default)_
