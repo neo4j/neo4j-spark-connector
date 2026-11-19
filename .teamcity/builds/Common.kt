@@ -84,8 +84,9 @@ enum class PythonVersion(val version: String) {
 }
 
 enum class SparkVersion(val version: String) {
-  V4_0(version = "4.0.4"),
-  V4_1(version = "4.1.3"),
+  V4_0(version = "4.0.5"),
+  V4_1(version = "4.1.4"),
+  V4_2(version = "4.2.1"),
 }
 
 enum class PySparkVersion(
@@ -111,6 +112,20 @@ enum class PySparkVersion(
   ),
   V4_1(
       SparkVersion.V4_1,
+      ScalaVersion.V2_13,
+      setOf(
+          JavaVersion.V_17,
+          JavaVersion.V_21,
+      ),
+      setOf(
+          PythonVersion.V3_10,
+          PythonVersion.V3_11,
+          PythonVersion.V3_12,
+          PythonVersion.V3_13,
+          PythonVersion.V3_14,
+      ),
+  V4_2(
+      SparkVersion.V4_2,
       ScalaVersion.V2_13,
       setOf(
           JavaVersion.V_17,
