@@ -36,7 +36,7 @@ label:bug[]
 
 Fixed a bug where empty arrays could cause random schema inferences
 | For data frames that contain either single-typed arrays or empty arrays.
-Automatic schema inference are no longer random between that single-type or "Array[String]".
+Automatic schema inference is no longer non-deterministically selecting between the single-type or "Array[String]".
 Data frames that contain multiple mixed types still fall back to a randomly selected type.
 For the multi-type use case, recommendation remains to provide your own schema instead of inference.
 
