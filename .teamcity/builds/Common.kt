@@ -258,8 +258,8 @@ fun BuildSteps.runMaven(javaVersion: JavaVersion, init: MavenBuildStep.() -> Uni
         dockerImagePlatform = MavenBuildStep.ImagePlatform.Linux
         dockerImage = javaVersion.dockerImage
         dockerRunParameters = "--volume /var/run/docker.sock:/var/run/docker.sock"
-
         localRepoScope = MavenBuildStep.RepositoryScope.MAVEN_DEFAULT
+        mavenVersion = bundled_3_9()
       }
 
   init(maven)
