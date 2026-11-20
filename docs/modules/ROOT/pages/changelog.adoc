@@ -22,7 +22,7 @@ a|
 label:new[]
 
 mTLS support
-| Added support for mTLS options (`encryption.client.certificate.path` and `encryption.client.key.path`), enabling the underlying driver to link:https://neo4j.com/docs/python-manual/current/connect-advanced/#mtls[configure mTLS].
+| Added support for mTLS options (`encryption.client.certificate.path` and `encryption.client.key.path`), enabling the underlying driver to link:https://neo4j.com/docs/java-manual/current/connect-advanced/#mtls[configure mTLS].
 See Spark Driver documentation xref:authentication.adoc#mtls[Authentication - mTLS]
 
 a|
