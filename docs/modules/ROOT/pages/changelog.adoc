@@ -3,6 +3,45 @@
 
 This page mirrors the link:https://github.com/neo4j/neo4j-spark-connector/releases[GitHub releases^] of the Neo4j Connector for Apache Spark, listing headline features, fixes, and breaking changes for every minor and patch release of the 6.x line.
 
+[#_6_2_0]
+== Version 6.2.0 (20 November 20206)
+
+This release adds support for mTLS options as well as Spark 4.2.
+
+[cols="1,2",options="header"]
+|===
+| Feature | Details
+
+a|
+label:new[]
+
+Spark 4.2 support
+| This is the first release tested with Spark 4.2.
+
+a|
+label:new[]
+
+mTLS support
+| Added support for mTLS options (`encryption.client.certificate.path` and `encryption.client.key.path`), enabling the underlying driver to link:https://neo4j.com/docs/java-manual/current/connect-advanced/#mtls[configure mTLS].
+See the Spark Driver documentation on xref:authentication.adoc#mtls[authentication and mTLS].
+
+a|
+label:new[]
+
+Control what GQL failures causes job failure
+| You can now set GQL status code using option `transaction.codes.fail` to tell the connector to halt execution if any of the provided GQL codes are caught by the driver.
+
+a|
+label:bug[]
+
+Fixed a bug where the presence of empty arrays could yield the wrong array type
+| For data frames that contain either single-typed arrays or empty arrays.
+Automatic schema inference is no longer non-deterministically selecting between the single-type or `Array[String]`.
+Data frames that contain multiple mixed types still fall back to a randomly selected type.
+For the multi-type use case, recommendation remains to provide your own schema instead of inference.
+
+|===
+
 [#_6_1_2]
 == Version 6.1.2 (21 October 2026)
 

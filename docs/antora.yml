@@ -8,11 +8,11 @@ nav:
 asciidoc:
   attributes:
     theme: docs
-    connector-version: '6.1'
-    exact-connector-version: '6.1.2'
+    connector-version: '6.2'
+    exact-connector-version: '6.2.0'
     scala-version: '2.13'
     exact-scala-version: '2.13.18'
-    spark-version: '4.1.2'
+    spark-version: '4.2.1'
     connectors-commons-version: '1.0.0'
     copyright: Neo4j Inc.
     url-neo4j-product-gds-lib: https://neo4j.com/product/graph-data-science-library/
