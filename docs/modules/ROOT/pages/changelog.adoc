@@ -6,7 +6,7 @@ This page mirrors the link:https://github.com/neo4j/neo4j-spark-connector/releas
 [#_6_2_0]
 == Version 6.2.0 (20 November 20206)
 
-This release contains support of mTLS options as well as Spark 4.2 support.
+This release adds support for mTLS options as well as Spark 4.2.
 
 [cols="1,2",options="header"]
 |===
