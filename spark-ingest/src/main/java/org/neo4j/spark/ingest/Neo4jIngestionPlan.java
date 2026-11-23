@@ -16,13 +16,15 @@ import org.neo4j.spark.ingest.planner.PartitionPlanner;
 import org.neo4j.spark.ingest.planner.RoundRobinPartitionPlanner;
 import org.neo4j.spark.ingest.utils.SpecToSparkUtils;
 
-public class Neo4jParallelIngestion {
+public class Neo4jIngestionPlan {
     private final SparkSession spark;
     private final ImportSpecification spec;
     private final HashMap<String, Dataset<Row>> datasets = new HashMap<>();
     private final Map<String, String> configuration;
 
-    public Neo4jParallelIngestion(SparkSession spark, ImportSpecification spec, Map<String, String> configuration) {
+    public static final String FORMAT = "org.neo4j.spark.DataSource";
+
+    public Neo4jIngestionPlan(SparkSession spark, ImportSpecification spec, Map<String, String> configuration) {
         this.spark = spark;
         this.spec = spec;
         this.configuration = configuration;
@@ -120,7 +122,7 @@ public class Neo4jParallelIngestion {
 
         waveWriter
                 .mode("Append")
-                .format(Constants.FORMAT)
+                .format(FORMAT)
                 .option("url", configuration.get("url"))
                 .option("authentication.basic.username", configuration.get("username"))
                 .option("authentication.basic.password", configuration.get("password"))

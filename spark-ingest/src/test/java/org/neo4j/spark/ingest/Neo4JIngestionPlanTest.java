@@ -14,7 +14,7 @@ import org.neo4j.importer.v1.ImportSpecificationDeserializer;
 import org.neo4j.importer.v1.sources.Source;
 import org.neo4j.importer.v1.validation.SpecificationException;
 
-class Neo4jParallelIngestionTest {
+class Neo4JIngestionPlanTest {
     private final String customer = getClass().getResource("/data/customer.csv").getPath();
     private final String invoice = getClass().getResource("/data/invoice.csv").getPath();
     private final String sku = getClass().getResource("/data/sku.csv").getPath();
@@ -71,7 +71,7 @@ class Neo4jParallelIngestionTest {
             var importSpecification =
                     ImportSpecificationDeserializer.deserialize(importSpecFile, optionsWithExternalSources);
 
-            var plan = new Neo4jParallelIngestion(spark, importSpecification, ingestionOptions);
+            var plan = new Neo4jIngestionPlan(spark, importSpecification, ingestionOptions);
             boolean isDisjoint = true; // need to be determined by user
 
             plan.ingest(isDisjoint); // starts deadlock-free data movement into neo4j! 🎉

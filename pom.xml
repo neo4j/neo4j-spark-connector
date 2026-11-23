@@ -23,7 +23,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scala.binary.version>2.13</scala.binary.version>
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
-        <spark.version>4.1.2</spark.version>
+        <spark.version>4.2.1</spark.version>
         <spotless-maven-plugin.version>3.12.0</spotless-maven-plugin.version>
         <test.jvm.args>-XX:+IgnoreUnrecognizedVMOptions
             --add-opens=java.base/java.lang=ALL-UNNAMED
@@ -126,10 +126,14 @@
                             <licenseSet>
                                 <header>/license/neo4j_apache_v2/header.txt</header>
                                 <includes>
+                                    <include>src/**/*.scala</include>
                                     <include>src/**/*.java</include>
                                 </includes>
                             </licenseSet>
                         </licenseSets>
+                        <mapping>
+                            <scala>SLASHSTAR_STYLE</scala>
+                        </mapping>
                     </configuration>
                     <dependencies>
                         <dependency>
@@ -178,15 +182,6 @@
                     <groupId>com.diffplug.spotless</groupId>
                     <artifactId>spotless-maven-plugin</artifactId>
                     <version>${spotless-maven-plugin.version}</version>
-                    <configuration>
-                        <java>
-                            <includes>
-                                <include>src/main/java/**/*.java</include>
-                                <include>src/test/java/**/*.java</include>
-                            </includes>
-                            <palantirJavaFormat/>
-                        </java>
-                    </configuration>
                     <executions>
                         <execution>
                             <goals>

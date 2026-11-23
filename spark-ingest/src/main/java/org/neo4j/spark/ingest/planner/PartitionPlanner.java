@@ -7,7 +7,6 @@ import static org.apache.spark.sql.functions.xxhash64;
 
 import java.util.List;
 import org.apache.spark.sql.*;
-import org.neo4j.spark.ingest.Constants;
 
 /**
  * Hashes the start and end nodes of a relationship row in the df that holds the relationship. Then under a modulo
@@ -19,17 +18,21 @@ public abstract class PartitionPlanner {
     protected SparkSession spark;
     protected Dataset<Row> hashedDataset;
 
+    public static final String SOURCE_PARTITION = "_source_partition_column";
+    public static final String TARGET_PARTITION = "_target_partition_column";
+    public static final String RELATIONSHIP_PARTITION = "_relationship_partition_column";
+
     public PartitionPlanner(
             SparkSession spark, Dataset<Row> source, Column[] startColumns, Column[] endColumns, int workers) {
         SparkSession.setActiveSession(spark);
         this.partitionCount = workers;
         this.spark = spark;
-        this.hashedDataset = source.withColumn(Constants.SOURCE_PARTITION, pmod(xxhash64(startColumns), lit(workers)))
-                .withColumn(Constants.TARGET_PARTITION, pmod(xxhash64(endColumns), lit(workers)))
+        this.hashedDataset = source.withColumn(SOURCE_PARTITION, pmod(xxhash64(startColumns), lit(workers)))
+                .withColumn(TARGET_PARTITION, pmod(xxhash64(endColumns), lit(workers)))
                 .withColumn(
-                        Constants.RELATIONSHIP_PARTITION,
-                        col(Constants.SOURCE_PARTITION).multiply(workers).plus(col(Constants.TARGET_PARTITION)))
-                .repartition(workers * workers, col(Constants.RELATIONSHIP_PARTITION))
+                        RELATIONSHIP_PARTITION,
+                        col(SOURCE_PARTITION).multiply(workers).plus(col(TARGET_PARTITION)))
+                .repartition(workers * workers, col(RELATIONSHIP_PARTITION))
                 .persist();
     }
 
@@ -38,10 +41,10 @@ public abstract class PartitionPlanner {
                 wave.stream().map(partition -> partition.id(partitionCount)).toArray();
 
         return hashedDataset
-                .filter(col(Constants.RELATIONSHIP_PARTITION).isin(partitionIdsOfWave))
-                .drop(Constants.SOURCE_PARTITION)
-                .drop(Constants.TARGET_PARTITION)
-                .drop(Constants.RELATIONSHIP_PARTITION)
+                .filter(col(RELATIONSHIP_PARTITION).isin(partitionIdsOfWave))
+                .drop(SOURCE_PARTITION)
+                .drop(TARGET_PARTITION)
+                .drop(RELATIONSHIP_PARTITION)
                 .write();
     }
 
