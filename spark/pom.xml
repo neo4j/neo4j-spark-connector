@@ -42,8 +42,6 @@
         <cypherdsl.version>2025.3.6</cypherdsl.version>
         <driver.version>6.3.0</driver.version>
         <jboss-logging.version>3.6.3.Final</jboss-logging.version>
-        <licensing-maven-plugin.version>1.7.12</licensing-maven-plugin.version>
-        <licensing.prepend.text>/license/neo4j_apache_v2/notice.txt</licensing.prepend.text>
         <log4j.version>2.26.1</log4j.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
@@ -372,46 +370,6 @@
                     <configuration>
                         <propertiesEncoding>${project.build.sourceEncoding}</propertiesEncoding>
                     </configuration>
-                </plugin>
-                <plugin>
-                    <groupId>org.neo4j.build.plugins</groupId>
-                    <artifactId>licensing-maven-plugin</artifactId>
-                    <version>${licensing-maven-plugin.version}</version>
-                    <configuration>
-                        <failIfDisliked>true</failIfDisliked>
-                        <failIfMissing>true</failIfMissing>
-                        <plainTextReport>true</plainTextReport>
-                        <prependText>${licensing.prepend.text}</prependText>
-                        <excludedGroups>^((org.neo4j){1}|(org.neo4j.connectors){1}|(org.neo4j.connectors.kafka){1}|(org.neo4j.driver){1})$</excludedGroups>
-                        <includedScopes>compile,runtime</includedScopes>
-                    </configuration>
-                    <dependencies>
-                        <dependency>
-                            <groupId>org.neo4j.build</groupId>
-                            <artifactId>resources</artifactId>
-                            <version>${build-resources.version}</version>
-                        </dependency>
-                    </dependencies>
-                    <executions>
-                        <execution>
-                            <id>list-all-licenses</id>
-                            <goals>
-                                <goal>check</goal>
-                            </goals>
-                            <phase>compile</phase>
-                            <configuration>
-                                <licensingRequirementFiles>
-                                    <!--suppress UnresolvedMavenProperty -->
-                                    <licensingRequirementFile>licensing/licensing-requirements-base.xml</licensingRequirementFile>
-                                </licensingRequirementFiles>
-                                <thirdPartyLicensingFilename>${project.artifactId}-${project.version}-NOTICE.txt</thirdPartyLicensingFilename>
-                                <checkExistingNoticeFile>${project.build.directory}/../NOTICE.txt</checkExistingNoticeFile>
-                                <listPrependText>/licensing/list-prefix.txt</listPrependText>
-                                <listReport>${project.artifactId}-${project.version}-LICENSES.txt</listReport>
-                                <checkExistingLicensesFile>${project.build.directory}/../LICENSES.txt</checkExistingLicensesFile>
-                            </configuration>
-                        </execution>
-                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
