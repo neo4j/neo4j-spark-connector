@@ -13,8 +13,22 @@ import org.junit.jupiter.api.Test;
 import org.neo4j.importer.v1.ImportSpecificationDeserializer;
 import org.neo4j.importer.v1.sources.Source;
 import org.neo4j.importer.v1.validation.SpecificationException;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.neo4j.Neo4jContainer;
+import org.testcontainers.utility.DockerImageName;
 
+@Testcontainers
 class Neo4JIngestionPlanTest {
+    private static final String NEO4J_TEST_IMAGE =
+            System.getenv().getOrDefault("NEO4J_TEST_IMAGE", "neo4j:5-enterprise");
+
+    @Container
+    private static final Neo4jContainer NEO4J = new Neo4jContainer(
+                    DockerImageName.parse(NEO4J_TEST_IMAGE).asCompatibleSubstituteFor("neo4j"))
+            .withAdminPassword("password")
+            .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes");
+
     private final String customer = getClass().getResource("/data/customer.csv").getPath();
     private final String invoice = getClass().getResource("/data/invoice.csv").getPath();
     private final String sku = getClass().getResource("/data/sku.csv").getPath();
@@ -32,7 +46,7 @@ class Neo4JIngestionPlanTest {
         SparkSession spark = SparkSession.builder()
                 .master("local[*]")
                 .appName("spark-ingest-smoke-test")
-                .config("spark.ui.enabled", "true")
+                .config("spark.ui.enabled", "false")
                 .getOrCreate();
 
         SparkSource customerSource = new SparkSource(
@@ -59,11 +73,11 @@ class Neo4JIngestionPlanTest {
                 .build();
 
         Map<String, String> ingestionOptions = new HashMap<>();
-        ingestionOptions.put("url", "neo4j://localhost:7687");
+        ingestionOptions.put("url", NEO4J.getBoltUrl());
         ingestionOptions.put("username", "neo4j");
         ingestionOptions.put("password", "password");
         ingestionOptions.put("workers", "4");
-        ingestionOptions.put("batch.size", "5");
+        ingestionOptions.put("batch.size", "15"); // creates tons of deadlock opportunities (there won't be any though)
 
         try (var importSpecFile =
                 new InputStreamReader(getClass().getResourceAsStream("/specs/fruteria.yaml"), StandardCharsets.UTF_8)) {
