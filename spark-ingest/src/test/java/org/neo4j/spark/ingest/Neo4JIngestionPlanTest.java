@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.sql.SparkSession;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.neo4j.importer.v1.ImportSpecificationDeserializer;
 import org.neo4j.importer.v1.sources.Source;
@@ -45,6 +46,12 @@ class Neo4JIngestionPlanTest {
             .withAdminPassword("password")
             .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes");
 
+    private static final SparkSession SPARK = SparkSession.builder()
+            .master("local[*]")
+            .appName("spark-ingest-smoke-test")
+            .config("spark.ui.enabled", "false")
+            .getOrCreate();
+
     private final String customer = getClass().getResource("/data/customer.csv").getPath();
     private final String invoice = getClass().getResource("/data/invoice.csv").getPath();
     private final String sku = getClass().getResource("/data/sku.csv").getPath();
@@ -57,29 +64,29 @@ class Neo4JIngestionPlanTest {
     private final String skuOfTypeFruit =
             getClass().getResource("/data/sku_of_type_fruit.csv").getPath();
 
+    @AfterAll
+    public static void tearDown() throws IOException {
+        NEO4J.close();
+        SPARK.close();
+    }
+
     @Test
     void fruteria_poc() throws SpecificationException, IOException {
-        SparkSession spark = SparkSession.builder()
-                .master("local[*]")
-                .appName("spark-ingest-smoke-test")
-                .config("spark.ui.enabled", "false")
-                .getOrCreate();
-
         SparkSource customerSource = new SparkSource(
-                "customer", spark.read().option("header", "true").csv(customer));
+                "customer", SPARK.read().option("header", "true").csv(customer));
         SparkSource invoiceSource =
-                new SparkSource("invoice", spark.read().option("header", "true").csv(invoice));
+                new SparkSource("invoice", SPARK.read().option("header", "true").csv(invoice));
         SparkSource skuSource =
-                new SparkSource("sku", spark.read().option("header", "true").csv(sku));
+                new SparkSource("sku", SPARK.read().option("header", "true").csv(sku));
         SparkSource fruitSource =
-                new SparkSource("fruit", spark.read().option("header", "true").csv(fruit));
+                new SparkSource("fruit", SPARK.read().option("header", "true").csv(fruit));
 
         SparkSource orderedSource =
-                new SparkSource("ordered", spark.read().option("header", "true").csv(customerOrderedInvoice));
+                new SparkSource("ordered", SPARK.read().option("header", "true").csv(customerOrderedInvoice));
         SparkSource hasSource =
-                new SparkSource("has", spark.read().option("header", "true").csv(invoiceContainsSku));
+                new SparkSource("has", SPARK.read().option("header", "true").csv(invoiceContainsSku));
         SparkSource typedSource =
-                new SparkSource("typed", spark.read().option("header", "true").csv(skuOfTypeFruit));
+                new SparkSource("typed", SPARK.read().option("header", "true").csv(skuOfTypeFruit));
 
         Set<Source> externalSources =
                 Set.of(customerSource, invoiceSource, skuSource, fruitSource, orderedSource, hasSource, typedSource);
@@ -101,22 +108,22 @@ class Neo4JIngestionPlanTest {
             var importSpecification =
                     ImportSpecificationDeserializer.deserialize(importSpecFile, optionsWithExternalSources);
 
-            var plan = new Neo4jIngestionPlan(spark, importSpecification, ingestionOptions);
+            var plan = new Neo4jIngestionPlan(SPARK, importSpecification, ingestionOptions);
             boolean isDisjoint = true; // need to be determined by user
 
             plan.ingest(isDisjoint); // starts deadlock-free data movement into neo4j! 🎉
         }
 
-        assertThat(countNodeOfLabel(spark, "Customer", ingestionOptions)).isEqualTo(500);
-        assertThat(countNodeOfLabel(spark, "Invoice", ingestionOptions)).isEqualTo(1500);
-        assertThat(countNodeOfLabel(spark, "Sku", ingestionOptions)).isEqualTo(100);
-        assertThat(countNodeOfLabel(spark, "Fruit Type", ingestionOptions)).isEqualTo(22);
+        assertThat(countNodeOfLabel(SPARK, "Customer", ingestionOptions)).isEqualTo(500);
+        assertThat(countNodeOfLabel(SPARK, "Invoice", ingestionOptions)).isEqualTo(1500);
+        assertThat(countNodeOfLabel(SPARK, "Sku", ingestionOptions)).isEqualTo(100);
+        assertThat(countNodeOfLabel(SPARK, "Fruit Type", ingestionOptions)).isEqualTo(22);
 
-        assertThat(countRelationshipOfType(spark, "ORDERED", ingestionOptions)).isEqualTo(1500);
-        assertThat(countRelationshipOfType(spark, "ORDERED_BY", ingestionOptions))
+        assertThat(countRelationshipOfType(SPARK, "ORDERED", ingestionOptions)).isEqualTo(1500);
+        assertThat(countRelationshipOfType(SPARK, "ORDERED_BY", ingestionOptions))
                 .isEqualTo(1500);
-        assertThat(countRelationshipOfType(spark, "CONTAINS", ingestionOptions)).isEqualTo(15094);
-        assertThat(countRelationshipOfType(spark, "OF_TYPE", ingestionOptions)).isEqualTo(100);
+        assertThat(countRelationshipOfType(SPARK, "CONTAINS", ingestionOptions)).isEqualTo(15094);
+        assertThat(countRelationshipOfType(SPARK, "OF_TYPE", ingestionOptions)).isEqualTo(100);
     }
 
     private long countNodeOfLabel(SparkSession spark, String label, Map<String, String> opts) {
@@ -126,9 +133,11 @@ class Neo4JIngestionPlanTest {
                 .option("authentication", "basic")
                 .option("authentication.basic.username", opts.get("username"))
                 .option("authentication.basic.password", opts.get("password"))
-                .option("labels", label)
+                .option("query", "MATCH (n:" + label + ") RETURN count(n) AS count")
+                .option("query.tuning.runtime", "parallel")
                 .load()
-                .count();
+                .first()
+                .getLong(0);
     }
 
     private long countRelationshipOfType(SparkSession spark, String type, Map<String, String> opts) {
@@ -138,8 +147,9 @@ class Neo4JIngestionPlanTest {
                 .option("authentication", "basic")
                 .option("authentication.basic.username", opts.get("username"))
                 .option("authentication.basic.password", opts.get("password"))
-                .option("query", "MATCH ()-[r:" + type + "]->() RETURN r")
+                .option("query", "MATCH ()-[r:" + type + "]->() RETURN count(r) AS count")
                 .load()
-                .count();
+                .first()
+                .getLong(0);
     }
 }
