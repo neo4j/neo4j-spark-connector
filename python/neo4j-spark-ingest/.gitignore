@@ -1,0 +1,7 @@
+build/
+dist/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+src/neo4j_spark_ingest/lib/*.jar
+VERSION
