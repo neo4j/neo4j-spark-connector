@@ -12,6 +12,7 @@
     <name>neo4j-connector-for-spark-ingest-${spark.version}</name>
     <description>Ingestion API as a companion to the Neo4j Connector for Apache Spark ${spark.version}</description>
     <properties>
+        <maven-shade-plugin.version>3.6.1</maven-shade-plugin.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <testcontainers.version>2.0.5</testcontainers.version>
     </properties>
@@ -28,11 +29,6 @@
     </dependencyManagement>
     <dependencies>
         <dependency>
-            <groupId>org.neo4j.connectors</groupId>
-            <artifactId>spark</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.neo4j.importer</groupId>
             <artifactId>import-spec</artifactId>
             <version>1.0.0-rc24</version>
@@ -40,6 +36,12 @@
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${scala.binary.version}</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j.connectors</groupId>
+            <artifactId>spark</artifactId>
+            <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -80,6 +82,43 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${maven-shade-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>portable-jar</id>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <phase>package</phase>
+                        <configuration>
+                            <artifactSet>
+                                <excludes>
+                                    <exclude>org.neo4j.connectors:spark</exclude>
+                                </excludes>
+                            </artifactSet>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/*.SF</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>portable</shadedClassifierName>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>com.github.ekryd.sortpom</groupId>

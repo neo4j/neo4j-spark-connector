@@ -19,7 +19,6 @@ package org.neo4j.spark.ingest;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,8 +33,6 @@ import org.junit.jupiter.api.Test;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
-import org.neo4j.importer.v1.ImportSpecificationDeserializer;
-import org.neo4j.importer.v1.sources.Source;
 import org.neo4j.importer.v1.validation.SpecificationException;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -83,12 +80,8 @@ class Neo4JIngestionPlanTest {
         var hasSource = new SparkSource("has", sparkCsvRead("invoice_contains_sku"));
         var typedSource = new SparkSource("typed", sparkCsvRead("sku_of_type_fruit"));
 
-        Set<Source> externalSources =
+        Set<SparkSource> sources =
                 Set.of(customerSource, invoiceSource, skuSource, fruitSource, orderedSource, hasSource, typedSource);
-
-        var optionsWithExternalSources = ImportSpecificationDeserializer.Options.builder()
-                .externalSources(externalSources)
-                .build();
 
         Map<String, String> connectorOptions = new HashMap<>();
         connectorOptions.put("workers", "4");
@@ -98,13 +91,9 @@ class Neo4JIngestionPlanTest {
         connectorOptions.put("authentication.basic.password", NEO4J.getAdminPassword());
         connectorOptions.put("batch.size", "15"); // creates tons of deadlock opportunities (there won't be any though)
 
-        try (var importSpecFile = new InputStreamReader(
-                Objects.requireNonNull(getClass().getResourceAsStream("/specs/fruteria.yaml")),
-                StandardCharsets.UTF_8)) {
-
-            var spec = ImportSpecificationDeserializer.deserialize(importSpecFile, optionsWithExternalSources);
-
-            var plan = new Neo4jIngestionPlan(SPARK, spec, connectorOptions);
+        try (var importSpecFile = getClass().getResourceAsStream("/specs/fruteria.yaml")) {
+            var spec = new String(importSpecFile.readAllBytes(), StandardCharsets.UTF_8);
+            var plan = Neo4jIngestionAPI.plan(SPARK, sources, spec, connectorOptions);
             plan.ingest(false);
         }
 

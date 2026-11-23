@@ -34,10 +34,10 @@ import org.neo4j.spark.ingest.planner.RoundRobinPartitionPlanner;
 import org.neo4j.spark.ingest.utils.SpecToSparkUtils;
 
 public class Neo4jIngestionPlan {
+    private final Map<String, String> configuration;
+    private final HashMap<String, Dataset<Row>> datasets = new HashMap<>();
     private final SparkSession spark;
     private final ImportSpecification spec;
-    private final HashMap<String, Dataset<Row>> datasets = new HashMap<>();
-    private final Map<String, String> configuration;
     private final int workers;
 
     public static final String FORMAT = "org.neo4j.spark.DataSource";
@@ -61,19 +61,18 @@ public class Neo4jIngestionPlan {
         ingest(isDisjoint, ImportPipeline.of(spec).executionPlan());
     }
 
-    private void ingest(boolean isDisjoint, ImportExecutionPlan plan) {
-
-        for (var group : plan.getGroups()) {
-            for (var stage : group.getStages()) {
-                for (var step : stage.getSteps()) {
-                    if (step instanceof SourceStep sourceStep) {
+    private void ingest(boolean isDisjoint, ImportExecutionPlan importExecutionPlan) {
+        for (var importStepGroup : importExecutionPlan.getGroups()) {
+            for (var importStepStage : importStepGroup.getStages()) {
+                for (var importStep : importStepStage.getSteps()) {
+                    if (importStep instanceof SourceStep sourceStep) {
                         indexSource(sourceStep);
-                    } else if (step instanceof NodeTargetStep node) {
+                    } else if (importStep instanceof NodeTargetStep node) {
                         ingestNode(node);
-                    } else if (step instanceof RelationshipTargetStep relationship) {
+                    } else if (importStep instanceof RelationshipTargetStep relationship) {
                         ingestRelationship(relationship, isDisjoint);
                     } else {
-                        throw new IllegalArgumentException("Unsupported step: " + step);
+                        throw new IllegalArgumentException("Unsupported step: " + importStep);
                     }
                 }
             }

@@ -4,7 +4,6 @@ libraries. For an overview of the licenses see the NOTICE.txt file.
 
 ------------------------------------------------------------------------------
 Apache Software License, Version 2.0
-  Apache Commons Lang
   ASM based accessors helper used by json-smart
   import-spec
   Internet Time Utility
@@ -12,17 +11,9 @@ Apache Software License, Version 2.0
   Jackson-core
   jackson-databind
   Jackson-dataformat-YAML
-  JCIP Annotations under Apache License
-  JetBrains Java Annotations
   JSON Small and Fast Parser
   json-path
   JsonSchemaValidator
-  Kotlin Stdlib
-  Nimbus Content Type
-  Nimbus JOSE+JWT
-  Nimbus LangTag
-  OAuth 2.0 SDK with OpenID Connect and Federation extensions
-  org.apiguardian:apiguardian-api
   SnakeYAML
 ------------------------------------------------------------------------------
 
@@ -265,7 +256,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ------------------------------------------------------------------------------
 MIT License
   SLF4J API Module
-  SLF4J JDK Platform Logging Integration
 ------------------------------------------------------------------------------
 
 The MIT License
