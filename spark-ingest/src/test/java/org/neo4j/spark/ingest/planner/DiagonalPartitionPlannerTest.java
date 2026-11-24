@@ -66,7 +66,7 @@ public class DiagonalPartitionPlannerTest {
                                         new Partition(1, 0),
                                         new Partition(2, 1),
                                         new Partition(3, 2),
-                                        new Partition(0, 2)),
+                                        new Partition(0, 3)),
                                 List.of(
                                         new Partition(2, 0),
                                         new Partition(3, 1),
