@@ -117,7 +117,7 @@ class Neo4JIngestionPlanTest {
         assertThat(countNodeOfLabel(SPARK, "Customer", ingestionOptions)).isEqualTo(500);
         assertThat(countNodeOfLabel(SPARK, "Invoice", ingestionOptions)).isEqualTo(1500);
         assertThat(countNodeOfLabel(SPARK, "Sku", ingestionOptions)).isEqualTo(100);
-        assertThat(countNodeOfLabel(SPARK, "Fruit Type", ingestionOptions)).isEqualTo(22);
+        assertThat(countNodeOfLabel(SPARK, "`Fruit Type`", ingestionOptions)).isEqualTo(22);
 
         assertThat(countRelationshipOfType(SPARK, "ORDERED", ingestionOptions)).isEqualTo(1500);
         assertThat(countRelationshipOfType(SPARK, "ORDERED_BY", ingestionOptions))
