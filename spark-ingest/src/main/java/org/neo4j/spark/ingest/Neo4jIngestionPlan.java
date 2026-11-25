@@ -94,7 +94,7 @@ public class Neo4jIngestionPlan {
 
         applyConfigurationOptions(
                         datasets.get(node.sourceName()).repartition(workers).write())
-                .mode("Append")
+                .mode(SpecToSparkUtils.writeMode(node.writeMode()))
                 .format(FORMAT)
                 .option("labels", SpecToSparkUtils.getLabels(node.labels()))
                 .option("node.keys", SpecToSparkUtils.getKeys(node.keyProperties()))
@@ -138,15 +138,15 @@ public class Neo4jIngestionPlan {
         var targetKeys = SpecToSparkUtils.getKeys(relationship.endNode().keyProperties());
 
         applyConfigurationOptions(waveWriter)
-                .mode("Append")
+                .mode(SpecToSparkUtils.writeMode(relationship.writeMode()))
                 .format(FORMAT)
                 .option("relationship", relationship.type())
                 .option("relationship.source.labels", sourceLabels)
                 .option("relationship.source.node.keys", sourceKeys)
-                .option("relationship.source.save.mode", "Match")
+                .option("relationship.source.save.mode", SpecToSparkUtils.nodeMatchMode(relationship.nodeMatchMode()))
                 .option("relationship.target.labels", targetLabels)
                 .option("relationship.target.node.keys", targetKeys)
-                .option("relationship.target.save.mode", "Match")
+                .option("relationship.target.save.mode", SpecToSparkUtils.nodeMatchMode(relationship.nodeMatchMode()))
                 .save();
     }
 

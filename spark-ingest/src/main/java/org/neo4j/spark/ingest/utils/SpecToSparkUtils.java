@@ -20,7 +20,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.neo4j.importer.v1.pipeline.NodeTargetStep;
 import org.neo4j.importer.v1.pipeline.RelationshipTargetStep;
+import org.neo4j.importer.v1.targets.NodeMatchMode;
 import org.neo4j.importer.v1.targets.PropertyMapping;
+import org.neo4j.importer.v1.targets.WriteMode;
 
 public final class SpecToSparkUtils {
 
@@ -45,5 +47,19 @@ public final class SpecToSparkUtils {
         if (relationship == null) return "";
         return getNodePattern(relationship.startNode()) + "-[:" + relationship.type() + "]->"
                 + getNodePattern(relationship.endNode());
+    }
+
+    public static String writeMode(WriteMode writeMode) {
+        return switch (writeMode) {
+            case CREATE -> "Append";
+            case MERGE -> "Overwrite";
+        };
+    }
+
+    public static String nodeMatchMode(NodeMatchMode nodeMatchMode) {
+        return switch (nodeMatchMode) {
+            case MATCH -> "Match";
+            case MERGE -> "Overwrite";
+        };
     }
 }

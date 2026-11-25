@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.neo4j.importer.v1.pipeline.NodeTargetStep;
 import org.neo4j.importer.v1.pipeline.RelationshipTargetStep;
 import org.neo4j.importer.v1.targets.*;
@@ -68,6 +70,18 @@ public class SpecToSparkUtilsTest {
                         test.name(),
                         () -> assertThat(SpecToSparkUtils.getKeys(test.keyMappings()))
                                 .isEqualTo(test.expected())));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"CREATE,Append", "MERGE,Overwrite"})
+    void should_map_mode(String mode, String expected) {
+        assertThat(SpecToSparkUtils.writeMode(WriteMode.valueOf(mode))).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"MATCH,Match", "MERGE,Overwrite"})
+    void should_map_node_mode(String mode, String expected) {
+        assertThat(SpecToSparkUtils.nodeMatchMode(NodeMatchMode.valueOf(mode))).isEqualTo(expected);
     }
 
     @TestFactory
