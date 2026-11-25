@@ -18,6 +18,7 @@ package org.neo4j.spark.ingest;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.DataFrameWriter;
 import org.apache.spark.sql.Dataset;
@@ -37,6 +38,7 @@ public class Neo4jIngestionPlan {
     private final ImportSpecification spec;
     private final HashMap<String, Dataset<Row>> datasets = new HashMap<>();
     private final Map<String, String> configuration;
+    private final int workers;
 
     public static final String FORMAT = "org.neo4j.spark.DataSource";
 
@@ -44,6 +46,11 @@ public class Neo4jIngestionPlan {
         this.spark = spark;
         this.spec = spec;
         this.configuration = configuration;
+
+        Objects.requireNonNull(
+                configuration.get("url"), "Must specify 'url' targeting a Neo4j instance in your config");
+        Objects.requireNonNull(configuration.get("workers"), "Must specify 'workers' (int) in your config");
+        this.workers = Integer.parseInt(configuration.get("workers"));
     }
 
     public void ingest() {
@@ -62,9 +69,9 @@ public class Neo4jIngestionPlan {
                     if (step instanceof SourceStep sourceStep) {
                         indexSource(sourceStep);
                     } else if (step instanceof NodeTargetStep node) {
-                        ingestNode(node, Integer.parseInt(configuration.get("workers")));
+                        ingestNode(node);
                     } else if (step instanceof RelationshipTargetStep relationship) {
-                        ingestRelationship(relationship, Integer.parseInt(configuration.get("workers")), isDisjoint);
+                        ingestRelationship(relationship, isDisjoint);
                     } else {
                         throw new IllegalArgumentException("Unsupported step: " + step);
                     }
@@ -81,28 +88,22 @@ public class Neo4jIngestionPlan {
         datasets.put(sparkSource.getName(), sparkSource.getData());
     }
 
-    private void ingestNode(NodeTargetStep node, int workers) {
+    private void ingestNode(NodeTargetStep node) {
         SparkSession.setActiveSession(spark);
-        spark.sparkContext().setCallSite("Neo4j ingestion " + SpecToSparkUtils.getNodePattern(node));
+        spark.sparkContext().setCallSite("Neo4j Ingestion " + SpecToSparkUtils.getNodePattern(node));
 
-        datasets.get(node.sourceName())
-                .repartition(workers)
-                .write()
+        applyConfigurationOptions(
+                        datasets.get(node.sourceName()).repartition(workers).write())
                 .mode("Append")
-                .format("neo4j")
-                .option("url", configuration.get("url"))
-                .option("authentication.basic.username", configuration.get("username"))
-                .option("authentication.basic.password", configuration.get("password"))
-                .option("database", "neo4j")
-                .option("batch.size", configuration.get("batch.size"))
+                .format(FORMAT)
                 .option("labels", SpecToSparkUtils.getLabels(node.labels()))
                 .option("node.keys", SpecToSparkUtils.getKeys(node.keyProperties()))
                 .save();
     }
 
-    private void ingestRelationship(RelationshipTargetStep relationship, int workers, boolean isDisjoint) {
+    private void ingestRelationship(RelationshipTargetStep relationship, boolean isDisjoint) {
         SparkSession.setActiveSession(spark);
-        spark.sparkContext().setCallSite("Neo4j ingestion " + SpecToSparkUtils.getRelationshipPattern(relationship));
+        spark.sparkContext().setCallSite("Neo4j Ingestion " + SpecToSparkUtils.getRelationshipPattern(relationship));
 
         // note: these are arrays because we assume composite keys
         var startColumns = relationship.startNode().keyProperties().stream()
@@ -136,14 +137,9 @@ public class Neo4jIngestionPlan {
         var targetLabels = SpecToSparkUtils.getLabels(relationship.endNode().labels());
         var targetKeys = SpecToSparkUtils.getKeys(relationship.endNode().keyProperties());
 
-        waveWriter
+        applyConfigurationOptions(waveWriter)
                 .mode("Append")
                 .format(FORMAT)
-                .option("url", configuration.get("url"))
-                .option("authentication.basic.username", configuration.get("username"))
-                .option("authentication.basic.password", configuration.get("password"))
-                .option("database", "neo4j")
-                .option("batch.size", configuration.get("batch.size"))
                 .option("relationship", relationship.type())
                 .option("relationship.source.labels", sourceLabels)
                 .option("relationship.source.node.keys", sourceKeys)
@@ -152,5 +148,12 @@ public class Neo4jIngestionPlan {
                 .option("relationship.target.node.keys", targetKeys)
                 .option("relationship.target.save.mode", "Match")
                 .save();
+    }
+
+    private DataFrameWriter<Row> applyConfigurationOptions(DataFrameWriter<Row> on) {
+        for (var opt : this.configuration.keySet()) {
+            on = on.option(opt, this.configuration.get(opt));
+        }
+        return on;
     }
 }
