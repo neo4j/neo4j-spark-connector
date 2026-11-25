@@ -61,6 +61,7 @@ abstract class BaseDataWriter(
     "Connection to the database terminated. Thread interrupted while committing the transaction"
 
   private val driverCache: DriverCache = new DriverCache(options.connection)
+  private var driverReferenceAcquired = false
 
   private var transaction: Transaction = _
   private var session: Session = _
@@ -117,7 +118,9 @@ abstract class BaseDataWriter(
     var phase: CommitPhase = BeforeCommit
     try {
       if (session == null || !session.isOpen) {
-        session = driverCache.getOrCreate().session(options.session.toNeo4jSession())
+        val driver = driverCache.getOrCreate()
+        driverReferenceAcquired = true
+        session = driver.session(options.session.toNeo4jSession())
       }
       if (transaction == null || !transaction.isOpen) {
         transaction = session.beginTransaction(options.toNeo4jTransactionConfig)
@@ -288,6 +291,10 @@ abstract class BaseDataWriter(
   def close(): Unit = {
     closeSafely(transaction, log)
     closeSafely(session, log)
+    if (driverReferenceAcquired) {
+      driverReferenceAcquired = false
+      driverCache.close()
+    }
   }
 
   override def currentMetricsValues(): Array[CustomTaskMetric] = metrics.metricValues()
