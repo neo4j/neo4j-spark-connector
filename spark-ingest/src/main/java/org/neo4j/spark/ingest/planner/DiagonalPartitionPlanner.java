@@ -38,13 +38,6 @@ public class DiagonalPartitionPlanner extends PartitionPlanner {
                         .toList())
                 .toList();
 
-        for (var wave : p) {
-            for (var partition : wave) {
-                System.out.print(partition);
-            }
-            System.out.println();
-        }
-
         return p;
     }
 }
