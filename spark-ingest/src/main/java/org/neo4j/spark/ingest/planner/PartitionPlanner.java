@@ -21,7 +21,11 @@ import static org.apache.spark.sql.functions.lit;
 import static org.apache.spark.sql.functions.pmod;
 import static org.apache.spark.sql.functions.xxhash64;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Stream;
 import org.apache.spark.sql.*;
 
 /**
@@ -38,18 +42,53 @@ public abstract class PartitionPlanner {
     public static final String TARGET_PARTITION = "_target_partition_column";
     public static final String RELATIONSHIP_PARTITION = "_relationship_partition_column";
 
+    private final String sourcePartition;
+    private final String targetPartition;
+    private final String relPartition;
+
     public PartitionPlanner(
-            SparkSession spark, Dataset<Row> source, Column[] startColumns, Column[] endColumns, int workers) {
+            SparkSession spark, Dataset<Row> source, Column[] startColumns, Column[] endColumns, int partitionCount) {
         SparkSession.setActiveSession(spark);
-        this.partitionCount = workers;
+        this.partitionCount = partitionCount;
         this.spark = spark;
-        this.hashedDataset = source.withColumn(SOURCE_PARTITION, pmod(xxhash64(startColumns), lit(workers)))
-                .withColumn(TARGET_PARTITION, pmod(xxhash64(endColumns), lit(workers)))
+
+        Set<String> usedColumns = new HashSet<>(Arrays.asList(source.columns()));
+        this.sourcePartition = uniqueColumnName(SOURCE_PARTITION, usedColumns);
+        this.targetPartition = uniqueColumnName(TARGET_PARTITION, usedColumns);
+        this.relPartition = uniqueColumnName(RELATIONSHIP_PARTITION, usedColumns);
+
+        this.hashedDataset =
+                applyPartitioningHashes(source, startColumns, endColumns).persist();
+    }
+
+    private static String uniqueColumnName(String base, Set<String> usedColumns) {
+        if (usedColumns.add(base)) {
+            return base;
+        }
+
+        for (int suffix = 1; suffix <= 999; suffix++) {
+            String candidate = base + "_" + suffix;
+            if (usedColumns.add(candidate)) {
+                return candidate;
+            }
+        }
+
+        throw new IllegalArgumentException(
+                "Unable to allocate a unique internal column name for " + base + " after 999 attempts");
+    }
+
+    private Dataset<Row> applyPartitioningHashes(Dataset<Row> source, Column[] startColumns, Column[] endColumns) {
+        return source.withColumn(sourcePartition, pmod(xxhash64(startColumns), lit(partitionCount)))
+                .withColumn(targetPartition, pmod(xxhash64(endColumns), lit(partitionCount)))
                 .withColumn(
-                        RELATIONSHIP_PARTITION,
-                        col(SOURCE_PARTITION).multiply(workers).plus(col(TARGET_PARTITION)))
-                .repartition(workers * workers, col(RELATIONSHIP_PARTITION))
-                .persist();
+                        relPartition,
+                        col(sourcePartition).multiply(partitionCount).plus(col(targetPartition)))
+                .select(Stream.concat(
+                                Stream.of(sourcePartition, targetPartition, relPartition),
+                                Arrays.stream(source.columns()))
+                        .map(functions::col)
+                        .toArray(Column[]::new))
+                .repartition(partitionCount * partitionCount, col(relPartition));
     }
 
     public void unpersist() {
@@ -61,10 +100,10 @@ public abstract class PartitionPlanner {
                 wave.stream().map(partition -> partition.id(partitionCount)).toArray();
 
         return hashedDataset
-                .filter(col(RELATIONSHIP_PARTITION).isin(partitionIdsOfWave))
-                .drop(SOURCE_PARTITION)
-                .drop(TARGET_PARTITION)
-                .drop(RELATIONSHIP_PARTITION)
+                .filter(col(relPartition).isin(partitionIdsOfWave))
+                .drop(sourcePartition)
+                .drop(targetPartition)
+                .drop(relPartition)
                 .write();
     }
 
