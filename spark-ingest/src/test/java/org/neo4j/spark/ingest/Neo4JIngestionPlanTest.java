@@ -139,17 +139,17 @@ class Neo4JIngestionPlanTest {
 
     private long countSumOfAmount(Map<String, String> opts) {
         return Neo4JIngestionPlanTest.SPARK
-            .read()
-            .format("neo4j")
-            .option("url", opts.get("url"))
-            .option("authentication.type", opts.get("authentication.type"))
-            .option("authentication.basic.username", opts.get("authentication.basic.username"))
-            .option("authentication.basic.password", opts.get("authentication.basic.password"))
-            .option("query", "MATCH ()-[r:CONTAINS]->() RETURN sum(toInteger(r.amount)) AS totalGoods")
-            .option("cypher.tuning.runtime", "parallel")
-            .load()
-            .first()
-            .getLong(0);
+                .read()
+                .format("neo4j")
+                .option("url", opts.get("url"))
+                .option("authentication.type", opts.get("authentication.type"))
+                .option("authentication.basic.username", opts.get("authentication.basic.username"))
+                .option("authentication.basic.password", opts.get("authentication.basic.password"))
+                .option("query", "MATCH ()-[r:CONTAINS]->() RETURN sum(toInteger(r.amount)) AS totalGoods")
+                .option("cypher.tuning.runtime", "parallel")
+                .load()
+                .first()
+                .getLong(0);
     }
 
     private Dataset<Row> sparkCsvRead(String fileName) {

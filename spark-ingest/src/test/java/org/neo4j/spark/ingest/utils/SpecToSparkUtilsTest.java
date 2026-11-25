@@ -53,24 +53,24 @@ public class SpecToSparkUtilsTest {
         record TestCase(String name, List<PropertyMapping> keyMappings, String expected) {}
 
         var cases = List.of(
-            new TestCase("no keys", List.of(), ""),
-            new TestCase(
-                "single key mapping",
-                List.of(new PropertyMapping("person_id", "personId", PropertyType.STRING)),
-                "person_id:personId"),
-            new TestCase(
-                "composite key mapping",
-                List.of(
-                    new PropertyMapping("person_id", "personId", PropertyType.STRING),
-                    new PropertyMapping(
-                        "social_security_number", "socialSecurityNumber", PropertyType.STRING)),
-                "person_id:personId,social_security_number:socialSecurityNumber"));
+                new TestCase("no keys", List.of(), ""),
+                new TestCase(
+                        "single key mapping",
+                        List.of(new PropertyMapping("person_id", "personId", PropertyType.STRING)),
+                        "person_id:personId"),
+                new TestCase(
+                        "composite key mapping",
+                        List.of(
+                                new PropertyMapping("person_id", "personId", PropertyType.STRING),
+                                new PropertyMapping(
+                                        "social_security_number", "socialSecurityNumber", PropertyType.STRING)),
+                        "person_id:personId,social_security_number:socialSecurityNumber"));
 
         return cases.stream()
-            .map(test -> dynamicTest(
-                test.name(),
-                () -> assertThat(SpecToSparkUtils.getKeys(test.keyMappings()))
-                    .isEqualTo(test.expected())));
+                .map(test -> dynamicTest(
+                        test.name(),
+                        () -> assertThat(SpecToSparkUtils.getKeys(test.keyMappings()))
+                                .isEqualTo(test.expected())));
     }
 
     @TestFactory
@@ -78,28 +78,27 @@ public class SpecToSparkUtilsTest {
         record TestCase(String name, List<PropertyMapping> propertyMappings, String expected) {}
 
         var cases = List.of(
-            new TestCase("no props", List.of(), ""),
-            new TestCase(
-                "single property mapping",
-                List.of(new PropertyMapping("first_name", "firstName", PropertyType.STRING)),
-                "first_name:firstName"),
-            new TestCase(
-                "single property mapping without rename",
-                List.of(new PropertyMapping("first_name", "first_name", PropertyType.STRING)),
-                "first_name:first_name"),
-            new TestCase(
-                "multiple property mapping",
-                List.of(
-                    new PropertyMapping("first_name", "firstName", PropertyType.STRING),
-                    new PropertyMapping(
-                        "last_name", "lastName", PropertyType.STRING)),
-                "first_name:firstName,last_name:lastName"));
+                new TestCase("no props", List.of(), ""),
+                new TestCase(
+                        "single property mapping",
+                        List.of(new PropertyMapping("first_name", "firstName", PropertyType.STRING)),
+                        "first_name:firstName"),
+                new TestCase(
+                        "single property mapping without rename",
+                        List.of(new PropertyMapping("first_name", "first_name", PropertyType.STRING)),
+                        "first_name:first_name"),
+                new TestCase(
+                        "multiple property mapping",
+                        List.of(
+                                new PropertyMapping("first_name", "firstName", PropertyType.STRING),
+                                new PropertyMapping("last_name", "lastName", PropertyType.STRING)),
+                        "first_name:firstName,last_name:lastName"));
 
         return cases.stream()
-            .map(test -> dynamicTest(
-                test.name(),
-                () -> assertThat(SpecToSparkUtils.getProperties(test.propertyMappings()))
-                    .isEqualTo(test.expected())));
+                .map(test -> dynamicTest(
+                        test.name(),
+                        () -> assertThat(SpecToSparkUtils.getProperties(test.propertyMappings()))
+                                .isEqualTo(test.expected())));
     }
 
     @ParameterizedTest
