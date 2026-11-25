@@ -126,8 +126,12 @@ public class Neo4jIngestionPlan {
                     spark, datasets.get(relationship.sourceName()), startColumns, endColumns, workers);
         }
 
-        for (var wave : planner.plan()) {
-            ingestRelationshipWave(planner.getWave(wave), relationship);
+        try {
+            for (var wave : planner.plan()) {
+                ingestRelationshipWave(planner.getWave(wave), relationship);
+            }
+        } finally {
+            planner.unpersist();
         }
     }
 

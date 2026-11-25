@@ -52,6 +52,10 @@ public abstract class PartitionPlanner {
                 .persist();
     }
 
+    public void unpersist() {
+        hashedDataset.unpersist();
+    }
+
     public DataFrameWriter<Row> getWave(List<Partition> wave) {
         var partitionIdsOfWave =
                 wave.stream().map(partition -> partition.id(partitionCount)).toArray();
