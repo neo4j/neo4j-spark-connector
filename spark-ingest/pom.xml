@@ -12,6 +12,7 @@
     <name>neo4j-connector-for-spark-ingest-${spark.version}</name>
     <description>Ingestion API as a companion to the Neo4j Connector for Apache Spark ${spark.version}</description>
     <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
         <testcontainers.version>2.0.5</testcontainers.version>
     </properties>
     <dependencyManagement>
