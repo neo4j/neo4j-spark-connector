@@ -40,7 +40,6 @@
         <commons-lang3.version>3.22.0</commons-lang3.version>
         <connectors-commons.version>1.0.0</connectors-commons.version>
         <cypherdsl.version>2025.3.6</cypherdsl.version>
-        <driver.version>6.3.0</driver.version>
         <jboss-logging.version>3.6.3.Final</jboss-logging.version>
         <log4j.version>2.26.1</log4j.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
@@ -168,11 +167,6 @@
             <groupId>org.neo4j.connectors</groupId>
             <artifactId>commons-driver-auth-spi</artifactId>
             <version>${connectors-commons.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.neo4j.driver</groupId>
-            <artifactId>neo4j-java-driver</artifactId>
-            <version>${driver.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>

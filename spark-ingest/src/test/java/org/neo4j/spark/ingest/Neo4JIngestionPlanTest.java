@@ -29,7 +29,11 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.neo4j.driver.AuthTokens;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.GraphDatabase;
 import org.neo4j.importer.v1.ImportSpecificationDeserializer;
 import org.neo4j.importer.v1.sources.Source;
 import org.neo4j.importer.v1.validation.SpecificationException;
@@ -55,8 +59,16 @@ class Neo4JIngestionPlanTest {
             .config("spark.ui.enabled", "false")
             .getOrCreate();
 
+    private static Driver driver;
+
+    @BeforeAll
+    static void setUp() {
+        driver = GraphDatabase.driver(NEO4J.getBoltUrl(), AuthTokens.basic("neo4j", NEO4J.getAdminPassword()));
+    }
+
     @AfterAll
     public static void tearDown() throws IOException {
+        driver.close();
         NEO4J.close();
         SPARK.close();
     }
@@ -96,60 +108,45 @@ class Neo4JIngestionPlanTest {
             plan.ingest(false);
         }
 
-        assertThat(countNodeOfLabel("Customer", connectorOptions)).isEqualTo(500);
-        assertThat(countNodeOfLabel("Invoice", connectorOptions)).isEqualTo(1500);
-        assertThat(countNodeOfLabel("Sku", connectorOptions)).isEqualTo(100);
-        assertThat(countNodeOfLabel("`Fruit Type`", connectorOptions)).isEqualTo(22);
+        assertThat(countNodeOfLabel("Customer")).isEqualTo(500);
+        assertThat(countNodeOfLabel("Invoice")).isEqualTo(1500);
+        assertThat(countNodeOfLabel("Sku")).isEqualTo(100);
+        assertThat(countNodeOfLabel("Fruit Type")).isEqualTo(22);
 
-        assertThat(countRelType("ORDERED", connectorOptions)).isEqualTo(1500);
-        assertThat(countRelType("ORDERED_BY", connectorOptions)).isEqualTo(1500);
-        assertThat(countRelType("CONTAINS", connectorOptions)).isEqualTo(15094);
-        assertThat(countRelType("OF_TYPE", connectorOptions)).isEqualTo(100);
+        assertThat(countRelType("ORDERED")).isEqualTo(1500);
+        assertThat(countRelType("ORDERED_BY")).isEqualTo(1500);
+        assertThat(countRelType("CONTAINS")).isEqualTo(15094);
+        assertThat(countRelType("OF_TYPE")).isEqualTo(100);
 
-        assertThat(countSumOfAmount(connectorOptions)).isEqualTo(30099);
+        assertThat(countSumOfAmount()).isEqualTo(30099);
     }
 
-    private long countNodeOfLabel(String label, Map<String, String> opts) {
-        return Neo4JIngestionPlanTest.SPARK
-                .read()
-                .format("neo4j")
-                .option("url", opts.get("url"))
-                .option("authentication.type", opts.get("authentication.type"))
-                .option("authentication.basic.username", opts.get("authentication.basic.username"))
-                .option("authentication.basic.password", opts.get("authentication.basic.password"))
-                .option("query", "MATCH (n:" + label + ") RETURN count(n) AS count")
-                .load()
-                .first()
-                .getLong(0);
+    private long countNodeOfLabel(String label) {
+        try (var session = driver.session()) {
+            return session.executeRead(tx -> tx.run("MATCH (n:`" + label + "`) RETURN count(n) AS count")
+                    .single()
+                    .get("count")
+                    .asLong());
+        }
     }
 
-    private long countRelType(String type, Map<String, String> opts) {
-        return Neo4JIngestionPlanTest.SPARK
-                .read()
-                .format("neo4j")
-                .option("url", opts.get("url"))
-                .option("authentication.type", opts.get("authentication.type"))
-                .option("authentication.basic.username", opts.get("authentication.basic.username"))
-                .option("authentication.basic.password", opts.get("authentication.basic.password"))
-                .option("query", "MATCH ()-[r:" + type + "]->() RETURN count(r) AS count")
-                .load()
-                .first()
-                .getLong(0);
+    private long countRelType(String type) {
+        try (var session = driver.session()) {
+            return session.executeRead(tx -> tx.run("MATCH ()-[r:`" + type + "`]->() RETURN count(r) AS count")
+                    .single()
+                    .get("count")
+                    .asLong());
+        }
     }
 
-    private long countSumOfAmount(Map<String, String> opts) {
-        return Neo4JIngestionPlanTest.SPARK
-                .read()
-                .format("neo4j")
-                .option("url", opts.get("url"))
-                .option("authentication.type", opts.get("authentication.type"))
-                .option("authentication.basic.username", opts.get("authentication.basic.username"))
-                .option("authentication.basic.password", opts.get("authentication.basic.password"))
-                .option("query", "MATCH ()-[r:CONTAINS]->() RETURN sum(toInteger(r.amount)) AS totalGoods")
-                .option("cypher.tuning.runtime", "parallel")
-                .load()
-                .first()
-                .getLong(0);
+    private long countSumOfAmount() {
+        try (var session = driver.session()) {
+            return session.executeRead(
+                    tx -> tx.run("MATCH ()-[r:CONTAINS]->() RETURN sum(toInteger(r.amount)) AS totalGoods")
+                            .single()
+                            .get("totalGoods")
+                            .asLong());
+        }
     }
 
     private Dataset<Row> sparkCsvRead(String fileName) {

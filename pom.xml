@@ -13,6 +13,7 @@
     </modules>
     <properties>
         <build-resources.version>2026.07.1</build-resources.version>
+        <driver.version>6.3.0</driver.version>
         <jackson.version>2.23.0</jackson.version>
         <java.version>17</java.version>
         <junit.version>6.1.3</junit.version>
@@ -77,6 +78,13 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.neo4j.driver</groupId>
+            <artifactId>neo4j-java-driver</artifactId>
+            <version>${driver.version}</version>
+        </dependency>
+    </dependencies>
     <build>
         <pluginManagement>
             <plugins>
