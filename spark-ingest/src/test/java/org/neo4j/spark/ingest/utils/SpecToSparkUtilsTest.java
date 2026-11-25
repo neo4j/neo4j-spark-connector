@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -78,10 +79,20 @@ public class SpecToSparkUtilsTest {
         assertThat(SpecToSparkUtils.writeMode(WriteMode.valueOf(mode))).isEqualTo(expected);
     }
 
+    @Test
+    void should_map_mode_when_null() {
+        assertThat(SpecToSparkUtils.writeMode(null)).isEqualTo("Overwrite");
+    }
+
     @ParameterizedTest
     @CsvSource({"MATCH,Match", "MERGE,Overwrite"})
     void should_map_node_mode(String mode, String expected) {
         assertThat(SpecToSparkUtils.nodeMatchMode(NodeMatchMode.valueOf(mode))).isEqualTo(expected);
+    }
+
+    @Test
+    void should_map_node_mode_when_null() {
+        assertThat(SpecToSparkUtils.nodeMatchMode(null)).isEqualTo("Match");
     }
 
     @TestFactory

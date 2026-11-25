@@ -50,6 +50,7 @@ public final class SpecToSparkUtils {
     }
 
     public static String writeMode(WriteMode writeMode) {
+        if (writeMode == null) return "Overwrite";
         return switch (writeMode) {
             case CREATE -> "Append";
             case MERGE -> "Overwrite";
@@ -57,6 +58,7 @@ public final class SpecToSparkUtils {
     }
 
     public static String nodeMatchMode(NodeMatchMode nodeMatchMode) {
+        if (nodeMatchMode == null) return "Match";
         return switch (nodeMatchMode) {
             case MATCH -> "Match";
             case MERGE -> "Overwrite";
