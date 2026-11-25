@@ -34,8 +34,14 @@ public final class SpecToSparkUtils {
 
     public static String getKeys(List<PropertyMapping> keys) {
         return keys.stream()
-                .map(key -> key.getSourceField() + ":" + key.getTargetProperty())
-                .collect(Collectors.joining(","));
+            .map(key -> key.getSourceField() + ":" + key.getTargetProperty())
+            .collect(Collectors.joining(","));
+    }
+
+    public static String getProperties(List<PropertyMapping> properties) {
+        return properties.stream()
+            .map(key -> key.getSourceField() + ":" + key.getTargetProperty())
+            .collect(Collectors.joining(","));
     }
 
     public static String getNodePattern(NodeTargetStep node) {

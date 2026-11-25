@@ -137,7 +137,7 @@ public class Neo4jIngestionPlan {
         var targetLabels = SpecToSparkUtils.getLabels(relationship.endNode().labels());
         var targetKeys = SpecToSparkUtils.getKeys(relationship.endNode().keyProperties());
 
-        applyConfigurationOptions(waveWriter)
+        var dfw = applyConfigurationOptions(waveWriter)
                 .mode(SpecToSparkUtils.writeMode(relationship.writeMode()))
                 .format(FORMAT)
                 .option("relationship", relationship.type())
@@ -146,8 +146,20 @@ public class Neo4jIngestionPlan {
                 .option("relationship.source.save.mode", SpecToSparkUtils.nodeMatchMode(relationship.nodeMatchMode()))
                 .option("relationship.target.labels", targetLabels)
                 .option("relationship.target.node.keys", targetKeys)
-                .option("relationship.target.save.mode", SpecToSparkUtils.nodeMatchMode(relationship.nodeMatchMode()))
-                .save();
+                .option("relationship.target.save.mode", SpecToSparkUtils.nodeMatchMode(relationship.nodeMatchMode()));
+
+        var relationshipKeys = SpecToSparkUtils.getKeys(relationship.keyProperties());
+        var relationshipProperties = SpecToSparkUtils.getProperties(relationship.nonKeyProperties());
+
+        if (!relationshipKeys.isBlank()) {
+            dfw = dfw.option("relationship.keys", relationshipKeys);
+        }
+
+        if (!relationshipProperties.isBlank()) {
+            dfw = dfw.option("relationship.properties", relationshipProperties);
+        }
+
+        dfw.save();
     }
 
     private DataFrameWriter<Row> applyConfigurationOptions(DataFrameWriter<Row> on) {
