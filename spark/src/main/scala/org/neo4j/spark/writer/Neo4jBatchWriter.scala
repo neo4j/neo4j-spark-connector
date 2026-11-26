@@ -27,6 +27,8 @@ import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util.DriverCache
 import org.neo4j.spark.util.Neo4jOptions
 
+import scala.util.Using
+
 class Neo4jBatchWriter(
   neo4j: Neo4j,
   jobId: String,
@@ -42,8 +44,14 @@ class Neo4jBatchWriter(
     schemaService.close()
 
     if (neo4jOptions.indexAwait > 0) {
-      val session = driverCache.getOrCreate().session(neo4jOptions.session.toNeo4jSession())
-      session.executeRead(tx => tx.run(s"CALL db.awaitIndexes(${neo4jOptions.indexAwait})").consume())
+      val driver = driverCache.getOrCreate()
+      try {
+        Using.resource(driver.session(neo4jOptions.session.toNeo4jSession())) { session =>
+          session.executeRead(tx => tx.run(s"CALL db.awaitIndexes(${neo4jOptions.indexAwait})").consume())
+        }
+      } finally {
+        driverCache.close()
+      }
     }
 
     new Neo4jDataWriterFactory(

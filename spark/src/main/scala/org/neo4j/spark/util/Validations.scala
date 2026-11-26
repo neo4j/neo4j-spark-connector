@@ -178,19 +178,11 @@ case class ValidateConnection(neo4jOptions: Neo4jOptions, jobId: String) extends
 
   override def validate(): Unit = {
     var driverCache: DriverCache = null
-    var hasError = false
     try {
       driverCache = new DriverCache(neo4jOptions.connection)
       driverCache.getOrCreate().verifyConnectivity()
-    } catch {
-      case e: Throwable => {
-        hasError = true
-        throw e
-      }
     } finally {
-      if (hasError) {
-        Neo4jUtil.closeSafely(driverCache)
-      }
+      Neo4jUtil.closeSafely(driverCache)
     }
   }
 }

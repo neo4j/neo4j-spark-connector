@@ -28,6 +28,7 @@ import org.mockito.MockedConstruction
 import org.mockito.Mockito.doThrow
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.mockConstruction
+import org.mockito.Mockito.never
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.when
@@ -154,8 +155,30 @@ class BaseDataWriterTest {
     fixture.verifyDataQueriesRun(4)
   }
 
+  @Test
+  def releasesDriverReferenceExactlyOnceOnCommit(): Unit = {
+    val fixture = new Fixture()
+    val writer = fixture.writer(Map.empty)
+
+    writer.commit()
+    writer.close()
+
+    verify(fixture.driverCache).close()
+  }
+
+  @Test
+  def doesNotReleaseAnUnacquiredDriverReferenceOnAbort(): Unit = {
+    val fixture = new Fixture()
+    val writer = fixture.writer(Map.empty)
+
+    writer.abort()
+
+    verify(fixture.driverCache, never()).close()
+  }
+
   private class Fixture {
     val driver: Driver = mock(classOf[Driver])
+    var driverCache: DriverCache = _
     val session: Session = mock(classOf[Session])
     val transaction: Transaction = mock(classOf[Transaction])
 
@@ -185,6 +208,7 @@ class BaseDataWriterTest {
       val construction: MockedConstruction[DriverCache] = mockConstruction(
         classOf[DriverCache],
         (cache: DriverCache, _: MockedConstruction.Context) => {
+          driverCache = cache
           when(cache.getOrCreate()).thenReturn(driver)
           ()
         }
