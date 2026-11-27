@@ -78,13 +78,6 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-    <dependencies>
-        <dependency>
-            <groupId>org.neo4j.driver</groupId>
-            <artifactId>neo4j-java-driver</artifactId>
-            <version>${driver.version}</version>
-        </dependency>
-    </dependencies>
     <build>
         <pluginManagement>
             <plugins>

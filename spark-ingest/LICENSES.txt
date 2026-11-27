@@ -18,23 +18,9 @@ Apache Software License, Version 2.0
   json-path
   JsonSchemaValidator
   Kotlin Stdlib
-  Neo4j Bolt Connection (Bolt Provider reference impl)
-  Neo4j Bolt Connection (Pooled Source impl)
-  Neo4j Bolt Connection (Provider SPI)
-  Neo4j Bolt Connection (Routed Source impl)
-  Neo4j Bolt Connection Codec
-  Netty/Buffer
-  Netty/Codec/Base
-  Netty/Common
-  Netty/Handler
-  Netty/Resolver
-  Netty/TomcatNative [OpenSSL - Classes]
-  Netty/Transport
-  Netty/Transport/Native/Unix/Common
   Nimbus Content Type
   Nimbus JOSE+JWT
   Nimbus LangTag
-  Non-Blocking Reactive Foundation for the JVM
   OAuth 2.0 SDK with OpenID Connect and Federation extensions
   org.apiguardian:apiguardian-api
   SnakeYAML
@@ -303,30 +289,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
-
-
-
-------------------------------------------------------------------------------
-MIT No Attribution License
-  reactive-streams
-------------------------------------------------------------------------------
-
-MIT No Attribution
-
-Copyright <year> <copyright holders>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this
-software and associated documentation files (the "Software"), to deal in the Software
-without restriction, including without limitation the rights to use, copy, modify,
-merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 

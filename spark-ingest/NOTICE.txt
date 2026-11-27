@@ -33,23 +33,9 @@ Apache Software License, Version 2.0
   json-path
   JsonSchemaValidator
   Kotlin Stdlib
-  Neo4j Bolt Connection (Bolt Provider reference impl)
-  Neo4j Bolt Connection (Pooled Source impl)
-  Neo4j Bolt Connection (Provider SPI)
-  Neo4j Bolt Connection (Routed Source impl)
-  Neo4j Bolt Connection Codec
-  Netty/Buffer
-  Netty/Codec/Base
-  Netty/Common
-  Netty/Handler
-  Netty/Resolver
-  Netty/TomcatNative [OpenSSL - Classes]
-  Netty/Transport
-  Netty/Transport/Native/Unix/Common
   Nimbus Content Type
   Nimbus JOSE+JWT
   Nimbus LangTag
-  Non-Blocking Reactive Foundation for the JVM
   OAuth 2.0 SDK with OpenID Connect and Federation extensions
   org.apiguardian:apiguardian-api
   SnakeYAML
@@ -60,7 +46,4 @@ BSD License
 MIT License
   SLF4J API Module
   SLF4J JDK Platform Logging Integration
-
-MIT No Attribution License
-  reactive-streams
 
