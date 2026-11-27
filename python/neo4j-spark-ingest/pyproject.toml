@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neo4j-spark-ingest"
+dynamic = ["version"]
+description = "PySpark bindings for the Neo4j Ingestion API, powered by the Neo4j Spark Connector"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE.txt", "NOTICE.txt", "LICENSES.txt"]
+authors = [{ name = "Neo4j" }]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Database",
+]
+
+[project.urls]
+Repository = "https://github.com/neo4j/neo4j-spark-connector"
+Issues = "https://github.com/neo4j/neo4j-spark-connector/issues"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { file = ["VERSION"] }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+neo4j_spark_ingest = ["lib/*.jar"]
